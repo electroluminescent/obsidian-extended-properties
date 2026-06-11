@@ -1,0 +1,17 @@
+{
+  "name": "dnd-character-sidebar",
+  "version": "1.0.0",
+  "description": "Obsidian plugin: D&D 5e character sidebar for Type: Person notes.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production"
+  },
+  "keywords": ["obsidian", "dnd", "ttrpg"],
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.21.5",
+    "obsidian": "latest",
+    "typescript": "^5.4.5"
+  }
+}

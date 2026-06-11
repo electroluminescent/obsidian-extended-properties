@@ -1,0 +1,317 @@
+{
+  "types": [
+    "Character",
+    "Region"
+  ],
+  "layouts": {
+    "character": {
+      "version": 2,
+      "sections": [
+        {
+          "id": "rolls",
+          "title": "Rolls",
+          "columns": 2,
+          "sticky": true,
+          "collapsible": true,
+          "entries": [
+            {
+              "id": "mq33qto1oudxf",
+              "kind": "toc"
+            },
+            {
+              "id": "mq33qto15ii8w",
+              "kind": "rolls"
+            }
+          ],
+          "collapsed": true
+        },
+        {
+          "id": "details",
+          "title": "Details",
+          "columns": 2,
+          "entries": [
+            {
+              "id": "mq2w6anxlgj85",
+              "kind": "prop",
+              "key": "Class"
+            },
+            {
+              "id": "mq2xk84az0ak0",
+              "kind": "prop",
+              "key": "Gender"
+            },
+            {
+              "id": "mq2w6anxml4yo",
+              "kind": "prop",
+              "key": "Subclass"
+            },
+            {
+              "id": "mq2w6anxkodhl",
+              "kind": "prop",
+              "key": "Race",
+              "alias": "Species"
+            },
+            {
+              "id": "mq2w6anxf3t76",
+              "kind": "prop",
+              "key": "Background"
+            },
+            {
+              "id": "mq32ck2uxqhc3",
+              "kind": "prop",
+              "key": "Personality",
+              "dataType": "list"
+            },
+            {
+              "id": "mq2wl2iepgcjm",
+              "kind": "prop",
+              "key": "Nature",
+              "dataType": "list"
+            },
+            {
+              "id": "mq2w6anxlktr6",
+              "kind": "prop",
+              "key": "Alignment"
+            },
+            {
+              "id": "mq2z0q9il264d",
+              "kind": "prop",
+              "key": "Favorite Color",
+              "dataType": "color"
+            },
+            {
+              "id": "mq31miyp0qvzp",
+              "kind": "prop",
+              "key": "Abilities",
+              "dataType": "text"
+            }
+          ],
+          "collapsed": false,
+          "transparent": true,
+          "sticky": true,
+          "collapsible": false,
+          "titleSize": 9,
+          "hideLabel": true,
+          "controlColor": "#402626"
+        },
+        {
+          "id": "mq325w9yo2qfr",
+          "title": "Cover",
+          "columns": 2,
+          "transparent": true,
+          "size": "unlimited",
+          "collapsible": true,
+          "entries": [
+            {
+              "id": "mq326dwjtw0mi",
+              "kind": "prop",
+              "key": "cover",
+              "dataType": "image",
+              "hideLabel": true
+            },
+            {
+              "id": "mq350wpm7113n",
+              "kind": "prop",
+              "key": "Heroforge",
+              "dataType": "iframe",
+              "iframeScale": 0.25,
+              "hideLabel": true
+            }
+          ],
+          "collapsed": true
+        },
+        {
+          "id": "vitals",
+          "title": "Vitals",
+          "columns": 2,
+          "entries": [
+            {
+              "id": "mq2w6anxp4e68",
+              "kind": "prop",
+              "key": "Level",
+              "min": 1,
+              "max": 20
+            },
+            {
+              "id": "mq2w6anxn23a4",
+              "kind": "prop",
+              "key": "Armor Class",
+              "min": 0,
+              "max": 40
+            },
+            {
+              "id": "mq2w6anx0oqyd",
+              "kind": "prop",
+              "key": "Speed",
+              "min": 0,
+              "max": 200,
+              "slider": false
+            },
+            {
+              "id": "mq2w6anxuq9ur",
+              "kind": "prop",
+              "key": "Current HP",
+              "min": 0,
+              "max": 9999
+            },
+            {
+              "id": "mq2w6anxwpbod",
+              "kind": "prop",
+              "key": "Max HP",
+              "min": 0,
+              "max": 9999
+            },
+            {
+              "id": "mq2w6anx6qaf6",
+              "kind": "computed",
+              "computed": "initiative"
+            },
+            {
+              "id": "mq2w6anxngs4r",
+              "kind": "computed",
+              "computed": "proficiency"
+            }
+          ],
+          "collapsed": false,
+          "titleFormat": "h1",
+          "transparent": true
+        },
+        {
+          "id": "abilities",
+          "title": "Ability Scores",
+          "columns": 1,
+          "entries": [
+            {
+              "id": "mq2w6anxinvty",
+              "kind": "prop",
+              "key": "Strength",
+              "slider": true,
+              "min": 1,
+              "max": 30,
+              "roll": "abilityMod",
+              "showMod": true
+            },
+            {
+              "id": "mq2w6anx7ob7t",
+              "kind": "prop",
+              "key": "Dexterity",
+              "slider": true,
+              "min": 1,
+              "max": 30,
+              "roll": "abilityMod",
+              "showMod": true
+            },
+            {
+              "id": "mq2w6anxoeok0",
+              "kind": "prop",
+              "key": "Constitution",
+              "slider": true,
+              "min": 1,
+              "max": 30,
+              "roll": "abilityMod",
+              "showMod": true
+            },
+            {
+              "id": "mq2w6anxw957d",
+              "kind": "prop",
+              "key": "Intelligence",
+              "slider": true,
+              "min": 1,
+              "max": 30,
+              "roll": "abilityMod",
+              "showMod": true
+            },
+            {
+              "id": "mq2w6anxnl8bx",
+              "kind": "prop",
+              "key": "Wisdom",
+              "slider": true,
+              "min": 1,
+              "max": 30,
+              "roll": "abilityMod",
+              "showMod": true
+            },
+            {
+              "id": "mq2w6anx5tuzf",
+              "kind": "prop",
+              "key": "Charisma",
+              "slider": true,
+              "min": 1,
+              "max": 30,
+              "roll": "abilityMod",
+              "showMod": true
+            }
+          ],
+          "collapsed": true
+        },
+        {
+          "id": "saves",
+          "title": "Saving Throws",
+          "columns": 1,
+          "entries": [
+            {
+              "id": "mq2w6anxxn58u",
+              "kind": "saves"
+            }
+          ],
+          "collapsed": false
+        },
+        {
+          "id": "skills",
+          "title": "Skills",
+          "columns": 1,
+          "entries": [
+            {
+              "id": "mq2w6anxqt6jj",
+              "kind": "skills"
+            }
+          ],
+          "collapsed": false,
+          "size": "unlimited"
+        }
+      ]
+    },
+    "region": {
+      "version": 4,
+      "sections": [
+        {
+          "id": "mq34rbwik2ww0",
+          "title": "New Section",
+          "columns": 1,
+          "transparent": false,
+          "sticky": false,
+          "size": "unlimited",
+          "collapsible": true,
+          "dividers": false,
+          "entries": [],
+          "collapsed": false
+        }
+      ]
+    }
+  },
+  "hideShown": true,
+  "defaults": {
+    "dataType": "text",
+    "colorSpace": "OKLCH",
+    "sectionColumns": 1,
+    "sectionTransparent": false,
+    "sectionSticky": false,
+    "sectionSize": "unlimited",
+    "sectionCollapsible": true,
+    "sectionDividers": false,
+    "fontFamily": "",
+    "baseSize": 0,
+    "labelSize": 0,
+    "valueSize": 0,
+    "titleSize": 0,
+    "listSize": 0,
+    "colorMode": "focused"
+  },
+  "manualHide": [
+    "banner-height",
+    "content-start",
+    "banner-x",
+    "banner"
+  ],
+  "propMenu": true
+}
