@@ -169,4 +169,16 @@ export interface EPSettings {
   stringOverrides: Record<string, string>;
   /** Feature modules toggled off by the user (all enabled by default). */
   features: Record<string, boolean>;
+  /**
+   * User-editable derivation building blocks (id + name + formula in `x`)
+   * available to influences. Seeded with d20-style defaults; see
+   * `core/influences.ts`.
+   */
+  derivations: { id: string; name: string; formula: string }[];
+  /**
+   * Short-form overrides for modifier denotations, keyed by source
+   * property. Missing keys fall back to the capitalized first three
+   * letters of the property name.
+   */
+  sourceAbbrs: Record<string, string>;
 }

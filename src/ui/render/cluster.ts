@@ -7,10 +7,15 @@
  * a slot still render an empty cell of the same width.
  */
 
-import type { ClusterFlags, ClusterOptions, ClusterRefs } from "../../core/context";
-import type { ClusterNeeds, ClusterSlot } from "../../core/registry";
+import type { ClusterFlags, ClusterOptions, ClusterRefs, EntryRef } from "../../core/context";
+import type { ClusterAddon, ClusterNeeds, ClusterSlot } from "../../core/registry";
 import { clamp, fmtNum } from "../../utils/misc";
 import { openNumberInput } from "../components/inline-edit";
+
+/** Cluster addons applicable to an entry, in registration order. */
+export function addonsFor(ref: EntryRef): ClusterAddon[] {
+  return ref.view.registries.clusterAddons.all().filter((a) => a.appliesTo(ref));
+}
 
 /** Merge cluster needs, de-duplicating slots by id and preserving order. */
 export function mergeNeeds(into: ClusterFlags, needs: ClusterNeeds | undefined): void {

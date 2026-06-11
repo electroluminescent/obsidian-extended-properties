@@ -13,6 +13,7 @@ import { coreEn } from "./i18n/locales/en";
 import { coreDe } from "./i18n/locales/de";
 import type { EPSettings, Layout } from "./core/model";
 import { normalizeSettings } from "./core/settings";
+import { registerDerivations } from "./core/influences";
 import { FeatureModule, Registries } from "./core/registry";
 import { PropertyIndex } from "./core/property-index";
 import { HideService } from "./core/hide-service";
@@ -142,6 +143,8 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     for (const mod of FEATURE_MODULES) {
       if (this.settings.features[mod.id] !== false) mod.register(ctx);
     }
+    // User-editable derivation building blocks (settings → registry).
+    registerDerivations(this.registries, this.settings);
   }
 
   /** Default layout for new note types (preset claimed by features, or empty). */

@@ -51,10 +51,11 @@ src/
 │   ├── drag.ts              Drag & drop → layout-ops. FLIP animations.
 │   └── settings-tab.ts      Settings incl. language + string overrides.
 └── features/
-    ├── rolling/             Dice model & UI, roll service & log panel, numeric
-    │                        roll addon, the "skills" value type.
-    └── dnd5e/               5e rules data, computed entries, skill presets,
-                             section templates, layout preset, migration.
+    ├── rolling/             Dice model & UI, roll service & log panel, the
+    │                        roll-button addon, the legacy "skills" type
+    │                        (with conversion to derived properties).
+    └── dnd5e/               5e data: skill presets, section templates built
+                             on derived entries, layout preset, migrations.
 ```
 
 Dependency rules (enforced by review, worth keeping):
@@ -71,15 +72,45 @@ Dependency rules (enforced by review, worth keeping):
 | Registry            | Contract             | Adds…                                            |
 | ------------------- | -------------------- | ------------------------------------------------ |
 | `valueTypes`        | `ValueTypeDef`       | How a property value renders/edits ("color", …)  |
-| `entryKinds`        | `EntryKindDef`       | Non-property widgets ("toc", "skills", …)        |
+| `entryKinds`        | `EntryKindDef`       | Non-property widgets ("toc", roll panel, …)      |
 | `clusterAddons`     | `ClusterAddon`       | Extra cells on numeric rows (mod badge, roll)    |
+| `derivations`       | `DerivationDef`      | Modifier math blocks (compiled from settings)    |
 | `sectionTemplates`  | `SectionTemplateDef` | One-click sections in the edit toolbar           |
 | `layoutPresets`     | `LayoutPresetDef`    | Full default layouts for new note types          |
-| `skillPresets`      | `SkillPresetDef`     | Record sets for the "skills" value type          |
+| `skillPresets`      | `SkillPresetDef`     | Record sets for the legacy "skills" value type   |
 
 The core's own value types and entry kinds register through the same
 interfaces (`ui/render/value-types/index.ts`) — there is no privileged path,
 so anything the built-ins can do, a feature can do.
+
+### The influence engine (`core/influences.ts`)
+
+Any numeric entry (including the read-only "derived" value type) can carry
+`mods: Influence[]` — a list of terms summed into its modifier. Each term
+is built from user-editable blocks:
+
+- **source** — a property key, referenced by name (unset = the entry's own
+  property). Templates that rely on sources declare them
+  (`SectionTemplateDef.sources`), so applying e.g. the Skills template also
+  creates any missing source properties as real entries.
+- **mode** — a *derivation*: "value", a named formula block from settings
+  (`settings.derivations`, seeded with "Ability modifier" and "Proficiency
+  bonus"; all editable in the settings tab), or a per-influence custom
+  formula in `x`.
+- **weight** — adds or subtracts the term.
+- **toggle** — a list property that switches the term per note (the generic
+  form of proficiency): the term applies while the entry's key or alias is
+  in that list; the row gets a checkbox bound to the list.
+
+The denotation shown next to values is the sum of the sources' *short
+forms* ("INT + DEX − AGE"). A short form defaults to the capitalized first
+three letters of the source property and can be overridden per property
+(`settings.sourceAbbrs`, editable inline and in the settings tab).
+
+UI lives in `ui/render/modifier-addon.ts` (badge, toggles, influence
+editor) and `ui/render/value-types/derived.ts` (computed values such as
+proficiency bonus, initiative, saves and skills — all ordinary entries,
+no bespoke widgets).
 
 ### The render pipeline
 

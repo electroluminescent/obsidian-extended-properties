@@ -13,12 +13,10 @@ import type { DragController } from "../drag";
 
 /** True when the entry should be hidden outside edit mode (empty prop). */
 export function isHiddenEntry(view: ViewCtx, entry: Entry): boolean {
-  return (
-    entry.kind === "prop" &&
-    !view.editMode &&
-    entry.hideIfEmpty !== false &&
-    view.note.isEmpty(entry.key)
-  );
+  if (entry.kind !== "prop" || view.editMode) return false;
+  // Derived values are computed, not stored — they are never "empty".
+  if (view.resolveType(entry) === "derived") return false;
+  return entry.hideIfEmpty !== false && view.note.isEmpty(entry.key);
 }
 
 /** Whether the entry spans all section columns (kind- or value-type-wide). */

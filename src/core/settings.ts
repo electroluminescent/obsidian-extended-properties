@@ -7,6 +7,7 @@
  */
 
 import type { Defaults, EPSettings, Layout } from "./model";
+import { defaultDerivations } from "./influences";
 
 export const DEFAULT_DEFAULTS: Defaults = {
   dataType: "text",
@@ -37,6 +38,8 @@ export function defaultSettings(defaultLayout: () => Layout): EPSettings {
     language: "en",
     stringOverrides: {},
     features: {},
+    derivations: defaultDerivations(),
+    sourceAbbrs: {},
   };
 }
 
@@ -62,6 +65,10 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
     if (typeof data.language === "string") s.language = data.language;
     if (data.stringOverrides && typeof data.stringOverrides === "object") s.stringOverrides = data.stringOverrides;
     if (data.features && typeof data.features === "object") s.features = data.features;
+    // An explicitly persisted (even empty) list wins over the seeds.
+    if (Array.isArray(data.derivations))
+      s.derivations = data.derivations.filter((d: any) => d && typeof d.id === "string");
+    if (data.sourceAbbrs && typeof data.sourceAbbrs === "object") s.sourceAbbrs = data.sourceAbbrs;
   }
   if (!s.types.length) s.types = ["Character"];
   for (const t of s.types) {

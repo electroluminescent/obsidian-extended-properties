@@ -9,10 +9,10 @@
 
 import { Menu, Setting } from "obsidian";
 import type { EntryRenderCtx, EntryRef, OptionsCtx } from "../../../core/context";
-import type { ClusterAddon, ClusterNeeds, ValueTypeDef } from "../../../core/registry";
+import type { ClusterNeeds, ValueTypeDef } from "../../../core/registry";
 import { compileFormula, invertFormula } from "../../../utils/formula";
 import { clamp, fmtNum } from "../../../utils/misc";
-import { mergeNeeds, emptyFlags } from "../cluster";
+import { addonsFor, mergeNeeds, emptyFlags } from "../cluster";
 import { TextPromptModal } from "../../modals/dialogs";
 
 type NumericKind = "number" | "decimal" | "formula";
@@ -22,10 +22,6 @@ function defaultRange(kind: NumericKind): { min: number; max: number } {
   if (kind === "formula") return { min: 0, max: 10 };
   if (kind === "decimal") return { min: 0, max: 1 };
   return { min: -9999, max: 99999 };
-}
-
-function addonsFor(ref: EntryRef): ClusterAddon[] {
-  return ref.view.registries.clusterAddons.all().filter((a) => a.appliesTo(ref));
 }
 
 /** Cluster needs = steppers (number/decimal) + whatever addons request. */
@@ -139,8 +135,10 @@ function renderOptions(kind: NumericKind, octx: OptionsCtx): void {
         });
       });
   }
-  // Addons (e.g. D&D rolls) append their own rows.
-  for (const a of addonsFor(octx)) a.renderOptions?.(octx);
+  // Addons (modifiers, rolling, …) append their own rows. Deliberately not
+  // filtered by `appliesTo`: an addon that doesn't apply *yet* must still be
+  // able to offer the option that enables it (each one guards itself).
+  for (const a of octx.view.registries.clusterAddons.all()) a.renderOptions?.(octx);
 }
 
 /** Context-menu "Edit value…" honoring integer/clamp rules. */

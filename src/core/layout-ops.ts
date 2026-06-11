@@ -124,6 +124,31 @@ export function reorderByDomOrder(
   return true;
 }
 
+/**
+ * Ensure prop entries exist somewhere in the layout for each of `keys`;
+ * missing ones are prepended to `section` (with `defaults` applied) so
+ * modifier sources referenced by templates become real, editable
+ * properties. Returns the number of entries created.
+ */
+export function ensurePropEntries(
+  layout: Layout,
+  section: Section,
+  keys: string[],
+  defaults: Partial<Entry> = {}
+): number {
+  const have = new Set<string>();
+  for (const s of layout.sections)
+    for (const e of s.entries) if (e.kind === "prop" && e.key) have.add(e.key.toLowerCase());
+  const toAdd: Entry[] = [];
+  for (const k of keys) {
+    if (!k || have.has(k.toLowerCase())) continue;
+    have.add(k.toLowerCase());
+    toAdd.push({ id: genId(), kind: "prop", key: k, dataType: "number", ...defaults } as Entry);
+  }
+  section.entries.unshift(...toAdd);
+  return toAdd.length;
+}
+
 // ---------------------------------------------------------------------------
 // Grid row/column operations
 // ---------------------------------------------------------------------------

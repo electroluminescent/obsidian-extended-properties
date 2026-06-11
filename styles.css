@@ -298,3 +298,15 @@
 .ep-mod-badge .ep-dice-tag {
   margin-right: 3px;
 }
+
+/* round 19 additions — the influence engine (denotations, toggles, editor) */
+.ep-denote { display: inline-flex; align-items: center; gap: 1px; margin-right: 4px; white-space: nowrap; }
+.ep-denote .ep-line-abbr { width: auto; text-align: left; }
+.ep-denote-op { font-size: 0.85em; color: var(--text-faint); padding: 0 1px; }
+.ep-denote-off { opacity: 0.4; text-decoration: line-through; }
+.ep-den-cell { justify-content: flex-end; }
+.ep-tog-cell { gap: 3px; }
+.ep-roll-cell .ep-dice-tag { margin-right: 4px; }
+.ep-options .ep-mods-sub { padding-left: 18px; }
+.ep-options .ep-mods-sub .setting-item-name { color: var(--text-muted); font-size: var(--font-ui-smaller); }
+.ep-options .ep-abbr-input { width: 4.5em; }

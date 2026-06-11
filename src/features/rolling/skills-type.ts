@@ -1,5 +1,5 @@
 /**
- * The "skills" value type.
+ * The legacy "skills" value type.
  *
  * The property value is a list of {@link SkillRecord}s — one per skill —
  * stored as plain objects in frontmatter, e.g.:
@@ -14,31 +14,30 @@
  *     mod: 4              # manual modifier override
  * ```
  *
- * Nothing is locked: name, modifying property, dice, modifier and
- * proficiency are all editable inline; structure and derivation rules are
- * configurable in the entry's options page. Feature modules contribute
- * ready-made record sets through the skill-preset registry (the D&D module
- * registers its saves and skill lists), so domain presets are plain data on
- * top of this one implementation.
- *
- * Row layout (matching the classic block): proficiency checkbox, name,
- * modifying-property abbreviation, dice tag, modifier, roll button — the
- * dice render in the same muted format as the abbreviation, before the
- * modifier.
+ * This type is kept for existing record-based properties. New layouts use
+ * sections of *derived number properties* instead (one property per skill,
+ * driven by the core influence engine), which is what the section templates
+ * now create. {@link convertToProperties} turns a record list into exactly
+ * that with one click: per-record derived entries, proficiency as a real
+ * property reference, and the proficient names written to a toggle list
+ * property.
  */
 
-import { Menu, Setting, TFile } from "obsidian";
+import { Menu, Notice, Setting, TFile } from "obsidian";
 import type { EntryRef, EntryRenderCtx, OptionsCtx, ViewCtx } from "../../core/context";
 import type { SkillPresetDef, SkillRecord, ValueTypeDef } from "../../core/registry";
+import type { Entry, Section } from "../../core/model";
 import { ext } from "../../core/model";
-import { fmtMod } from "../../utils/misc";
+import { abbrFor, Influence } from "../../core/influences";
+import { ensurePropEntries } from "../../core/layout-ops";
+import { fmtMod, genId } from "../../utils/misc";
 import { parseDice, parseDiceOrDefault } from "../../utils/dice";
-import { deriveModifier, levelProfBonus, sourceAbbr, SourceMode } from "./modifiers";
+import { deriveModifier, levelProfBonus, SourceMode } from "./modifiers";
 import { ROLL_SERVICE, RollService } from "./roll-service";
 import { addDiceSettings, openDiceMenu, renderDiceTag } from "./dice-ui";
 import { openNumberInput } from "../../ui/components/inline-edit";
 import { PropSuggest } from "../../ui/components/suggest";
-import { TextPromptModal } from "../../ui/modals/dialogs";
+import { ConfirmModal, TextPromptModal } from "../../ui/modals/dialogs";
 
 /** Entry-level configuration persisted on the layout entry. */
 export interface SkillsExt {
@@ -120,6 +119,108 @@ function effectiveMod(view: ViewCtx, e: SkillsExt, rec: SkillRecord): number {
         ? deriveModifier(e.skillMode, view.note.num(rec.source, 0))
         : 0;
   return base + (rec.prof ? profBonus(view, e) : 0);
+}
+
+// ---------------------------------------------------------------------------
+// Conversion → derived number properties
+// ---------------------------------------------------------------------------
+
+/** Whether `key` is already used by another prop entry of the layout. */
+function keyTaken(view: ViewCtx, key: string, except: Entry): boolean {
+  const kl = key.toLowerCase();
+  for (const s of view.layout.sections)
+    for (const en of s.entries)
+      if (en !== except && en.kind === "prop" && en.key && en.key.toLowerCase() === kl) return true;
+  return false;
+}
+
+/**
+ * Replace this records-list entry with one derived number property per
+ * record. Proficiency becomes a togglable influence on a real property
+ * ("Proficiency Bonus" by default); the proficient record names are written
+ * to the toggle list property so nothing is lost.
+ */
+export function convertToProperties(ref: EntryRef): void {
+  const { view, file, section, entry } = ref;
+  const t = view.i18n.t.bind(view.i18n);
+  const e = ext<SkillsExt>(entry);
+  const key = entry.key as string;
+
+  let records = readRecords(view, key);
+  const preset = view.registries.skillPresets.get(e.skillsPreset);
+  if (!records.length && preset) records = preset.records();
+  if (!records.length) {
+    new Notice(t("skills.convertEmpty"));
+    return;
+  }
+
+  // -- proficiency as a property + toggle list -----------------------------
+  const useProf = e.profMode === "level" || e.profMode === "fixed";
+  const profKey = t("skills.convertProfProperty");
+  const profListKey = preset?.legacyProfKey ?? t("skills.convertProfList", { name: (entry.alias as string) || key });
+  let profInf: Influence | null = null;
+  if (useProf) {
+    profInf = { source: profKey, toggle: profListKey };
+    if (!keyTaken(view, profKey, entry)) {
+      if (e.profMode === "level") {
+        const levelKey = e.profSource || "Level";
+        section.entries.unshift({
+          id: genId(),
+          kind: "prop",
+          key: profKey,
+          dataType: "derived",
+          hideIfEmpty: false,
+          mods: [{ source: levelKey, mode: "profBonus" }],
+        } as Entry);
+        ensurePropEntries(view.layout, section, [levelKey]);
+      } else {
+        ensurePropEntries(view.layout, section, [profKey]);
+        view.note.set(file, profKey, e.profFixed ?? 0);
+      }
+    }
+    // Preserve which records are proficient.
+    const have = view.note.list(profListKey);
+    const haveL = have.map((x) => x.toLowerCase());
+    const add = records.filter((r) => r.prof && !haveL.includes(r.name.toLowerCase())).map((r) => r.name);
+    if (add.length) view.note.set(file, profListKey, [...have, ...add]);
+  }
+
+  // -- one derived entry per record -----------------------------------------
+  const fresh: Entry[] = records.map((rec) => {
+    let k = rec.name;
+    if ((rec.source && k.toLowerCase() === rec.source.toLowerCase()) || keyTaken(view, k, entry))
+      k = t("skills.convertKeySuffix", { name: rec.name });
+    const mods: Influence[] = [];
+    if (rec.source)
+      mods.push({ source: rec.source, mode: e.skillMode === "abilityMod" ? "abilityMod" : undefined });
+    if (profInf) mods.push({ ...profInf });
+    const en = {
+      id: genId(),
+      kind: "prop",
+      key: k,
+      dataType: "derived",
+      hideIfEmpty: false,
+      roll: true,
+      mods,
+    } as Entry;
+    if (k !== rec.name) en.alias = rec.name;
+    if (rec.dice ?? e.dice) en.dice = rec.dice ?? e.dice;
+    if (rec.mod !== undefined) en.rollOverride = rec.mod + (rec.prof ? profBonus(view, e) : 0);
+    return en;
+  });
+
+  const idx = section.entries.findIndex((x) => x.id === entry.id);
+  section.entries.splice(idx < 0 ? section.entries.length : idx, 1, ...fresh);
+  ensurePropEntries(view.layout, section, [...new Set(records.map((r) => r.source).filter((x): x is string => !!x))]);
+  view.saveLayout();
+  view.rerender();
+  new Notice(t("skills.convertDone", { n: fresh.length }));
+}
+
+function confirmConvert(ref: EntryRef): void {
+  new ConfirmModal(ref.view.app, ref.view.i18n, ref.view.i18n.t("skills.convertConfirm"), () =>
+    convertToProperties(ref)
+  ).open();
 }
 
 // ---------------------------------------------------------------------------
@@ -208,9 +309,16 @@ function inlineSource(ctx: EntryRenderCtx, span: HTMLElement, index: number): vo
   span.replaceWith(input);
   input.focus();
   input.select();
-  const choose = (key: string) => updateRecord(ctx, index, (r) => (r.source = key || undefined));
-  new PropSuggest(view.app, input, view.i18n, () => view.propCandidates(true), choose);
   let done = false;
+  const choose = (key: string) => updateRecord(ctx, index, (r) => (r.source = key || undefined));
+  // `clearOnSelect` must stay off: with it on, picking a suggestion wrote
+  // the source, blanked the input, and the delayed blur commit then erased
+  // the source again ("choosing a modifier source does not set it").
+  new PropSuggest(view.app, input, view.i18n, () => view.propCandidates(true), (key) => {
+    done = true;
+    if (input.parentElement) input.replaceWith(span);
+    choose(key);
+  }, false);
   const finish = (save: boolean) => {
     if (done) return;
     done = true;
@@ -255,10 +363,10 @@ function renderRow(ctx: EntryRenderCtx, list: HTMLElement, records: SkillRecord[
     inlineText(nameSpan, rec.name, (v) => updateRecord(ctx, index, (r) => (r.name = v)))
   );
 
-  // Modifying property (abbreviation, editable).
+  // Modifying property (short form, editable; overrides live in settings).
   const abbrSpan = row.createSpan({
     cls: "ep-line-abbr",
-    text: rec.source ? sourceAbbr(rec.source) : "—",
+    text: rec.source ? abbrFor(view.settings, rec.source) : "—",
   });
   abbrSpan.setAttr("aria-label", rec.source || t("skills.menu.setSource"));
   view.bindOpen(abbrSpan, () => inlineSource(ctx, abbrSpan, index));
@@ -384,6 +492,9 @@ export const skillsType: ValueTypeDef = {
           .onClick(() => populateFromPreset(view, file, key, preset))
       );
     }
+    menu.addItem((i) =>
+      i.setTitle(view.i18n.t("skills.convert")).setIcon("wand").onClick(() => confirmConvert(ref))
+    );
   },
 
   renderOptions(octx: OptionsCtx) {
@@ -392,6 +503,13 @@ export const skillsType: ValueTypeDef = {
     const e = ext<SkillsExt>(entry);
     c.createEl("h4", { text: t("skills.options.heading") });
     c.createEl("p", { cls: "setting-item-description", text: t("skills.options.editHint") });
+
+    new Setting(c)
+      .setName(t("skills.convert"))
+      .setDesc(t("skills.convertDesc"))
+      .addButton((b) =>
+        b.setButtonText(t("skills.convertBtn")).onClick(() => confirmConvert(octx))
+      );
 
     new Setting(c).setName(t("skills.options.sourceMode")).addDropdown((d) => {
       d.addOption("value", t("skills.options.modeValue"));

@@ -15,8 +15,10 @@ import { ItemView, TFile, WorkspaceLeaf } from "obsidian";
 import type ExtendedPropertiesPlugin from "../main";
 import type { ClusterFlags, ClusterOptions, ClusterRefs, EntryRenderCtx, ViewCtx } from "../core/context";
 import { Entry, Layout, Section } from "../core/model";
-import { ServiceHub } from "../core/registry";
+import { ServiceHub, SectionTemplateDef } from "../core/registry";
 import { NoteModel } from "../core/note-model";
+import { influenceSources } from "../core/influences";
+import * as ops from "../core/layout-ops";
 import { genId } from "../utils/misc";
 import { buildCluster } from "./render/cluster";
 import { renderSection } from "./render/section-renderer";
@@ -199,6 +201,9 @@ export class SidebarView extends ItemView implements ViewCtx {
     entry.slider = undefined;
     entry.roll = undefined;
     entry.showMod = undefined;
+    entry.mods = undefined;
+    entry.rollOverride = undefined;
+    entry.dice = undefined;
     entry.min = undefined;
     entry.max = undefined;
     entry.clamp = undefined;
@@ -618,11 +623,31 @@ export class SidebarView extends ItemView implements ViewCtx {
       } else {
         this.layout.sections.unshift(fresh);
       }
+      this.provisionTemplateSources(tpl, fresh);
       this.saveLayout();
       this.render();
     };
     if (existing)
       new ConfirmModal(this.app, this.i18n, this.i18n.t("view.templateResetConfirm", { name: existing.title }), apply).open();
     else apply();
+  }
+
+  /**
+   * Make every modifier source a template refers to a real, editable
+   * property entry: first the entries the template declares (with their
+   * full configuration, e.g. a derived proficiency bonus), then plain
+   * number entries for any remaining influence sources.
+   */
+  private provisionTemplateSources(tpl: SectionTemplateDef, fresh: Section): void {
+    const have = new Set<string>();
+    for (const s of this.layout.sections)
+      for (const e of s.entries) if (e.kind === "prop" && e.key) have.add(e.key.toLowerCase());
+    const declared = (tpl.sources?.(this.i18n) ?? []).filter(
+      (e) => e.key && !have.has((e.key as string).toLowerCase())
+    );
+    for (const e of declared) have.add((e.key as string).toLowerCase());
+    fresh.entries.unshift(...declared);
+    // Whatever is still referenced but missing becomes a plain number.
+    ops.ensurePropEntries(this.layout, fresh, influenceSources(fresh.entries));
   }
 }

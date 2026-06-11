@@ -6,15 +6,14 @@
 
 export { abilityMod, levelProfBonus as profBonus } from "../rolling/modifiers";
 
-/** Legacy property keys (pre-record storage); used for one-click import. */
+/** Proficiency list properties — also the toggle lists of the new entries. */
 export const SAVE_PROF_KEY = "Saving Throw Proficiencies";
 export const SKILL_PROF_KEY = "Skill Proficiencies";
 export const LEVEL_KEY = "Level";
-export const ABILITY_DEFAULT = 10;
 
-/** Default property keys for the record-based skills entries. */
-export const SAVES_KEY = "Saving Throws";
-export const SKILLS_KEY = "Skills";
+/** Source properties referenced by the templates (real, editable entries). */
+export const PROF_KEY = "Proficiency Bonus";
+export const INIT_KEY = "Initiative";
 
 export interface Ability { key: string; abbr: string }
 

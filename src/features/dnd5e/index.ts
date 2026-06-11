@@ -1,25 +1,20 @@
 /**
  * The D&D 5e feature module.
  *
- * Built entirely on the rolling module's generic pieces: its saving throws
- * and skills are *presets* (record sets + pre-configured entries) of the
- * generic "skills" value type, its roll buttons come from the shared roll
- * addon, and its math comes from the shared modifier helpers. This module
- * contributes only data and templates:
- *
- *   entry kind       computed values (proficiency bonus, initiative)
- *   skill presets    5e saving throws and the 18-skill list
- *   templates        Contents / Details / Vitals / Abilities / Saves / Skills
- *   layout preset    full character sheet (claimed as the default preset)
- *   migration        converts legacy "saves"/"skills" entry kinds into
- *                    skills-type property entries
+ * Contributes only data and templates built from generic pieces: saves,
+ * skills, proficiency bonus and initiative are ordinary *derived* property
+ * entries of the core influence engine (with the "abilityMod"/"profBonus"
+ * derivation blocks from settings), roll buttons come from the rolling
+ * module's addon, and the record presets feed the legacy skills type and
+ * its conversion. There are no D&D-specific widgets left.
  */
 
-import type { EPSettings } from "../../core/model";
+import type { Entry, EPSettings } from "../../core/model";
 import type { FeatureContext, FeatureModule } from "../../core/registry";
-import { computedKind } from "./entry-kinds";
-import { characterPreset, dnd5eSkillsEntry, savesPreset, sectionTemplates, skillsPreset } from "./sections";
-import { SAVES_KEY, SKILLS_KEY } from "./rules";
+import {
+  characterPreset, initiativeEntry, profBonusEntry, savesEntries, savesPreset,
+  sectionTemplates, skillsEntries, skillsPreset,
+} from "./sections";
 import { dndDe, dndEn } from "./strings";
 
 export const dnd5eModule: FeatureModule = {
@@ -31,7 +26,6 @@ export const dnd5eModule: FeatureModule = {
     ctx.i18n.register("en", dndEn);
     ctx.i18n.register("de", dndDe);
 
-    ctx.registries.entryKinds.add(computedKind);
     ctx.registries.skillPresets.add(savesPreset);
     ctx.registries.skillPresets.add(skillsPreset);
 
@@ -42,25 +36,40 @@ export const dnd5eModule: FeatureModule = {
   },
 
   /**
-   * v2.0 layouts contained bespoke "saves"/"skills" entry kinds. Convert
-   * them to skills-type property entries; appearance fields (alias, icon,
-   * sizes, …) carry over via spread. Proficiencies stored in the legacy
-   * list properties are imported when the user populates from a preset.
+   * Upgrade layouts written by older versions:
+   *
+   * - v2.0 "saves"/"skills" entry kinds become per-record derived property
+   *   entries. Their proficiencies already live in the legacy list
+   *   properties, which are exactly the toggle lists of the new entries,
+   *   so per-note data survives unchanged.
+   * - "computed" entries (proficiency / initiative) become the equivalent
+   *   derived property entries; appearance fields carry over.
+   *
+   * v2.1 record-based skills *properties* keep working through the legacy
+   * skills value type, which offers its own one-click conversion.
    */
   migrate(settings: EPSettings): boolean {
     let changed = false;
     for (const lk of Object.keys(settings.layouts)) {
       for (const section of settings.layouts[lk].sections) {
-        section.entries = section.entries.map((e) => {
-          if (e.kind !== "saves" && e.kind !== "skills") return e;
-          changed = true;
-          const fresh =
-            e.kind === "saves"
-              ? dnd5eSkillsEntry(SAVES_KEY, savesPreset.id)
-              : dnd5eSkillsEntry(SKILLS_KEY, skillsPreset.id);
-          // Keep id and appearance customizations; force the new identity.
-          return { ...e, ...fresh, id: e.id, alias: e.alias };
-        });
+        const out: Entry[] = [];
+        for (const e of section.entries) {
+          if (e.kind === "saves") {
+            changed = true;
+            out.push(...savesEntries());
+          } else if (e.kind === "skills") {
+            changed = true;
+            out.push(...skillsEntries());
+          } else if (e.kind === "computed") {
+            changed = true;
+            const fresh =
+              (e as Record<string, unknown>)["computed"] === "proficiency" ? profBonusEntry() : initiativeEntry();
+            out.push({ ...e, ...fresh, id: e.id, alias: e.alias, computed: undefined } as Entry);
+          } else {
+            out.push(e);
+          }
+        }
+        section.entries = out;
       }
     }
     return changed;

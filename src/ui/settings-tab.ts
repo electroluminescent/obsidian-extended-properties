@@ -8,6 +8,9 @@ import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 import type ExtendedPropertiesPlugin from "../main";
 import { COLOR_SPACES, ColorSpace } from "../utils/color";
 import type { SectionSize } from "../core/model";
+import { defaultAbbr, defaultDerivations } from "../core/influences";
+import { compileFormula } from "../utils/formula";
+import { genId } from "../utils/misc";
 import { ConfirmModal, TextPromptModal } from "./modals/dialogs";
 
 /** Max override rows rendered at once (the list is searchable). */
@@ -129,6 +132,95 @@ export class EPSettingTab extends PluginSettingTab {
         save();
       });
     });
+
+    // -- modifier building blocks --------------------------------------------------
+    c.createEl("h3", { text: t("settings.derivationsHeading") });
+    c.createEl("p", { cls: "setting-item-description", text: t("settings.derivationsDesc") });
+    const applyDerivations = () => {
+      plugin.rebuildRegistries();
+      save();
+    };
+    for (const d of [...plugin.settings.derivations]) {
+      new Setting(c)
+        .setName(d.name || d.id)
+        .addText((tx) => {
+          tx.setPlaceholder(t("settings.derivationName"))
+            .setValue(d.name)
+            .onChange((v) => {
+              d.name = v.trim() || d.id;
+              applyDerivations();
+            });
+        })
+        .addText((tx) => {
+          tx.setPlaceholder("f(x)").setValue(d.formula).onChange((v) => {
+            if (v.trim() && !compileFormula(v.trim())) return;
+            d.formula = v.trim() || "x";
+            applyDerivations();
+          });
+        })
+        .addExtraButton((b) =>
+          b.setIcon("trash").setTooltip(t("settings.derivationDelete")).onClick(() => {
+            plugin.settings.derivations = plugin.settings.derivations.filter((x) => x !== d);
+            applyDerivations();
+            this.display();
+          })
+        );
+    }
+    new Setting(c)
+      .setName(t("settings.derivationAdd"))
+      .addButton((b) =>
+        b.setButtonText(t("settings.derivationAddBtn")).onClick(() => {
+          plugin.settings.derivations.push({ id: genId(), name: t("settings.newDerivation"), formula: "x" });
+          applyDerivations();
+          this.display();
+        })
+      )
+      .addButton((b) =>
+        b.setButtonText(t("settings.derivationReseed")).onClick(() => {
+          const have = new Set(plugin.settings.derivations.map((x) => x.id));
+          for (const d of defaultDerivations()) if (!have.has(d.id)) plugin.settings.derivations.push(d);
+          applyDerivations();
+          this.display();
+        })
+      );
+
+    // -- short forms ------------------------------------------------------------------
+    c.createEl("h3", { text: t("settings.abbrHeading") });
+    c.createEl("p", { cls: "setting-item-description", text: t("settings.abbrDesc") });
+    for (const key of Object.keys(plugin.settings.sourceAbbrs).sort((a, b) => a.localeCompare(b))) {
+      new Setting(c)
+        .setName(key)
+        .setDesc(t("settings.abbrDefault", { abbr: defaultAbbr(key) }))
+        .addText((tx) => {
+          tx.setPlaceholder(defaultAbbr(key))
+            .setValue(plugin.settings.sourceAbbrs[key])
+            .onChange((v) => {
+              const a = v.trim();
+              if (a && a !== defaultAbbr(key)) plugin.settings.sourceAbbrs[key] = a;
+              else delete plugin.settings.sourceAbbrs[key];
+              save();
+            });
+        })
+        .addExtraButton((b) =>
+          b.setIcon("trash").setTooltip(t("settings.abbrDelete")).onClick(() => {
+            delete plugin.settings.sourceAbbrs[key];
+            save();
+            this.display();
+          })
+        );
+    }
+    new Setting(c).setName(t("settings.abbrAdd")).addButton((b) =>
+      b.setButtonText(t("settings.abbrAddBtn")).onClick(() =>
+        new TextPromptModal(this.app, i18n, t("settings.abbrPrompt"), "", (v) => {
+          const k = v.trim();
+          if (!k) return;
+          if (!Object.keys(plugin.settings.sourceAbbrs).some((x) => x.toLowerCase() === k.toLowerCase()))
+            plugin.settings.sourceAbbrs[k] = defaultAbbr(k);
+          save();
+          this.display();
+        }, () => plugin.props.knownProps()).open()
+      )
+    );
 
     // -- typography ---------------------------------------------------------------
     c.createEl("h3", { text: t("settings.typographyHeading") });

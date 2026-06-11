@@ -7,9 +7,11 @@
  * - {@link EntryKindDef}    non-property widgets ("toc", roll panel, …)
  * - {@link ClusterAddon}    extra controls attached to numeric entries
  *                           (e.g. the modifier badge + roll button)
+ * - {@link DerivationDef}   how a raw source value becomes a modifier term
+ *                           (compiled from user-editable settings blocks)
  * - {@link SectionTemplateDef}  one-click section presets in the edit toolbar
  * - {@link LayoutPresetDef}     full default layouts for new note types
- * - {@link SkillPresetDef}      record sets for the "skills" value type
+ * - {@link SkillPresetDef}      record sets for the legacy "skills" value type
  *
  * A {@link FeatureModule} bundles registrations (plus i18n strings) so a
  * domain — like D&D 5e — lives entirely in `src/features/<id>/` and can be
@@ -129,6 +131,22 @@ export interface ClusterAddon {
 }
 
 // ---------------------------------------------------------------------------
+// Derivations
+// ---------------------------------------------------------------------------
+
+/**
+ * Maps a raw source value to a modifier contribution. Instances are
+ * compiled from the user-editable formula blocks in settings (see
+ * `core/influences.ts`); "value" (identity) is registered by the core.
+ */
+export interface DerivationDef {
+  /** Referenced by `Influence.mode`. */
+  id: string;
+  name(i18n: I18n): string;
+  apply(raw: number): number;
+}
+
+// ---------------------------------------------------------------------------
 // Section templates & layout presets
 // ---------------------------------------------------------------------------
 
@@ -138,6 +156,13 @@ export interface SectionTemplateDef {
   id: string;
   name(i18n: I18n): string;
   build(i18n: I18n): Section;
+  /**
+   * Source-property entries this template's influences rely on (e.g. the
+   * ability scores feeding a skill list). When the template is applied,
+   * any of these whose key is missing from the layout is added too, so
+   * every modifier source exists as a real, user-editable property.
+   */
+  sources?(i18n: I18n): Entry[];
 }
 
 /** A complete default layout for newly created note types. */
@@ -211,6 +236,7 @@ export class Registries {
   readonly valueTypes = new Registry<ValueTypeDef>();
   readonly entryKinds = new Registry<EntryKindDef>();
   readonly clusterAddons = new Registry<ClusterAddon>();
+  readonly derivations = new Registry<DerivationDef>();
   readonly sectionTemplates = new Registry<SectionTemplateDef>();
   readonly layoutPresets = new Registry<LayoutPresetDef>();
   readonly skillPresets = new Registry<SkillPresetDef>();
@@ -221,6 +247,7 @@ export class Registries {
     this.valueTypes.clear();
     this.entryKinds.clear();
     this.clusterAddons.clear();
+    this.derivations.clear();
     this.sectionTemplates.clear();
     this.layoutPresets.clear();
     this.skillPresets.clear();

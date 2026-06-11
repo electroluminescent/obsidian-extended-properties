@@ -1,10 +1,10 @@
 /**
- * Modifier math used by roll-enabled values and the skills value type.
+ * Modifier math used by the legacy skills value type.
  *
- * The formulas follow d20-system conventions (D&D 5e, Pathfinder, …) but are
- * deliberately kept here in the generic rolling module: domain modules (like
- * dnd5e) build presets on top of them, fulfilling "presets are built from
- * the same code pieces".
+ * The current modifier system lives in `core/influences.ts`: these same
+ * formulas exist there as *user-editable* derivation building blocks
+ * ("abilityMod", "profBonus") seeded into settings. The functions below are
+ * kept for the record-based skills type and for older code paths.
  */
 
 /** Ability score → modifier: floor((score − 10) / 2). */
