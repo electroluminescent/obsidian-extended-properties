@@ -101,6 +101,7 @@ var coreEn = {
   "view.noType": "\u201C{note}\u201D has no matching Type.",
   "view.noTypeHint": "Set its Type property to one of:",
   "view.setType": "Set Type: {type}",
+  "view.noTypesConfigured": "No types are configured yet. Give this note any Type value to create one (it starts empty), or add types in the plugin settings.",
   "view.typeBadgeHint": "This note\u2019s Type \u2014 selects which saved layout is shown",
   "view.edit": "Edit",
   "view.done": "Done",
@@ -128,7 +129,7 @@ var coreEn = {
   "layout.list": "list",
   "layout.columns": "columns",
   "layout.grid": "grid",
-  "section.menu.configure": "Configure \u201C{name}\u201D\u2026",
+  "section.menu.configure": "Configure \u201C{name}\u201D section\u2026",
   "section.menu.showDividers": "Show horizontal dividers",
   "section.menu.hideDividers": "Hide horizontal dividers",
   "section.menu.showVDividers": "Show vertical dividers",
@@ -147,7 +148,8 @@ var coreEn = {
   "entry.changeKeyHint": "Click to change which property this shows",
   "entry.renameHint": "Click to rename",
   "entry.unknownKind": "Unavailable: {kind}",
-  "entry.menu.configure": "Configure \u201C{name}\u201D\u2026",
+  "entry.menu.configure": "Configure \u201C{name}\u201D property\u2026",
+  "entry.menu.configureObject": "Configure \u201C{name}\u201D object\u2026",
   "entry.menu.showInObsidian": "Show \u201C{key}\u201D in Obsidian properties",
   "entry.menu.hideFromObsidian": "Hide \u201C{key}\u201D from Obsidian properties",
   "entry.menu.clearValue": "Remove value from \u201C{key}\u201D",
@@ -274,6 +276,7 @@ var coreEn = {
   "options.dataTypeDesc": "Defaults to the Obsidian property type",
   "options.numberHeading": "Number & slider",
   "options.showSlider": "Show slider",
+  "options.showSteppers": "Show \u2212 / + buttons",
   "options.minimum": "Minimum",
   "options.maximum": "Maximum",
   "options.clamp": "Clamp typed values",
@@ -433,6 +436,7 @@ var coreDe = {
   "view.noType": "\u201E{note}\u201C hat keinen passenden Typ.",
   "view.noTypeHint": "Setze die Type-Eigenschaft auf einen dieser Werte:",
   "view.setType": "Type setzen: {type}",
+  "view.noTypesConfigured": "Noch keine Typen konfiguriert. Gib dieser Notiz einen beliebigen Type-Wert, um einen zu erstellen (er beginnt leer), oder lege Typen in den Plugin-Einstellungen an.",
   "view.typeBadgeHint": "Type dieser Notiz \u2014 bestimmt, welches gespeicherte Layout angezeigt wird",
   "view.edit": "Bearbeiten",
   "view.done": "Fertig",
@@ -460,7 +464,7 @@ var coreDe = {
   "layout.list": "Liste",
   "layout.columns": "Spalten",
   "layout.grid": "Raster",
-  "section.menu.configure": "\u201E{name}\u201C konfigurieren\u2026",
+  "section.menu.configure": "Abschnitt \u201E{name}\u201C konfigurieren\u2026",
   "section.menu.showDividers": "Horizontale Trennlinien anzeigen",
   "section.menu.hideDividers": "Horizontale Trennlinien ausblenden",
   "section.menu.showVDividers": "Vertikale Trennlinien anzeigen",
@@ -479,7 +483,8 @@ var coreDe = {
   "entry.changeKeyHint": "Klicken, um die angezeigte Eigenschaft zu \xE4ndern",
   "entry.renameHint": "Zum Umbenennen klicken",
   "entry.unknownKind": "Nicht verf\xFCgbar: {kind}",
-  "entry.menu.configure": "\u201E{name}\u201C konfigurieren\u2026",
+  "entry.menu.configure": "Eigenschaft \u201E{name}\u201C konfigurieren\u2026",
+  "entry.menu.configureObject": "Objekt \u201E{name}\u201C konfigurieren\u2026",
   "entry.menu.showInObsidian": "\u201E{key}\u201C in Obsidian-Eigenschaften anzeigen",
   "entry.menu.hideFromObsidian": "\u201E{key}\u201C aus Obsidian-Eigenschaften ausblenden",
   "entry.menu.clearValue": "Wert von \u201E{key}\u201C entfernen",
@@ -606,6 +611,7 @@ var coreDe = {
   "options.dataTypeDesc": "Standard ist der Obsidian-Eigenschaftstyp",
   "options.numberHeading": "Zahl & Schieberegler",
   "options.showSlider": "Schieberegler anzeigen",
+  "options.showSteppers": "\u2212/+-Schaltfl\xE4chen anzeigen",
   "options.minimum": "Minimum",
   "options.maximum": "Maximum",
   "options.clamp": "Eingegebene Werte begrenzen",
@@ -1034,10 +1040,10 @@ var DEFAULT_DEFAULTS = {
   titleSize: 0,
   listSize: 0
 };
-function defaultSettings(defaultLayout) {
+function defaultSettings() {
   return {
-    types: ["Character"],
-    layouts: { character: defaultLayout() },
+    types: [],
+    layouts: {},
     hideShown: true,
     defaults: { ...DEFAULT_DEFAULTS },
     manualHide: [],
@@ -1051,7 +1057,7 @@ function defaultSettings(defaultLayout) {
 }
 function normalizeSettings(data, defaultLayout) {
   var _a, _b, _c;
-  const s = defaultSettings(defaultLayout);
+  const s = defaultSettings();
   if (data) {
     if (data.layouts && data.types) {
       s.types = data.types;
@@ -1071,7 +1077,6 @@ function normalizeSettings(data, defaultLayout) {
       s.derivations = data.derivations.filter((d) => d && typeof d.id === "string");
     if (data.sourceAbbrs && typeof data.sourceAbbrs === "object") s.sourceAbbrs = data.sourceAbbrs;
   }
-  if (!s.types.length) s.types = ["Character"];
   for (const t of s.types) {
     const k = t.toLowerCase();
     if (!((_c = s.layouts[k]) == null ? void 0 : _c.sections)) s.layouts[k] = defaultLayout();
@@ -1730,9 +1735,12 @@ function defaultRange(kind) {
   if (kind === "decimal") return { min: 0, max: 1 };
   return { min: -9999, max: 99999 };
 }
+function wantSteppers(kind, entry) {
+  return (kind === "number" || kind === "decimal") && entry.steppers !== false;
+}
 function clusterNeeds(kind, ref) {
   const flags = emptyFlags();
-  if (kind === "number" || kind === "decimal") flags.steppers = true;
+  if (wantSteppers(kind, ref.entry)) flags.steppers = true;
   for (const a of addonsFor(ref)) mergeNeeds(flags, a.needs(ref));
   return { steppers: flags.steppers, before: flags.before, after: flags.after };
 }
@@ -1754,7 +1762,7 @@ function render(kind, ctx) {
   const refs = view.buildCluster(ctx.head, ctx.flags, {
     get,
     display: fmtNum(get()),
-    steppers: kind === "number" || kind === "decimal",
+    steppers: wantSteppers(kind, entry),
     min,
     max,
     float: isDecimal || isFormula,
@@ -1802,6 +1810,14 @@ function renderOptions(kind, octx) {
       changed();
     });
   });
+  if (kind === "number" || kind === "decimal") {
+    new import_obsidian3.Setting(c).setName(t("options.showSteppers")).addToggle((tg) => {
+      tg.setValue(entry.steppers !== false).onChange((v) => {
+        entry.steppers = v ? void 0 : false;
+        changed();
+      });
+    });
+  }
   new import_obsidian3.Setting(c).setName(t("options.minimum")).addText((tx) => {
     tx.setValue(entry.min !== void 0 ? String(entry.min) : "").onChange((v) => {
       const n = Number(v);
@@ -1873,6 +1889,43 @@ var formulaType = makeNumericType("formula", "type.formula");
 
 // src/ui/render/modifier-addon.ts
 var import_obsidian4 = require("obsidian");
+
+// src/utils/dice.ts
+var DICE_PRESETS = [2, 4, 6, 8, 10, 12, 20, 100];
+var DEFAULT_DICE = { count: 1, sides: 20 };
+function formatDice(spec) {
+  return (spec.count > 1 ? spec.count : "") + "d" + spec.sides;
+}
+function isDefaultDice(spec) {
+  return spec.count === DEFAULT_DICE.count && spec.sides === DEFAULT_DICE.sides;
+}
+function parseDice(text) {
+  if (!text) return null;
+  const m = String(text).trim().match(/^(\d*)\s*[dD]\s*(\d+)$/);
+  if (!m) return null;
+  const count = m[1] ? parseInt(m[1]) : 1;
+  const sides = parseInt(m[2]);
+  if (!Number.isFinite(count) || !Number.isFinite(sides)) return null;
+  if (count < 1 || count > 100 || sides < 2 || sides > 1e4) return null;
+  return { count, sides };
+}
+function parseDiceOrDefault(text) {
+  var _a;
+  return (_a = parseDice(text)) != null ? _a : { ...DEFAULT_DICE };
+}
+function rollPool(spec) {
+  const faces = [];
+  for (let i = 0; i < spec.count; i++) faces.push(1 + Math.floor(Math.random() * spec.sides));
+  return { faces, total: faces.reduce((a, b) => a + b, 0) };
+}
+function isMaxPool(spec, pool) {
+  return pool.faces.every((f) => f === spec.sides);
+}
+function isMinPool(pool) {
+  return pool.faces.every((f) => f === 1);
+}
+
+// src/ui/render/modifier-addon.ts
 var MODIFIABLE_TYPE_IDS = /* @__PURE__ */ new Set(["number", "decimal", "formula", "derived"]);
 function mods(entry) {
   const m = ext(entry).mods;
@@ -1898,9 +1951,16 @@ function paintDenotation(parent, view, entry) {
   });
   return den;
 }
+function paintDice(parent, entry) {
+  const e = entry;
+  if (!e["roll"]) return;
+  const spec = parseDiceOrDefault(typeof e["dice"] === "string" ? e["dice"] : void 0);
+  parent.createSpan({ cls: "ep-dice-tag ep-line-abbr", text: formatDice(spec) });
+}
 function paintBadge(cell, ref) {
   cell.empty();
   paintDenotation(cell, ref.view, ref.entry);
+  paintDice(cell, ref.entry);
   cell.appendText(fmtMod(modifierTotal(ref.view, ref.entry)));
 }
 var modifierAddon = {
@@ -1968,6 +2028,7 @@ var modifierAddon = {
     const cell = cells["mod"];
     cell.empty();
     paintDenotation(cell, view, ctx.entry);
+    paintDice(cell, ctx.entry);
     cell.appendText(fmtMod(total));
   },
   // -- options: the influence editor ---------------------------------------
@@ -2139,6 +2200,7 @@ var derivedType = {
         const paint = () => {
           cell.empty();
           paintDenotation(cell, view, entry);
+          paintDice(cell, entry);
         };
         paint();
         view.registerUpdater(paint);
@@ -2994,8 +3056,11 @@ function openEntryMenu(e, view, file, section, entry) {
   var _a, _b;
   const t = view.i18n.t.bind(view.i18n);
   const menu = new import_obsidian9.Menu();
+  const cfgName = entry.alias || view.defaultLabelFor(entry);
   menu.addItem(
-    (i) => i.setTitle(t("entry.menu.configure", { name: entry.alias || view.defaultLabelFor(entry) })).setIcon("settings").onClick(() => view.openEntryOptions(section, entry))
+    (i) => i.setTitle(
+      entry.kind === "prop" ? t("entry.menu.configure", { name: cfgName }) : t("entry.menu.configureObject", { name: cfgName })
+    ).setIcon("settings").onClick(() => view.openEntryOptions(section, entry))
   );
   if (entry.kind === "prop" && entry.key) {
     const key = entry.key;
@@ -4234,9 +4299,11 @@ function renderSection(parent, view, file, section, drag, host) {
   const flags = computeFlags(view, file, section);
   const mode = sectionMode(section);
   const ncol = Math.max(1, section.columns || 1);
-  if (view.editMode && mode !== "list") renderColumnRail(body, view, section, ncol);
+  let colRail = null;
+  let rowRail = null;
+  if (view.editMode && mode !== "list") colRail = body.createDiv({ cls: "ep-colrail" });
   const gflex = view.editMode && mode === "grid" ? body.createDiv({ cls: "ep-gridflex" }) : body;
-  if (view.editMode && mode === "grid") renderRowRail(gflex, view, section, ncol);
+  if (view.editMode && mode === "grid") rowRail = gflex.createDiv({ cls: "ep-rowrail" });
   const grid = gflex.createDiv({ cls: "ep-grid ep-mode-" + mode });
   if (section.dividers) grid.addClass("ep-dividers");
   if (section.vdividers) grid.addClass("ep-vdividers");
@@ -4297,6 +4364,7 @@ function renderSection(parent, view, file, section, drag, host) {
     }
   }
   alignClusters(det);
+  if (colRail || rowRail) renderRails(view, section, grid, colRail, rowRail);
   if (view.editMode) drag.attachSection(det, grid, section);
   if (collapsible) {
     collapseWrap.style.overflow = "hidden";
@@ -4329,61 +4397,100 @@ function toggleSection(view, section, det, wrap, host) {
   }
   requestAnimationFrame(() => host.reflowSticky());
 }
-function renderColumnRail(parent, view, section, ncol) {
-  const t = view.i18n.t.bind(view.i18n);
-  const rail = parent.createDiv({ cls: "ep-colrail" });
-  const isGrid = sectionMode(section) === "grid";
-  for (let i = 0; i <= ncol; i++) {
-    const b = rail.createDiv({ cls: "ep-addbar" });
-    const sp = b.createSpan();
-    (0, import_obsidian16.setIcon)(sp, "plus");
-    b.setAttr("title", t("grid.addColumnHint"));
-    b.onclick = () => {
-      addColumnAt(section, i, isGrid);
-      view.saveLayout();
-      view.rerender();
-    };
-    if (i < ncol) {
-      const slot = rail.createDiv({ cls: "ep-railslot" });
-      const rm = slot.createDiv({ cls: "ep-rmbar" });
-      const rs = rm.createSpan();
-      (0, import_obsidian16.setIcon)(rs, "minus");
-      rm.setAttr("title", t("grid.removeColumnHint"));
-      rm.onclick = () => {
-        removeColumnAt(section, i, isGrid);
-        view.saveLayout();
-        view.rerender();
-      };
-    }
+function clusterSpans(spans) {
+  const sorted = [...spans].sort((x, y) => x[0] - y[0]);
+  const out = [];
+  for (const [a, b] of sorted) {
+    const last = out[out.length - 1];
+    if (last && Math.abs(a - last[0]) < 2) last[1] = Math.max(last[1], b);
+    else out.push([a, b]);
   }
+  return out;
 }
-function renderRowRail(parent, view, section, ncol) {
+function renderRails(view, section, grid, colRail, rowRail) {
   const t = view.i18n.t.bind(view.i18n);
-  const nrow = section.rows && section.rows > 0 ? section.rows : Math.max(1, Math.ceil(section.entries.length / ncol));
-  const rail = parent.createDiv({ cls: "ep-rowrail" });
-  for (let i = 0; i <= nrow; i++) {
-    const b = rail.createDiv({ cls: "ep-addbar" });
-    const sp = b.createSpan();
-    (0, import_obsidian16.setIcon)(sp, "plus");
-    b.setAttr("title", t("grid.addRowHint"));
-    b.onclick = () => {
-      addRowAt(section, i);
+  const isGrid = sectionMode(section) === "grid";
+  requestAnimationFrame(() => {
+    if (!grid.isConnected) return;
+    const gr = grid.getBoundingClientRect();
+    const cells = Array.from(grid.children).filter(
+      (c) => (c.classList.contains("ep-entry") || c.classList.contains("ep-empty-cell") || c.classList.contains("ep-col")) && !c.style.gridColumn
+    );
+    const spansOf = (axis) => clusterSpans(
+      cells.map((c) => {
+        const r = c.getBoundingClientRect();
+        return axis === "x" ? [r.left - gr.left, r.right - gr.left] : [r.top - gr.top, r.bottom - gr.top];
+      })
+    );
+    const boundsOf = (spans) => {
+      const out = [];
+      spans.forEach(([a, b], i) => {
+        out.push(i === 0 ? a : (spans[i - 1][1] + a) / 2);
+        if (i === spans.length - 1) out.push(b);
+      });
+      return out;
+    };
+    const mkBtn = (rail, cls, icon, title, onClick) => {
+      const el = rail.createDiv({ cls });
+      const sp = el.createSpan();
+      (0, import_obsidian16.setIcon)(sp, icon);
+      el.setAttr("title", title);
+      el.onclick = onClick;
+      return el;
+    };
+    const commit2 = (fn) => {
+      fn();
       view.saveLayout();
       view.rerender();
     };
-    if (i < nrow) {
-      const slot = rail.createDiv({ cls: "ep-railslot" });
-      const rm = slot.createDiv({ cls: "ep-rmbar" });
-      const rs = rm.createSpan();
-      (0, import_obsidian16.setIcon)(rs, "minus");
-      rm.setAttr("title", t("grid.removeRowHint"));
-      rm.onclick = () => {
-        removeRowAt(section, i);
-        view.saveLayout();
-        view.rerender();
-      };
+    if (colRail && colRail.isConnected) {
+      colRail.empty();
+      const off = gr.left - colRail.getBoundingClientRect().left;
+      const spans = spansOf("x");
+      boundsOf(spans).forEach((x, i) => {
+        mkBtn(
+          colRail,
+          "ep-addbar",
+          "plus",
+          t("grid.addColumnHint"),
+          () => commit2(() => addColumnAt(section, i, isGrid))
+        ).style.left = off + x + "px";
+      });
+      if (spans.length > 1)
+        spans.forEach(([a, b], i) => {
+          mkBtn(
+            colRail,
+            "ep-rmbar",
+            "minus",
+            t("grid.removeColumnHint"),
+            () => commit2(() => removeColumnAt(section, i, isGrid))
+          ).style.left = off + (a + b) / 2 + "px";
+        });
     }
-  }
+    if (rowRail && rowRail.isConnected) {
+      rowRail.empty();
+      const off = gr.top - rowRail.getBoundingClientRect().top;
+      const spans = spansOf("y");
+      boundsOf(spans).forEach((y, i) => {
+        mkBtn(
+          rowRail,
+          "ep-addbar",
+          "plus",
+          t("grid.addRowHint"),
+          () => commit2(() => addRowAt(section, i))
+        ).style.top = off + y + "px";
+      });
+      spans.forEach(([a, b], i) => {
+        mkBtn(
+          rowRail,
+          "ep-rmbar",
+          "minus",
+          t("grid.removeRowHint"),
+          () => commit2(() => removeRowAt(section, i))
+        ).style.top = off + (a + b) / 2 + "px";
+      });
+    }
+  });
 }
 
 // src/ui/components/popups.ts
@@ -5076,6 +5183,7 @@ var SidebarView = class extends import_obsidian18.ItemView {
     entry.key = newKey;
     entry.alias = void 0;
     entry.slider = void 0;
+    entry.steppers = void 0;
     entry.roll = void 0;
     entry.showMod = void 0;
     entry.mods = void 0;
@@ -5377,10 +5485,14 @@ var SidebarView = class extends import_obsidian18.ItemView {
     if (!match) {
       const box = container.createDiv({ cls: "ep-empty" });
       box.createDiv({ text: t("view.noType", { note: file.basename }) });
-      box.createDiv({ cls: "ep-empty-sub", text: t("view.noTypeHint") });
-      for (const tp of this.settings.types) {
-        const b = box.createEl("button", { text: t("view.setType", { type: tp }), cls: "mod-cta" });
-        b.onclick = () => this.note.set(file, "Type", tp, true);
+      if (this.settings.types.length) {
+        box.createDiv({ cls: "ep-empty-sub", text: t("view.noTypeHint") });
+        for (const tp of this.settings.types) {
+          const b = box.createEl("button", { text: t("view.setType", { type: tp }), cls: "mod-cta" });
+          b.onclick = () => this.note.set(file, "Type", tp, true);
+        }
+      } else {
+        box.createDiv({ cls: "ep-empty-sub", text: t("view.noTypesConfigured") });
       }
       return;
     }
@@ -5474,6 +5586,7 @@ var SidebarView = class extends import_obsidian18.ItemView {
         this.layout.sections.unshift(fresh);
       }
       this.provisionTemplateSources(tpl, fresh);
+      this.seedTemplateProperties(fresh);
       this.saveLayout();
       this.render();
     };
@@ -5498,6 +5611,20 @@ var SidebarView = class extends import_obsidian18.ItemView {
     for (const e of declared) have.add(e.key.toLowerCase());
     fresh.entries.unshift(...declared);
     ensurePropEntries(this.layout, fresh, influenceSources(fresh.entries));
+  }
+  /**
+   * Template properties become real note properties right away (value
+   * `null` for the ones the note doesn't have yet). They stay hidden from
+   * Obsidian's properties panel through the usual hide-shown rule, since
+   * they are now shown in the sidebar.
+   */
+  seedTemplateProperties(fresh) {
+    const file = this.app.workspace.getActiveFile();
+    if (!file) return;
+    const missing = {};
+    for (const e of fresh.entries)
+      if (e.kind === "prop" && e.key && this.note.raw[e.key] === void 0) missing[e.key] = null;
+    if (Object.keys(missing).length) this.note.setMany(file, missing);
   }
 };
 
@@ -5533,7 +5660,7 @@ var EPSettingTab = class extends import_obsidian19.PluginSettingTab {
           ).open()
         )
       ).addButton(
-        (b) => b.setButtonText(t("settings.deleteType")).setWarning().setDisabled(plugin.settings.types.length <= 1).onClick(() => {
+        (b) => b.setButtonText(t("settings.deleteType")).setWarning().onClick(() => {
           plugin.settings.types = plugin.settings.types.filter((x) => x !== type);
           delete plugin.settings.layouts[type.toLowerCase()];
           save();
@@ -5914,43 +6041,6 @@ function augmentPropsMenu(host) {
 
 // src/features/rolling/roll-service.ts
 var import_obsidian21 = require("obsidian");
-
-// src/utils/dice.ts
-var DICE_PRESETS = [2, 4, 6, 8, 10, 12, 20, 100];
-var DEFAULT_DICE = { count: 1, sides: 20 };
-function formatDice(spec) {
-  return (spec.count > 1 ? spec.count : "") + "d" + spec.sides;
-}
-function isDefaultDice(spec) {
-  return spec.count === DEFAULT_DICE.count && spec.sides === DEFAULT_DICE.sides;
-}
-function parseDice(text) {
-  if (!text) return null;
-  const m = String(text).trim().match(/^(\d*)\s*[dD]\s*(\d+)$/);
-  if (!m) return null;
-  const count = m[1] ? parseInt(m[1]) : 1;
-  const sides = parseInt(m[2]);
-  if (!Number.isFinite(count) || !Number.isFinite(sides)) return null;
-  if (count < 1 || count > 100 || sides < 2 || sides > 1e4) return null;
-  return { count, sides };
-}
-function parseDiceOrDefault(text) {
-  var _a;
-  return (_a = parseDice(text)) != null ? _a : { ...DEFAULT_DICE };
-}
-function rollPool(spec) {
-  const faces = [];
-  for (let i = 0; i < spec.count; i++) faces.push(1 + Math.floor(Math.random() * spec.sides));
-  return { faces, total: faces.reduce((a, b) => a + b, 0) };
-}
-function isMaxPool(spec, pool) {
-  return pool.faces.every((f) => f === spec.sides);
-}
-function isMinPool(pool) {
-  return pool.faces.every((f) => f === 1);
-}
-
-// src/features/rolling/roll-service.ts
 var ROLL_SERVICE = "rolling.rolls";
 var LOG_LIMIT = 6;
 var RollService = class {
@@ -6085,19 +6175,33 @@ function openDiceMenu(e, app, i18n, binding) {
 }
 function addDiceSettings(container, i18n, binding) {
   const cur = () => parseDiceOrDefault(binding.get());
+  let sizeBox = null;
+  const setSizeActive = (on) => {
+    if (!sizeBox) return;
+    sizeBox.setDisabled(!on);
+    sizeBox.inputEl.toggleClass("ep-disabled", !on);
+  };
   new import_obsidian22.Setting(container).setName(i18n.t("dice.die")).setDesc(i18n.t("dice.dieDesc")).addDropdown((d) => {
     for (const sides of DICE_PRESETS) d.addOption(String(sides), "d" + sides);
     d.addOption("custom", i18n.t("dice.custom"));
     const c = cur();
     d.setValue(DICE_PRESETS.includes(c.sides) ? String(c.sides) : "custom");
     d.onChange((v) => {
-      if (v === "custom") return;
+      if (v === "custom") {
+        setSizeActive(true);
+        sizeBox == null ? void 0 : sizeBox.inputEl.focus();
+        return;
+      }
+      setSizeActive(false);
       commit(binding, { count: cur().count, sides: parseInt(v) });
     });
   }).addText((t) => {
+    sizeBox = t;
     t.setPlaceholder(i18n.t("dice.customSizeShort"));
     const c = cur();
-    t.setValue(DICE_PRESETS.includes(c.sides) ? "" : String(c.sides));
+    const isCustom = !DICE_PRESETS.includes(c.sides);
+    t.setValue(isCustom ? String(c.sides) : "");
+    setSizeActive(isCustom);
     t.onChange((v) => {
       const n = parseInt(v);
       if (Number.isFinite(n) && n >= 2) commit(binding, { count: cur().count, sides: n });
@@ -6133,7 +6237,6 @@ var rollAddon = {
     const e = ext(ctx.entry);
     const slots = {};
     slots["roll"] = (cell) => {
-      renderDiceTag(cell, e.dice);
       const btn = cell.createEl("button", { cls: "ep-roll-btn", text: view.i18n.t("roll.roll") });
       btn.onclick = () => view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n)).roll(num.label, modifierTotal(view, ctx.entry), parseDiceOrDefault(e.dice));
     };
@@ -7017,7 +7120,6 @@ var dnd5eModule = {
     ctx.registries.skillPresets.add(skillsPreset);
     for (const tpl of sectionTemplates()) ctx.registries.sectionTemplates.add(tpl);
     ctx.registries.layoutPresets.add(characterPreset);
-    ctx.registries.defaultPresetId = characterPreset.id;
   },
   /**
    * Upgrade layouts written by older versions:

@@ -26,11 +26,15 @@ export const DEFAULT_DEFAULTS: Defaults = {
   listSize: 0,
 };
 
-/** Build a fresh settings object. `defaultLayout` supplies the type's layout. */
-export function defaultSettings(defaultLayout: () => Layout): EPSettings {
+/**
+ * Build a fresh settings object. There is no default type: types are
+ * created by the user (or adopted from a note's Type value) and start with
+ * an empty layout; template sections are added explicitly afterwards.
+ */
+export function defaultSettings(): EPSettings {
   return {
-    types: ["Character"],
-    layouts: { character: defaultLayout() },
+    types: [],
+    layouts: {},
     hideShown: true,
     defaults: { ...DEFAULT_DEFAULTS },
     manualHide: [],
@@ -48,7 +52,7 @@ export function defaultSettings(defaultLayout: () => Layout): EPSettings {
  * settings object.
  */
 export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSettings {
-  const s = defaultSettings(defaultLayout);
+  const s = defaultSettings();
   if (data) {
     if (data.layouts && data.types) {
       s.types = data.types;
@@ -70,7 +74,6 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
       s.derivations = data.derivations.filter((d: any) => d && typeof d.id === "string");
     if (data.sourceAbbrs && typeof data.sourceAbbrs === "object") s.sourceAbbrs = data.sourceAbbrs;
   }
-  if (!s.types.length) s.types = ["Character"];
   for (const t of s.types) {
     const k = t.toLowerCase();
     if (!s.layouts[k]?.sections) s.layouts[k] = defaultLayout();

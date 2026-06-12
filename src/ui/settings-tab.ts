@@ -51,7 +51,6 @@ export class EPSettingTab extends PluginSettingTab {
         .addButton((b) =>
           b.setButtonText(t("settings.deleteType"))
             .setWarning()
-            .setDisabled(plugin.settings.types.length <= 1)
             .onClick(() => {
               plugin.settings.types = plugin.settings.types.filter((x) => x !== type);
               delete plugin.settings.layouts[type.toLowerCase()];

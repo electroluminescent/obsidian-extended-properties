@@ -25,10 +25,15 @@ function defaultRange(kind: NumericKind): { min: number; max: number } {
   return { min: -9999, max: 99999 };
 }
 
+/** Whether the entry shows −/+ steppers (number/decimal, not opted out). */
+function wantSteppers(kind: NumericKind, entry: { steppers?: boolean }): boolean {
+  return (kind === "number" || kind === "decimal") && entry.steppers !== false;
+}
+
 /** Cluster needs = steppers (number/decimal) + whatever addons request. */
 function clusterNeeds(kind: NumericKind, ref: EntryRef): ClusterNeeds {
   const flags = emptyFlags();
-  if (kind === "number" || kind === "decimal") flags.steppers = true;
+  if (wantSteppers(kind, ref.entry)) flags.steppers = true;
   for (const a of addonsFor(ref)) mergeNeeds(flags, a.needs(ref));
   return { steppers: flags.steppers, before: flags.before, after: flags.after };
 }
@@ -53,7 +58,7 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
   const refs = view.buildCluster(ctx.head, ctx.flags, {
     get,
     display: fmtNum(get()),
-    steppers: kind === "number" || kind === "decimal",
+    steppers: wantSteppers(kind, entry),
     min,
     max,
     float: isDecimal || isFormula,
@@ -104,6 +109,14 @@ function renderOptions(kind: NumericKind, octx: OptionsCtx): void {
       changed();
     });
   });
+  if (kind === "number" || kind === "decimal") {
+    new Setting(c).setName(t("options.showSteppers")).addToggle((tg) => {
+      tg.setValue(entry.steppers !== false).onChange((v) => {
+        entry.steppers = v ? undefined : false;
+        changed();
+      });
+    });
+  }
   new Setting(c).setName(t("options.minimum")).addText((tx) => {
     tx.setValue(entry.min !== undefined ? String(entry.min) : "").onChange((v) => {
       const n = Number(v);

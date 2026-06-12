@@ -46,6 +46,8 @@ export interface EntryBase {
 
   // -- numeric value-type options ------------------------------------------
   slider?: boolean;
+  /** Hide the −/+ stepper buttons when false (default: shown). */
+  steppers?: boolean;
   min?: number;
   max?: number;
   clamp?: boolean;

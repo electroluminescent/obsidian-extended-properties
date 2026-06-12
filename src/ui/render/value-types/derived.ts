@@ -15,7 +15,7 @@ import type { ValueTypeDef } from "../../../core/registry";
 import { modifierTotal } from "../../../core/influences";
 import { fmtMod } from "../../../utils/misc";
 import { addonsFor, emptyFlags, mergeNeeds } from "../cluster";
-import { paintDenotation } from "../modifier-addon";
+import { paintDenotation, paintDice } from "../modifier-addon";
 
 export const derivedType: ValueTypeDef = {
   id: "derived",
@@ -24,7 +24,7 @@ export const derivedType: ValueTypeDef = {
   clusterNeeds(ref: EntryRef) {
     const flags = emptyFlags();
     for (const a of addonsFor(ref)) mergeNeeds(flags, a.needs(ref));
-    // The denotation sits directly before the computed value.
+    // The denotation (+ dice breakdown) sits directly before the value.
     flags.before.push({ id: "den", cls: "ep-den-cell" });
     return flags;
   },
@@ -39,6 +39,8 @@ export const derivedType: ValueTypeDef = {
         const paint = () => {
           cell.empty();
           paintDenotation(cell, view, entry);
+          // Roll breakdown between the modifier names and the value.
+          paintDice(cell, entry);
         };
         paint();
         view.registerUpdater(paint);

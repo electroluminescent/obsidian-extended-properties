@@ -18,7 +18,7 @@ import { modifierTotal, ModExt } from "../../core/influences";
 import { MODIFIABLE_TYPE_IDS } from "../../ui/render/modifier-addon";
 import { parseDiceOrDefault } from "../../utils/dice";
 import { ROLL_SERVICE, RollService } from "./roll-service";
-import { addDiceSettings, renderDiceTag } from "./dice-ui";
+import { addDiceSettings } from "./dice-ui";
 
 /** Entry fields persisted by this addon. */
 export interface RollExt {
@@ -44,7 +44,9 @@ export const rollAddon: ClusterAddon = {
     const e = ext<RollExt>(ctx.entry);
     const slots: Record<string, (cell: HTMLElement) => void> = {};
     slots["roll"] = (cell) => {
-      renderDiceTag(cell, e.dice);
+      // The dice breakdown lives in the modifier badge / denotation cell
+      // (between the modifier names and the modifier); the cell holds only
+      // the button.
       const btn = cell.createEl("button", { cls: "ep-roll-btn", text: view.i18n.t("roll.roll") });
       btn.onclick = () =>
         view.hub

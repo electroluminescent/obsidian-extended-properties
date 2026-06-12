@@ -344,3 +344,16 @@
   .ep-grip { padding: 0 8px; }
   .ep-section.ep-drop-top::before, .ep-section.ep-drop-bottom::after { height: 4px; }
 }
+
+/* round 21 additions — measured rails, dimmed inactive inputs */
+/* rail buttons are absolutely positioned on measured cell boundaries/centers */
+.ep-colrail { position: relative; display: block; height: 16px; margin: 2px 0; }
+.ep-rowrail { position: relative; display: block; width: 16px; flex: 0 0 16px; }
+.ep-colrail .ep-addbar, .ep-colrail .ep-rmbar { position: absolute; top: 50%; transform: translate(-50%, -50%); }
+.ep-rowrail .ep-addbar, .ep-rowrail .ep-rmbar { position: absolute; left: 50%; transform: translate(-50%, -50%); }
+.ep-rowrail .ep-addbar, .ep-rowrail .ep-rmbar, .ep-colrail .ep-addbar, .ep-colrail .ep-rmbar { margin: 0; flex: none; }
+input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
+@media (pointer: coarse) {
+  .ep-colrail { height: 26px; }
+  .ep-rowrail { width: 26px; flex-basis: 26px; }
+}

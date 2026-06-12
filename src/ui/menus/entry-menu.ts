@@ -19,8 +19,13 @@ export function openEntryMenu(
   const t = view.i18n.t.bind(view.i18n);
   const menu = new Menu();
 
+  const cfgName = (entry.alias as string) || view.defaultLabelFor(entry);
   menu.addItem((i) =>
-    i.setTitle(t("entry.menu.configure", { name: (entry.alias as string) || view.defaultLabelFor(entry) }))
+    i.setTitle(
+      entry.kind === "prop"
+        ? t("entry.menu.configure", { name: cfgName })
+        : t("entry.menu.configureObject", { name: cfgName })
+    )
       .setIcon("settings")
       .onClick(() => view.openEntryOptions(section, entry))
   );

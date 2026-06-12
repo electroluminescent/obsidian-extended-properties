@@ -199,6 +199,7 @@ export class SidebarView extends ItemView implements ViewCtx {
     // Type-specific settings rarely survive a key change meaningfully.
     entry.alias = undefined;
     entry.slider = undefined;
+    entry.steppers = undefined;
     entry.roll = undefined;
     entry.showMod = undefined;
     entry.mods = undefined;
@@ -520,10 +521,16 @@ export class SidebarView extends ItemView implements ViewCtx {
     if (!match) {
       const box = container.createDiv({ cls: "ep-empty" });
       box.createDiv({ text: t("view.noType", { note: file.basename }) });
-      box.createDiv({ cls: "ep-empty-sub", text: t("view.noTypeHint") });
-      for (const tp of this.settings.types) {
-        const b = box.createEl("button", { text: t("view.setType", { type: tp }), cls: "mod-cta" });
-        b.onclick = () => this.note.set(file, "Type", tp, true);
+      if (this.settings.types.length) {
+        box.createDiv({ cls: "ep-empty-sub", text: t("view.noTypeHint") });
+        for (const tp of this.settings.types) {
+          const b = box.createEl("button", { text: t("view.setType", { type: tp }), cls: "mod-cta" });
+          b.onclick = () => this.note.set(file, "Type", tp, true);
+        }
+      } else {
+        // No default type exists — any Type value the note gets is adopted
+        // as a new, empty type.
+        box.createDiv({ cls: "ep-empty-sub", text: t("view.noTypesConfigured") });
       }
       return;
     }
@@ -624,6 +631,7 @@ export class SidebarView extends ItemView implements ViewCtx {
         this.layout.sections.unshift(fresh);
       }
       this.provisionTemplateSources(tpl, fresh);
+      this.seedTemplateProperties(fresh);
       this.saveLayout();
       this.render();
     };
@@ -649,5 +657,20 @@ export class SidebarView extends ItemView implements ViewCtx {
     fresh.entries.unshift(...declared);
     // Whatever is still referenced but missing becomes a plain number.
     ops.ensurePropEntries(this.layout, fresh, influenceSources(fresh.entries));
+  }
+
+  /**
+   * Template properties become real note properties right away (value
+   * `null` for the ones the note doesn't have yet). They stay hidden from
+   * Obsidian's properties panel through the usual hide-shown rule, since
+   * they are now shown in the sidebar.
+   */
+  private seedTemplateProperties(fresh: Section): void {
+    const file = this.app.workspace.getActiveFile();
+    if (!file) return;
+    const missing: Record<string, unknown> = {};
+    for (const e of fresh.entries)
+      if (e.kind === "prop" && e.key && this.note.raw[e.key] === undefined) missing[e.key] = null;
+    if (Object.keys(missing).length) this.note.setMany(file, missing);
   }
 }

@@ -10,7 +10,7 @@
  *   the modifier.
  */
 
-import { App, Menu, Setting } from "obsidian";
+import { App, Menu, Setting, TextComponent } from "obsidian";
 import type { I18n } from "../../i18n/i18n";
 import { DICE_PRESETS, DiceSpec, formatDice, isDefaultDice, parseDice, parseDiceOrDefault } from "../../utils/dice";
 import { TextPromptModal } from "../../ui/modals/dialogs";
@@ -61,6 +61,14 @@ export function openDiceMenu(e: MouseEvent, app: App, i18n: I18n, binding: DiceB
 /** `Setting` rows for options modals: preset dropdown, count, custom size. */
 export function addDiceSettings(container: HTMLElement, i18n: I18n, binding: DiceBinding): void {
   const cur = () => parseDiceOrDefault(binding.get());
+  // The custom-size box is only active while "Custom…" is selected;
+  // otherwise it is disabled and dimmed.
+  let sizeBox: TextComponent | null = null;
+  const setSizeActive = (on: boolean) => {
+    if (!sizeBox) return;
+    sizeBox.setDisabled(!on);
+    sizeBox.inputEl.toggleClass("ep-disabled", !on);
+  };
   new Setting(container)
     .setName(i18n.t("dice.die"))
     .setDesc(i18n.t("dice.dieDesc"))
@@ -70,14 +78,23 @@ export function addDiceSettings(container: HTMLElement, i18n: I18n, binding: Dic
       const c = cur();
       d.setValue(DICE_PRESETS.includes(c.sides) ? String(c.sides) : "custom");
       d.onChange((v) => {
-        if (v === "custom") return; // the size field below takes over
+        if (v === "custom") {
+          // The size field below takes over.
+          setSizeActive(true);
+          sizeBox?.inputEl.focus();
+          return;
+        }
+        setSizeActive(false);
         commit(binding, { count: cur().count, sides: parseInt(v) });
       });
     })
     .addText((t) => {
+      sizeBox = t;
       t.setPlaceholder(i18n.t("dice.customSizeShort"));
       const c = cur();
-      t.setValue(DICE_PRESETS.includes(c.sides) ? "" : String(c.sides));
+      const isCustom = !DICE_PRESETS.includes(c.sides);
+      t.setValue(isCustom ? String(c.sides) : "");
+      setSizeActive(isCustom);
       t.onChange((v) => {
         const n = parseInt(v);
         if (Number.isFinite(n) && n >= 2) commit(binding, { count: cur().count, sides: n });

@@ -181,9 +181,11 @@ export function renderSection(
   const mode = sectionMode(section);
   const ncol = Math.max(1, section.columns || 1);
 
-  if (view.editMode && mode !== "list") renderColumnRail(body, view, section, ncol);
+  let colRail: HTMLElement | null = null;
+  let rowRail: HTMLElement | null = null;
+  if (view.editMode && mode !== "list") colRail = body.createDiv({ cls: "ep-colrail" });
   const gflex = view.editMode && mode === "grid" ? body.createDiv({ cls: "ep-gridflex" }) : body;
-  if (view.editMode && mode === "grid") renderRowRail(gflex, view, section, ncol);
+  if (view.editMode && mode === "grid") rowRail = gflex.createDiv({ cls: "ep-rowrail" });
 
   const grid = gflex.createDiv({ cls: "ep-grid ep-mode-" + mode });
   if (section.dividers) grid.addClass("ep-dividers");
@@ -250,6 +252,7 @@ export function renderSection(
   }
 
   alignClusters(det);
+  if (colRail || rowRail) renderRails(view, section, grid, colRail, rowRail);
   if (view.editMode) drag.attachSection(det, grid, section);
   if (collapsible) {
     collapseWrap.style.overflow = "hidden";
@@ -291,62 +294,109 @@ function toggleSection(
   requestAnimationFrame(() => host.reflowSticky());
 }
 
-/** Vertical "+ / −" rail for adding/removing columns (edit mode). */
-function renderColumnRail(parent: HTMLElement, view: ViewCtx, section: Section, ncol: number): void {
-  const t = view.i18n.t.bind(view.i18n);
-  const rail = parent.createDiv({ cls: "ep-colrail" });
-  const isGrid = sectionMode(section) === "grid";
-  for (let i = 0; i <= ncol; i++) {
-    const b = rail.createDiv({ cls: "ep-addbar" });
-    const sp = b.createSpan();
-    setIcon(sp, "plus");
-    b.setAttr("title", t("grid.addColumnHint"));
-    b.onclick = () => {
-      ops.addColumnAt(section, i, isGrid);
-      view.saveLayout();
-      view.rerender();
-    };
-    if (i < ncol) {
-      const slot = rail.createDiv({ cls: "ep-railslot" });
-      const rm = slot.createDiv({ cls: "ep-rmbar" });
-      const rs = rm.createSpan();
-      setIcon(rs, "minus");
-      rm.setAttr("title", t("grid.removeColumnHint"));
-      rm.onclick = () => {
-        ops.removeColumnAt(section, i, isGrid);
-        view.saveLayout();
-        view.rerender();
-      };
-    }
+/** Cluster cell spans on one axis, merging cells of the same column/row. */
+function clusterSpans(spans: [number, number][]): [number, number][] {
+  const sorted = [...spans].sort((x, y) => x[0] - y[0]);
+  const out: [number, number][] = [];
+  for (const [a, b] of sorted) {
+    const last = out[out.length - 1];
+    if (last && Math.abs(a - last[0]) < 2) last[1] = Math.max(last[1], b);
+    else out.push([a, b]);
   }
+  return out;
 }
 
-/** Horizontal "+ / −" rail for adding/removing grid rows (edit mode). */
-function renderRowRail(parent: HTMLElement, view: ViewCtx, section: Section, ncol: number): void {
+/**
+ * Position the add/remove rail buttons by measuring the rendered cells:
+ * "+" sits exactly on the boundaries between columns/rows (and the outer
+ * edges), "−" exactly at each column/row center. The grid is offset by the
+ * row rail and trailed by non-row chrome (the add-property button), so
+ * static spacing drifts — measuring guarantees the buttons only cover
+ * rows/columns that actually exist and can be removed.
+ */
+function renderRails(
+  view: ViewCtx,
+  section: Section,
+  grid: HTMLElement,
+  colRail: HTMLElement | null,
+  rowRail: HTMLElement | null
+): void {
   const t = view.i18n.t.bind(view.i18n);
-  const nrow = section.rows && section.rows > 0 ? section.rows : Math.max(1, Math.ceil(section.entries.length / ncol));
-  const rail = parent.createDiv({ cls: "ep-rowrail" });
-  for (let i = 0; i <= nrow; i++) {
-    const b = rail.createDiv({ cls: "ep-addbar" });
-    const sp = b.createSpan();
-    setIcon(sp, "plus");
-    b.setAttr("title", t("grid.addRowHint"));
-    b.onclick = () => {
-      ops.addRowAt(section, i);
+  const isGrid = sectionMode(section) === "grid";
+
+  requestAnimationFrame(() => {
+    if (!grid.isConnected) return;
+    const gr = grid.getBoundingClientRect();
+    // Cells that define the column/row geometry. Wide (full-span) entries
+    // would merge all columns, so they are skipped.
+    const cells = (Array.from(grid.children) as HTMLElement[]).filter(
+      (c) =>
+        (c.classList.contains("ep-entry") || c.classList.contains("ep-empty-cell") || c.classList.contains("ep-col")) &&
+        !c.style.gridColumn
+    );
+    const spansOf = (axis: "x" | "y") =>
+      clusterSpans(
+        cells.map((c) => {
+          const r = c.getBoundingClientRect();
+          return axis === "x"
+            ? ([r.left - gr.left, r.right - gr.left] as [number, number])
+            : ([r.top - gr.top, r.bottom - gr.top] as [number, number]);
+        })
+      );
+    /** Outer edges + the midpoints of the gaps between spans. */
+    const boundsOf = (spans: [number, number][]) => {
+      const out: number[] = [];
+      spans.forEach(([a, b], i) => {
+        out.push(i === 0 ? a : (spans[i - 1][1] + a) / 2);
+        if (i === spans.length - 1) out.push(b);
+      });
+      return out;
+    };
+    const mkBtn = (rail: HTMLElement, cls: string, icon: string, title: string, onClick: () => void) => {
+      const el = rail.createDiv({ cls });
+      const sp = el.createSpan();
+      setIcon(sp, icon);
+      el.setAttr("title", title);
+      el.onclick = onClick;
+      return el;
+    };
+    const commit = (fn: () => void) => {
+      fn();
       view.saveLayout();
       view.rerender();
     };
-    if (i < nrow) {
-      const slot = rail.createDiv({ cls: "ep-railslot" });
-      const rm = slot.createDiv({ cls: "ep-rmbar" });
-      const rs = rm.createSpan();
-      setIcon(rs, "minus");
-      rm.setAttr("title", t("grid.removeRowHint"));
-      rm.onclick = () => {
-        ops.removeRowAt(section, i);
-        view.saveLayout();
-        view.rerender();
-      };
+
+    if (colRail && colRail.isConnected) {
+      colRail.empty();
+      const off = gr.left - colRail.getBoundingClientRect().left;
+      const spans = spansOf("x");
+      boundsOf(spans).forEach((x, i) => {
+        mkBtn(colRail, "ep-addbar", "plus", t("grid.addColumnHint"), () =>
+          commit(() => ops.addColumnAt(section, i, isGrid))
+        ).style.left = off + x + "px";
+      });
+      if (spans.length > 1)
+        spans.forEach(([a, b], i) => {
+          mkBtn(colRail, "ep-rmbar", "minus", t("grid.removeColumnHint"), () =>
+            commit(() => ops.removeColumnAt(section, i, isGrid))
+          ).style.left = off + (a + b) / 2 + "px";
+        });
     }
-  }
+
+    if (rowRail && rowRail.isConnected) {
+      rowRail.empty();
+      const off = gr.top - rowRail.getBoundingClientRect().top;
+      const spans = spansOf("y");
+      boundsOf(spans).forEach((y, i) => {
+        mkBtn(rowRail, "ep-addbar", "plus", t("grid.addRowHint"), () =>
+          commit(() => ops.addRowAt(section, i))
+        ).style.top = off + y + "px";
+      });
+      spans.forEach(([a, b], i) => {
+        mkBtn(rowRail, "ep-rmbar", "minus", t("grid.removeRowHint"), () =>
+          commit(() => ops.removeRowAt(section, i))
+        ).style.top = off + (a + b) / 2 + "px";
+      });
+    }
+  });
 }

@@ -23,6 +23,7 @@ import {
 } from "../../core/influences";
 import type { ViewCtx } from "../../core/context";
 import { fmtMod } from "../../utils/misc";
+import { formatDice, parseDiceOrDefault } from "../../utils/dice";
 import { PropSuggest } from "../components/suggest";
 
 /** Value types the modifier system attaches to. */
@@ -70,10 +71,24 @@ export function paintDenotation(parent: HTMLElement, view: ViewCtx, entry: Entry
   return den;
 }
 
-/** Badge: denotation + computed total. */
+/**
+ * Dice breakdown tag ("2d20") for rollable entries, rendered between the
+ * modifier names and the modifier itself, so the row reads like the roll:
+ * `STR + PRO  2d20 +5`. Only the notation is needed here — the rolling
+ * module owns the actual rolling.
+ */
+export function paintDice(parent: HTMLElement, entry: Entry): void {
+  const e = entry as Record<string, unknown>;
+  if (!e["roll"]) return;
+  const spec = parseDiceOrDefault(typeof e["dice"] === "string" ? (e["dice"] as string) : undefined);
+  parent.createSpan({ cls: "ep-dice-tag ep-line-abbr", text: formatDice(spec) });
+}
+
+/** Badge: denotation + dice breakdown + computed total. */
 function paintBadge(cell: HTMLElement, ref: EntryRef): void {
   cell.empty();
   paintDenotation(cell, ref.view, ref.entry);
+  paintDice(cell, ref.entry);
   cell.appendText(fmtMod(modifierTotal(ref.view, ref.entry)));
 }
 
@@ -151,6 +166,7 @@ export const modifierAddon: ClusterAddon = {
     const cell = cells["mod"];
     cell.empty();
     paintDenotation(cell, view, ctx.entry);
+    paintDice(cell, ctx.entry);
     cell.appendText(fmtMod(total));
   },
 

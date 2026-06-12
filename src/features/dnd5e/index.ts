@@ -30,9 +30,9 @@ export const dnd5eModule: FeatureModule = {
     ctx.registries.skillPresets.add(skillsPreset);
 
     for (const tpl of sectionTemplates()) ctx.registries.sectionTemplates.add(tpl);
+    // Registered as an optional preset only — new types always start
+    // empty; the user adds the template sections they want.
     ctx.registries.layoutPresets.add(characterPreset);
-    // New note types start as character sheets while this module is enabled.
-    ctx.registries.defaultPresetId = characterPreset.id;
   },
 
   /**
