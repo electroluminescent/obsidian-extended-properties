@@ -207,6 +207,8 @@ export interface EPSettings {
   diceAnimRolls: number;
   /** Keep roll cards on screen by default (clicking always toggles). */
   diceAnimStay: boolean;
+  /** Roll cards dim the background and block interaction until dismissed. */
+  diceAnimBlock: boolean;
   /** List property storing modifiers switched off by clicking their short form. */
   modsOffProp: string;
 }

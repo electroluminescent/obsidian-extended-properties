@@ -31,6 +31,10 @@ export const rollingEn: StringDict = {
   "roll.card.reroll": "Reroll",
   "roll.card.dismiss": "Dismiss",
 
+  "roll.redoHint": "Click to roll this again",
+  "roll.logChains": "Chains",
+  "roll.logChainsHint": "Show the full roll chain (off = label and result only)",
+
   "roller.title": "Dice roller",
   "roller.addDie": "+ die",
   "roller.addNum": "+ number",
@@ -114,6 +118,10 @@ export const rollingDe: StringDict = {
   "roll.card.copyChain": "Kette kopieren",
   "roll.card.reroll": "Neu würfeln",
   "roll.card.dismiss": "Schließen",
+
+  "roll.redoHint": "Klicken, um erneut zu würfeln",
+  "roll.logChains": "Ketten",
+  "roll.logChainsHint": "Vollständige Wurfkette anzeigen (aus = nur Bezeichnung und Ergebnis)",
 
   "roller.title": "Würfelbrett",
   "roller.addDie": "+ Würfel",

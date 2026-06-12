@@ -433,6 +433,8 @@ var coreEn = {
   "settings.diceAnimRollsDesc": "How many times the dice faces cycle before the result settles.",
   "settings.diceAnimStay": "Keep results on screen",
   "settings.diceAnimStayDesc": "On = roll cards stay until clicked; off = they dismiss themselves. Clicking a card always toggles keeping it.",
+  "settings.diceAnimBlock": "Block background while rolling",
+  "settings.diceAnimBlockDesc": "Dim everything behind the roll cards and prevent clicking through until they are dismissed.",
   "settings.modsOffProp": "Disabled-modifiers property",
   "settings.modsOffPropDesc": "List property storing the modifiers switched off by clicking their short form (entries as \u201CProperty:Source\u201D).",
   "settings.modDepth": "Modifier chain depth",
@@ -822,6 +824,8 @@ var coreDe = {
   "settings.diceAnimRollsDesc": "Wie oft die W\xFCrfelseiten durchwechseln, bevor das Ergebnis liegen bleibt.",
   "settings.diceAnimStay": "Ergebnisse anzeigen lassen",
   "settings.diceAnimStayDesc": "An = Wurf-Karten bleiben, bis sie angeklickt werden; aus = sie schlie\xDFen sich selbst. Klick auf eine Karte schaltet das Behalten immer um.",
+  "settings.diceAnimBlock": "Hintergrund beim W\xFCrfeln blockieren",
+  "settings.diceAnimBlockDesc": "Dunkelt alles hinter den Wurf-Karten ab und verhindert Klicks, bis sie geschlossen sind.",
   "settings.modsOffProp": "Eigenschaft f\xFCr deaktivierte Modifikatoren",
   "settings.modsOffPropDesc": "Listen-Eigenschaft, die per Klick auf ihr K\xFCrzel abgeschaltete Modifikatoren speichert (Eintr\xE4ge als \u201EEigenschaft:Quelle\u201C).",
   "settings.modDepth": "Modifikator-Kettentiefe",
@@ -1222,6 +1226,7 @@ function defaultSettings() {
     diceAnim: true,
     diceAnimRolls: 10,
     diceAnimStay: false,
+    diceAnimBlock: true,
     modsOffProp: "Modifiers Off"
   };
 }
@@ -1252,6 +1257,7 @@ function normalizeSettings(data, defaultLayout) {
     if (typeof data.diceAnimRolls === "number" && data.diceAnimRolls >= 1)
       s.diceAnimRolls = Math.min(60, Math.floor(data.diceAnimRolls));
     if (typeof data.diceAnimStay === "boolean") s.diceAnimStay = data.diceAnimStay;
+    if (typeof data.diceAnimBlock === "boolean") s.diceAnimBlock = data.diceAnimBlock;
     if (typeof data.modsOffProp === "string" && data.modsOffProp.trim())
       s.modsOffProp = data.modsOffProp.trim();
   }
@@ -6607,6 +6613,12 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
         save();
       });
     });
+    new import_obsidian20.Setting(c).setName(t("settings.diceAnimBlock")).setDesc(t("settings.diceAnimBlockDesc")).addToggle((tg) => {
+      tg.setValue(plugin.settings.diceAnimBlock !== false).onChange((v) => {
+        plugin.settings.diceAnimBlock = v;
+        save();
+      });
+    });
     c.createEl("h3", { text: t("settings.typographyHeading") });
     c.createEl("p", { cls: "setting-item-description", text: t("settings.typographyDesc") });
     new import_obsidian20.Setting(c).setName(t("settings.fontFamily")).addText((tx) => {
@@ -6853,15 +6865,18 @@ var TICK_MS = 80;
 var SETTLE_MS = 240;
 var PART_MS = 280;
 var layer = null;
+var summaryEl = null;
+var summarySig = "";
+var summaryIndex = 0;
 var closers = /* @__PURE__ */ new Set();
-function getLayer(i18n) {
-  if (!layer || !layer.isConnected) {
-    layer = document.body.createDiv({ cls: "ep-roll-layer" });
-    const all = layer.createEl("button", { cls: "ep-roll-closeall", text: i18n.t("roll.closeAll") });
-    all.onclick = () => {
-      for (const close of [...closers]) close();
-    };
-  }
+var lives = /* @__PURE__ */ new Map();
+var pending = 0;
+function closeAllRolls() {
+  for (const close of [...closers]) close();
+}
+function getLayer(block) {
+  if (!layer || !layer.isConnected) layer = document.body.createDiv({ cls: "ep-roll-layer" });
+  if (block) layer.addClass("ep-roll-block");
   return layer;
 }
 function dropBox(box) {
@@ -6869,7 +6884,92 @@ function dropBox(box) {
   if (layer && !layer.querySelector(".ep-roll-box")) {
     layer.remove();
     layer = null;
+    summaryEl = null;
+    summarySig = "";
   }
+}
+function updateSummary(i18n) {
+  if (!layer) return;
+  if (pending > 0 || lives.size === 0) {
+    summaryEl == null ? void 0 : summaryEl.remove();
+    summaryEl = null;
+    summarySig = "";
+    return;
+  }
+  const rolls = [...lives.values()];
+  const uniq = [...new Set(rolls.map((r) => r.total))].sort((a, b) => a - b);
+  const sig = rolls.map((r) => r.total).sort((a, b) => a - b).join(",");
+  if (sig !== summarySig) {
+    summarySig = sig;
+    summaryIndex = Math.floor((uniq.length - 1) / 2);
+  }
+  summaryIndex = Math.max(0, Math.min(uniq.length - 1, summaryIndex));
+  summaryEl == null ? void 0 : summaryEl.remove();
+  summaryEl = layer.createDiv({ cls: "ep-roll-summary" });
+  const top = summaryEl.createDiv({ cls: "ep-roll-sum-top" });
+  const valEl = top.createSpan({ cls: "ep-roll-sum-val" });
+  const dismiss = top.createEl("button", { cls: "ep-roll-sum-dismiss", text: i18n.t("roll.closeAll") });
+  dismiss.onclick = closeAllRolls;
+  const slider = summaryEl.createEl("input", { cls: "ep-roll-sum-slider", type: "range" });
+  slider.min = "0";
+  slider.max = String(uniq.length - 1);
+  slider.step = "1";
+  slider.value = String(summaryIndex);
+  slider.disabled = uniq.length < 2;
+  const groupsRow = summaryEl.createDiv({ cls: "ep-roll-sum-groups" });
+  const geGroup = groupsRow.createDiv({ cls: "ep-roll-sum-group" });
+  const geHead = geGroup.createDiv({ cls: "ep-roll-sum-head" });
+  const geGrid = geGroup.createDiv({ cls: "ep-roll-sum-dice" });
+  const ltGroup = groupsRow.createDiv({ cls: "ep-roll-sum-group" });
+  const ltHead = ltGroup.createDiv({ cls: "ep-roll-sum-head" });
+  const ltGrid = ltGroup.createDiv({ cls: "ep-roll-sum-dice" });
+  const els = rolls.map((r) => {
+    const el = createDiv({ cls: "ep-roll-sum-die" });
+    const ic = el.createDiv({ cls: "ep-roll-sum-ico" });
+    (0, import_obsidian22.setIcon)(ic, diceIconId(r.sides));
+    el.createDiv({ cls: "ep-roll-sum-num", text: String(r.total) });
+    return { total: r.total, el };
+  });
+  els.sort((a, b) => b.total - a.total);
+  const apply = (animate) => {
+    const v = uniq[summaryIndex];
+    valEl.setText(String(v));
+    const firsts = animate ? new Map(els.map((x) => [x.el, x.el.getBoundingClientRect()])) : null;
+    let ge = 0;
+    let lt = 0;
+    for (const x of els) {
+      if (x.total >= v) {
+        geGrid.appendChild(x.el);
+        ge++;
+      } else {
+        ltGrid.appendChild(x.el);
+        lt++;
+      }
+    }
+    geHead.setText(`\u2265 ${v} \xB7 ${ge}`);
+    ltHead.setText(`< ${v} \xB7 ${lt}`);
+    if (firsts) {
+      for (const x of els) {
+        const a = firsts.get(x.el);
+        if (!a) continue;
+        const b = x.el.getBoundingClientRect();
+        const dx = a.left - b.left;
+        const dy = a.top - b.top;
+        if (!dx && !dy) continue;
+        x.el.style.transition = "none";
+        x.el.style.transform = `translate(${dx}px, ${dy}px)`;
+        requestAnimationFrame(() => {
+          x.el.style.transition = "";
+          x.el.style.transform = "";
+        });
+      }
+    }
+  };
+  slider.oninput = () => {
+    summaryIndex = parseInt(slider.value) || 0;
+    apply(true);
+  };
+  apply(false);
 }
 function playRollAnimation(job, i18n, done) {
   var _a, _b;
@@ -6877,18 +6977,22 @@ function playRollAnimation(job, i18n, done) {
     done();
     return;
   }
-  const box = getLayer(i18n).createDiv({ cls: "ep-roll-box" });
+  pending++;
+  const token = {};
+  const box = getLayer(job.block).createDiv({ cls: "ep-roll-box" });
   box.createDiv({ cls: "ep-roll-label", text: job.label });
   const diceRow = box.createDiv({ cls: "ep-roll-dice" });
   const chain = box.createDiv({ cls: "ep-roll-chain" });
-  const shown = Math.min(job.faces.length, MAX_DICE_SHOWN);
+  const flat = [];
+  for (const grp of job.groups) grp.faces.forEach((_, idx) => flat.push({ grp, idx }));
+  const shown = Math.min(flat.length, MAX_DICE_SHOWN);
   const dies = [];
   for (let i = 0; i < shown; i++) {
     const el = diceRow.createDiv({ cls: "ep-roll-die ep-rolling" });
     const ic = el.createDiv({ cls: "ep-roll-die-ico" });
-    (0, import_obsidian22.setIcon)(ic, diceIconId(job.spec.sides));
+    (0, import_obsidian22.setIcon)(ic, diceIconId(flat[i].grp.sides));
     const num = el.createDiv({ cls: "ep-roll-die-num" });
-    dies.push({ el, num });
+    dies.push({ el, num, sides: flat[i].grp.sides });
   }
   const timers = [];
   let interval = 0;
@@ -6898,11 +7002,14 @@ function playRollAnimation(job, i18n, done) {
   const close = () => {
     if (closed) return;
     closed = true;
+    if (!resolved) pending--;
+    lives.delete(token);
     closers.delete(close);
     window.clearInterval(interval);
     for (const id of timers) window.clearTimeout(id);
     box.addClass("ep-closing");
     window.setTimeout(() => dropBox(box), 160);
+    updateSummary(i18n);
   };
   closers.add(close);
   const later = (fn, ms) => {
@@ -6917,9 +7024,16 @@ function playRollAnimation(job, i18n, done) {
     if (resolved && !pinned) close();
   };
   const chainText = () => {
-    const kept = job.faces.filter((_, i) => i !== job.dropIndex);
+    const kept = [];
+    const drops = [];
+    for (const grp of job.groups) {
+      grp.faces.forEach((f, i) => {
+        if (i === grp.dropIndex) drops.push(`(${i18n.t("roll.partDrop")} ${f})`);
+        else kept.push(f);
+      });
+    }
     let txt = kept.join(" + ");
-    if (job.dropIndex >= 0) txt += ` (${i18n.t("roll.partDrop")} ${job.faces[job.dropIndex]})`;
+    if (drops.length) txt += " " + drops.join(" ");
     for (const p of job.parts) txt += ` ${fmtMod(p.value)} (${p.label})`;
     return `${txt} = ${job.total}`;
   };
@@ -6949,6 +7063,7 @@ function playRollAnimation(job, i18n, done) {
       );
     }
     menu.addItem((mi) => mi.setTitle(i18n.t("roll.card.dismiss")).setIcon("x").onClick(close));
+    menu.addItem((mi) => mi.setTitle(i18n.t("roll.closeAll")).setIcon("x-circle").onClick(closeAllRolls));
     menu.showAtMouseEvent(ev);
   };
   const addCell = (op, valueText, labelText, cls = "") => {
@@ -6958,15 +7073,20 @@ function playRollAnimation(job, i18n, done) {
     cell.createDiv({ cls: "ep-roll-celllab", text: labelText });
     requestAnimationFrame(() => cell.addClass("ep-in"));
   };
-  const dieLabel = formatDice({ count: 1, sides: job.spec.sides });
   const resolve = () => {
+    var _a2, _b2;
     resolved = true;
+    pending--;
+    lives.set(token, { total: job.total, sides: (_b2 = (_a2 = job.groups[0]) == null ? void 0 : _a2.sides) != null ? _b2 : 20 });
     done();
-    if (!pinned) later(close, 1400);
+    updateSummary(i18n);
+    if (!pinned) later(() => {
+      if (!pinned) close();
+    }, 1400);
   };
   let keptShown = 0;
   const settleFrom = (i) => {
-    if (i >= job.faces.length) {
+    if (i >= flat.length) {
       let delay = PART_MS;
       for (const part of job.parts) {
         later(() => addCell("+", fmtMod(part.value), part.label), delay);
@@ -6978,17 +7098,18 @@ function playRollAnimation(job, i18n, done) {
       }, delay);
       return;
     }
-    const dropped = i === job.dropIndex;
+    const { grp, idx } = flat[i];
+    const dropped = idx === grp.dropIndex;
     if (i < dies.length) {
       dies[i].el.removeClass("ep-rolling");
       dies[i].el.addClass("ep-settled");
       if (dropped) dies[i].el.addClass("ep-roll-drop");
-      dies[i].num.setText(String(job.faces[i]));
+      dies[i].num.setText(String(grp.faces[idx]));
     }
     if (dropped) {
-      addCell(null, String(job.faces[i]), i18n.t("roll.partDrop"), "ep-roll-dropped");
+      addCell(null, String(grp.faces[idx]), i18n.t("roll.partDrop"), "ep-roll-dropped");
     } else {
-      addCell(keptShown > 0 ? "+" : null, String(job.faces[i]), dieLabel);
+      addCell(keptShown > 0 ? "+" : null, String(grp.faces[idx]), formatDice({ count: 1, sides: grp.sides }));
       keptShown++;
     }
     later(() => settleFrom(i + 1), SETTLE_MS);
@@ -6996,7 +7117,7 @@ function playRollAnimation(job, i18n, done) {
   let spin = 0;
   const spins = Math.max(1, Math.floor(job.spins) || 1);
   interval = window.setInterval(() => {
-    for (const d of dies) d.num.setText(String(1 + Math.floor(Math.random() * job.spec.sides)));
+    for (const d of dies) d.num.setText(String(1 + Math.floor(Math.random() * d.sides)));
     spin++;
     if (spin >= spins) {
       window.clearInterval(interval);
@@ -7038,7 +7159,7 @@ var RollService = class {
    * @param spec dice pool to roll (defaults to a single d20)
    */
   roll(label, modifier, spec = { ...DEFAULT_DICE }, opts = {}) {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e;
     const mode = (_a = opts.mode) != null ? _a : this.mode;
     const count = Math.max(1, spec.count) + (mode === "normal" ? 0 : 1);
     const faces = [];
@@ -7051,30 +7172,45 @@ var RollService = class {
       }
     }
     const kept = faces.filter((_, i) => i !== dropIndex);
-    const diceTotal = kept.reduce((a, b) => a + b, 0);
-    const total = diceTotal + modifier;
+    const primTotal = kept.reduce((a, b) => a + b, 0);
+    const groups = [{ sides: spec.sides, faces, dropIndex }];
+    let extraTotal = 0;
+    let extraTxt = "";
+    for (const ex of (_b = opts.extra) != null ? _b : []) {
+      const pool = rollPool(ex);
+      groups.push({ sides: ex.sides, faces: pool.faces, dropIndex: -1 });
+      extraTotal += pool.total;
+      extraTxt += ` + ${formatDice(ex)}[${pool.faces.join(", ")}]`;
+    }
+    const total = primTotal + extraTotal + modifier;
     const tag = mode === "advantage" ? " " + this.i18n.t("roll.tagAdvantage") : mode === "disadvantage" ? " " + this.i18n.t("roll.tagDisadvantage") : "";
-    const detail = dropIndex >= 0 ? `[${faces.join(", ")} | ${this.i18n.t("roll.partDrop")} ${faces[dropIndex]}] -> ${diceTotal}` : spec.count > 1 ? `[${faces.join(", ")}] -> ${diceTotal}` : `${diceTotal}`;
+    const detail = dropIndex >= 0 ? `[${faces.join(", ")} | ${this.i18n.t("roll.partDrop")} ${faces[dropIndex]}] -> ${primTotal}` : spec.count > 1 ? `[${faces.join(", ")}] -> ${primTotal}` : `${primTotal}`;
     const tone = kept.every((f) => f === spec.sides) ? "crit" : kept.every((f) => f === 1) ? "fail" : "normal";
+    const brief = `${label}${tag}: ${total}`;
+    const redo = () => this.roll(label, modifier, spec, opts);
     const commit2 = () => {
-      this.log.unshift({ text: `${label}${tag}: ${total}   (${formatDice(spec)} ${detail} ${fmtMod(modifier)})`, tone });
+      this.log.unshift({
+        text: `${brief}   (${formatDice(spec)} ${detail}${extraTxt} ${fmtMod(modifier)})`,
+        brief,
+        tone,
+        redo
+      });
       if (this.log.length > LOG_LIMIT) this.log.pop();
       this.emit();
-      new import_obsidian23.Notice(`${label}${tag}: ${total}`, 4e3);
+      new import_obsidian23.Notice(brief, 4e3);
     };
-    if ((_b = this.settings) == null ? void 0 : _b.diceAnim) {
-      const parts = (_c = opts.parts) != null ? _c : modifier !== 0 ? [{ label: this.i18n.t("roll.partMod"), value: modifier }] : [];
+    if ((_c = this.settings) == null ? void 0 : _c.diceAnim) {
+      const parts = (_d = opts.parts) != null ? _d : modifier !== 0 ? [{ label: this.i18n.t("roll.partMod"), value: modifier }] : [];
       playRollAnimation(
         {
           label: `${label}${tag}`,
-          spec,
-          faces,
-          dropIndex,
+          groups,
           parts,
           total,
-          spins: (_d = this.settings.diceAnimRolls) != null ? _d : 10,
+          spins: (_e = this.settings.diceAnimRolls) != null ? _e : 10,
           stay: opts.stay || this.settings.diceAnimStay === true,
-          reroll: () => this.roll(label, modifier, spec, opts)
+          block: this.settings.diceAnimBlock !== false,
+          reroll: redo
         },
         this.i18n,
         commit2
@@ -7098,33 +7234,38 @@ var rollsKind = {
     const t = view.i18n.t.bind(view.i18n);
     view.renderLabel(ctx.head, ctx);
     const service = rollService(view);
-    const modeWrap = ctx.extra.createDiv({ cls: "ep-mode" });
-    modeWrap.setAttr("title", t("roll.modeHint"));
-    const modes = [
-      { key: "disadvantage", label: t("roll.modeDisadvantage") },
-      { key: "normal", label: t("roll.modeNormal") },
-      { key: "advantage", label: t("roll.modeAdvantage") }
-    ];
-    const btns = /* @__PURE__ */ new Map();
-    for (const m of modes) {
-      const b = modeWrap.createEl("button", { text: m.label, cls: "ep-mode-btn" });
-      btns.set(m.key, b);
-      b.onclick = () => service.setMode(m.key);
-    }
+    const e = ext(ctx.entry);
+    const tools = ctx.extra.createDiv({ cls: "ep-log-tools" });
+    const chainBtn = tools.createEl("button", { cls: "ep-mode-btn", text: t("roll.logChains") });
+    chainBtn.setAttr("title", t("roll.logChainsHint"));
     const logEl = ctx.extra.createDiv({ cls: "ep-log" });
     const redraw = () => {
-      for (const [k, b] of btns) b.toggleClass("is-active", service.mode === k);
+      var _a;
+      chainBtn.toggleClass("is-active", !e.rollsBrief);
       logEl.empty();
       if (service.log.length === 0) {
         logEl.createDiv({ cls: "ep-log-empty", text: t("roll.logEmpty") });
         return;
       }
-      for (const e of service.log) {
+      for (const en of service.log) {
         const row = logEl.createDiv({ cls: "ep-log-row" });
-        if (e.tone === "crit") row.addClass("ep-crit");
-        if (e.tone === "fail") row.addClass("ep-fail");
-        row.setText(e.text);
+        if (en.tone === "crit") row.addClass("ep-crit");
+        if (en.tone === "fail") row.addClass("ep-fail");
+        row.setText(e.rollsBrief ? (_a = en.brief) != null ? _a : en.text : en.text);
+        if (en.redo) {
+          row.addClass("ep-log-click");
+          row.setAttr("title", t("roll.redoHint"));
+          row.onclick = () => {
+            var _a2;
+            return (_a2 = en.redo) == null ? void 0 : _a2.call(en);
+          };
+        }
       }
+    };
+    chainBtn.onclick = () => {
+      e.rollsBrief = e.rollsBrief ? void 0 : true;
+      view.saveLayout();
+      redraw();
     };
     redraw();
     const unsub = service.subscribe(() => {
@@ -7396,29 +7537,25 @@ var rollerKind = {
     };
     const go = ctl.createEl("button", { cls: "ep-roll-btn ep-roller-go", text: t("roll.roll") });
     go.onclick = () => {
-      var _a2;
+      var _a2, _b;
       const list = segs();
-      const firstDice = list.find((s) => s.dice !== void 0);
-      const spec = parseDiceOrDefault(firstDice == null ? void 0 : firstDice.dice);
-      const label = ctx.entry.alias || t("roller.title");
-      const n = Math.max(1, Math.min(20, (_a2 = e.rollerTimes) != null ? _a2 : 1));
-      for (let i = 0; i < n; i++) {
-        const parts = [];
-        let modifier = 0;
-        for (const s of list) {
-          if (s === firstDice) continue;
-          if (s.dice !== void 0) {
-            const sub = parseDiceOrDefault(s.dice);
-            const pool = rollPool(sub);
-            parts.push({ label: formatDice(sub), value: pool.total });
-            modifier += pool.total;
-          } else if (typeof s.add === "number" && s.add !== 0) {
-            parts.push({ label: t("roll.partMod"), value: s.add });
-            modifier += s.add;
-          }
+      const diceSegs = list.filter((s) => s.dice !== void 0);
+      const spec = parseDiceOrDefault((_a2 = diceSegs[0]) == null ? void 0 : _a2.dice);
+      const extra = diceSegs.slice(1).map((s) => parseDiceOrDefault(s.dice));
+      const parts = [];
+      let modifier = 0;
+      for (const s of list) {
+        if (typeof s.add === "number" && s.add !== 0) {
+          parts.push({ label: t("roll.partMod"), value: s.add });
+          modifier += s.add;
         }
+      }
+      const label = ctx.entry.alias || t("roller.title");
+      const n = Math.max(1, Math.min(20, (_b = e.rollerTimes) != null ? _b : 1));
+      for (let i = 0; i < n; i++) {
         svc(view).roll(n > 1 ? `${label} #${i + 1}` : label, modifier, spec, {
           parts,
+          extra,
           mode: curMode(),
           stay: n > 1
         });
@@ -8024,6 +8161,9 @@ var rollingEn = {
   "roll.card.copyChain": "Copy chain",
   "roll.card.reroll": "Reroll",
   "roll.card.dismiss": "Dismiss",
+  "roll.redoHint": "Click to roll this again",
+  "roll.logChains": "Chains",
+  "roll.logChainsHint": "Show the full roll chain (off = label and result only)",
   "roller.title": "Dice roller",
   "roller.addDie": "+ die",
   "roller.addNum": "+ number",
@@ -8099,6 +8239,9 @@ var rollingDe = {
   "roll.card.copyChain": "Kette kopieren",
   "roll.card.reroll": "Neu w\xFCrfeln",
   "roll.card.dismiss": "Schlie\xDFen",
+  "roll.redoHint": "Klicken, um erneut zu w\xFCrfeln",
+  "roll.logChains": "Ketten",
+  "roll.logChainsHint": "Vollst\xE4ndige Wurfkette anzeigen (aus = nur Bezeichnung und Ergebnis)",
   "roller.title": "W\xFCrfelbrett",
   "roller.addDie": "+ W\xFCrfel",
   "roller.addNum": "+ Zahl",

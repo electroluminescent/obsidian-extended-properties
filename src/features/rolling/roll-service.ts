@@ -8,7 +8,9 @@
  * Rolls are dice pools ({@link DiceSpec}): advantage/disadvantage add one
  * extra die to the pool and drop the single lowest/highest result, which
  * reduces to the classic d20 behavior for single-die pools. The dropped
- * die stays visible (dimmed) in the animation and its chain.
+ * die stays visible (dimmed) in the animation and its chain. Custom
+ * chains may roll several pools at once via {@link RollOpts.extra}.
+ * Every log entry carries a `redo` closure so the history is re-rollable.
  */
 
 import { Notice } from "obsidian";
@@ -16,8 +18,8 @@ import type { I18n } from "../../i18n/i18n";
 import type { EPSettings } from "../../core/model";
 import type { ViewService } from "../../core/registry";
 import { fmtMod } from "../../utils/misc";
-import { DEFAULT_DICE, DiceSpec, formatDice } from "../../utils/dice";
-import { playRollAnimation, RollPart } from "./dice-anim";
+import { DEFAULT_DICE, DiceSpec, formatDice, rollPool } from "../../utils/dice";
+import { playRollAnimation, RollAnimGroup, RollPart } from "./dice-anim";
 
 export type { RollPart } from "./dice-anim";
 
@@ -29,6 +31,8 @@ export interface RollOpts {
   mode?: RollMode;
   /** Keep the result card on screen (multi-rolls force this). */
   stay?: boolean;
+  /** Additional dice pools rolled together with `spec` (custom chains). */
+  extra?: DiceSpec[];
 }
 
 /** Hub key under which the service is registered. */
@@ -36,7 +40,14 @@ export const ROLL_SERVICE = "rolling.rolls";
 
 export type RollMode = "normal" | "advantage" | "disadvantage";
 
-export interface RollEntry { text: string; tone: "normal" | "crit" | "fail" }
+export interface RollEntry {
+  text: string;
+  /** Short form: label and total only. */
+  brief: string;
+  tone: "normal" | "crit" | "fail";
+  /** Re-run the roll that produced this entry. */
+  redo?: () => void;
+}
 
 const LOG_LIMIT = 6;
 
@@ -87,8 +98,19 @@ export class RollService implements ViewService {
       }
     }
     const kept = faces.filter((_, i) => i !== dropIndex);
-    const diceTotal = kept.reduce((a, b) => a + b, 0);
-    const total = diceTotal + modifier;
+    const primTotal = kept.reduce((a, b) => a + b, 0);
+
+    // Extra pools (e.g. the dice-roller chain) roll alongside, mode-free.
+    const groups: RollAnimGroup[] = [{ sides: spec.sides, faces, dropIndex }];
+    let extraTotal = 0;
+    let extraTxt = "";
+    for (const ex of opts.extra ?? []) {
+      const pool = rollPool(ex);
+      groups.push({ sides: ex.sides, faces: pool.faces, dropIndex: -1 });
+      extraTotal += pool.total;
+      extraTxt += ` + ${formatDice(ex)}[${pool.faces.join(", ")}]`;
+    }
+    const total = primTotal + extraTotal + modifier;
 
     const tag =
       mode === "advantage"
@@ -99,20 +121,29 @@ export class RollService implements ViewService {
     // Detail: "14", "[3, 5] -> 8", or with a drop "[6, 8, 13, 9 | drop 13] -> 23".
     const detail =
       dropIndex >= 0
-        ? `[${faces.join(", ")} | ${this.i18n.t("roll.partDrop")} ${faces[dropIndex]}] -> ${diceTotal}`
+        ? `[${faces.join(", ")} | ${this.i18n.t("roll.partDrop")} ${faces[dropIndex]}] -> ${primTotal}`
         : spec.count > 1
-          ? `[${faces.join(", ")}] -> ${diceTotal}`
-          : `${diceTotal}`;
+          ? `[${faces.join(", ")}] -> ${primTotal}`
+          : `${primTotal}`;
+    // Crit/fail tone evaluates the kept dice of the primary pool only.
     const tone: RollEntry["tone"] =
       kept.every((f) => f === spec.sides) ? "crit" : kept.every((f) => f === 1) ? "fail" : "normal";
+
+    const brief = `${label}${tag}: ${total}`;
+    const redo = () => this.roll(label, modifier, spec, opts);
 
     // The result is committed (log + notice) only once the roll resolves —
     // immediately without animation, after the dice settle with it.
     const commit = () => {
-      this.log.unshift({ text: `${label}${tag}: ${total}   (${formatDice(spec)} ${detail} ${fmtMod(modifier)})`, tone });
+      this.log.unshift({
+        text: `${brief}   (${formatDice(spec)} ${detail}${extraTxt} ${fmtMod(modifier)})`,
+        brief,
+        tone,
+        redo,
+      });
       if (this.log.length > LOG_LIMIT) this.log.pop();
       this.emit();
-      new Notice(`${label}${tag}: ${total}`, 4000);
+      new Notice(brief, 4000);
     };
     if (this.settings?.diceAnim) {
       const parts =
@@ -120,14 +151,13 @@ export class RollService implements ViewService {
       playRollAnimation(
         {
           label: `${label}${tag}`,
-          spec,
-          faces,
-          dropIndex,
+          groups,
           parts,
           total,
           spins: this.settings.diceAnimRolls ?? 10,
           stay: opts.stay || this.settings.diceAnimStay === true,
-          reroll: () => this.roll(label, modifier, spec, opts),
+          block: this.settings.diceAnimBlock !== false,
+          reroll: redo,
         },
         this.i18n,
         commit

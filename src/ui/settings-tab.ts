@@ -276,6 +276,15 @@ export class EPSettingTab extends PluginSettingTab {
           save();
         });
       });
+    new Setting(c)
+      .setName(t("settings.diceAnimBlock"))
+      .setDesc(t("settings.diceAnimBlockDesc"))
+      .addToggle((tg) => {
+        tg.setValue(plugin.settings.diceAnimBlock !== false).onChange((v) => {
+          plugin.settings.diceAnimBlock = v;
+          save();
+        });
+      });
 
     // -- typography ---------------------------------------------------------------
     c.createEl("h3", { text: t("settings.typographyHeading") });

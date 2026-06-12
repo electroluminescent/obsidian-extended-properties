@@ -491,3 +491,27 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 .ep-roller-times { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .ep-roller-times input { width: 4em; }
 @media (prefers-reduced-motion: reduce) { .ep-entry-head .ep-tog-cell, .ep-entry-head .ep-mod-badge { transition: none; } }
+
+/* round 28 additions — blocking backdrop, result summary window, clickable log */
+/* optional: dim the background and swallow clicks while roll cards are up */
+.ep-roll-layer.ep-roll-block { pointer-events: auto; background: rgba(0, 0, 0, 0.55); }
+/* bottom-center window: dismiss-all + the result-distribution slider */
+.ep-roll-summary { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 12px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5); max-width: min(92vw, 480px); }
+.ep-roll-sum-top { display: flex; align-items: center; gap: 12px; }
+.ep-roll-sum-val { font-weight: 800; font-size: 1.2em; font-variant-numeric: tabular-nums; min-width: 2em; text-align: center; }
+.ep-roll-sum-dismiss { font-size: var(--font-ui-smaller); padding: 3px 10px; border-radius: 999px; cursor: pointer; }
+.ep-roll-sum-slider { width: 200px; max-width: 80vw; }
+.ep-roll-sum-groups { display: flex; gap: 20px; align-items: flex-start; justify-content: center; }
+.ep-roll-sum-group { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 64px; }
+.ep-roll-sum-head { font-size: var(--font-ui-smaller); color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* one mini die per roll, stacked in 6-high columns */
+.ep-roll-sum-dice { display: grid; grid-auto-flow: column; grid-template-rows: repeat(6, auto); gap: 3px; min-height: 22px; }
+.ep-roll-sum-die { position: relative; width: 22px; height: 22px; transition: transform 0.25s ease; }
+.ep-roll-sum-die .ep-roll-sum-ico { position: absolute; inset: 0; opacity: 0.3; }
+.ep-roll-sum-die .ep-roll-sum-ico svg { width: 100%; height: 100%; }
+.ep-roll-sum-die .ep-roll-sum-num { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* roll history: chain toggle row + re-rollable entries */
+.ep-log-tools { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+.ep-log-row.ep-log-click { cursor: pointer; }
+.ep-log-row.ep-log-click:hover { color: var(--text-normal); background: var(--background-modifier-hover); border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) { .ep-roll-sum-die { transition: none; } }

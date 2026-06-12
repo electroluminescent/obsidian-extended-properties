@@ -1,31 +1,30 @@
 /**
  * The dice-roll animation.
  *
- * Rolls render as cards on a shared, non-blocking layer, so several rolls
- * (e.g. a right-click multi-roll) can resolve side by side. In each card
- * the dice (their isometric icons, dimmed under the value) tumble in 3D
- * while faces cycle a configurable number of times; the dice then settle
- * **one after another**, each appending its value to an addition chain.
- * After the dice, every modifier part slides into the chain in turn, and
- * the total pops last. Every value in the chain carries a small label of
- * what it came from (the die, the modifier's short form, the total).
+ * Rolls render as cards on a shared layer, so several rolls (e.g. a
+ * right-click multi-roll) can resolve side by side. A roll may carry
+ * several dice pools (custom chains roll different die types at once);
+ * every die tumbles, then settles one after another, appending its value
+ * to the addition chain — modifier parts and the total follow. The
+ * dropped advantage/disadvantage die stays visible, dimmed and struck.
  *
- * Advantage/disadvantage pools carry one extra die; the dropped (ignored)
- * die still settles, but dims in the dice row and joins the chain struck
- * through, excluded from the sum.
+ * The layer optionally dims and blocks the background (plugin setting).
+ * Once every active roll has resolved, a small window at the bottom
+ * center offers dismiss-all plus a distribution slider: it snaps across
+ * the distinct results (starting at the centermost), shows how many
+ * rolls landed at-or-above vs below that value, and stacks one mini die
+ * per roll in 6-high columns, animating between the groups as the
+ * slider moves.
  *
- * Clicking a card toggles keeping it on screen; the plugin setting decides
- * the default (auto-dismiss vs stay). Right-clicking a card offers copy
- * value / copy chain / reroll / dismiss; the layer carries a dismiss-all
- * button while any card is up. The caller's `done` (log + notice) fires
- * exactly when the roll resolves, regardless of pinning.
+ * Clicking a card toggles keeping it; right-click offers copy value /
+ * copy chain / reroll / dismiss / dismiss all. The caller's `done`
+ * (log + notice) fires exactly when the roll resolves.
  *
  * Honors `prefers-reduced-motion` by resolving instantly.
  */
 
 import { Menu, setIcon } from "obsidian";
 import type { I18n } from "../../i18n/i18n";
-import type { DiceSpec } from "../../utils/dice";
 import { formatDice } from "../../utils/dice";
 import { diceIconId } from "../../ui/render/dice-icons";
 import { fmtMod } from "../../utils/misc";
@@ -45,14 +44,19 @@ export interface RollPart {
   value: number;
 }
 
-export interface RollAnimJob {
-  /** Headline above the dice (roll label incl. adv/dis tag). */
-  label: string;
-  spec: DiceSpec;
+/** One dice pool of a roll (custom chains may carry several). */
+export interface RollAnimGroup {
+  sides: number;
   /** Final face per die — includes the extra advantage/disadvantage die. */
   faces: number[];
   /** Index into `faces` of the dropped (ignored) die, or −1 for none. */
   dropIndex: number;
+}
+
+export interface RollAnimJob {
+  /** Headline above the dice (roll label incl. adv/dis tag). */
+  label: string;
+  groups: RollAnimGroup[];
   /** Labeled modifier parts (their values sum to the total modifier). */
   parts: RollPart[];
   total: number;
@@ -60,22 +64,30 @@ export interface RollAnimJob {
   spins: number;
   /** Keep the card on screen after resolving (clicking always toggles). */
   stay: boolean;
+  /** Dim the background and block interaction while cards are up. */
+  block: boolean;
   /** Re-run the roll that produced this card ("reroll" in the menu). */
   reroll?: () => void;
 }
 
 let layer: HTMLElement | null = null;
-/** Close handlers of all live cards, for the dismiss-all button. */
+let summaryEl: HTMLElement | null = null;
+let summarySig = "";
+let summaryIndex = 0;
+/** Close handlers of all live cards, for dismiss-all. */
 const closers = new Set<() => void>();
+/** Resolved, still-visible rolls (feed the bottom summary window). */
+const lives = new Map<object, { total: number; sides: number }>();
+/** Cards still tumbling — the summary waits for them. */
+let pending = 0;
 
-function getLayer(i18n: I18n): HTMLElement {
-  if (!layer || !layer.isConnected) {
-    layer = document.body.createDiv({ cls: "ep-roll-layer" });
-    const all = layer.createEl("button", { cls: "ep-roll-closeall", text: i18n.t("roll.closeAll") });
-    all.onclick = () => {
-      for (const close of [...closers]) close();
-    };
-  }
+export function closeAllRolls(): void {
+  for (const close of [...closers]) close();
+}
+
+function getLayer(block: boolean): HTMLElement {
+  if (!layer || !layer.isConnected) layer = document.body.createDiv({ cls: "ep-roll-layer" });
+  if (block) layer.addClass("ep-roll-block");
   return layer;
 }
 
@@ -84,7 +96,101 @@ function dropBox(box: HTMLElement): void {
   if (layer && !layer.querySelector(".ep-roll-box")) {
     layer.remove();
     layer = null;
+    summaryEl = null;
+    summarySig = "";
   }
+}
+
+/** Bottom-center window: dismiss-all plus the result-distribution slider. */
+function updateSummary(i18n: I18n): void {
+  if (!layer) return;
+  if (pending > 0 || lives.size === 0) {
+    summaryEl?.remove();
+    summaryEl = null;
+    summarySig = "";
+    return;
+  }
+  const rolls = [...lives.values()];
+  const uniq = [...new Set(rolls.map((r) => r.total))].sort((a, b) => a - b);
+  const sig = rolls.map((r) => r.total).sort((a, b) => a - b).join(",");
+  if (sig !== summarySig) {
+    summarySig = sig;
+    // Start at the centermost result value.
+    summaryIndex = Math.floor((uniq.length - 1) / 2);
+  }
+  summaryIndex = Math.max(0, Math.min(uniq.length - 1, summaryIndex));
+
+  summaryEl?.remove();
+  summaryEl = layer.createDiv({ cls: "ep-roll-summary" });
+  const top = summaryEl.createDiv({ cls: "ep-roll-sum-top" });
+  const valEl = top.createSpan({ cls: "ep-roll-sum-val" });
+  const dismiss = top.createEl("button", { cls: "ep-roll-sum-dismiss", text: i18n.t("roll.closeAll") });
+  dismiss.onclick = closeAllRolls;
+  // The slider snaps across the distinct result values — no in-between.
+  const slider = summaryEl.createEl("input", { cls: "ep-roll-sum-slider", type: "range" });
+  slider.min = "0";
+  slider.max = String(uniq.length - 1);
+  slider.step = "1";
+  slider.value = String(summaryIndex);
+  slider.disabled = uniq.length < 2;
+  const groupsRow = summaryEl.createDiv({ cls: "ep-roll-sum-groups" });
+  const geGroup = groupsRow.createDiv({ cls: "ep-roll-sum-group" });
+  const geHead = geGroup.createDiv({ cls: "ep-roll-sum-head" });
+  const geGrid = geGroup.createDiv({ cls: "ep-roll-sum-dice" });
+  const ltGroup = groupsRow.createDiv({ cls: "ep-roll-sum-group" });
+  const ltHead = ltGroup.createDiv({ cls: "ep-roll-sum-head" });
+  const ltGrid = ltGroup.createDiv({ cls: "ep-roll-sum-dice" });
+
+  // One mini die per visible roll; it migrates between the two groups as
+  // the slider moves (FLIP animation between positions).
+  const els = rolls.map((r) => {
+    const el = createDiv({ cls: "ep-roll-sum-die" });
+    const ic = el.createDiv({ cls: "ep-roll-sum-ico" });
+    setIcon(ic, diceIconId(r.sides));
+    el.createDiv({ cls: "ep-roll-sum-num", text: String(r.total) });
+    return { total: r.total, el };
+  });
+  els.sort((a, b) => b.total - a.total);
+
+  const apply = (animate: boolean): void => {
+    const v = uniq[summaryIndex];
+    valEl.setText(String(v));
+    const firsts = animate ? new Map(els.map((x) => [x.el, x.el.getBoundingClientRect()])) : null;
+    let ge = 0;
+    let lt = 0;
+    for (const x of els) {
+      if (x.total >= v) {
+        geGrid.appendChild(x.el);
+        ge++;
+      } else {
+        ltGrid.appendChild(x.el);
+        lt++;
+      }
+    }
+    geHead.setText(`≥ ${v} · ${ge}`);
+    ltHead.setText(`< ${v} · ${lt}`);
+    if (firsts) {
+      for (const x of els) {
+        const a = firsts.get(x.el);
+        if (!a) continue;
+        const b = x.el.getBoundingClientRect();
+        const dx = a.left - b.left;
+        const dy = a.top - b.top;
+        if (!dx && !dy) continue;
+        x.el.style.transition = "none";
+        x.el.style.transform = `translate(${dx}px, ${dy}px)`;
+        requestAnimationFrame(() => {
+          x.el.style.transition = "";
+          x.el.style.transform = "";
+        });
+      }
+    }
+  };
+  slider.oninput = () => {
+    summaryIndex = parseInt(slider.value) || 0;
+    apply(true);
+  };
+  apply(false);
 }
 
 export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void): void {
@@ -93,19 +199,24 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     return;
   }
 
-  const box = getLayer(i18n).createDiv({ cls: "ep-roll-box" });
+  pending++;
+  const token = {};
+  const box = getLayer(job.block).createDiv({ cls: "ep-roll-box" });
   box.createDiv({ cls: "ep-roll-label", text: job.label });
   const diceRow = box.createDiv({ cls: "ep-roll-dice" });
   const chain = box.createDiv({ cls: "ep-roll-chain" });
 
-  const shown = Math.min(job.faces.length, MAX_DICE_SHOWN);
-  const dies: { el: HTMLElement; num: HTMLElement }[] = [];
+  // Flatten the groups into one die sequence (each die keeps its group).
+  const flat: { grp: RollAnimGroup; idx: number }[] = [];
+  for (const grp of job.groups) grp.faces.forEach((_, idx) => flat.push({ grp, idx }));
+  const shown = Math.min(flat.length, MAX_DICE_SHOWN);
+  const dies: { el: HTMLElement; num: HTMLElement; sides: number }[] = [];
   for (let i = 0; i < shown; i++) {
     const el = diceRow.createDiv({ cls: "ep-roll-die ep-rolling" });
     const ic = el.createDiv({ cls: "ep-roll-die-ico" });
-    setIcon(ic, diceIconId(job.spec.sides));
+    setIcon(ic, diceIconId(flat[i].grp.sides));
     const num = el.createDiv({ cls: "ep-roll-die-num" });
-    dies.push({ el, num });
+    dies.push({ el, num, sides: flat[i].grp.sides });
   }
 
   const timers: number[] = [];
@@ -117,11 +228,14 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
   const close = () => {
     if (closed) return;
     closed = true;
+    if (!resolved) pending--;
+    lives.delete(token);
     closers.delete(close);
     window.clearInterval(interval);
     for (const id of timers) window.clearTimeout(id);
     box.addClass("ep-closing");
     window.setTimeout(() => dropBox(box), 160);
+    updateSummary(i18n);
   };
   closers.add(close);
   const later = (fn: () => void, ms: number): void => {
@@ -139,9 +253,16 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
 
   /** Plain-text version of the chain, for the copy menu. */
   const chainText = (): string => {
-    const kept = job.faces.filter((_, i) => i !== job.dropIndex);
+    const kept: number[] = [];
+    const drops: string[] = [];
+    for (const grp of job.groups) {
+      grp.faces.forEach((f, i) => {
+        if (i === grp.dropIndex) drops.push(`(${i18n.t("roll.partDrop")} ${f})`);
+        else kept.push(f);
+      });
+    }
     let txt = kept.join(" + ");
-    if (job.dropIndex >= 0) txt += ` (${i18n.t("roll.partDrop")} ${job.faces[job.dropIndex]})`;
+    if (drops.length) txt += " " + drops.join(" ");
     for (const p of job.parts) txt += ` ${fmtMod(p.value)} (${p.label})`;
     return `${txt} = ${job.total}`;
   };
@@ -168,6 +289,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
       );
     }
     menu.addItem((mi) => mi.setTitle(i18n.t("roll.card.dismiss")).setIcon("x").onClick(close));
+    menu.addItem((mi) => mi.setTitle(i18n.t("roll.closeAll")).setIcon("x-circle").onClick(closeAllRolls));
     menu.showAtMouseEvent(ev);
   };
 
@@ -180,17 +302,23 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     requestAnimationFrame(() => cell.addClass("ep-in"));
   };
 
-  const dieLabel = formatDice({ count: 1, sides: job.spec.sides });
   const resolve = () => {
     resolved = true;
+    pending--;
+    lives.set(token, { total: job.total, sides: job.groups[0]?.sides ?? 20 });
     done();
-    if (!pinned) later(close, 1400);
+    updateSummary(i18n);
+    // The auto-close must re-check pinning — clicking a card during this
+    // window has to keep it (the old timer closed it regardless).
+    if (!pinned) later(() => {
+      if (!pinned) close();
+    }, 1400);
   };
 
   /** Dice settle one after another; then the parts; then the total. */
   let keptShown = 0;
   const settleFrom = (i: number): void => {
-    if (i >= job.faces.length) {
+    if (i >= flat.length) {
       let delay = PART_MS;
       for (const part of job.parts) {
         later(() => addCell("+", fmtMod(part.value), part.label), delay);
@@ -202,17 +330,18 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
       }, delay);
       return;
     }
-    const dropped = i === job.dropIndex;
+    const { grp, idx } = flat[i];
+    const dropped = idx === grp.dropIndex;
     if (i < dies.length) {
       dies[i].el.removeClass("ep-rolling");
       dies[i].el.addClass("ep-settled");
       if (dropped) dies[i].el.addClass("ep-roll-drop");
-      dies[i].num.setText(String(job.faces[i]));
+      dies[i].num.setText(String(grp.faces[idx]));
     }
     if (dropped) {
-      addCell(null, String(job.faces[i]), i18n.t("roll.partDrop"), "ep-roll-dropped");
+      addCell(null, String(grp.faces[idx]), i18n.t("roll.partDrop"), "ep-roll-dropped");
     } else {
-      addCell(keptShown > 0 ? "+" : null, String(job.faces[i]), dieLabel);
+      addCell(keptShown > 0 ? "+" : null, String(grp.faces[idx]), formatDice({ count: 1, sides: grp.sides }));
       keptShown++;
     }
     later(() => settleFrom(i + 1), SETTLE_MS);
@@ -221,7 +350,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
   let spin = 0;
   const spins = Math.max(1, Math.floor(job.spins) || 1);
   interval = window.setInterval(() => {
-    for (const d of dies) d.num.setText(String(1 + Math.floor(Math.random() * job.spec.sides)));
+    for (const d of dies) d.num.setText(String(1 + Math.floor(Math.random() * d.sides)));
     spin++;
     if (spin >= spins) {
       window.clearInterval(interval);

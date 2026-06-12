@@ -19,7 +19,7 @@
 import type { EntryKindDef } from "../../core/registry";
 import type { ViewCtx } from "../../core/context";
 import { ext } from "../../core/model";
-import { formatDice, parseDiceOrDefault, rollPool } from "../../utils/dice";
+import { parseDiceOrDefault } from "../../utils/dice";
 import { ROLL_SERVICE, RollMode, RollPart, RollService } from "./roll-service";
 import { openDiceMenu } from "./dice-ui";
 
@@ -168,28 +168,25 @@ export const rollerKind: EntryKindDef = {
     const go = ctl.createEl("button", { cls: "ep-roll-btn ep-roller-go", text: t("roll.roll") });
     go.onclick = () => {
       const list = segs();
-      const firstDice = list.find((s) => s.dice !== undefined);
-      const spec = parseDiceOrDefault(firstDice?.dice);
+      const diceSegs = list.filter((s) => s.dice !== undefined);
+      const spec = parseDiceOrDefault(diceSegs[0]?.dice);
+      // Further dice groups roll as real pools on the same card — every
+      // die type tumbles and settles visibly (mode applies to the first).
+      const extra = diceSegs.slice(1).map((s) => parseDiceOrDefault(s.dice));
+      const parts: RollPart[] = [];
+      let modifier = 0;
+      for (const s of list) {
+        if (typeof s.add === "number" && s.add !== 0) {
+          parts.push({ label: t("roll.partMod"), value: s.add });
+          modifier += s.add;
+        }
+      }
       const label = (ctx.entry as { alias?: string }).alias || t("roller.title");
       const n = Math.max(1, Math.min(20, e.rollerTimes ?? 1));
       for (let i = 0; i < n; i++) {
-        // Secondary dice groups reroll fresh for every simultaneous roll.
-        const parts: RollPart[] = [];
-        let modifier = 0;
-        for (const s of list) {
-          if (s === firstDice) continue;
-          if (s.dice !== undefined) {
-            const sub = parseDiceOrDefault(s.dice);
-            const pool = rollPool(sub);
-            parts.push({ label: formatDice(sub), value: pool.total });
-            modifier += pool.total;
-          } else if (typeof s.add === "number" && s.add !== 0) {
-            parts.push({ label: t("roll.partMod"), value: s.add });
-            modifier += s.add;
-          }
-        }
         svc(view).roll(n > 1 ? `${label} #${i + 1}` : label, modifier, spec, {
           parts,
+          extra,
           mode: curMode(),
           stay: n > 1,
         });

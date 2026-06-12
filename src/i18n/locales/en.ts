@@ -384,6 +384,9 @@ export const coreEn: StringDict = {
   "settings.diceAnimStay": "Keep results on screen",
   "settings.diceAnimStayDesc":
     "On = roll cards stay until clicked; off = they dismiss themselves. Clicking a card always toggles keeping it.",
+  "settings.diceAnimBlock": "Block background while rolling",
+  "settings.diceAnimBlockDesc":
+    "Dim everything behind the roll cards and prevent clicking through until they are dismissed.",
   "settings.modsOffProp": "Disabled-modifiers property",
   "settings.modsOffPropDesc":
     "List property storing the modifiers switched off by clicking their short form (entries as “Property:Source”).",

@@ -381,6 +381,9 @@ export const coreDe: StringDict = {
   "settings.diceAnimStay": "Ergebnisse anzeigen lassen",
   "settings.diceAnimStayDesc":
     "An = Wurf-Karten bleiben, bis sie angeklickt werden; aus = sie schließen sich selbst. Klick auf eine Karte schaltet das Behalten immer um.",
+  "settings.diceAnimBlock": "Hintergrund beim Würfeln blockieren",
+  "settings.diceAnimBlockDesc":
+    "Dunkelt alles hinter den Wurf-Karten ab und verhindert Klicks, bis sie geschlossen sind.",
   "settings.modsOffProp": "Eigenschaft für deaktivierte Modifikatoren",
   "settings.modsOffPropDesc":
     "Listen-Eigenschaft, die per Klick auf ihr Kürzel abgeschaltete Modifikatoren speichert (Einträge als „Eigenschaft:Quelle“).",
