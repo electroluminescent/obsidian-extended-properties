@@ -30,16 +30,21 @@ export const rollingModule: FeatureModule = {
     ctx.registries.entryKinds.add(rollsKind);
     ctx.registries.entryKinds.add(rollerKind);
     ctx.registries.clusterAddons.add(rollAddon);
-    // The dice roller is also offered as a one-entry section template.
+    // The dice roller is also offered as a section template: the roller in
+    // the first column, the roll history beside it in the second.
     ctx.registries.sectionTemplates.add({
       id: "diceroller",
       name: (i18n) => i18n.t("roller.title"),
       build: (i18n) => ({
         id: "diceroller",
         title: i18n.t("roller.title"),
-        columns: 1,
+        columns: 2,
+        layoutMode: "columns",
         collapsible: true,
-        entries: [{ id: genId(), kind: "diceroller" }],
+        entries: [
+          { id: genId(), kind: "diceroller" },
+          { id: genId(), kind: "rolls" },
+        ],
       }),
     });
   },
