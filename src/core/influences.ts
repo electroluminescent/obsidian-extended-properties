@@ -53,6 +53,11 @@ export interface Influence {
    * still applies — only the button is suppressed.
    */
   hideToggle?: boolean;
+  /**
+   * Hide this term in the chain denotation (per source). The term still
+   * counts toward the total — only the display is suppressed.
+   */
+  hideInChain?: boolean;
 }
 
 /** Entry fields persisted by the modifier system (via `ext<ModExt>`). */

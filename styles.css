@@ -389,3 +389,20 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 .ep-tabs + .ep-tabs { margin-top: 0; }
 /* no dividers between settings in the plugin settings tab either */
 .ep-settings .setting-item { border-top: none; }
+
+/* round 24 additions — dice icons, chain toggling, grid divider alignment */
+/* truly divider-free options & settings (override theme borders) */
+.ep-options .setting-item, .ep-settings .setting-item { border-top: none !important; }
+/* die pictogram preceding the dice breakdown */
+.ep-dice-ico { display: inline-flex; align-items: center; margin-right: 2px; vertical-align: -1px; }
+.ep-dice-ico svg { width: 12px; height: 12px; }
+.ep-roll-btn .ep-dice-ico svg { width: 13px; height: 13px; }
+/* chain terms with a toggle list are interactive */
+.ep-denote-tog { cursor: pointer; }
+.ep-denote-tog:hover { color: var(--text-normal); }
+/* tab group selector */
+.ep-tab-groupsel { font-size: var(--font-ui-smaller); margin-left: auto; height: 24px; padding: 0 4px; }
+/* grid: cells stretch to the row, so dividers align to the row's lowest
+   point; empty cells keep a row-height minimum outside edit mode too */
+.ep-grid.ep-mode-grid { align-items: stretch; }
+.ep-grid.ep-mode-grid > .ep-empty-cell { min-height: 28px; }

@@ -144,6 +144,10 @@ export const coreEn: StringDict = {
   "mods.showDice": "Show dice",
   "mods.showDiceDesc": "The dice breakdown (2d20) before the modifier; auto-hidden when space is tight",
   "mods.showToggleDesc": "On = the checkbox bound to “{list}” is shown on the row",
+  "mods.showInChain": "Show in chain",
+  "mods.showInChainDesc": "On = this term appears in the chain denotation (it always counts toward the total)",
+  "mods.showDiceIcon": "Show dice icon",
+  "mods.showDiceIconDesc": "On = a die pictogram precedes the dice breakdown",
   "mods.overrideNote": "Modifier override (this note)",
   "mods.overrideNoteDesc":
     "On = this note stores a fixed value instead of the derived sum. Editing the value in the sidebar turns this on; clearing the field turns it off.",
@@ -271,6 +275,11 @@ export const coreEn: StringDict = {
   "sectionOptions.tabsHint":
     "Click a tab to edit it. Ctrl/Cmd-click toggles single tabs, Shift-click selects a range, and dragging across tabs selects several — the body then shows their shared settings, and only settings you change are written to all selected tabs.",
   "sectionOptions.columnN": "Column {n}",
+  "sectionOptions.rowN": "Row {n}",
+  "sectionOptions.groupBy": "Group tabs",
+  "sectionOptions.groupColumn": "By column",
+  "sectionOptions.groupRow": "By row",
+  "sectionOptions.groupType": "By data type",
   "sectionOptions.showWhenEmptyDesc": "On = the section stays visible even when it has no visible properties (outside edit mode)",
   "sectionOptions.sectionHeading": "Section",
   "sectionOptions.name": "Name",

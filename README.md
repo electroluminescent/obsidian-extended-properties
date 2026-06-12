@@ -25,8 +25,9 @@ Each mode is independently configurable per section, and section visibility can 
 Every property entry has a configurable data type that controls how it renders and edits:
 
 - **Text**: Plain text with vault-wide property autocompletion, Obsidian link rendering (`[[note]]` support), and multi-line input.
-- **Number**: Integer values with optional slider, min/max bounds, and clamping. Roll buttons integrate with the dice system.
+- **Number**: Integer values with toggleable − / + steppers, optional slider (linear, root, or exponential response curve), min/max bounds (blank bounds default to the property's range across all notes), and clamping. Roll buttons integrate with the dice system.
 - **Decimal**: Floating-point values with step controls and formula support.
+- **Derived**: A read-only number computed by the influence engine (see below) — the sum of other properties' contributions. Click the value to store a per-note override; clear it to return to the derived sum.
 - **Formula**: Advanced numeric type—enter an expression like `sqrt(x)` or `level * 2 - 1`. The expression maps to a slider, and typing a value solves the formula backwards to update the source property.
 - **List**: Renders as chips/tags. Edit inline or via a modal list editor.
 - **Checkbox**: Boolean toggles, editable in locked mode.
@@ -41,19 +42,29 @@ Beyond properties, the sidebar supports several entry kinds for extended functio
 - **Property (prop)**: Standard frontmatter key-value pairs.
 - **Blank**: Invisible spacer for visual separation during arrangement.
 - **Table of Contents (toc)**: Auto-generated entry that links to all headings in the current note. Respects collapsible sections and updates dynamically.
-- **Computed**: Read-only derived entries that calculate values on the fly. Used by the D&D module for proficiency bonus and initiative, but extensible for custom domain logic.
+
+(The former bespoke "computed" entries are gone: proficiency bonus, initiative and the like are now ordinary **derived** properties built on the influence engine.)
+
+### Derived Values & the Influence Engine
+
+Any numeric or derived entry can carry a list of *influences* — terms summed into its modifier. Each term is built from user-editable blocks:
+
+- **Source**: a property, referenced by name. Chains resolve through other derived properties (a derived value feeding another derived value) up to a configurable depth (default 8, set in the plugin settings).
+- **Derivation**: "value as-is", a named formula block from settings (seeded with *Ability modifier* and *Proficiency bonus* — rename, edit or delete them freely), or a custom formula in `x`.
+- **Sign**: added or subtracted.
+- **Toggle**: a list property that switches the term on/off per note — the generic form of proficiency. The row gets a checkbox, and the term in the chain can be double-clicked to toggle it.
+
+Rows display the chain as short forms (`INT + DEX − AGE`), the dice breakdown (`2d20` with a die pictogram) and the total. Short forms default to the capitalized first three letters of the source property and can be overridden per property. The data-type tag, chain, dice and die icon each have their own show toggle, and whatever is enabled is shown or hidden dynamically as the sidebar is resized.
 
 ### Dice & Rolls System
 
 Enable the rolling feature (default-on; toggle in Settings → Features) for full dice support:
 
-- **Roll buttons** on numeric properties show a dice notation tag (e.g., "2d6 +3") and include a modifier badge.
-- **Preset dice**: d2, d4, d6, d8, d10, d12, d20, d100, or custom die sizes with any quantity.
-- **Roll log panel**: Persistent history of all rolls in the current note with timestamps.
+- **Roll buttons** on numeric and derived properties roll the configured dice plus the entry's influence sum; the row reads like the roll (`STR + PRO 2d20 +5`).
+- **Preset dice**: d2, d4, d6, d8, d10, d12, d20, d100, or custom die sizes with any quantity — with isometric die icons in the dice menus and inline before the notation (sources in `assets/dice/`).
+- **Roll log panel**: Persistent history of all rolls in the current note.
 - **Roll modes**: Normal, advantage (roll twice, take higher), and disadvantage (roll twice, take lower)—selectable per roll.
-- **Skills value type**: A specialized list type for recording skills, saving throws, attacks, or any roll-enabled records. Each record stores: name, proficiency checkbox, modifying property (derives the bonus), custom modifier override, custom dice, and roll integration. Everything is editable inline or via right-click menu. Records can be reordered by drag-drop.
-
-The skills type is fully configurable: set how modifiers are derived (raw value vs. ability modifier), where the proficiency bonus comes from (fixed value, a level property, or none), default dice per skill, and apply record presets to populate standard lists.
+- **Skills value type (legacy)**: The record-based list type is kept for existing notes and offers a one-click *Convert to property entries* that turns each record into a derived property (proficiency becomes a togglable influence backed by a list property). New layouts use sections of derived properties instead.
 
 ### Obsidian Integration
 
@@ -63,7 +74,9 @@ The skills type is fully configurable: set how modifiers are derived (raw value 
 
 ### Customization & Accessibility
 
-**Per-property styling**: Icon, icon color, label text override (alias), label size, value size, label color, value color, and visibility controls (hide label, hide when empty, show in Obsidian panel).
+**Per-property styling**: Icon, icon color, label text override (alias), label size, value size, label color, value color, and show toggles (label, data type tag, when empty, modifier chain, dice, die icon, per-term chain visibility and checkboxes, Obsidian panel).
+
+**Tabbed section options**: A property's settings open inside its section's options modal, which has one tab per property plus the section itself. Ctrl/Cmd-click toggles tabs, Shift-click selects ranges, and dragging across tabs sweeps a selection — multi-selections show only the shared settings (identical across data types and sections), and only the settings you change are written to every selected tab. Tabs can be grouped by column, by row, or by data type.
 
 **Typography controls**: Set global font family, base font size, and separate sizing for labels, values, list items, and section titles—use 0 for theme defaults.
 
@@ -84,11 +97,12 @@ The skills type is fully configurable: set how modifiers are derived (raw value 
 The plugin's architecture is built around registries, allowing feature modules to extend the core without modifying the codebase. Any module can register:
 
 - **Value types**: Custom data renderers and editors (e.g., the skills type).
-- **Entry kinds**: Custom entry renderers (e.g., computed entries).
+- **Entry kinds**: Custom entry renderers (e.g., the roll panel).
 - **Cluster addons**: Extra UI cells appended to numeric rows (e.g., roll buttons, modifier badges).
+- **Derivations**: Modifier math blocks (also user-editable in settings).
 - **Section templates**: One-click section presets in the edit toolbar to build common layouts.
 - **Layout presets**: Full default layouts for new note types.
-- **Skill presets**: Pre-populated record lists for the skills type (e.g., D&D 5e skill lists, saving throws).
+- **Skill presets**: Pre-populated record lists for the legacy skills type (e.g., D&D 5e skill lists, saving throws).
 
 All feature modules can be toggled on/off in Settings → Features without breaking existing layouts or data.
 
@@ -98,83 +112,17 @@ A complete D&D 5e character sheet built entirely as a feature module on top of t
 
 **Ability scores & modifiers**: Standard six abilities (Strength, Dexterity, Constitution, Intelligence, Wisdom, Charisma). Scores automatically compute ability modifiers using D&D 5e rules. Roll buttons on ability modifiers let you make ability checks with advantage/disadvantage support.
 
-**Saving throws & skills**: Pre-configured lists using the generic skills type. Saving throws derive from ability scores; skills can derive from abilities or use fixed modifiers. Proficiency checkbox adds the character's proficiency bonus (derived from Level). One-click presets populate standard lists; legacy list-type saves/skills are migrated automatically on first load.
+**Saving throws & skills**: Sections of derived properties — one per save/skill — combining the ability modifier with a proficiency term toggled through the classic `Saving Throw Proficiencies` / `Skill Proficiencies` list properties. Legacy entry kinds are migrated automatically on first load.
 
-**Attack rolls & initiatives**: Roll buttons for attack checks and initiative (both configured as computed entries). Initiative derives from Dexterity modifier and can be rolled with advantage.
+**Initiative & proficiency bonus**: Ordinary derived properties (`Dexterity → ability modifier`, `Level → proficiency bonus`) with roll integration — no bespoke widgets.
 
 **Character vitals**: Hit points, armor class, speed, proficiency bonus, and other standard fields.
 
-**Section templates**: The module includes pre-built sections—Contents, Details, Vitals, Ability scores, Saving throws, Skills—all available as one-click templates in the edit toolbar.
+**Section templates**: The module includes pre-built sections—Contents, Details, Vitals, Ability scores, Saving throws, Skills—all available as one-click templates in the edit toolbar. Applying a template also creates any missing modifier-source properties as real entries and writes the template's properties to the note (empty, hidden from Obsidian's panel).
 
-**Default layout**: When you create a new note type while the D&D module is enabled, it starts with a full character-sheet layout including all standard sections.
+**No default layout**: New note types always start empty; add the template sections you want. The full character sheet remains available as a layout preset.
 
 **Data storage**: Everything is stored as plain note properties (frontmatter), making it searchable and portable. No proprietary formats or hidden data.
-
-### Skills Value Type (Detailed)
-
-The skills type is a sophisticated list variant supporting skill checks, saving throws, or any roll-enabled record:
-
-**Record structure** (stored as YAML array in frontmatter):
-```yaml
-Skills:
-  - name: Acrobatics
-    source: Dexterity      # property feeding the modifier
-    prof: true             # proficiency checkbox
-    dice: 2d6              # per-record dice (overrides default)
-    mod: 4                 # manual modifier override
-```
-
-**Inline editing**: Click any field in a skill row to edit:
-- Name (double-click or Enter)
-- Proficiency checkbox (toggle)
-- Source property (autocomplete from vault)
-- Dice (opens dice picker)
-- Modifier (number input)
-- Roll button (executes a roll with current state)
-
-**Right-click menu**: Reorder (drag handle), set custom dice, adjust modifier, toggle proficiency, or remove a record.
-
-**Options panel** (right-click entry → Configure):
-- **Source mode**: How the source property becomes a modifier (raw value vs. ability modifier conversion).
-- **Proficiency source**: Where the proficiency bonus comes from (none, fixed value, or derived from a level property).
-- **Default dice**: Dice notation for records without custom dice (e.g., "1d20").
-- **Preset application**: Load a pre-built record list (e.g., D&D 5e skills, saving throws).
-
-**Presets**: Domain modules can register skill presets—ready-made lists like "D&D 5e Saving Throws" or "D&D 5e Skills". Applying a preset populates records; existing records remain editable.
-
-## Interactive Pickers & Editors
-
-**Icon picker modal**: Search Obsidian's icon library or paste custom SVG for entry and section icons.
-
-**Color picker modal**: Full-featured color picker with:
-- RGB, HSL, OKLCH, and OKLab color space input
-- Eyedropper tool to sample colors from anywhere
-- Live preview of selected color
-- Out-of-gamut warning when the color exceeds display gamut
-- Direct hex code input and paste
-- Recently used color history
-
-**Image viewer modal**: Click an image entry to open a zoomable, pannable viewer with fit-to-screen and full-resolution modes. Supports both URL and `![[obsidian-embed]]` syntax.
-
-**Text input modal**: Multi-line text input for longer text values, with full editor height and scrolling.
-
-**Number/decimal input**: Step controls (− / +), keyboard entry, and optional slider when configured. Numeric types support min/max bounds with optional clamping.
-
-## Drag & Drop & Animations
-
-**Smooth rearrangement**: Drag entry or section handles in edit mode to reorder. FLIP animation (First, Last, Invert, Play) provides smooth visual feedback without layout jank.
-
-**Mobile friendly**: Touch drag is fully supported on mobile devices.
-
-**Session undo**: All layout changes (reordering, renaming, adding/removing entries) are tracked in the edit session. Clicking Done shows a save-or-discard dialog; choosing discard restores the original layout.
-
-## Mobile & Responsive Design
-
-The sidebar adapts to small screens:
-- Sections stack vertically even in column/grid modes on mobile
-- Touch-friendly button sizes and spacing
-- Swipe and long-press support
-- All features work identically on desktop and mobile
 
 ## Settings & Configuration
 
@@ -186,7 +134,9 @@ The sidebar adapts to small screens:
 
 **Property hiding**: Manage which properties are hidden from Obsidian's properties panel. Sidebar-shown properties can be auto-hidden (default), and you can manually hide additional properties.
 
-**Note type activation**: Select which `Type` values activate the sidebar, and define a unique layout per type.
+**Note type activation**: Select which `Type` values activate the sidebar, and define a unique layout per type. There is no default type — give any note a `Type` value and it is adopted with an empty layout.
+
+**Modifier building blocks**: Named formulas (in `x`) that influences apply to source values, plus the modifier chain depth and per-property short forms — all editable.
 
 ## Backward Compatibility & Data
 
@@ -195,22 +145,7 @@ The sidebar adapts to small screens:
 - Feature modules extend entries using open-ended field storage; disabling a module preserves its data (displayed as "Unavailable" stubs until the module is re-enabled).
 - Migrations are applied automatically for schema updates.
 
-## Localization
-
-**Built-in languages**: English, German.
-
-**Adding a locale**: Create a dictionary file in `src/i18n/locales/<code>.ts`, register it in `main.ts`, and add feature-module translations if desired. Missing keys gracefully degrade to English or a humanized key fallback.
-
-**String overrides**: Every UI string can be overridden individually in Settings → Language, enabling custom terminology without code changes.
-
 ## Install
-
-### From Obsidian Community Plugins
-*(If published)*
-
-1. Open Obsidian Settings → Community plugins → Browse
-2. Search for "Extended Properties"
-3. Click Install, then Enable
 
 ### Manual Install
 1. Download `manifest.json`, `main.js`, and `styles.css`
@@ -228,7 +163,7 @@ npm install
 
 ### Build
 ```bash
-npm run build      # esbuild: src/main.ts → main.js (minified for production)
+npm run build      # esbuild: src/main.ts → main.js
 npm run dev        # Continuous rebuild on file changes
 npx tsc --noEmit   # Type checking (strict mode)
 ```
@@ -237,26 +172,12 @@ npx tsc --noEmit   # Type checking (strict mode)
 
 Start with [ARCHITECTURE.md](ARCHITECTURE.md) for a complete overview. The codebase is organized by layer:
 
-- **`src/core/`**: Data model, registries, and extension contracts—no UI or feature knowledge.
+- **`src/core/`**: Data model, registries, the influence engine, and extension contracts—no UI or feature knowledge.
 - **`src/ui/`**: View orchestration, renderers, modals, menus, and components.
 - **`src/i18n/`**: Localization service and language dictionaries.
 - **`src/features/`**: Optional modules (D&D 5e, dice rolling) that extend the core.
 - **`src/utils/`**: Shared utilities (color, dice, formulas).
-
-Every file has a header comment explaining its role. The dependency rules are strict and reviewed:
-- `core/` is feature-agnostic
-- `ui/` imports only from `core/` and `i18n/`
-- Features use registries to integrate without tight coupling
-- Only `main.ts` knows which features exist
-
-### Creating a Feature Module
-
-See [ARCHITECTURE.md → How to: add a feature module](ARCHITECTURE.md#how-to-add-a-feature-module) for a complete guide. In brief:
-
-1. Create `src/features/<id>/index.ts` exporting a `FeatureModule`
-2. Register entry kinds, value types, addons, templates, and presets via `ctx.registries`
-3. Add the module to `FEATURE_MODULES` in `src/main.ts`
-4. The module appears as a toggle in Settings → Features automatically
+- **`assets/dice/`**: The isometric die SVGs (also embedded as Obsidian icons).
 
 ### License
 

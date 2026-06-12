@@ -45,6 +45,8 @@ export interface EntryBase {
   showChain?: boolean;
   /** Show the dice breakdown, e.g. 2d20 (default true). */
   showDice?: boolean;
+  /** Show the die icon before the dice breakdown (default true). */
+  showDiceIcon?: boolean;
   labelSize?: number;
   valueSize?: number;
   labelColor?: string;
@@ -125,6 +127,8 @@ export interface Section {
   vdividers?: boolean;
   /** Hide the whole section outside edit mode when no entry is visible (default true). */
   hideIfEmpty?: boolean;
+  /** How the options modal groups this section's property tabs. */
+  tabGroup?: "column" | "row" | "type";
 }
 
 /** Resolve the effective layout mode of a section (legacy fallback). */

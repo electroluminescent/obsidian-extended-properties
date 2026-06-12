@@ -12,7 +12,8 @@
  * the same denotation without a duplicate total.
  */
 
-import { Setting } from "obsidian";
+import { Setting, setIcon } from "obsidian";
+import type { TFile } from "obsidian";
 import type { EntryRef, EntryRenderCtx, OptionsCtx } from "../../core/context";
 import type { ClusterAddon, ClusterNeeds, ClusterSlot } from "../../core/registry";
 import type { Entry } from "../../core/model";
@@ -24,6 +25,7 @@ import {
 import type { ViewCtx } from "../../core/context";
 import { fmtMod } from "../../utils/misc";
 import { formatDice, parseDiceOrDefault } from "../../utils/dice";
+import { diceIconId } from "./dice-icons";
 import { PropSuggest } from "../components/suggest";
 
 /** Value types the modifier system attaches to. */
@@ -50,9 +52,17 @@ function togglable(entry: Entry): Influence[] {
 /**
  * Render the denotation of an entry's influences into `parent`:
  * one short form per term, signs between, inactive toggled terms dimmed.
+ * Terms flagged `hideInChain` are skipped (they still count). When `file`
+ * is given, togglable terms can be toggled directly: click in edit mode,
+ * double-click otherwise.
  */
-export function paintDenotation(parent: HTMLElement, view: ViewCtx, entry: Entry): HTMLElement | null {
-  const list = mods(entry);
+export function paintDenotation(
+  parent: HTMLElement,
+  view: ViewCtx,
+  entry: Entry,
+  file?: TFile
+): HTMLElement | null {
+  const list = mods(entry).filter((m) => !m.hideInChain);
   if (!list.length) return null;
   const den = parent.createSpan({ cls: "ep-denote" });
   list.forEach((inf, i) => {
@@ -65,8 +75,27 @@ export function paintDenotation(parent: HTMLElement, view: ViewCtx, entry: Entry
       inf.mode === "formula"
         ? inf.formula ?? "x"
         : view.registries.derivations.get(inf.mode ?? "value")?.name(view.i18n) ?? "";
-    term.setAttr("title", srcKey + (modeName ? ` · ${modeName}` : "") + (inf.toggle ? ` · ${inf.toggle}` : ""));
+    let title = srcKey + (modeName ? ` · ${modeName}` : "") + (inf.toggle ? ` · ${inf.toggle}` : "");
     if (!influenceActive(view, entry, inf)) term.addClass("ep-denote-off");
+    if (inf.toggle && file) {
+      term.addClass("ep-denote-tog");
+      title += ` · ${view.i18n.t("hint.dblToggle")}`;
+      const flip = () =>
+        setInfluenceActive(view, file, entry, inf, !influenceActive(view, entry, inf));
+      if (view.editMode) {
+        term.onclick = (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          flip();
+        };
+      } else {
+        term.ondblclick = (ev) => {
+          ev.stopPropagation();
+          flip();
+        };
+      }
+    }
+    term.setAttr("title", title);
   });
   return den;
 }
@@ -81,13 +110,18 @@ export function paintDice(parent: HTMLElement, entry: Entry): void {
   const e = entry as Record<string, unknown>;
   if (!e["roll"] || e["showDice"] === false) return;
   const spec = parseDiceOrDefault(typeof e["dice"] === "string" ? (e["dice"] as string) : undefined);
-  parent.createSpan({ cls: "ep-dice-tag ep-line-abbr", text: formatDice(spec) });
+  const tag = parent.createSpan({ cls: "ep-dice-tag ep-line-abbr" });
+  if (e["showDiceIcon"] !== false) {
+    const ic = tag.createSpan({ cls: "ep-dice-ico" });
+    setIcon(ic, diceIconId(spec.sides));
+  }
+  tag.appendText(formatDice(spec));
 }
 
 /** Badge: denotation + dice breakdown + computed total. */
 function paintBadge(cell: HTMLElement, ref: EntryRef): void {
   cell.empty();
-  if (ref.entry.showChain !== false) paintDenotation(cell, ref.view, ref.entry);
+  if (ref.entry.showChain !== false) paintDenotation(cell, ref.view, ref.entry, ref.file);
   paintDice(cell, ref.entry);
   cell.appendText(fmtMod(modifierTotal(ref.view, ref.entry)));
 }
@@ -170,7 +204,7 @@ export const modifierAddon: ClusterAddon = {
     }
     const cell = cells["mod"];
     cell.empty();
-    if (ctx.entry.showChain !== false) paintDenotation(cell, view, ctx.entry);
+    if (ctx.entry.showChain !== false) paintDenotation(cell, view, ctx.entry, ctx.file);
     paintDice(cell, ctx.entry);
     cell.appendText(fmtMod(total));
   },
@@ -313,6 +347,17 @@ export const modifierAddon: ClusterAddon = {
             });
           });
       }
+      // Per-term visibility in the chain denotation (still counted).
+      new Setting(c)
+        .setName(t("mods.showInChain"))
+        .setDesc(t("mods.showInChainDesc"))
+        .setClass("ep-mods-sub")
+        .addToggle((tg) => {
+          tg.setValue(!inf.hideInChain).onChange((v) => {
+            inf.hideInChain = v ? undefined : true;
+            changed();
+          });
+        });
     });
 
     new Setting(c).addButton((b) =>

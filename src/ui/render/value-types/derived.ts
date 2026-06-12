@@ -39,7 +39,7 @@ export const derivedType: ValueTypeDef = {
       den: (cell) => {
         const paint = () => {
           cell.empty();
-          if (entry.showChain !== false) paintDenotation(cell, view, entry);
+          if (entry.showChain !== false) paintDenotation(cell, view, entry, ctx.file);
           // Roll breakdown between the modifier names and the value.
           paintDice(cell, entry);
         };

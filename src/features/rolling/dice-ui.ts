@@ -13,6 +13,7 @@
 import { App, Menu, Setting, TextComponent } from "obsidian";
 import type { I18n } from "../../i18n/i18n";
 import { DICE_PRESETS, DiceSpec, formatDice, isDefaultDice, parseDice, parseDiceOrDefault } from "../../utils/dice";
+import { diceIconId } from "../../ui/render/dice-icons";
 import { TextPromptModal } from "../../ui/modals/dialogs";
 
 /** Get/set the persisted dice notation (undefined = default d20). */
@@ -33,6 +34,7 @@ export function openDiceMenu(e: MouseEvent, app: App, i18n: I18n, binding: DiceB
   for (const sides of DICE_PRESETS) {
     menu.addItem((i) =>
       i.setTitle(formatDice({ count: cur.count, sides }))
+        .setIcon(diceIconId(sides))
         .setChecked(cur.sides === sides)
         .onClick(() => commit(binding, { count: cur.count, sides }))
     );

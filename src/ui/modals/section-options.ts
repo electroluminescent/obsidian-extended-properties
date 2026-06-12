@@ -35,8 +35,13 @@ export class SectionOptionsModal extends Modal {
   /** Anchor for Shift ranges and drag selection. */
   private anchorId: string | null = null;
 
-  constructor(private view: ViewCtx, private section: Section) {
+  /** @param initialTab entry id whose tab opens pre-selected. */
+  constructor(private view: ViewCtx, private section: Section, initialTab?: string) {
     super(view.app);
+    if (initialTab && section.entries.some((e) => e.id === initialTab)) {
+      this.selected = new Set([initialTab]);
+      this.anchorId = initialTab;
+    }
   }
 
   private changed(): void {
@@ -128,22 +133,96 @@ export class SectionOptionsModal extends Modal {
     const bar = c.createDiv({ cls: "ep-tabs" });
     mk(bar, SECTION_TAB, t("sectionOptions.tabSection"));
 
-    // Columns layout: group the entry tabs the way the section groups them.
-    if (sectionMode(this.section) === "columns") {
-      const ncol = Math.max(1, this.section.columns || 1);
-      const all = this.section.entries;
-      const per = Math.max(1, Math.ceil(all.length / ncol));
-      for (let cc = 0; cc < ncol; cc++) {
-        const group = all.slice(cc * per, (cc + 1) * per).filter((e) => e.kind !== "blank");
-        if (!group.length) continue;
-        const row = c.createDiv({ cls: "ep-tabs" });
-        row.createSpan({ cls: "ep-tab-collabel", text: t("sectionOptions.columnN", { n: cc + 1 }) });
-        for (const e of group) mk(row, e.id, this.entryLabel(e));
+    // How to divide the property tabs: by column, by row, or by data type.
+    const mode = sectionMode(this.section);
+    const groupMode =
+      this.section.tabGroup ?? (mode === "columns" ? "column" : mode === "grid" ? "row" : "type");
+    const sel = bar.createEl("select", { cls: "dropdown ep-tab-groupsel" });
+    sel.setAttr("aria-label", t("sectionOptions.groupBy"));
+    for (const [v, key] of [
+      ["column", "sectionOptions.groupColumn"],
+      ["row", "sectionOptions.groupRow"],
+      ["type", "sectionOptions.groupType"],
+    ] as [string, string][]) {
+      const opt = sel.createEl("option", { text: t(key) });
+      opt.value = v;
+    }
+    sel.value = groupMode;
+    sel.onchange = () => {
+      this.section.tabGroup = sel.value as "column" | "row" | "type";
+      this.changed();
+      this.draw();
+    };
+
+    const groups = this.tabGroups(groupMode);
+    for (const g of groups) {
+      if (!g.ents.length) continue;
+      const row = c.createDiv({ cls: "ep-tabs" });
+      if (g.label) row.createSpan({ cls: "ep-tab-collabel", text: g.label });
+      for (const e of g.ents) mk(row, e.id, this.entryLabel(e));
+    }
+    if (!groups.length) for (const e of tabbable) mk(bar, e.id, this.entryLabel(e));
+    c.createEl("p", { cls: "setting-item-description", text: t("sectionOptions.tabsHint") });
+  }
+
+  /** Divide the entries into labeled tab groups per the chosen mode. */
+  private tabGroups(groupMode: string): { label: string; ents: Entry[] }[] {
+    const t = this.view.i18n.t.bind(this.view.i18n);
+    const mode = sectionMode(this.section);
+    const all = this.section.entries;
+    const ncol = Math.max(1, this.section.columns || 1);
+    const visible = (es: Entry[]) => es.filter((e) => e.kind !== "blank");
+    const out: { label: string; ents: Entry[] }[] = [];
+
+    if (groupMode === "column") {
+      if (mode === "grid") {
+        for (let cc = 0; cc < ncol; cc++)
+          out.push({
+            label: t("sectionOptions.columnN", { n: cc + 1 }),
+            ents: visible(all.filter((_, i) => i % ncol === cc)),
+          });
+      } else {
+        const per = Math.max(1, Math.ceil(all.length / ncol));
+        for (let cc = 0; cc < ncol; cc++)
+          out.push({
+            label: t("sectionOptions.columnN", { n: cc + 1 }),
+            ents: visible(all.slice(cc * per, (cc + 1) * per)),
+          });
+      }
+    } else if (groupMode === "row") {
+      if (mode === "columns") {
+        const per = Math.max(1, Math.ceil(all.length / ncol));
+        for (let r = 0; r < per; r++) {
+          const row: Entry[] = [];
+          for (let cc = 0; cc < ncol; cc++) {
+            const e = all[cc * per + r];
+            if (e) row.push(e);
+          }
+          out.push({ label: t("sectionOptions.rowN", { n: r + 1 }), ents: visible(row) });
+        }
+      } else {
+        const width = mode === "grid" ? ncol : 1;
+        for (let i = 0; i < all.length; i += width)
+          out.push({
+            label: t("sectionOptions.rowN", { n: Math.floor(i / width) + 1 }),
+            ents: visible(all.slice(i, i + width)),
+          });
       }
     } else {
-      for (const e of tabbable) mk(bar, e.id, this.entryLabel(e));
+      // By data type (non-property objects group under their kind label).
+      const byType = new Map<string, Entry[]>();
+      for (const e of visible(all)) {
+        const label =
+          e.kind === "prop"
+            ? this.view.registries.valueTypes.get(this.view.resolveType(e))?.name(this.view.i18n) ??
+              this.view.resolveType(e)
+            : this.view.defaultLabelFor(e);
+        if (!byType.has(label)) byType.set(label, []);
+        byType.get(label)!.push(e);
+      }
+      for (const [label, ents] of byType) out.push({ label, ents });
     }
-    c.createEl("p", { cls: "setting-item-description", text: t("sectionOptions.tabsHint") });
+    return out.filter((g) => g.ents.length);
   }
 
   private draw(): void {

@@ -141,6 +141,10 @@ export const coreDe: StringDict = {
   "mods.showDice": "Würfel anzeigen",
   "mods.showDiceDesc": "Die Würfel-Aufschlüsselung (2W20) vor dem Modifikator; wird bei Platzmangel automatisch ausgeblendet",
   "mods.showToggleDesc": "An = das an „{list}“ gebundene Kontrollkästchen wird in der Zeile angezeigt",
+  "mods.showInChain": "In der Kette anzeigen",
+  "mods.showInChainDesc": "An = dieser Term erscheint in der Ketten-Anzeige (er zählt immer zur Summe)",
+  "mods.showDiceIcon": "Würfel-Symbol anzeigen",
+  "mods.showDiceIconDesc": "An = ein Würfel-Piktogramm steht vor der Würfel-Aufschlüsselung",
   "mods.overrideNote": "Modifikator-Überschreibung (diese Notiz)",
   "mods.overrideNoteDesc":
     "An = diese Notiz speichert einen festen Wert statt der abgeleiteten Summe. Bearbeiten des Werts in der Seitenleiste schaltet dies ein; Leeren des Felds schaltet es aus.",
@@ -268,6 +272,11 @@ export const coreDe: StringDict = {
   "sectionOptions.tabsHint":
     "Tab anklicken zum Bearbeiten. Strg/Cmd-Klick schaltet einzelne Tabs um, Umschalt-Klick wählt einen Bereich, und Ziehen über Tabs wählt mehrere — der Bereich zeigt dann die gemeinsamen Einstellungen, und nur geänderte Einstellungen werden in alle ausgewählten Tabs geschrieben.",
   "sectionOptions.columnN": "Spalte {n}",
+  "sectionOptions.rowN": "Zeile {n}",
+  "sectionOptions.groupBy": "Tabs gruppieren",
+  "sectionOptions.groupColumn": "Nach Spalte",
+  "sectionOptions.groupRow": "Nach Zeile",
+  "sectionOptions.groupType": "Nach Datentyp",
   "sectionOptions.showWhenEmptyDesc": "An = der Abschnitt bleibt sichtbar, auch wenn er keine sichtbaren Eigenschaften hat (außerhalb des Bearbeitungsmodus)",
   "sectionOptions.sectionHeading": "Abschnitt",
   "sectionOptions.name": "Name",

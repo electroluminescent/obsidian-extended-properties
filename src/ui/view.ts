@@ -29,7 +29,7 @@ import { bindRename } from "./components/inline-edit";
 import { PropSuggest } from "./components/suggest";
 import { ConfirmModal, ExitEditModal } from "./modals/dialogs";
 import { ColorPickerModal } from "./modals/color-picker";
-import { EntryOptionsModal } from "./modals/entry-options";
+import { SectionOptionsModal } from "./modals/section-options";
 
 export const VIEW_TYPE = "extended-properties-character";
 
@@ -218,9 +218,9 @@ export class SidebarView extends ItemView implements ViewCtx {
   }
 
   openEntryOptions(section: Section, entry: Entry): void {
-    const file = this.app.workspace.getActiveFile();
-    if (!file) return;
-    new EntryOptionsModal(this, section, entry, file).open();
+    // Property settings live inside the section options: open the section
+    // modal with this property's tab pre-selected.
+    new SectionOptionsModal(this, section, entry.id).open();
   }
 
   openAddMenu(anchor: HTMLElement, section: Section, o?: { index?: number; replaceId?: string }): void {

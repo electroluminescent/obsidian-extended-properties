@@ -90,6 +90,15 @@ export const rollAddon: ClusterAddon = {
             changed();
           });
         });
+      new Setting(c)
+        .setName(t("mods.showDiceIcon"))
+        .setDesc(t("mods.showDiceIconDesc"))
+        .addToggle((tg) => {
+          tg.setValue(entry.showDiceIcon !== false).onChange((v) => {
+            entry.showDiceIcon = v ? undefined : false;
+            changed();
+          });
+        });
     }
   },
 };

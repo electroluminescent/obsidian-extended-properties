@@ -18,6 +18,7 @@ import { FeatureModule, Registries } from "./core/registry";
 import { PropertyIndex } from "./core/property-index";
 import { HideService } from "./core/hide-service";
 import { registerCore } from "./ui/render/value-types/index";
+import { registerDiceIcons } from "./ui/render/dice-icons";
 import { SidebarView, VIEW_TYPE } from "./ui/view";
 import { EPSettingTab } from "./ui/settings-tab";
 import { TextPromptModal } from "./ui/modals/dialogs";
@@ -47,6 +48,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
 
   async onload(): Promise<void> {
     this.props = new PropertyIndex(this.app);
+    registerDiceIcons();
 
     // Settings must exist before registries: feature toggles live there.
     // The default layout depends on registries, so bootstrap in two steps:
