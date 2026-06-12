@@ -5795,6 +5795,7 @@ var SidebarView = class extends import_obsidian19.ItemView {
       } catch (e) {
       }
     }
+    this.responsivePass();
   }
   registerUpdater(fn) {
     this.updaters.push(fn);
@@ -6138,17 +6139,22 @@ var SidebarView = class extends import_obsidian19.ItemView {
     const TIERS = [".ep-type-hint", ".ep-dice-tag", ".ep-denote", ".ep-tog-cell", ".ep-mod-badge"];
     for (const el of this.content.findAll(".ep-section")) {
       const sec = el;
+      if (sec.clientWidth === 0) continue;
       sec.addClass("ep-measuring");
       sec.findAll(".ep-squeezed").forEach((x) => x.removeClass("ep-squeezed"));
       alignClustersNow(sec);
-      const overflowing = () => sec.findAll(".ep-entry-head").some((h) => h.scrollWidth + SLACK > h.clientWidth);
-      for (const cls of TIERS) {
-        if (!overflowing()) break;
-        sec.findAll(".ep-entry-head " + cls).forEach((x) => {
-          x.addClass("ep-squeezed");
-          const cell = x.closest("[data-ep-slot]");
-          if (cell) cell.style.minWidth = "";
-        });
+      for (const h of sec.findAll(".ep-entry-head")) {
+        if (h.clientWidth === 0) continue;
+        const name = h.querySelector(".ep-line-name");
+        const tight = () => h.scrollWidth > h.clientWidth + 1 || !!name && name.clientWidth - name.scrollWidth < SLACK;
+        for (const cls of TIERS) {
+          if (!tight()) break;
+          h.findAll(cls).forEach((x) => {
+            x.addClass("ep-squeezed");
+            const cell = x.closest("[data-ep-slot]");
+            if (cell) cell.style.minWidth = "";
+          });
+        }
       }
       void sec.offsetWidth;
       sec.removeClass("ep-measuring");

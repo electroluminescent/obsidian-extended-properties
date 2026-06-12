@@ -434,7 +434,7 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 
 /* round 26 additions — pinnable roll cards, value chain, fading decorations */
 /* non-blocking layer hosting (possibly several) roll cards */
-.ep-roll-layer { position: fixed; inset: 0; z-index: 10001; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: center; align-content: center; padding: 24px; pointer-events: none; }
+.ep-roll-layer { position: fixed; inset: 0; z-index: var(--layer-notice, 60); display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: center; align-content: center; padding: 24px; pointer-events: none; }
 .ep-roll-layer .ep-roll-box { pointer-events: auto; cursor: pointer; animation: ep-fade .15s ease; }
 .ep-roll-layer .ep-roll-box.ep-closing { animation: ep-pop-out .15s ease forwards; pointer-events: none; }
 .ep-roll-box.ep-pinned { border-color: var(--interactive-accent); box-shadow: 0 0 0 2px var(--interactive-accent), 0 18px 48px rgba(0, 0, 0, 0.5); }
@@ -443,11 +443,12 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 /* the addition chain: value cells with origin labels underneath */
 .ep-roll-chain { display: flex; align-items: flex-start; gap: 7px; flex-wrap: wrap; justify-content: center; min-height: 2.8em; max-width: 420px; }
 .ep-roll-op { font-weight: 700; color: var(--text-faint); padding-top: 0.05em; }
-.ep-roll-cell { display: flex; flex-direction: column; align-items: center; opacity: 0; transform: translateY(6px); transition: opacity .22s ease, transform .22s ease; }
-.ep-roll-cell.ep-in { opacity: 1; transform: none; }
-.ep-roll-cellval { font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.15; }
-.ep-roll-celllab { font-size: var(--font-ui-smaller); color: var(--text-faint); font-style: italic; line-height: 1.1; }
-.ep-roll-totalcell .ep-roll-cellval { font-size: 1.35em; }
+/* scoped to the card chain — ".ep-roll-cell" alone is the sidebar's roll-button slot! */
+.ep-roll-chain .ep-roll-cell { display: flex; flex-direction: column; align-items: center; opacity: 0; transform: translateY(6px); transition: opacity .22s ease, transform .22s ease; }
+.ep-roll-chain .ep-roll-cell.ep-in { opacity: 1; transform: none; }
+.ep-roll-chain .ep-roll-cellval { font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.ep-roll-chain .ep-roll-celllab { font-size: var(--font-ui-smaller); color: var(--text-faint); font-style: italic; line-height: 1.1; }
+.ep-roll-chain .ep-roll-totalcell .ep-roll-cellval { font-size: 1.35em; }
 /* roll-options popup (right-click on a roll button) */
 .ep-rollmenu { display: flex; flex-direction: column; gap: 8px; padding: 8px; }
 .ep-rollmenu-count { display: flex; align-items: center; gap: 8px; font-size: var(--font-ui-smaller); }
@@ -458,17 +459,17 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 .ep-measuring .ep-squeezed { display: none !important; }
 .ep-measuring .ep-type-hint, .ep-measuring .ep-denote, .ep-measuring .ep-dice-tag { transition: none !important; }
 @media (prefers-reduced-motion: reduce) {
-  .ep-roll-cell, .ep-type-hint, .ep-entry-head .ep-denote, .ep-entry-head .ep-dice-tag { transition: none; }
+  .ep-roll-chain .ep-roll-cell, .ep-type-hint, .ep-entry-head .ep-denote, .ep-entry-head .ep-dice-tag { transition: none; }
 }
 
 /* round 27 additions — priority squeezing, dropped dice, close-all, dice roller */
 /* chain values share one line, so dice, modifiers and the total align */
-.ep-roll-cellval, .ep-roll-op { height: 28px; display: flex; align-items: center; padding-top: 0; }
+.ep-roll-chain .ep-roll-cellval, .ep-roll-chain .ep-roll-op { height: 28px; display: flex; align-items: center; padding-top: 0; }
 /* the dropped (ignored) advantage/disadvantage die — visible but dimmed */
 .ep-roll-die.ep-roll-drop { opacity: 0.35; }
 .ep-roll-die.ep-roll-drop .ep-roll-die-num { text-decoration: line-through; }
-.ep-roll-cell.ep-roll-dropped { opacity: 0.45; }
-.ep-roll-cell.ep-roll-dropped .ep-roll-cellval { text-decoration: line-through; }
+.ep-roll-chain .ep-roll-cell.ep-roll-dropped { opacity: 0.45; }
+.ep-roll-chain .ep-roll-cell.ep-roll-dropped .ep-roll-cellval { text-decoration: line-through; }
 /* dismiss-all button on the roll layer */
 .ep-roll-layer .ep-roll-closeall { position: absolute; top: 14px; right: 18px; pointer-events: auto; cursor: pointer; font-size: var(--font-ui-smaller); padding: 4px 12px; border-radius: 999px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); color: var(--text-muted); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3); }
 .ep-roll-layer .ep-roll-closeall:hover { color: var(--text-normal); border-color: var(--interactive-accent); }
