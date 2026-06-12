@@ -460,3 +460,33 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 @media (prefers-reduced-motion: reduce) {
   .ep-roll-cell, .ep-type-hint, .ep-entry-head .ep-denote, .ep-entry-head .ep-dice-tag { transition: none; }
 }
+
+/* round 27 additions — priority squeezing, dropped dice, close-all, dice roller */
+/* chain values share one line, so dice, modifiers and the total align */
+.ep-roll-cellval, .ep-roll-op { height: 28px; display: flex; align-items: center; padding-top: 0; }
+/* the dropped (ignored) advantage/disadvantage die — visible but dimmed */
+.ep-roll-die.ep-roll-drop { opacity: 0.35; }
+.ep-roll-die.ep-roll-drop .ep-roll-die-num { text-decoration: line-through; }
+.ep-roll-cell.ep-roll-dropped { opacity: 0.45; }
+.ep-roll-cell.ep-roll-dropped .ep-roll-cellval { text-decoration: line-through; }
+/* dismiss-all button on the roll layer */
+.ep-roll-layer .ep-roll-closeall { position: absolute; top: 14px; right: 18px; pointer-events: auto; cursor: pointer; font-size: var(--font-ui-smaller); padding: 4px 12px; border-radius: 999px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); color: var(--text-muted); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3); }
+.ep-roll-layer .ep-roll-closeall:hover { color: var(--text-normal); border-color: var(--interactive-accent); }
+/* responsive priority: toggle boxes and the modifier badge may squeeze too
+   (after datatype, dice and chain; label, value and roll button never do) */
+.ep-entry-head .ep-tog-cell, .ep-entry-head .ep-mod-badge { transition: max-width 0.25s ease, opacity 0.25s ease; }
+.ep-measuring .ep-tog-cell, .ep-measuring .ep-mod-badge { transition: none !important; }
+/* dice roller widget */
+.ep-roller { display: flex; flex-direction: column; gap: 8px; padding: 4px 0; }
+.ep-roller-chain { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ep-roller-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 999px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); cursor: pointer; font-variant-numeric: tabular-nums; }
+.ep-roller-chip:hover { border-color: var(--interactive-accent); }
+.ep-roller-x { color: var(--text-faint); font-size: var(--font-ui-smaller); }
+.ep-roller-x:hover { color: var(--text-error); }
+.ep-roller-numedit { width: 4em; }
+.ep-roller-add { font-size: var(--font-ui-smaller); padding: 2px 8px; border-radius: 999px; background: transparent; border: 1px dashed var(--background-modifier-border); color: var(--text-muted); cursor: pointer; box-shadow: none; }
+.ep-roller-add:hover { color: var(--text-normal); border-color: var(--interactive-accent); }
+.ep-roller-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ep-roller-times { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.ep-roller-times input { width: 4em; }
+@media (prefers-reduced-motion: reduce) { .ep-entry-head .ep-tog-cell, .ep-entry-head .ep-mod-badge { transition: none; } }

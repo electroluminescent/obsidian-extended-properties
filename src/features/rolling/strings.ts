@@ -24,6 +24,20 @@ export const rollingEn: StringDict = {
   "roll.options.rollButton": "Roll button",
   "roll.options.rollButtonDesc": "Rolls the dice plus this entry's modifier (see Modifier above)",
 
+  "roll.partDrop": "drop",
+  "roll.closeAll": "Dismiss all",
+  "roll.card.copyValue": "Copy value",
+  "roll.card.copyChain": "Copy chain",
+  "roll.card.reroll": "Reroll",
+  "roll.card.dismiss": "Dismiss",
+
+  "roller.title": "Dice roller",
+  "roller.addDie": "+ die",
+  "roller.addNum": "+ number",
+  "roller.times": "Rolls",
+  "roller.chipHint": "Click to edit, ✕ to remove",
+  "roller.removeSeg": "Remove",
+
   "dice.die": "Die",
   "dice.dieDesc": "Preset die, or type a custom size next to it",
   "dice.custom": "Custom…",
@@ -93,6 +107,20 @@ export const rollingDe: StringDict = {
   "roll.options.heading": "Würfeln",
   "roll.options.rollButton": "Würfeln-Schaltfläche",
   "roll.options.rollButtonDesc": "Würfelt die Würfel plus den Modifikator dieses Eintrags (siehe Modifikator oben)",
+
+  "roll.partDrop": "entfällt",
+  "roll.closeAll": "Alle schließen",
+  "roll.card.copyValue": "Wert kopieren",
+  "roll.card.copyChain": "Kette kopieren",
+  "roll.card.reroll": "Neu würfeln",
+  "roll.card.dismiss": "Schließen",
+
+  "roller.title": "Würfelbrett",
+  "roller.addDie": "+ Würfel",
+  "roller.addNum": "+ Zahl",
+  "roller.times": "Würfe",
+  "roller.chipHint": "Klicken zum Bearbeiten, ✕ zum Entfernen",
+  "roller.removeSeg": "Entfernen",
 
   "dice.die": "Würfel",
   "dice.dieDesc": "Vordefinierter Würfel, oder eigene Größe daneben eintragen",

@@ -11,7 +11,9 @@
 import type { EPSettings } from "../../core/model";
 import type { FeatureContext, FeatureModule } from "../../core/registry";
 import type { Influence } from "../../core/influences";
+import { genId } from "../../utils/misc";
 import { rollsKind } from "./rolls-panel";
+import { rollerKind } from "./roller";
 import { rollAddon } from "./numeric-addon";
 import { skillsType } from "./skills-type";
 import { rollingDe, rollingEn } from "./strings";
@@ -26,7 +28,20 @@ export const rollingModule: FeatureModule = {
     ctx.i18n.register("de", rollingDe);
     ctx.registries.valueTypes.add(skillsType);
     ctx.registries.entryKinds.add(rollsKind);
+    ctx.registries.entryKinds.add(rollerKind);
     ctx.registries.clusterAddons.add(rollAddon);
+    // The dice roller is also offered as a one-entry section template.
+    ctx.registries.sectionTemplates.add({
+      id: "diceroller",
+      name: (i18n) => i18n.t("roller.title"),
+      build: (i18n) => ({
+        id: "diceroller",
+        title: i18n.t("roller.title"),
+        columns: 1,
+        collapsible: true,
+        entries: [{ id: genId(), kind: "diceroller" }],
+      }),
+    });
   },
 
   /**

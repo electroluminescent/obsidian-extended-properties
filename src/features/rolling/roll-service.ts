@@ -5,9 +5,10 @@
  * addon, skills rows, derived entries) and the roll log panel stay
  * decoupled — none of them know the others exist.
  *
- * Rolls are dice pools ({@link DiceSpec}): advantage/disadvantage roll the
- * whole pool twice and keep the better/worse total, which reduces to the
- * classic d20 behavior for single-die pools.
+ * Rolls are dice pools ({@link DiceSpec}): advantage/disadvantage add one
+ * extra die to the pool and drop the single lowest/highest result, which
+ * reduces to the classic d20 behavior for single-die pools. The dropped
+ * die stays visible (dimmed) in the animation and its chain.
  */
 
 import { Notice } from "obsidian";
@@ -15,7 +16,7 @@ import type { I18n } from "../../i18n/i18n";
 import type { EPSettings } from "../../core/model";
 import type { ViewService } from "../../core/registry";
 import { fmtMod } from "../../utils/misc";
-import { DEFAULT_DICE, DicePool, DiceSpec, formatDice, isMaxPool, isMinPool, rollPool } from "../../utils/dice";
+import { DEFAULT_DICE, DiceSpec, formatDice } from "../../utils/dice";
 import { playRollAnimation, RollPart } from "./dice-anim";
 
 export type { RollPart } from "./dice-anim";
@@ -73,15 +74,21 @@ export class RollService implements ViewService {
    */
   roll(label: string, modifier: number, spec: DiceSpec = { ...DEFAULT_DICE }, opts: RollOpts = {}): void {
     const mode = opts.mode ?? this.mode;
-    const pools: DicePool[] = [rollPool(spec)];
-    if (mode !== "normal") pools.push(rollPool(spec));
-    const used =
-      pools.length === 1
-        ? pools[0]
-        : mode === "advantage"
-          ? pools.reduce((a, b) => (b.total > a.total ? b : a))
-          : pools.reduce((a, b) => (b.total < a.total ? b : a));
-    const total = used.total + modifier;
+    // Advantage/disadvantage roll one extra die; advantage drops the
+    // single lowest face, disadvantage the highest. All dice stay visible.
+    const count = Math.max(1, spec.count) + (mode === "normal" ? 0 : 1);
+    const faces: number[] = [];
+    for (let i = 0; i < count; i++) faces.push(1 + Math.floor(Math.random() * spec.sides));
+    let dropIndex = -1;
+    if (mode !== "normal") {
+      dropIndex = 0;
+      for (let i = 1; i < faces.length; i++) {
+        if (mode === "advantage" ? faces[i] < faces[dropIndex] : faces[i] > faces[dropIndex]) dropIndex = i;
+      }
+    }
+    const kept = faces.filter((_, i) => i !== dropIndex);
+    const diceTotal = kept.reduce((a, b) => a + b, 0);
+    const total = diceTotal + modifier;
 
     const tag =
       mode === "advantage"
@@ -89,14 +96,15 @@ export class RollService implements ViewService {
         : mode === "disadvantage"
           ? " " + this.i18n.t("roll.tagDisadvantage")
           : "";
-    // Detail mirrors the classic format: "14", "[14, 8] -> 14", "[3, 5] -> 8".
+    // Detail: "14", "[3, 5] -> 8", or with a drop "[6, 8, 13, 9 | drop 13] -> 23".
     const detail =
-      pools.length > 1
-        ? `[${pools.map((p) => p.total).join(", ")}] -> ${used.total}`
+      dropIndex >= 0
+        ? `[${faces.join(", ")} | ${this.i18n.t("roll.partDrop")} ${faces[dropIndex]}] -> ${diceTotal}`
         : spec.count > 1
-          ? `[${used.faces.join(", ")}] -> ${used.total}`
-          : `${used.total}`;
-    const tone: RollEntry["tone"] = isMaxPool(spec, used) ? "crit" : isMinPool(used) ? "fail" : "normal";
+          ? `[${faces.join(", ")}] -> ${diceTotal}`
+          : `${diceTotal}`;
+    const tone: RollEntry["tone"] =
+      kept.every((f) => f === spec.sides) ? "crit" : kept.every((f) => f === 1) ? "fail" : "normal";
 
     // The result is committed (log + notice) only once the roll resolves —
     // immediately without animation, after the dice settle with it.
@@ -113,13 +121,15 @@ export class RollService implements ViewService {
         {
           label: `${label}${tag}`,
           spec,
-          faces: used.faces,
+          faces,
+          dropIndex,
           parts,
           total,
           spins: this.settings.diceAnimRolls ?? 10,
           stay: opts.stay || this.settings.diceAnimStay === true,
-          totalLabel: this.i18n.t("roll.partTotal"),
+          reroll: () => this.roll(label, modifier, spec, opts),
         },
+        this.i18n,
         commit
       );
     } else {

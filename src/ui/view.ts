@@ -453,34 +453,41 @@ export class SidebarView extends ItemView implements ViewCtx {
    * Re-run on every render and on container resize.
    */
   private responsivePass(): void {
-    // Decorations need this much spare room before they may stay; the
-    // label and value always keep theirs.
+    // Decorations need this much spare room before they may stay.
     const SLACK = 24;
+    // Hide order = reverse priority. Label, value and roll button rank
+    // highest and are never hidden; then (descending importance) the
+    // modifier total, toggle checkboxes, modifier chain, dice, data type —
+    // so the data type vanishes first and the modifier badge last.
+    const TIERS = [".ep-type-hint", ".ep-dice-tag", ".ep-denote", ".ep-tog-cell", ".ep-mod-badge"];
     for (const el of this.content.findAll(".ep-section")) {
       const sec = el as HTMLElement;
       // Measure with transitions off and squeezed elements fully removed,
-      // so the tier decisions are exact.
+      // Everything below happens synchronously (no paint in between), so
+      // unchanged elements never flicker.
       sec.addClass("ep-measuring");
       sec.findAll(".ep-squeezed").forEach((x) => x.removeClass("ep-squeezed"));
       alignClustersNow(sec);
+      // A head is "tight" when its children genuinely overflow the row, or
+      // when the label (flex: 1 — it absorbs all spare room) has less than
+      // SLACK px left before it would start truncating.
       const overflowing = () =>
-        (sec.findAll(".ep-entry-head") as HTMLElement[]).some((h) => h.scrollWidth + SLACK > h.clientWidth);
-      const hidden: HTMLElement[] = [];
-      for (const cls of ["ep-type-hint", "ep-denote", "ep-dice-tag"]) {
+        (sec.findAll(".ep-entry-head") as HTMLElement[]).some((h) => {
+          if (h.scrollWidth > h.clientWidth + 1) return true;
+          const name = h.querySelector(".ep-line-name") as HTMLElement | null;
+          return !!name && name.clientWidth - name.scrollWidth < SLACK;
+        });
+      for (const cls of TIERS) {
         if (!overflowing()) break;
-        sec.findAll(".ep-entry-head ." + cls).forEach((x) => {
+        sec.findAll(".ep-entry-head " + cls).forEach((x) => {
           x.addClass("ep-squeezed");
-          hidden.push(x as HTMLElement);
-          // Reclaim the column width the hidden decoration reserved.
+          // Reclaim the column width the hidden element reserved.
           const cell = x.closest("[data-ep-slot]") as HTMLElement | null;
           if (cell) cell.style.minWidth = "";
         });
       }
-      // Re-show instantly (still measuring), then fade them out for real.
-      hidden.forEach((x) => x.removeClass("ep-squeezed"));
       void sec.offsetWidth;
       sec.removeClass("ep-measuring");
-      if (hidden.length) requestAnimationFrame(() => hidden.forEach((x) => x.addClass("ep-squeezed")));
     }
   }
 
