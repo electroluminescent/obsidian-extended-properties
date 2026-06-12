@@ -28,6 +28,7 @@ export function deriveModifier(mode: SourceMode | undefined, raw: number): numbe
 /**
  * Short tag for a modifying property, shown before the modifier
  * ("Dexterity" → "DEX"). Falls back to the full name for short keys.
+ * @deprecated use `abbrFor` from `core/influences.ts` (honors overrides).
  */
 export function sourceAbbr(key: string): string {
   const word = key.trim();

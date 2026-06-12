@@ -26,7 +26,7 @@
 import { Menu, Notice, Setting, TFile } from "obsidian";
 import type { EntryRef, EntryRenderCtx, OptionsCtx, ViewCtx } from "../../core/context";
 import type { SkillPresetDef, SkillRecord, ValueTypeDef } from "../../core/registry";
-import type { Entry, Section } from "../../core/model";
+import type { Entry } from "../../core/model";
 import { ext } from "../../core/model";
 import { abbrFor, Influence } from "../../core/influences";
 import { ensurePropEntries } from "../../core/layout-ops";

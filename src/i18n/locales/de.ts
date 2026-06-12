@@ -120,7 +120,8 @@ export const coreDe: StringDict = {
   "mods.formula": "Formel f(x)",
   "mods.termOptions": "Vorzeichen · Umschalter · Kürzel",
   "mods.termOptionsDesc":
-    "Wie dieser Term in die Summe eingeht; eine Listen-Eigenschaft, die ihn pro Notiz umschaltet (wie Übung); das Kürzel für Anzeigen.",
+    "Wie dieser Term in die Summe eingeht; eine Listen-Eigenschaft, die ihn pro Notiz umschaltet (wie Übung); das Kürzel für Anzeigen; und ob die Zeile das Kontrollkästchen dieses Terms zeigt.",
+  "mods.showToggle": "Kontrollkästchen in der Zeile anzeigen",
   "mods.weightAdd": "+ addieren",
   "mods.weightSub": "− subtrahieren",
   "mods.toggleProp": "Umschalt-Listeneigenschaft",

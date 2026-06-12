@@ -25,6 +25,8 @@ src/
 │   ├── model.ts             Persisted shapes: Entry, Section, Layout, EPSettings.
 │   ├── settings.ts          Defaults + migration of any historical data.json.
 │   ├── registry.ts          Extension points (see below) + ServiceHub.
+│   ├── influences.ts        The influence engine: user-editable modifier math
+│   │                        (derivation blocks, toggles, short forms).
 │   ├── context.ts           ViewCtx & friends — the contracts renderers use.
 │   ├── note-model.ts        Frontmatter state: read/write, echo suppression,
 │   │                        session undo for edit mode.
@@ -41,15 +43,17 @@ src/
 │   │   ├── section-renderer.ts  Section chrome, layout modes, cluster flags.
 │   │   ├── entry-renderer.ts    Entry shell; dispatches to entry kinds.
 │   │   ├── cluster.ts           Aligned control strip ([slots][−][value][+][slots]).
-│   │   ├── value-types/         text, numeric, basic (checkbox/list/color),
-│   │   │                        media (image/iframe) + core registration.
+│   │   ├── modifier-addon.ts    Influence UI: denotation badge, toggles, editor.
+│   │   ├── value-types/         text, numeric, derived, basic (checkbox/list/
+│   │   │                        color), media (image/iframe) + core registration.
 │   │   └── entry-kinds/         prop, blank, toc.
 │   ├── components/          suggest, inline-edit, links, popups, setting rows.
 │   ├── menus/               entry, section, and Obsidian-panel context menus.
 │   ├── modals/              dialogs, color/icon pickers, image viewer,
 │   │                        entry-options, section-options.
 │   ├── drag.ts              Drag & drop → layout-ops. FLIP animations.
-│   └── settings-tab.ts      Settings incl. language + string overrides.
+│   └── settings-tab.ts      Settings incl. language, derivation blocks,
+│                            short forms and string overrides.
 └── features/
     ├── rolling/             Dice model & UI, roll service & log panel, the
     │                        roll-button addon, the legacy "skills" type
@@ -167,12 +171,16 @@ sentence case and the fixed vocabulary *property / section / entry / sidebar*.
 Compatibility rules:
 
 - `Entry` keeps an open index signature; feature fields (e.g. `roll`,
-  `rollSource`, `computed`) stay flat exactly as v1 wrote them. Features read
-  them through the `ext<T>(entry)` helper for typing.
+  `mods`, `dice`) stay flat exactly as earlier versions wrote them. Features
+  read them through the `ext<T>(entry)` helper for typing.
 - `normalizeSettings` migrates the v1 single-layout shape and fills any new
   fields with defaults. Never remove that path.
 - Section/template ids ("vitals", "skills", …) are stable — "reset this
   template section" matches by id.
+- Module `migrate()` hooks upgrade layouts: rolling converts the v2 roll
+  fields (`roll: "abilityMod"`, `rollSource`) to influence lists; dnd5e
+  converts "computed" and the v2.0 "saves"/"skills" kinds to derived
+  property entries.
 
 ## How to: add a feature module
 

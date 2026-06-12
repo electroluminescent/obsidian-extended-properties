@@ -110,8 +110,9 @@ export interface NumericAccess {
 
 /**
  * Attaches extra controls to numeric "prop" entries without the numeric
- * renderer knowing about them. The rolling module uses this for the
- * modifier badge (with dice tag) and roll button.
+ * renderer knowing about them. The core modifier system uses this for the
+ * denotation badge and toggle checkboxes; the rolling module for its roll
+ * button.
  */
 export interface ClusterAddon {
   id: string;

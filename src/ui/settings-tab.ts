@@ -1,7 +1,8 @@
 /**
- * The plugin's settings tab: note types, defaults, typography, language
- * (locale + per-string overrides), Obsidian-panel integration, always-hidden
- * properties, and feature module toggles.
+ * The plugin's settings tab: note types, defaults, modifier building
+ * blocks, short forms, typography, language (locale + per-string
+ * overrides), Obsidian-panel integration, always-hidden properties, and
+ * feature module toggles.
  */
 
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
@@ -140,27 +141,27 @@ export class EPSettingTab extends PluginSettingTab {
       plugin.rebuildRegistries();
       save();
     };
-    for (const d of [...plugin.settings.derivations]) {
+    for (const dv of [...plugin.settings.derivations]) {
       new Setting(c)
-        .setName(d.name || d.id)
+        .setName(dv.name || dv.id)
         .addText((tx) => {
           tx.setPlaceholder(t("settings.derivationName"))
-            .setValue(d.name)
+            .setValue(dv.name)
             .onChange((v) => {
-              d.name = v.trim() || d.id;
+              dv.name = v.trim() || dv.id;
               applyDerivations();
             });
         })
         .addText((tx) => {
-          tx.setPlaceholder("f(x)").setValue(d.formula).onChange((v) => {
+          tx.setPlaceholder("f(x)").setValue(dv.formula).onChange((v) => {
             if (v.trim() && !compileFormula(v.trim())) return;
-            d.formula = v.trim() || "x";
+            dv.formula = v.trim() || "x";
             applyDerivations();
           });
         })
         .addExtraButton((b) =>
           b.setIcon("trash").setTooltip(t("settings.derivationDelete")).onClick(() => {
-            plugin.settings.derivations = plugin.settings.derivations.filter((x) => x !== d);
+            plugin.settings.derivations = plugin.settings.derivations.filter((x) => x !== dv);
             applyDerivations();
             this.display();
           })
@@ -178,7 +179,7 @@ export class EPSettingTab extends PluginSettingTab {
       .addButton((b) =>
         b.setButtonText(t("settings.derivationReseed")).onClick(() => {
           const have = new Set(plugin.settings.derivations.map((x) => x.id));
-          for (const d of defaultDerivations()) if (!have.has(d.id)) plugin.settings.derivations.push(d);
+          for (const dv of defaultDerivations()) if (!have.has(dv.id)) plugin.settings.derivations.push(dv);
           applyDerivations();
           this.display();
         })

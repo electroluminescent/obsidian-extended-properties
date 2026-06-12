@@ -33,8 +33,13 @@ function mods(entry: Entry): Influence[] {
   return Array.isArray(m) ? m : [];
 }
 
+/**
+ * Influences whose checkbox is shown on the row, in modifier order (so
+ * toggle buttons line up consistently across the entries of a section).
+ * `hideToggle` suppresses the button per source without disabling the list.
+ */
 function togglable(entry: Entry): Influence[] {
-  return mods(entry).filter((m) => m.toggle);
+  return mods(entry).filter((m) => m.toggle && !m.hideToggle);
 }
 
 // ---------------------------------------------------------------------------
@@ -270,6 +275,15 @@ export const modifierAddon: ClusterAddon = {
           setAbbr(view.settings, srcKey(), v);
           changed();
         });
+      });
+      sub.addToggle((tg) => {
+        tg.setValue(!!inf.toggle && !inf.hideToggle)
+          .setTooltip(t("mods.showToggle"))
+          .setDisabled(!inf.toggle)
+          .onChange((v) => {
+            inf.hideToggle = v ? undefined : true;
+            changed();
+          });
       });
       sub.setDesc(t("mods.termOptionsDesc"));
     });

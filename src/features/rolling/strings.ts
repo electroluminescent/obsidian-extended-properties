@@ -1,6 +1,6 @@
 /**
  * Locale strings owned by the rolling module (dice, roll buttons, the
- * roll panel, and the skills value type).
+ * roll panel, and the legacy skills value type).
  */
 
 import type { StringDict } from "../../i18n/i18n";

@@ -4,7 +4,8 @@
  * expression; typing a value solves the formula backwards).
  *
  * Cluster addons (see {@link ClusterAddon}) can attach extra cells — the
- * D&D module adds its modifier badge and roll button this way.
+ * core modifier system adds its badge/toggles and the rolling module its
+ * roll button this way.
  */
 
 import { Menu, Setting } from "obsidian";

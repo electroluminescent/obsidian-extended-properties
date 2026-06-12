@@ -6,7 +6,7 @@
  * contributed through the registries:
  *
  *   value type   → `ValueTypeDef.renderOptions`   (range, image height, …)
- *   addons       → `ClusterAddon.renderOptions`   (D&D roll settings, …)
+ *   addons       → `ClusterAddon.renderOptions`   (modifiers, rolls, …)
  *   entry kind   → `EntryKindDef.renderOptions`   (non-prop widgets)
  *
  * Closing with changes asks the user to keep or undo them (snapshot diff).

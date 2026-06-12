@@ -48,6 +48,11 @@ export interface Influence {
    * alias) is contained in that list. A checkbox is rendered for it.
    */
   toggle?: string;
+  /**
+   * Hide this term's checkbox on the row (per source). The toggle list
+   * still applies — only the button is suppressed.
+   */
+  hideToggle?: boolean;
 }
 
 /** Entry fields persisted by the modifier system (via `ext<ModExt>`). */

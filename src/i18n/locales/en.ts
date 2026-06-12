@@ -123,7 +123,8 @@ export const coreEn: StringDict = {
   "mods.formula": "Formula f(x)",
   "mods.termOptions": "Sign · toggle · short form",
   "mods.termOptionsDesc":
-    "How this term enters the sum; a list property that toggles it per note (the way proficiency works); the short form shown in denotations.",
+    "How this term enters the sum; a list property that toggles it per note (the way proficiency works); the short form shown in denotations; and whether the row shows this term's checkbox.",
+  "mods.showToggle": "Show checkbox on the row",
   "mods.weightAdd": "+ add",
   "mods.weightSub": "− subtract",
   "mods.toggleProp": "Toggle list property",

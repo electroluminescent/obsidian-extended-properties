@@ -310,3 +310,37 @@
 .ep-options .ep-mods-sub { padding-left: 18px; }
 .ep-options .ep-mods-sub .setting-item-name { color: var(--text-muted); font-size: var(--font-ui-smaller); }
 .ep-options .ep-abbr-input { width: 4.5em; }
+
+/* round 20 additions — alignment, viewport fitting, insertion lines, mobile */
+/* breathing room below the last section */
+.ep-sidebar { padding-bottom: 96px; }
+/* toggle checkboxes right-aligned, in modifier order */
+.ep-tog-cell { justify-content: flex-end; gap: 3px; }
+/* section drag: insertion line between sections (like the grid markers) */
+.ep-section { position: relative; }
+.ep-section.ep-drop-top, .ep-section.ep-drop-bottom { box-shadow: none; }
+.ep-section.ep-drop-top::before, .ep-section.ep-drop-bottom::after {
+  content: ""; position: absolute; left: 4px; right: 4px; height: 3px;
+  border-radius: 2px; background: var(--interactive-accent);
+  pointer-events: none; z-index: 5;
+}
+.ep-section.ep-drop-top::before { top: -7px; }
+.ep-section.ep-drop-bottom::after { bottom: -7px; }
+/* grips drive pointer drags — keep touch from scrolling instead */
+.ep-grip { touch-action: none; }
+/* larger touch targets */
+@media (pointer: coarse) {
+  .ep-mini-btn { padding: 4px 10px; }
+  .ep-menu-btn, .ep-icon-btn { padding: 4px 6px; }
+  .ep-prof { width: 20px; height: 20px; }
+  .ep-colrail { height: 24px; }
+  .ep-rowrail { width: 24px; }
+  .ep-colrail .ep-addbar, .ep-rowrail .ep-addbar { width: 22px; height: 22px; min-width: 22px; flex: 0 0 22px; }
+  .ep-rmbar { width: 22px; height: 22px; opacity: .6; }
+  .ep-addbar svg, .ep-rmbar svg { width: 14px; height: 14px; }
+  .ep-pop-row { padding: 8px 10px; }
+  .ep-line { padding: 6px 2px; }
+  .ep-edit-toggle, .ep-tool-btn, .ep-add-input { min-height: 32px; }
+  .ep-grip { padding: 0 8px; }
+  .ep-section.ep-drop-top::before, .ep-section.ep-drop-bottom::after { height: 4px; }
+}

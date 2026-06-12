@@ -61,6 +61,8 @@ export function buildCluster(
 
   const makeSlotCell = (slot: ClusterSlot) => {
     const cell = cl.createSpan({ cls: "ep-cell" + (slot.cls ? " " + slot.cls : "") });
+    // Tagged so the section renderer can equalize slot widths across rows.
+    cell.setAttr("data-ep-slot", slot.id);
     cells[slot.id] = cell;
     o.slots?.[slot.id]?.(cell);
   };

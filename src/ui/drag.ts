@@ -1,18 +1,17 @@
 /**
  * Drag & drop for sections and entries (edit mode).
  *
- * Sections use native HTML5 drag with top/bottom drop markers. Entries use
- * pointer events with a floating clone: list/column targets reorder live
- * (FLIP-animated), grid targets highlight a swap cell. All structural
- * changes go through `core/layout-ops`; this controller only translates
- * gestures into those operations.
+ * Both sections and entries use pointer events (mouse, pen *and* touch —
+ * grips set `touch-action: none`). Sections show an insertion line between
+ * sections (like the grid cell markers); entries use a floating clone:
+ * list/column targets reorder live (FLIP-animated), grid targets highlight
+ * a swap cell. All structural changes go through `core/layout-ops`; this
+ * controller only translates gestures into those operations.
  */
 
 import type { ViewCtx } from "../core/context";
 import type { Entry, Section } from "../core/model";
 import * as ops from "../core/layout-ops";
-
-interface SectionDragData { id: string }
 
 /**
  * FLIP-animate elements with `data-ep-id` across a layout mutation:
@@ -49,46 +48,62 @@ export function flipMove(view: ViewCtx, fn: () => void): void {
 }
 
 export class DragController {
-  private sectionDrag: SectionDragData | null = null;
-
   constructor(private view: ViewCtx) {}
 
-  // -- sections (HTML5 drag) ----------------------------------------------
+  // -- sections (pointer drag, touch-friendly) ------------------------------
 
-  attachSection(det: HTMLElement, grid: HTMLElement, section: Section): void {
+  attachSection(det: HTMLElement, _grid: HTMLElement, section: Section): void {
     const grip = det.querySelector(".ep-section-title .ep-grip") as HTMLElement | null;
-    if (grip) {
-      grip.setAttr("draggable", "true");
-      grip.addEventListener("dragstart", (e: DragEvent) => {
-        this.sectionDrag = { id: section.id };
-        e.dataTransfer?.setData("text/plain", section.id);
-        if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
-      });
-      grip.addEventListener("dragend", () => {
-        this.sectionDrag = null;
-        this.clearMarks();
-      });
-    }
-    det.addEventListener("dragover", (e: DragEvent) => {
-      if (!this.sectionDrag) return;
-      e.preventDefault();
-      this.mark(det, this.isAfter(e, det));
+    if (!grip) return;
+    grip.addEventListener("pointerdown", (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      this.startSectionDrag(e, det, section);
     });
-    det.addEventListener("dragleave", () => det.removeClasses(["ep-drop-top", "ep-drop-bottom"]));
-    det.addEventListener("drop", (e: DragEvent) => {
-      if (!this.sectionDrag) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const dragId = this.sectionDrag.id;
-      flipMove(this.view, () => {
-        if (ops.moveSectionTo(this.view.layout, dragId, section.id, this.isAfter(e, det))) {
-          this.view.saveLayout();
-          this.view.rerender();
+  }
+
+  private startSectionDrag(ev: PointerEvent, det: HTMLElement, section: Section): void {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const view = this.view;
+    det.addClass("ep-drag-placeholder");
+    let target: HTMLElement | null = null;
+    let after = false;
+
+    const onMove = (e: PointerEvent) => {
+      const under = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+      const sec = (under?.closest(".ep-section") as HTMLElement | null) ?? null;
+      this.clearMarks();
+      target = null;
+      if (!sec || sec === det) return;
+      const r = sec.getBoundingClientRect();
+      after = e.clientY - r.top > r.height / 2;
+      // Insertion line between sections (mirrors the grid cell markers).
+      this.mark(sec, after);
+      target = sec;
+    };
+
+    const onUp = () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
+      det.removeClass("ep-drag-placeholder");
+      const t = target;
+      const a = after;
+      this.clearMarks();
+      if (!t) return;
+      const targetId = (t.getAttribute("data-ep-id") || "").slice(2);
+      if (!targetId) return;
+      flipMove(view, () => {
+        if (ops.moveSectionTo(view.layout, section.id, targetId, a)) {
+          view.saveLayout();
+          view.rerender();
         }
       });
-    });
-    // Allow dropping an entry into an empty area of another section.
-    grid.addEventListener("dragover", (e: DragEvent) => e.preventDefault());
+    };
+
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
   }
 
   // -- entries (pointer drag with clone) ------------------------------------
@@ -198,6 +213,7 @@ export class DragController {
     const onUp = () => {
       document.removeEventListener("pointermove", onMove);
       document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
       clone.remove();
       wrap.removeClass("ep-drag-placeholder");
       const commit = (mutate: () => boolean) => {
@@ -234,14 +250,10 @@ export class DragController {
 
     document.addEventListener("pointermove", onMove);
     document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
   }
 
   // -- drop markers ---------------------------------------------------------
-
-  private isAfter(e: DragEvent, el: HTMLElement): boolean {
-    const r = el.getBoundingClientRect();
-    return e.clientY - r.top > r.height / 2;
-  }
 
   private mark(el: HTMLElement, after: boolean): void {
     el.removeClasses(["ep-drop-top", "ep-drop-bottom"]);

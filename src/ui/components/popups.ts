@@ -116,6 +116,19 @@ export class PopupManager {
     pop.style.left = r.left + "px";
     pop.style.top = r.bottom + 2 + "px";
     pop.style.minWidth = "220px";
+    // Keep the menu fully inside the window: clamp horizontally, flip above
+    // the anchor when it would overflow the bottom, clamp as a last resort.
+    const fit = () => {
+      const w = pop.offsetWidth;
+      const h = pop.offsetHeight;
+      let left = r.left;
+      let top = r.bottom + 2;
+      if (left + w > window.innerWidth - 4) left = Math.max(4, window.innerWidth - w - 4);
+      if (top + h > window.innerHeight - 4) top = r.top - h - 2;
+      if (top < 4) top = Math.max(4, Math.min(r.bottom + 2, window.innerHeight - h - 4));
+      pop.style.left = left + "px";
+      pop.style.top = top + "px";
+    };
 
     const search = pop.createEl("input", { cls: "ep-edit-input ep-addsearch" });
     search.type = "text";
@@ -165,7 +178,10 @@ export class PopupManager {
       grp(t("add.groupOthers"), groups.others);
     };
 
-    search.oninput = () => render();
+    search.oninput = () => {
+      render();
+      fit();
+    };
     search.onkeydown = (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -179,7 +195,11 @@ export class PopupManager {
       }
     };
     render();
-    window.setTimeout(() => search.focus(), 0);
+    fit();
+    window.setTimeout(() => {
+      fit();
+      search.focus();
+    }, 0);
     this.dismissOnOutsideClick(anchor);
   }
 

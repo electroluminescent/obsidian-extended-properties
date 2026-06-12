@@ -34,6 +34,34 @@ function computeFlags(view: ViewCtx, file: TFile, section: Section): ClusterFlag
   return flags;
 }
 
+/**
+ * Equalize cluster columns across all rows of a section: each slot
+ * (denotation, toggle boxes, modifier badge, …) and the value cell get the
+ * width of their widest sibling, so influence strings, checkboxes and
+ * numbers line up vertically even though every row owns its own grid.
+ */
+function alignClusters(det: HTMLElement): void {
+  requestAnimationFrame(() => {
+    const groups = new Map<string, HTMLElement[]>();
+    for (const el of det.findAll(".ep-cluster [data-ep-slot]")) {
+      const id = el.getAttribute("data-ep-slot") ?? "";
+      if (!groups.has(id)) groups.set(id, []);
+      groups.get(id)!.push(el as HTMLElement);
+    }
+    groups.set(" num", det.findAll(".ep-cluster .ep-num") as HTMLElement[]);
+    for (const els of groups.values()) {
+      if (els.length < 2) continue;
+      let max = 0;
+      for (const el of els) {
+        el.style.minWidth = "";
+        max = Math.max(max, el.offsetWidth);
+      }
+      if (max <= 0) continue;
+      for (const el of els) el.style.minWidth = max + "px";
+    }
+  });
+}
+
 export interface SectionHost {
   /** Map of section id → rendered element (for TOC scrolling). */
   registerSectionEl(id: string, el: HTMLElement): void;
@@ -195,8 +223,10 @@ export function renderSection(
       else renderEntry(grid, view, file, section, entry, flags, drag);
     }
     if (view.editMode) {
-      // Trailing add-cells: pad the last row, plus one extra full row.
-      const pad = ((ncol - (section.entries.length % ncol)) % ncol) + ncol;
+      // Trailing add-cells fill only the last partial row, so the row rail
+      // lines up with rows that actually exist; a full-width add button
+      // below the grid (same as list mode) covers "append a new row".
+      const pad = (ncol - (section.entries.length % ncol)) % ncol;
       for (let z = 0; z < pad; z++) {
         const cell = grid.createDiv({ cls: "ep-empty-cell ep-empty-pad" });
         cell.createSpan({ cls: "ep-pad-plus", text: t("entry.addProperty") });
@@ -213,9 +243,13 @@ export function renderSection(
           m.showAtMouseEvent(ce);
         });
       }
+      const add = body.createDiv({ cls: "ep-add" });
+      const ab = add.createEl("button", { cls: "ep-add-input ep-addbtn", text: t("entry.addProperty") });
+      ab.onclick = () => view.openAddMenu(ab, section, { index: section.entries.length });
     }
   }
 
+  alignClusters(det);
   if (view.editMode) drag.attachSection(det, grid, section);
   if (collapsible) {
     collapseWrap.style.overflow = "hidden";

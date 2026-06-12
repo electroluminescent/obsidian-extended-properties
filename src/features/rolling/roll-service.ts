@@ -2,7 +2,7 @@
  * Per-view roll state: the active roll mode and a short result log.
  *
  * Shared through the view's {@link ServiceHub} so roll buttons (numeric
- * addon, skills rows, computed entries) and the roll log panel stay
+ * addon, skills rows, derived entries) and the roll log panel stay
  * decoupled — none of them know the others exist.
  *
  * Rolls are dice pools ({@link DiceSpec}): advantage/disadvantage roll the
