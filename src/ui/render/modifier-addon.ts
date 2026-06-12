@@ -19,7 +19,7 @@ import type { Entry } from "../../core/model";
 import { ext } from "../../core/model";
 import {
   abbrFor, applyDerivation, defaultAbbr, denotationText, Influence, influenceActive,
-  ModExt, modifierTotal, setAbbr, setInfluenceActive,
+  influenceTerm, ModExt, modifierTotal, setAbbr, setInfluenceActive,
 } from "../../core/influences";
 import type { ViewCtx } from "../../core/context";
 import { fmtMod } from "../../utils/misc";
@@ -159,9 +159,14 @@ export const modifierAddon: ClusterAddon = {
     const view = ctx.view;
     let total = 0;
     for (const inf of mods(ctx.entry)) {
+      if (inf.source) {
+        // Sourced terms (incl. chained derived sources) don't change
+        // during the drag — evaluate them normally.
+        total += influenceTerm(view, ctx.entry, inf);
+        continue;
+      }
       if (!influenceActive(view, ctx.entry, inf)) continue;
-      const raw = inf.source ? view.note.num(inf.source, 0) : value;
-      total += (inf.weight === -1 ? -1 : 1) * applyDerivation(view, inf, raw);
+      total += (inf.weight === -1 ? -1 : 1) * applyDerivation(view, inf, value);
     }
     const cell = cells["mod"];
     cell.empty();

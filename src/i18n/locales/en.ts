@@ -140,7 +140,9 @@ export const coreEn: StringDict = {
   "mods.showBadge": "Show modifier badge",
   "mods.showBadgeDesc": "Short-form denotation plus the computed total, next to the value",
   "mods.override": "Modifier override",
-  "mods.overrideDesc": "Fixed value replacing the computed sum; blank derives from the influences",
+  "mods.overrideDesc":
+    "Fixed value replacing the computed sum for every note. A number stored in the note's own property overrides per note (click the value on the row); blank derives from the influences.",
+  "mods.clearNoteOverride": "Clear this note's override",
 
   "list.add": "+ add",
   "list.addTo": "Add to {key}",
@@ -214,6 +216,13 @@ export const coreEn: StringDict = {
   "options.numberHeading": "Number & slider",
   "options.showSlider": "Show slider",
   "options.showSteppers": "Show − / + buttons",
+  "options.sliderCurve": "Slider curve",
+  "options.curveLinear": "Linear",
+  "options.curveRoot": "Root",
+  "options.curveExp": "Exponential",
+  "options.rangeAuto": "Blank = this property's lowest/highest value across notes",
+  "options.sharedHeading": "Shared settings ({n} selected)",
+  "options.mixed": "Mixed values — changing this writes it to every selected tab.",
   "options.minimum": "Minimum",
   "options.maximum": "Maximum",
   "options.clamp": "Clamp typed values",
@@ -244,6 +253,9 @@ export const coreEn: StringDict = {
 
   // -- section options modal ----------------------------------------------------------------
   "sectionOptions.title": "Format “{name}”",
+  "sectionOptions.tabSection": "Section",
+  "sectionOptions.tabsHint":
+    "Click a tab to edit it; Ctrl/Cmd-click to select several and edit their shared settings together — only settings you change are written to all selected tabs.",
   "sectionOptions.sectionHeading": "Section",
   "sectionOptions.name": "Name",
   "sectionOptions.nameDesc": "Optional — blank shows “Section”",
@@ -328,6 +340,9 @@ export const coreEn: StringDict = {
   "settings.derivationAddBtn": "+ Block",
   "settings.derivationReseed": "Restore defaults",
   "settings.newDerivation": "New derivation",
+  "settings.modDepth": "Modifier chain depth",
+  "settings.modDepthDesc":
+    "How many property→property hops are resolved when derived values influence other derived values.",
   "settings.abbrHeading": "Short forms",
   "settings.abbrDesc":
     "Short forms used in modifier denotations (INT + DEX − AGE). The default is the capitalized first three letters of the property name; overrides apply everywhere the property is shown as a source.",

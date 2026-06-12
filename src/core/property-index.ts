@@ -35,6 +35,21 @@ export class PropertyIndex {
     return [...names];
   }
 
+  /** Smallest and largest numeric value of `key` across all notes. */
+  numberRange(key: string): { min: number; max: number } | null {
+    let min = Infinity;
+    let max = -Infinity;
+    for (const f of this.app.vault.getMarkdownFiles()) {
+      const v = this.app.metadataCache.getFileCache(f)?.frontmatter?.[key];
+      if (v === null || v === undefined || v === "") continue;
+      const n = Number(v);
+      if (!Number.isFinite(n)) continue;
+      if (n < min) min = n;
+      if (n > max) max = n;
+    }
+    return min <= max ? { min, max } : null;
+  }
+
   /** Distinct values used for `key` anywhere in the vault, sorted. */
   valuesFor(key: string): string[] {
     const set = new Set<string>();

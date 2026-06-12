@@ -357,3 +357,26 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
   .ep-colrail { height: 26px; }
   .ep-rowrail { width: 26px; flex-basis: 26px; }
 }
+
+/* round 22 additions — tabs, dividers, hover fix, dice joining, type hints */
+/* hover must not cancel the centering transform of measured rail buttons */
+.ep-colrail .ep-addbar:hover { width: 14px; height: 14px; transform: translate(-50%, -50%); }
+.ep-rowrail .ep-addbar:hover { width: 14px; height: 14px; transform: translate(-50%, -50%); }
+@media (pointer: coarse) {
+  .ep-colrail .ep-addbar:hover, .ep-rowrail .ep-addbar:hover { width: 22px; height: 22px; }
+}
+/* grid dividers also between empty cells */
+.ep-grid.ep-dividers.ep-mode-grid > .ep-empty-cell:not(.ep-empty-pad) { border-bottom: 1px solid var(--background-modifier-border-hover); border-radius: 0; }
+.ep-grid.ep-dividers.ep-mode-grid > .ep-empty-cell:last-child { border-bottom: none; }
+/* dice + modifier read as one string (each keeps its own formatting) */
+.ep-mod-badge .ep-dice-tag, .ep-den-cell .ep-dice-tag { margin-right: 0; }
+.ep-den-cell { justify-content: flex-end; }
+.ep-num.ep-num-join { text-align: left; }
+.ep-num.ep-overridden { text-decoration: underline dotted; }
+/* datatype hint beside labels (auto-removed when space is tight) */
+.ep-line-name .ep-type-hint { font-style: italic; font-size: 0.78em; color: var(--text-faint); margin-left: 5px; font-weight: 400; }
+/* tabs in the section options modal */
+.ep-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0 4px; }
+.ep-tab { padding: 2px 10px; font-size: var(--font-ui-smaller); cursor: pointer; border-radius: 10px; background: var(--background-modifier-hover); color: var(--text-muted); user-select: none; }
+.ep-tab:hover { color: var(--text-normal); }
+.ep-tab.is-active { background: var(--interactive-accent); color: var(--text-on-accent); }

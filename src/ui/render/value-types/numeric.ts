@@ -30,6 +30,42 @@ function wantSteppers(kind: NumericKind, entry: { steppers?: boolean }): boolean
   return (kind === "number" || kind === "decimal") && entry.steppers !== false;
 }
 
+/** Slider response curve: normalized position [0,1] → normalized value. */
+function curveMap(curve: string | undefined, t: number): number {
+  if (curve === "root") return Math.sqrt(Math.max(0, t));
+  if (curve === "exp") return t * t;
+  return t;
+}
+
+/** Inverse of {@link curveMap}: normalized value → slider position. */
+function curveInvert(curve: string | undefined, u: number): number {
+  const c = Math.min(1, Math.max(0, u));
+  if (curve === "root") return c * c;
+  if (curve === "exp") return Math.sqrt(c);
+  return c;
+}
+
+/**
+ * Effective range: explicit min/max win; unset sides default to the
+ * property's smallest/largest value across all notes, then to the
+ * per-kind fallbacks.
+ */
+function effectiveRange(
+  kind: NumericKind,
+  entry: { min?: number; max?: number },
+  vault: { min: number; max: number } | null
+): { min: number; max: number } {
+  const range = defaultRange(kind);
+  let min = entry.min ?? vault?.min ?? range.min;
+  let max = entry.max ?? vault?.max ?? range.max;
+  if (max <= min) {
+    // Degenerate (e.g. only one note uses the property): fall back.
+    min = entry.min ?? range.min;
+    max = entry.max ?? range.max;
+  }
+  return { min, max };
+}
+
 /** Cluster needs = steppers (number/decimal) + whatever addons request. */
 function clusterNeeds(kind: NumericKind, ref: EntryRef): ClusterNeeds {
   const flags = emptyFlags();
@@ -43,9 +79,8 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
   const key = entry.key as string;
   const isFormula = kind === "formula";
   const isDecimal = kind === "decimal";
-  const range = defaultRange(kind);
-  const min = entry.min ?? range.min;
-  const max = entry.max ?? range.max;
+  const vault = entry.min === undefined || entry.max === undefined ? view.props.numberRange(key) : null;
+  const { min, max } = effectiveRange(kind, entry, vault);
   const label = entry.alias ?? key;
   const f = isFormula ? compileFormula(entry.formula || "x") || ((x: number) => x) : null;
   const get = () => view.note.num(key, 0);
@@ -69,24 +104,37 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
   if (entry.valueColor) refs.val.style.color = entry.valueColor;
   if (entry.valueSize) refs.val.style.fontSize = entry.valueSize + "px";
 
-  // Optional slider (always present for formula entries).
+  // Optional slider (always present for formula entries). The slider
+  // position maps through the configured curve (linear / root / exp);
+  // formula entries map through their expression instead.
+  const curve = entry.sliderCurve as string | undefined;
+  const span = max - min;
+  const toValue = (x: number): number => {
+    if (isFormula && f) return f(x);
+    if (span <= 0) return x;
+    return min + span * curveMap(curve, (x - min) / span);
+  };
+  const toPosition = (v: number): number => {
+    if (isFormula && f) return invertFormula(f, v, min, max);
+    if (span <= 0) return v;
+    return min + span * curveInvert(curve, (v - min) / span);
+  };
   let slider: HTMLInputElement | null = null;
   if (entry.slider || isFormula) {
     slider = ctx.extra.createEl("input", { cls: "ep-slider" });
     slider.type = "range";
     slider.min = String(min);
     slider.max = String(max);
-    slider.step = kind === "number" ? "1" : "any";
-    slider.value = String(isFormula && f ? invertFormula(f, get(), min, max) : get());
+    slider.step = kind === "number" && !curve ? "1" : "any";
+    slider.value = String(toPosition(get()));
     slider.addEventListener("input", () => {
-      const x = Number(slider!.value);
-      const out = isFormula && f ? f(x) : x;
-      refs.val.setText(fmtNum(out));
+      const out = toValue(Number(slider!.value));
+      refs.val.setText(fmtNum(isDecimal || isFormula ? out : Math.round(out)));
       for (const a of addons) a.onPreview?.(ctx, refs.cells, out);
     });
     slider.addEventListener("change", () => {
-      const x = Number(slider!.value);
-      const out = isFormula && f ? f(x) : entry.clamp ? clamp(x, min, max) : x;
+      let out = toValue(Number(slider!.value));
+      if (!isFormula && entry.clamp) out = clamp(out, min, max);
       view.note.set(file, key, isDecimal || isFormula ? out : Math.round(out));
     });
   }
@@ -94,7 +142,7 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
   view.registerUpdater(() => {
     const v = view.note.num(key, 0);
     refs.val.setText(fmtNum(v));
-    if (slider) slider.value = String(isFormula && f ? invertFormula(f, v, min, max) : v);
+    if (slider) slider.value = String(toPosition(v));
   });
 }
 
@@ -117,20 +165,36 @@ function renderOptions(kind: NumericKind, octx: OptionsCtx): void {
       });
     });
   }
-  new Setting(c).setName(t("options.minimum")).addText((tx) => {
-    tx.setValue(entry.min !== undefined ? String(entry.min) : "").onChange((v) => {
-      const n = Number(v);
-      entry.min = v.trim() === "" || !Number.isFinite(n) ? undefined : n;
+  new Setting(c).setName(t("options.sliderCurve")).addDropdown((d) => {
+    d.addOption("linear", t("options.curveLinear"));
+    d.addOption("root", t("options.curveRoot"));
+    d.addOption("exp", t("options.curveExp"));
+    d.setValue((entry.sliderCurve as string) || "linear");
+    d.onChange((v) => {
+      entry.sliderCurve = v === "linear" ? undefined : v;
       changed();
     });
   });
-  new Setting(c).setName(t("options.maximum")).addText((tx) => {
-    tx.setValue(entry.max !== undefined ? String(entry.max) : "").onChange((v) => {
-      const n = Number(v);
-      entry.max = v.trim() === "" || !Number.isFinite(n) ? undefined : n;
-      changed();
+  new Setting(c)
+    .setName(t("options.minimum"))
+    .setDesc(t("options.rangeAuto"))
+    .addText((tx) => {
+      tx.setValue(entry.min !== undefined ? String(entry.min) : "").onChange((v) => {
+        const n = Number(v);
+        entry.min = v.trim() === "" || !Number.isFinite(n) ? undefined : n;
+        changed();
+      });
     });
-  });
+  new Setting(c)
+    .setName(t("options.maximum"))
+    .setDesc(t("options.rangeAuto"))
+    .addText((tx) => {
+      tx.setValue(entry.max !== undefined ? String(entry.max) : "").onChange((v) => {
+        const n = Number(v);
+        entry.max = v.trim() === "" || !Number.isFinite(n) ? undefined : n;
+        changed();
+      });
+    });
   new Setting(c).setName(t("options.clamp")).addToggle((tg) => {
     tg.setValue(!!entry.clamp).onChange((v) => {
       entry.clamp = v || undefined;

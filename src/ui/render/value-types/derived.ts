@@ -12,9 +12,10 @@
 
 import type { EntryRef, OptionsCtx } from "../../../core/context";
 import type { ValueTypeDef } from "../../../core/registry";
-import { modifierTotal } from "../../../core/influences";
+import { hasNoteOverride, modifierTotal } from "../../../core/influences";
 import { fmtMod } from "../../../utils/misc";
 import { addonsFor, emptyFlags, mergeNeeds } from "../cluster";
+import { openNumberInput } from "../../components/inline-edit";
 import { paintDenotation, paintDice } from "../modifier-addon";
 
 export const derivedType: ValueTypeDef = {
@@ -49,9 +50,37 @@ export const derivedType: ValueTypeDef = {
     for (const a of addonsFor(ctx)) Object.assign(slots, a.fillSlots(ctx, { get: compute, label }));
 
     const refs = view.buildCluster(ctx.head, ctx.flags, { display: fmtMod(compute()), slots });
+    refs.val.addClass("ep-num-join");
     if (entry.valueSize) refs.val.style.fontSize = entry.valueSize + "px";
     if (entry.valueColor) refs.val.style.color = entry.valueColor as string;
-    view.registerUpdater(() => refs.val.setText(fmtMod(compute())));
+    const sync = () => {
+      refs.val.setText(fmtMod(compute()));
+      refs.val.toggleClass("ep-overridden", hasNoteOverride(view, entry));
+    };
+    sync();
+    // Per-note override: editing the value stores it in this note's
+    // frontmatter; clearing the property returns to the computed sum.
+    view.bindOpen(refs.val, () =>
+      openNumberInput(refs.val, compute(), (v) => view.note.set(ctx.file, entry.key as string, v), {
+        min: -9999,
+        max: 9999,
+        float: false,
+        clamp: false,
+      })
+    );
+    view.registerUpdater(sync);
+  },
+
+  menuItems(menu, ref: EntryRef) {
+    const { view, file, entry } = ref;
+    const key = entry.key as string;
+    if (hasNoteOverride(view, entry)) {
+      menu.addItem((i) =>
+        i.setTitle(view.i18n.t("mods.clearNoteOverride")).setIcon("eraser").onClick(() =>
+          view.note.set(file, key, undefined)
+        )
+      );
+    }
   },
 
   renderOptions(octx: OptionsCtx) {

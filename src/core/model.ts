@@ -46,8 +46,11 @@ export interface EntryBase {
 
   // -- numeric value-type options ------------------------------------------
   slider?: boolean;
+  /** Slider response: "linear" (default), "root", or "exp". */
+  sliderCurve?: string;
   /** Hide the −/+ stepper buttons when false (default: shown). */
   steppers?: boolean;
+  /** Unset min/max default to the property's range across all notes. */
   min?: number;
   max?: number;
   clamp?: boolean;
@@ -183,4 +186,9 @@ export interface EPSettings {
    * letters of the property name.
    */
   sourceAbbrs: Record<string, string>;
+  /**
+   * Maximum influence chain depth: how many property→property hops are
+   * resolved when derived values feed other derived values.
+   */
+  modDepth: number;
 }

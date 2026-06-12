@@ -44,6 +44,7 @@ export function defaultSettings(): EPSettings {
     features: {},
     derivations: defaultDerivations(),
     sourceAbbrs: {},
+    modDepth: 8,
   };
 }
 
@@ -73,6 +74,8 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
     if (Array.isArray(data.derivations))
       s.derivations = data.derivations.filter((d: any) => d && typeof d.id === "string");
     if (data.sourceAbbrs && typeof data.sourceAbbrs === "object") s.sourceAbbrs = data.sourceAbbrs;
+    if (typeof data.modDepth === "number" && data.modDepth >= 0)
+      s.modDepth = Math.min(32, Math.floor(data.modDepth));
   }
   for (const t of s.types) {
     const k = t.toLowerCase();

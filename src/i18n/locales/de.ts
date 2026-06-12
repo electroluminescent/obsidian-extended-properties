@@ -137,7 +137,9 @@ export const coreDe: StringDict = {
   "mods.showBadge": "Modifikator-Anzeige",
   "mods.showBadgeDesc": "Kürzel-Summe plus berechneter Gesamtwert neben dem Wert",
   "mods.override": "Modifikator-Überschreibung",
-  "mods.overrideDesc": "Fester Wert statt der berechneten Summe; leer = aus den Einflüssen abgeleitet",
+  "mods.overrideDesc":
+    "Fester Wert statt der berechneten Summe für alle Notizen. Eine in der Eigenschaft der Notiz gespeicherte Zahl überschreibt pro Notiz (Wert in der Zeile anklicken); leer = aus den Einflüssen abgeleitet.",
+  "mods.clearNoteOverride": "Überschreibung dieser Notiz entfernen",
 
   "list.add": "+ hinzufügen",
   "list.addTo": "Zu {key} hinzufügen",
@@ -211,6 +213,13 @@ export const coreDe: StringDict = {
   "options.numberHeading": "Zahl & Schieberegler",
   "options.showSlider": "Schieberegler anzeigen",
   "options.showSteppers": "−/+-Schaltflächen anzeigen",
+  "options.sliderCurve": "Regler-Kennlinie",
+  "options.curveLinear": "Linear",
+  "options.curveRoot": "Wurzel",
+  "options.curveExp": "Exponentiell",
+  "options.rangeAuto": "Leer = kleinster/größter Wert dieser Eigenschaft über alle Notizen",
+  "options.sharedHeading": "Gemeinsame Einstellungen ({n} ausgewählt)",
+  "options.mixed": "Unterschiedliche Werte — eine Änderung schreibt sie in alle ausgewählten Tabs.",
   "options.minimum": "Minimum",
   "options.maximum": "Maximum",
   "options.clamp": "Eingegebene Werte begrenzen",
@@ -241,6 +250,9 @@ export const coreDe: StringDict = {
 
   // -- section options modal ----------------------------------------------------------------
   "sectionOptions.title": "„{name}“ formatieren",
+  "sectionOptions.tabSection": "Abschnitt",
+  "sectionOptions.tabsHint":
+    "Tab anklicken zum Bearbeiten; Strg/Cmd-Klick wählt mehrere aus, um ihre gemeinsamen Einstellungen zusammen zu bearbeiten — nur geänderte Einstellungen werden in alle ausgewählten Tabs geschrieben.",
   "sectionOptions.sectionHeading": "Abschnitt",
   "sectionOptions.name": "Name",
   "sectionOptions.nameDesc": "Optional — leer zeigt „Abschnitt“",
@@ -325,6 +337,9 @@ export const coreDe: StringDict = {
   "settings.derivationAddBtn": "+ Baustein",
   "settings.derivationReseed": "Standards wiederherstellen",
   "settings.newDerivation": "Neue Ableitung",
+  "settings.modDepth": "Modifikator-Kettentiefe",
+  "settings.modDepthDesc":
+    "Wie viele Eigenschaft→Eigenschaft-Schritte aufgelöst werden, wenn abgeleitete Werte andere abgeleitete Werte beeinflussen.",
   "settings.abbrHeading": "Kürzel",
   "settings.abbrDesc":
     "Kürzel für Modifikator-Anzeigen (INT + DEX − ALT). Standard sind die ersten drei Großbuchstaben des Eigenschaftsnamens; Überschreibungen gelten überall, wo die Eigenschaft als Quelle erscheint.",

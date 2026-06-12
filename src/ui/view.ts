@@ -427,6 +427,17 @@ export class SidebarView extends ItemView implements ViewCtx {
       span.addClass("ep-clickname");
       span.onclick = () => this.highlight(span);
     }
+
+    // Data-type hint beside the label — removed when there's no room.
+    if (entry.kind === "prop") {
+      const typeId = this.resolveType(entry);
+      const def = this.registries.valueTypes.get(typeId);
+      const hint = span.createSpan({ cls: "ep-type-hint", text: def ? def.name(this.i18n) : typeId });
+      requestAnimationFrame(() => {
+        if (!span.isConnected) return;
+        if (span.scrollWidth > span.clientWidth + 1) hint.detach();
+      });
+    }
   }
 
   // -- layout & rendering -------------------------------------------------------

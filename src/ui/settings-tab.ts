@@ -167,6 +167,18 @@ export class EPSettingTab extends PluginSettingTab {
         );
     }
     new Setting(c)
+      .setName(t("settings.modDepth"))
+      .setDesc(t("settings.modDepthDesc"))
+      .addSlider((sl) => {
+        sl.setLimits(0, 16, 1)
+          .setValue(plugin.settings.modDepth ?? 8)
+          .setDynamicTooltip()
+          .onChange((v) => {
+            plugin.settings.modDepth = v;
+            save();
+          });
+      });
+    new Setting(c)
       .setName(t("settings.derivationAdd"))
       .addButton((b) =>
         b.setButtonText(t("settings.derivationAddBtn")).onClick(() => {

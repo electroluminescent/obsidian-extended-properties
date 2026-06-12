@@ -19,7 +19,7 @@
  */
 
 import type { TFile } from "obsidian";
-import type { Entry, EPSettings } from "./model";
+import type { Entry, EPSettings, Layout } from "./model";
 import { ext } from "./model";
 import type { Registries } from "./registry";
 import type { NoteModel } from "./note-model";
@@ -105,6 +105,51 @@ export interface InfluenceEnv {
   note: NoteModel;
   registries: Registries;
   settings: EPSettings;
+  /**
+   * Active layout — used to resolve *chained* modifiers: when a source
+   * property is itself a derived entry, its influence sum is computed
+   * recursively (up to `settings.modDepth` hops, default 8).
+   */
+  layout?: Layout;
+}
+
+/** Max influence chain depth (configurable in the plugin settings). */
+function maxDepth(env: InfluenceEnv): number {
+  const d = env.settings.modDepth;
+  return typeof d === "number" && d >= 0 ? Math.floor(d) : 8;
+}
+
+/** Numeric value stored on the note for `key`, or null when absent. */
+function numericRaw(env: InfluenceEnv, key: string): number | null {
+  const v = env.note.raw[key];
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** The derived prop entry showing `key` in the active layout, if any. */
+function findDerivedEntry(env: InfluenceEnv, key: string): Entry | null {
+  if (!env.layout || !key) return null;
+  const kl = key.toLowerCase();
+  for (const s of env.layout.sections)
+    for (const e of s.entries)
+      if (e.kind === "prop" && e.key && e.key.toLowerCase() === kl && e.dataType === "derived") return e;
+  return null;
+}
+
+/**
+ * Value of a source property: a stored note value wins; otherwise, if the
+ * source is a derived entry, its chain is evaluated (depth-limited so
+ * cycles terminate); otherwise 0.
+ */
+function sourceValue(env: InfluenceEnv, key: string, depth: number): number {
+  const stored = numericRaw(env, key);
+  if (stored !== null) return stored;
+  if (depth > 0) {
+    const en = findDerivedEntry(env, key);
+    if (en) return totalAt(env, en, depth - 1);
+  }
+  return env.note.num(key, 0);
 }
 
 /** Whether a togglable influence is currently on for `entry`. */
@@ -148,20 +193,42 @@ export function applyDerivation(env: InfluenceEnv, inf: Influence, raw: number):
   return def ? def.apply(raw) : raw;
 }
 
-/** One influence's contribution to the sum (0 while toggled off). */
-export function influenceTerm(env: InfluenceEnv, entry: Entry, inf: Influence): number {
+function termAt(env: InfluenceEnv, entry: Entry, inf: Influence, depth: number): number {
   if (!influenceActive(env, entry, inf)) return 0;
   const key = inf.source || (entry.key as string) || "";
-  const raw = env.note.num(key, 0);
+  const raw = sourceValue(env, key, depth);
   const sign = inf.weight === -1 ? -1 : 1;
   return sign * applyDerivation(env, inf, raw);
 }
 
-/** The entry's effective modifier: manual override, or the influence sum. */
-export function modifierTotal(env: InfluenceEnv, entry: Entry): number {
+function totalAt(env: InfluenceEnv, entry: Entry, depth: number): number {
   const e = ext<ModExt>(entry);
+  // Per-note override: a number stored in a derived property's own
+  // frontmatter value wins for *this note* only.
+  if (entry.dataType === "derived" && entry.key) {
+    const stored = numericRaw(env, entry.key);
+    if (stored !== null) return stored;
+  }
   if (e.rollOverride !== undefined) return e.rollOverride;
-  return (e.mods ?? []).reduce((sum, inf) => sum + influenceTerm(env, entry, inf), 0);
+  return (e.mods ?? []).reduce((sum, inf) => sum + termAt(env, entry, inf, depth), 0);
+}
+
+/** One influence's contribution to the sum (0 while toggled off). */
+export function influenceTerm(env: InfluenceEnv, entry: Entry, inf: Influence): number {
+  return termAt(env, entry, inf, maxDepth(env));
+}
+
+/**
+ * The entry's effective modifier: per-note stored override (derived
+ * entries), layout-wide override, or the (chain-resolved) influence sum.
+ */
+export function modifierTotal(env: InfluenceEnv, entry: Entry): number {
+  return totalAt(env, entry, maxDepth(env));
+}
+
+/** Whether a derived entry's value is overridden on the current note. */
+export function hasNoteOverride(env: InfluenceEnv, entry: Entry): boolean {
+  return entry.dataType === "derived" && !!entry.key && numericRaw(env, entry.key as string) !== null;
 }
 
 // ---------------------------------------------------------------------------
