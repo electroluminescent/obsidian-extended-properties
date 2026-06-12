@@ -84,6 +84,9 @@ export class SidebarView extends ItemView implements ViewCtx {
     for (const u of this.updaters) {
       try { u(); } catch { /* a single broken updater must not kill the pass */ }
     }
+    // Updaters may repaint decorations (badges, chains) fresh — re-decide
+    // visibility so a refresh can't resurrect squeezed elements.
+    this.responsivePass();
   }
 
   registerUpdater(fn: () => void): void {
@@ -462,29 +465,42 @@ export class SidebarView extends ItemView implements ViewCtx {
     const TIERS = [".ep-type-hint", ".ep-dice-tag", ".ep-denote", ".ep-tog-cell", ".ep-mod-badge"];
     for (const el of this.content.findAll(".ep-section")) {
       const sec = el as HTMLElement;
-      // Measure with transitions off and squeezed elements fully removed,
       // Everything below happens synchronously (no paint in between), so
       // unchanged elements never flicker.
+      // Skip sections that aren't laid out (collapsed, hidden tab, view
+      // off-screen): zero-width measurements would wrongly hide everything.
+      // The next pass on a visible section re-decides.
+      if (sec.clientWidth === 0) continue;
       sec.addClass("ep-measuring");
       sec.findAll(".ep-squeezed").forEach((x) => x.removeClass("ep-squeezed"));
       alignClustersNow(sec);
-      // A head is "tight" when its children genuinely overflow the row, or
-      // when the label (flex: 1 — it absorbs all spare room) has less than
-      // SLACK px left before it would start truncating.
-      const overflowing = () =>
-        (sec.findAll(".ep-entry-head") as HTMLElement[]).some((h) => {
-          if (h.scrollWidth > h.clientWidth + 1) return true;
-          const name = h.querySelector(".ep-line-name") as HTMLElement | null;
-          return !!name && name.clientWidth - name.scrollWidth < SLACK;
-        });
-      for (const cls of TIERS) {
-        if (!overflowing()) break;
-        sec.findAll(".ep-entry-head " + cls).forEach((x) => {
-          x.addClass("ep-squeezed");
-          // Reclaim the column width the hidden element reserved.
-          const cell = x.closest("[data-ep-slot]") as HTMLElement | null;
-          if (cell) cell.style.minWidth = "";
-        });
+      // Decide PER ROW: one cramped row must not strip the decorations off
+      // every other row of the section. A row is "tight" when its children
+      // genuinely overflow it, or when the label (flex: 1 — it absorbs all
+      // spare room) has less than SLACK px left before truncating. The
+      // label's content width must be measured with a Range — scrollWidth
+      // is max(clientWidth, content) and can never report spare room.
+      const spareOf = (n: HTMLElement): number => {
+        const r = n.ownerDocument.createRange();
+        r.selectNodeContents(n);
+        const cw = r.getBoundingClientRect().width;
+        r.detach();
+        return n.getBoundingClientRect().width - cw;
+      };
+      for (const h of sec.findAll(".ep-entry-head") as HTMLElement[]) {
+        if (h.clientWidth === 0) continue;
+        const name = h.querySelector(".ep-line-name") as HTMLElement | null;
+        const tight = () =>
+          h.scrollWidth > h.clientWidth + 1 || (!!name && spareOf(name) < SLACK);
+        for (const cls of TIERS) {
+          if (!tight()) break;
+          h.findAll(cls).forEach((x) => {
+            x.addClass("ep-squeezed");
+            // Reclaim the column width the hidden element reserved.
+            const cell = x.closest("[data-ep-slot]") as HTMLElement | null;
+            if (cell) cell.style.minWidth = "";
+          });
+        }
       }
       void sec.offsetWidth;
       sec.removeClass("ep-measuring");
