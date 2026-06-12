@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!--
+    Extended Properties — project logo.
+    Same language as the dice icons (isometric stroke outlines, round
+    joins, currentColor), one notch more complex: the full icosahedron
+    wireframe of a d20, its central face carrying two property sliders.
+  -->
+  <g fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
+    <!-- silhouette -->
+    <path d="M50 5 L89 27.5 L89 72.5 L50 95 L11 72.5 L11 27.5 Z"/>
+    <!-- central face -->
+    <path d="M50 24 L72 62 L28 62 Z"/>
+    <!-- facet edges: every visible edge of the icosahedron -->
+    <path d="M50 5 L50 24"/>
+    <path d="M11 27.5 L50 24 M89 27.5 L50 24"/>
+    <path d="M11 27.5 L28 62 M11 72.5 L28 62 M50 95 L28 62"/>
+    <path d="M89 27.5 L72 62 M89 72.5 L72 62 M50 95 L72 62"/>
+    <!-- property sliders on the central face -->
+    <path d="M42.5 42 H57.5"/>
+    <path d="M38 51.5 H62"/>
+  </g>
+  <g fill="currentColor" stroke="none">
+    <circle cx="53.5" cy="42" r="3.4"/>
+    <circle cx="44.5" cy="51.5" r="3.4"/>
+  </g>
+</svg>
