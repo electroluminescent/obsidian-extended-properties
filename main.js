@@ -180,6 +180,12 @@ var coreEn = {
   "type.number": "number",
   "type.decimal": "decimal",
   "type.derived": "derived",
+  "roll.partMod": "modifier",
+  "roll.partOverride": "override",
+  "roll.partProf": "prof",
+  "roll.partTotal": "total",
+  "roll.menu.count": "Number of rolls",
+  "roll.menu.go": "Roll",
   "type.list": "list",
   "type.checkbox": "checkbox",
   "type.color": "color",
@@ -197,6 +203,7 @@ var coreEn = {
   "mods.termOptions": "Sign \xB7 toggle \xB7 short form",
   "mods.termOptionsDesc": "How this term enters the sum; a list property that toggles it per note (the way proficiency works); the short form shown in denotations; and whether the row shows this term's checkbox.",
   "mods.showToggle": "Show checkbox on the row",
+  "mods.clickToggle": "click to toggle",
   "mods.weightAdd": "+ add",
   "mods.weightSub": "\u2212 subtract",
   "mods.toggleProp": "Toggle list property",
@@ -424,6 +431,10 @@ var coreEn = {
   "settings.diceAnimDesc": "Tumble the rolled dice in 3D before settling; the modifier and total animate in afterwards, and the notice/log appear only once the roll resolves. Click the overlay to skip a roll.",
   "settings.diceAnimRolls": "Rolls before settling",
   "settings.diceAnimRollsDesc": "How many times the dice faces cycle before the result settles.",
+  "settings.diceAnimStay": "Keep results on screen",
+  "settings.diceAnimStayDesc": "On = roll cards stay until clicked; off = they dismiss themselves. Clicking a card always toggles keeping it.",
+  "settings.modsOffProp": "Disabled-modifiers property",
+  "settings.modsOffPropDesc": "List property storing the modifiers switched off by clicking their short form (entries as \u201CProperty:Source\u201D).",
   "settings.modDepth": "Modifier chain depth",
   "settings.modDepthDesc": "How many property\u2192property hops are resolved when derived values influence other derived values.",
   "settings.abbrHeading": "Short forms",
@@ -558,6 +569,12 @@ var coreDe = {
   "type.number": "Zahl",
   "type.decimal": "Dezimalzahl",
   "type.derived": "abgeleitet",
+  "roll.partMod": "Modifikator",
+  "roll.partOverride": "\xDCberschreibung",
+  "roll.partProf": "\xDCbung",
+  "roll.partTotal": "Gesamt",
+  "roll.menu.count": "Anzahl W\xFCrfe",
+  "roll.menu.go": "W\xFCrfeln",
   "type.list": "Liste",
   "type.checkbox": "Kontrollk\xE4stchen",
   "type.color": "Farbe",
@@ -575,6 +592,7 @@ var coreDe = {
   "mods.termOptions": "Vorzeichen \xB7 Umschalter \xB7 K\xFCrzel",
   "mods.termOptionsDesc": "Wie dieser Term in die Summe eingeht; eine Listen-Eigenschaft, die ihn pro Notiz umschaltet (wie \xDCbung); das K\xFCrzel f\xFCr Anzeigen; und ob die Zeile das Kontrollk\xE4stchen dieses Terms zeigt.",
   "mods.showToggle": "Kontrollk\xE4stchen in der Zeile anzeigen",
+  "mods.clickToggle": "Klicken zum Umschalten",
   "mods.weightAdd": "+ addieren",
   "mods.weightSub": "\u2212 subtrahieren",
   "mods.toggleProp": "Umschalt-Listeneigenschaft",
@@ -802,6 +820,10 @@ var coreDe = {
   "settings.diceAnimDesc": "Die geworfenen W\xFCrfel taumeln in 3D, bevor sie liegen bleiben; Modifikator und Gesamtwert werden danach eingeblendet, und Hinweis/Protokoll erscheinen erst, wenn der Wurf abgeschlossen ist. Klick auf die \xDCberlagerung \xFCberspringt einen Wurf.",
   "settings.diceAnimRolls": "W\xFCrfe bis zum Ergebnis",
   "settings.diceAnimRollsDesc": "Wie oft die W\xFCrfelseiten durchwechseln, bevor das Ergebnis liegen bleibt.",
+  "settings.diceAnimStay": "Ergebnisse anzeigen lassen",
+  "settings.diceAnimStayDesc": "An = Wurf-Karten bleiben, bis sie angeklickt werden; aus = sie schlie\xDFen sich selbst. Klick auf eine Karte schaltet das Behalten immer um.",
+  "settings.modsOffProp": "Eigenschaft f\xFCr deaktivierte Modifikatoren",
+  "settings.modsOffPropDesc": "Listen-Eigenschaft, die per Klick auf ihr K\xFCrzel abgeschaltete Modifikatoren speichert (Eintr\xE4ge als \u201EEigenschaft:Quelle\u201C).",
   "settings.modDepth": "Modifikator-Kettentiefe",
   "settings.modDepthDesc": "Wie viele Eigenschaft\u2192Eigenschaft-Schritte aufgel\xF6st werden, wenn abgeleitete Werte andere abgeleitete Werte beeinflussen.",
   "settings.abbrHeading": "K\xFCrzel",
@@ -1056,9 +1078,26 @@ function sourceValue(env, key, depth) {
   }
   return env.note.num(key, 0);
 }
+function offToken(entry, inf) {
+  var _a;
+  return `${(_a = entry.key) != null ? _a : ""}:${inf.source || entry.key || ""}`;
+}
+function influenceDisabled(env, entry, inf) {
+  if (inf.toggle) return false;
+  const prop2 = env.settings.modsOffProp || "Modifiers Off";
+  const token = offToken(entry, inf).toLowerCase();
+  return env.note.list(prop2).some((x) => x.toLowerCase() === token);
+}
+function setInfluenceDisabled(env, file, entry, inf, off) {
+  const prop2 = env.settings.modsOffProp || "Modifiers Off";
+  const token = offToken(entry, inf);
+  const cur = env.note.list(prop2).filter((x) => x.toLowerCase() !== token.toLowerCase());
+  const next = off ? [...cur, token] : cur;
+  env.note.set(file, prop2, next.length ? next : void 0);
+}
 function influenceActive(env, entry, inf) {
   var _a, _b;
-  if (!inf.toggle) return true;
+  if (!inf.toggle) return !influenceDisabled(env, entry, inf);
   const names = env.note.list(inf.toggle).map((x) => x.toLowerCase());
   const key = ((_a = entry.key) != null ? _a : "").toLowerCase();
   const alias = ((_b = entry.alias) != null ? _b : "").toLowerCase();
@@ -1181,7 +1220,9 @@ function defaultSettings() {
     sourceAbbrs: {},
     modDepth: 8,
     diceAnim: true,
-    diceAnimRolls: 10
+    diceAnimRolls: 10,
+    diceAnimStay: false,
+    modsOffProp: "Modifiers Off"
   };
 }
 function normalizeSettings(data, defaultLayout) {
@@ -1210,6 +1251,9 @@ function normalizeSettings(data, defaultLayout) {
     if (typeof data.diceAnim === "boolean") s.diceAnim = data.diceAnim;
     if (typeof data.diceAnimRolls === "number" && data.diceAnimRolls >= 1)
       s.diceAnimRolls = Math.min(60, Math.floor(data.diceAnimRolls));
+    if (typeof data.diceAnimStay === "boolean") s.diceAnimStay = data.diceAnimStay;
+    if (typeof data.modsOffProp === "string" && data.modsOffProp.trim())
+      s.modsOffProp = data.modsOffProp.trim();
   }
   for (const t of s.types) {
     const k = t.toLowerCase();
@@ -2185,22 +2229,18 @@ function paintDenotation(parent, view, entry, file) {
     const modeName = inf.mode === "formula" ? (_a = inf.formula) != null ? _a : "x" : (_d = (_c = view.registries.derivations.get((_b = inf.mode) != null ? _b : "value")) == null ? void 0 : _c.name(view.i18n)) != null ? _d : "";
     let title = srcKey + (modeName ? ` \xB7 ${modeName}` : "") + (inf.toggle ? ` \xB7 ${inf.toggle}` : "");
     if (!influenceActive(view, entry, inf)) term.addClass("ep-denote-off");
-    if (inf.toggle && file) {
+    if (file) {
       term.addClass("ep-denote-tog");
-      title += ` \xB7 ${view.i18n.t("hint.dblToggle")}`;
-      const flip = () => setInfluenceActive(view, file, entry, inf, !influenceActive(view, entry, inf));
-      if (view.editMode) {
-        term.onclick = (ev) => {
-          ev.preventDefault();
-          ev.stopPropagation();
-          flip();
-        };
-      } else {
-        term.ondblclick = (ev) => {
-          ev.stopPropagation();
-          flip();
-        };
-      }
+      title += ` \xB7 ${view.i18n.t("mods.clickToggle")}`;
+      const flip = () => {
+        if (inf.toggle) setInfluenceActive(view, file, entry, inf, !influenceActive(view, entry, inf));
+        else setInfluenceDisabled(view, file, entry, inf, !influenceDisabled(view, entry, inf));
+      };
+      term.onclick = (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        flip();
+      };
     }
     term.setAttr("title", title);
   });
@@ -6100,18 +6140,27 @@ var SidebarView = class extends import_obsidian19.ItemView {
    * Re-run on every render and on container resize.
    */
   responsivePass() {
-    for (const secEl of this.content.findAll(".ep-section")) {
-      secEl.findAll(".ep-squeezed").forEach((el) => el.removeClass("ep-squeezed"));
-      alignClustersNow(secEl);
-      const overflowing = () => secEl.findAll(".ep-entry-head").some((h) => h.scrollWidth > h.clientWidth + 1);
+    const SLACK = 24;
+    for (const el of this.content.findAll(".ep-section")) {
+      const sec = el;
+      sec.addClass("ep-measuring");
+      sec.findAll(".ep-squeezed").forEach((x) => x.removeClass("ep-squeezed"));
+      alignClustersNow(sec);
+      const overflowing = () => sec.findAll(".ep-entry-head").some((h) => h.scrollWidth + SLACK > h.clientWidth);
+      const hidden = [];
       for (const cls of ["ep-type-hint", "ep-denote", "ep-dice-tag"]) {
         if (!overflowing()) break;
-        secEl.findAll(".ep-entry-head ." + cls).forEach((el) => {
-          el.addClass("ep-squeezed");
-          const cell = el.closest("[data-ep-slot]");
+        sec.findAll(".ep-entry-head ." + cls).forEach((x) => {
+          x.addClass("ep-squeezed");
+          hidden.push(x);
+          const cell = x.closest("[data-ep-slot]");
           if (cell) cell.style.minWidth = "";
         });
       }
+      hidden.forEach((x) => x.removeClass("ep-squeezed"));
+      void sec.offsetWidth;
+      sec.removeClass("ep-measuring");
+      if (hidden.length) requestAnimationFrame(() => hidden.forEach((x) => x.addClass("ep-squeezed")));
     }
   }
   // -- layout & rendering -------------------------------------------------------
@@ -6484,6 +6533,12 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
         save();
       });
     });
+    new import_obsidian20.Setting(c).setName(t("settings.modsOffProp")).setDesc(t("settings.modsOffPropDesc")).addText((tx) => {
+      tx.setValue(plugin.settings.modsOffProp).onChange((v) => {
+        plugin.settings.modsOffProp = v.trim() || "Modifiers Off";
+        save();
+      });
+    });
     new import_obsidian20.Setting(c).setName(t("settings.derivationAdd")).addButton(
       (b) => b.setButtonText(t("settings.derivationAddBtn")).onClick(() => {
         plugin.settings.derivations.push({ id: genId(), name: t("settings.newDerivation"), formula: "x" });
@@ -6539,6 +6594,12 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
       var _a;
       sl.setLimits(1, 30, 1).setValue((_a = plugin.settings.diceAnimRolls) != null ? _a : 10).setDynamicTooltip().onChange((v) => {
         plugin.settings.diceAnimRolls = v;
+        save();
+      });
+    });
+    new import_obsidian20.Setting(c).setName(t("settings.diceAnimStay")).setDesc(t("settings.diceAnimStayDesc")).addToggle((tg) => {
+      tg.setValue(plugin.settings.diceAnimStay).onChange((v) => {
+        plugin.settings.diceAnimStay = v;
         save();
       });
     });
@@ -6785,17 +6846,30 @@ var import_obsidian23 = require("obsidian");
 var import_obsidian22 = require("obsidian");
 var MAX_DICE_SHOWN = 12;
 var TICK_MS = 80;
+var SETTLE_MS = 240;
+var PART_MS = 280;
+var layer = null;
+function getLayer() {
+  if (!layer || !layer.isConnected) layer = document.body.createDiv({ cls: "ep-roll-layer" });
+  return layer;
+}
+function dropBox(box) {
+  box.remove();
+  if (layer && !layer.hasChildNodes()) {
+    layer.remove();
+    layer = null;
+  }
+}
 function playRollAnimation(job, done) {
   var _a, _b;
   if ((_b = (_a = window.matchMedia) == null ? void 0 : _a.call(window, "(prefers-reduced-motion: reduce)")) == null ? void 0 : _b.matches) {
     done();
     return;
   }
-  const overlay = document.body.createDiv({ cls: "ep-roll-overlay" });
-  const box = overlay.createDiv({ cls: "ep-roll-box" });
+  const box = getLayer().createDiv({ cls: "ep-roll-box" });
   box.createDiv({ cls: "ep-roll-label", text: job.label });
   const diceRow = box.createDiv({ cls: "ep-roll-dice" });
-  const sum = box.createDiv({ cls: "ep-roll-sum" });
+  const chain = box.createDiv({ cls: "ep-roll-chain" });
   const shown = Math.min(job.faces.length, MAX_DICE_SHOWN);
   const dies = [];
   for (let i = 0; i < shown; i++) {
@@ -6805,53 +6879,73 @@ function playRollAnimation(job, done) {
     const num = el.createDiv({ cls: "ep-roll-die-num" });
     dies.push({ el, num });
   }
-  let timer = 0;
-  let t1 = 0;
-  let t2 = 0;
-  let t3 = 0;
-  let finished = false;
-  const finish = () => {
-    if (finished) return;
-    finished = true;
-    window.clearInterval(timer);
-    window.clearTimeout(t1);
-    window.clearTimeout(t2);
-    window.clearTimeout(t3);
-    overlay.addClass("ep-closing");
-    window.setTimeout(() => overlay.remove(), 160);
-    done();
+  const timers = [];
+  let interval = 0;
+  let pinned = job.stay;
+  let resolved = false;
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    window.clearInterval(interval);
+    for (const id of timers) window.clearTimeout(id);
+    box.addClass("ep-closing");
+    window.setTimeout(() => dropBox(box), 160);
   };
-  overlay.onclick = finish;
-  const diceTotal = job.faces.reduce((a, b) => a + b, 0);
-  const settle = () => {
-    window.clearInterval(timer);
-    dies.forEach((d, i) => {
-      d.el.removeClass("ep-rolling");
-      d.el.addClass("ep-settled");
-      d.num.setText(String(job.faces[i]));
-    });
-    t1 = window.setTimeout(() => {
-      if (finished) return;
-      const breakdown = job.faces.length > 1 && job.faces.length <= MAX_DICE_SHOWN ? `${job.faces.join(" + ")} = ${diceTotal}` : String(diceTotal);
-      sum.createSpan({ text: breakdown });
-      if (job.modifier !== 0) {
-        const m = sum.createSpan({ cls: "ep-roll-mod", text: fmtMod(job.modifier) });
-        requestAnimationFrame(() => m.addClass("ep-in"));
+  const later = (fn, ms) => {
+    timers.push(window.setTimeout(() => {
+      if (!closed) fn();
+    }, ms));
+  };
+  box.toggleClass("ep-pinned", pinned);
+  box.onclick = () => {
+    pinned = !pinned;
+    box.toggleClass("ep-pinned", pinned);
+    if (resolved && !pinned) close();
+  };
+  const addCell = (op, valueText, labelText, total = false) => {
+    if (op) chain.createSpan({ cls: "ep-roll-op", text: op });
+    const cell = chain.createDiv({ cls: "ep-roll-cell" + (total ? " ep-roll-totalcell" : "") });
+    cell.createDiv({ cls: "ep-roll-cellval", text: valueText });
+    cell.createDiv({ cls: "ep-roll-celllab", text: labelText });
+    requestAnimationFrame(() => cell.addClass("ep-in"));
+  };
+  const dieLabel = formatDice({ count: 1, sides: job.spec.sides });
+  const resolve = () => {
+    resolved = true;
+    done();
+    if (!pinned) later(close, 1400);
+  };
+  const settleFrom = (i) => {
+    if (i >= job.faces.length) {
+      let delay = PART_MS;
+      for (const part of job.parts) {
+        later(() => addCell("+", fmtMod(part.value), part.label), delay);
+        delay += PART_MS;
       }
-      const tot = sum.createSpan({ cls: "ep-roll-total", text: "= " + job.total });
-      t2 = window.setTimeout(() => {
-        if (finished) return;
-        tot.addClass("ep-in");
-        t3 = window.setTimeout(finish, 950);
-      }, job.modifier !== 0 ? 380 : 120);
-    }, 300);
+      later(() => {
+        addCell("=", String(job.total), job.totalLabel, true);
+        resolve();
+      }, delay);
+      return;
+    }
+    if (i < dies.length) {
+      dies[i].el.removeClass("ep-rolling");
+      dies[i].el.addClass("ep-settled");
+      dies[i].num.setText(String(job.faces[i]));
+    }
+    addCell(i > 0 ? "+" : null, String(job.faces[i]), dieLabel);
+    later(() => settleFrom(i + 1), SETTLE_MS);
   };
   let spin = 0;
   const spins = Math.max(1, Math.floor(job.spins) || 1);
-  timer = window.setInterval(() => {
+  interval = window.setInterval(() => {
     for (const d of dies) d.num.setText(String(1 + Math.floor(Math.random() * job.spec.sides)));
     spin++;
-    if (spin >= spins) settle();
+    if (spin >= spins) {
+      window.clearInterval(interval);
+      settleFrom(0);
+    }
   }, TICK_MS);
 }
 
@@ -6883,16 +6977,18 @@ var RollService = class {
     this.emit();
   }
   /**
-   * Roll `spec` + `modifier` under the current mode; log and toast the result.
+   * Roll `spec` + `modifier` under the current (or overridden) mode; log
+   * and toast the result once it resolves.
    * @param spec dice pool to roll (defaults to a single d20)
    */
-  roll(label, modifier, spec = { ...DEFAULT_DICE }) {
-    var _a, _b;
+  roll(label, modifier, spec = { ...DEFAULT_DICE }, opts = {}) {
+    var _a, _b, _c, _d;
+    const mode = (_a = opts.mode) != null ? _a : this.mode;
     const pools = [rollPool(spec)];
-    if (this.mode !== "normal") pools.push(rollPool(spec));
-    const used = pools.length === 1 ? pools[0] : this.mode === "advantage" ? pools.reduce((a, b) => b.total > a.total ? b : a) : pools.reduce((a, b) => b.total < a.total ? b : a);
+    if (mode !== "normal") pools.push(rollPool(spec));
+    const used = pools.length === 1 ? pools[0] : mode === "advantage" ? pools.reduce((a, b) => b.total > a.total ? b : a) : pools.reduce((a, b) => b.total < a.total ? b : a);
     const total = used.total + modifier;
-    const tag = this.mode === "advantage" ? " " + this.i18n.t("roll.tagAdvantage") : this.mode === "disadvantage" ? " " + this.i18n.t("roll.tagDisadvantage") : "";
+    const tag = mode === "advantage" ? " " + this.i18n.t("roll.tagAdvantage") : mode === "disadvantage" ? " " + this.i18n.t("roll.tagDisadvantage") : "";
     const detail = pools.length > 1 ? `[${pools.map((p) => p.total).join(", ")}] -> ${used.total}` : spec.count > 1 ? `[${used.faces.join(", ")}] -> ${used.total}` : `${used.total}`;
     const tone = isMaxPool(spec, used) ? "crit" : isMinPool(used) ? "fail" : "normal";
     const commit2 = () => {
@@ -6901,15 +6997,18 @@ var RollService = class {
       this.emit();
       new import_obsidian23.Notice(`${label}${tag}: ${total}`, 4e3);
     };
-    if ((_a = this.settings) == null ? void 0 : _a.diceAnim) {
+    if ((_b = this.settings) == null ? void 0 : _b.diceAnim) {
+      const parts = (_c = opts.parts) != null ? _c : modifier !== 0 ? [{ label: this.i18n.t("roll.partMod"), value: modifier }] : [];
       playRollAnimation(
         {
           label: `${label}${tag}`,
           spec,
           faces: used.faces,
-          modifier,
+          parts,
           total,
-          spins: (_b = this.settings.diceAnimRolls) != null ? _b : 10
+          spins: (_d = this.settings.diceAnimRolls) != null ? _d : 10,
+          stay: opts.stay || this.settings.diceAnimStay === true,
+          totalLabel: this.i18n.t("roll.partTotal")
         },
         commit2
       );
@@ -7048,6 +7147,61 @@ function addDiceSettings(container, i18n, binding) {
     });
   });
 }
+function openRollMenu(ev, i18n, current, run) {
+  const pop = document.body.createDiv({ cls: "ep-popup ep-rollmenu" });
+  pop.style.left = ev.clientX + "px";
+  pop.style.top = ev.clientY + 2 + "px";
+  let mode = current;
+  const row = pop.createDiv({ cls: "ep-mode" });
+  const btns = /* @__PURE__ */ new Map();
+  const modes = [
+    ["disadvantage", i18n.t("roll.modeDisadvantage")],
+    ["normal", i18n.t("roll.modeNormal")],
+    ["advantage", i18n.t("roll.modeAdvantage")]
+  ];
+  for (const [m, lbl] of modes) {
+    const b = row.createEl("button", { cls: "ep-mode-btn", text: lbl });
+    btns.set(m, b);
+    b.onclick = () => {
+      mode = m;
+      for (const [k, el] of btns) el.toggleClass("is-active", k === mode);
+    };
+  }
+  for (const [k, el] of btns) el.toggleClass("is-active", k === mode);
+  const cntRow = pop.createDiv({ cls: "ep-rollmenu-count" });
+  cntRow.createSpan({ text: i18n.t("roll.menu.count") });
+  const input = cntRow.createEl("input", { cls: "ep-edit-input" });
+  input.type = "number";
+  input.min = "1";
+  input.max = "20";
+  input.value = "1";
+  const dismiss = () => {
+    pop.remove();
+    document.removeEventListener("mousedown", outside);
+  };
+  const go = pop.createEl("button", { cls: "mod-cta ep-rollmenu-go", text: i18n.t("roll.menu.go") });
+  go.onclick = () => {
+    const n = clamp(Math.round(Number(input.value) || 1), 1, 20);
+    dismiss();
+    run(mode, n);
+  };
+  input.onkeydown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      go.click();
+    } else if (e.key === "Escape") {
+      dismiss();
+    }
+  };
+  const outside = (e) => {
+    if (!pop.contains(e.target)) dismiss();
+  };
+  window.setTimeout(() => document.addEventListener("mousedown", outside), 0);
+  const w = pop.offsetWidth;
+  const h = pop.offsetHeight;
+  if (ev.clientX + w > window.innerWidth - 4) pop.style.left = Math.max(4, window.innerWidth - w - 4) + "px";
+  if (ev.clientY + h > window.innerHeight - 4) pop.style.top = Math.max(4, ev.clientY - h - 2) + "px";
+}
 function renderDiceTag(parent, notation, alwaysShow = false) {
   const spec = parseDice(notation);
   if (!spec && !alwaysShow) return null;
@@ -7072,7 +7226,33 @@ var rollAddon = {
     const slots = {};
     slots["roll"] = (cell) => {
       const btn = cell.createEl("button", { cls: "ep-roll-btn", text: view.i18n.t("roll.roll") });
-      btn.onclick = () => view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings)).roll(num.label, modifierTotal(view, ctx.entry), parseDiceOrDefault(e.dice));
+      const svc = () => view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings));
+      const partsFor = () => {
+        var _a;
+        const me = ext(ctx.entry);
+        if (hasNoteOverride(view, ctx.entry) || me.rollOverride !== void 0)
+          return [{ label: view.i18n.t("roll.partOverride"), value: modifierTotal(view, ctx.entry) }];
+        return ((_a = me.mods) != null ? _a : []).filter((inf) => influenceActive(view, ctx.entry, inf)).map((inf) => ({
+          label: abbrFor(view.settings, inf.source || ctx.entry.key || ""),
+          value: influenceTerm(view, ctx.entry, inf)
+        }));
+      };
+      btn.onclick = () => svc().roll(num.label, modifierTotal(view, ctx.entry), parseDiceOrDefault(e.dice), {
+        parts: partsFor()
+      });
+      btn.addEventListener("contextmenu", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        openRollMenu(ev, view.i18n, svc().mode, (mode, times) => {
+          for (let i = 0; i < times; i++)
+            svc().roll(
+              times > 1 ? `${num.label} #${i + 1}` : num.label,
+              modifierTotal(view, ctx.entry),
+              parseDiceOrDefault(e.dice),
+              { parts: partsFor(), mode, stay: times > 1 }
+            );
+        });
+      });
     };
     return slots;
   },
@@ -7413,10 +7593,37 @@ function renderRow(ctx, list, records, index) {
     }, { min: -999, max: 999, float: false, clamp: false })
   );
   const rb = row.createEl("button", { cls: "ep-roll-btn", text: t("roll.roll") });
+  const svc = () => view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings));
+  const partsFor = () => {
+    const parts = [];
+    const base = rec.mod !== void 0 ? rec.mod : rec.source ? deriveModifier(e.skillMode, view.note.num(rec.source, 0)) : 0;
+    parts.push({
+      label: rec.mod !== void 0 ? t("roll.partOverride") : rec.source ? abbrFor(view.settings, rec.source) : t("roll.partMod"),
+      value: base
+    });
+    if (rec.prof) parts.push({ label: t("roll.partProf"), value: profBonus(view, e) });
+    return parts;
+  };
   rb.onclick = () => {
     var _a2;
-    return view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings)).roll(rec.name, effectiveMod(view, e, rec), parseDiceOrDefault((_a2 = rec.dice) != null ? _a2 : e.dice));
+    return svc().roll(rec.name, effectiveMod(view, e, rec), parseDiceOrDefault((_a2 = rec.dice) != null ? _a2 : e.dice), {
+      parts: partsFor()
+    });
   };
+  rb.addEventListener("contextmenu", (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    openRollMenu(ev, view.i18n, svc().mode, (mode, times) => {
+      var _a2;
+      for (let i = 0; i < times; i++)
+        svc().roll(
+          times > 1 ? `${rec.name} #${i + 1}` : rec.name,
+          effectiveMod(view, e, rec),
+          parseDiceOrDefault((_a2 = rec.dice) != null ? _a2 : e.dice),
+          { parts: partsFor(), mode, stay: times > 1 }
+        );
+    });
+  });
   row.addEventListener("contextmenu", (ev) => {
     ev.preventDefault();
     ev.stopPropagation();

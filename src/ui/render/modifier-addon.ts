@@ -20,7 +20,8 @@ import type { Entry } from "../../core/model";
 import { ext } from "../../core/model";
 import {
   abbrFor, applyDerivation, defaultAbbr, denotationText, hasNoteOverride, Influence,
-  influenceActive, influenceTerm, ModExt, modifierTotal, setAbbr, setInfluenceActive,
+  influenceActive, influenceDisabled, influenceTerm, ModExt, modifierTotal, setAbbr,
+  setInfluenceActive, setInfluenceDisabled,
 } from "../../core/influences";
 import type { ViewCtx } from "../../core/context";
 import { fmtMod } from "../../utils/misc";
@@ -77,23 +78,20 @@ export function paintDenotation(
         : view.registries.derivations.get(inf.mode ?? "value")?.name(view.i18n) ?? "";
     let title = srcKey + (modeName ? ` · ${modeName}` : "") + (inf.toggle ? ` · ${inf.toggle}` : "");
     if (!influenceActive(view, entry, inf)) term.addClass("ep-denote-off");
-    if (inf.toggle && file) {
+    if (file) {
+      // Every modifier is click-togglable: list-backed terms flip their
+      // toggle list, the rest flip the per-note disabled-modifiers list.
       term.addClass("ep-denote-tog");
-      title += ` · ${view.i18n.t("hint.dblToggle")}`;
-      const flip = () =>
-        setInfluenceActive(view, file, entry, inf, !influenceActive(view, entry, inf));
-      if (view.editMode) {
-        term.onclick = (ev) => {
-          ev.preventDefault();
-          ev.stopPropagation();
-          flip();
-        };
-      } else {
-        term.ondblclick = (ev) => {
-          ev.stopPropagation();
-          flip();
-        };
-      }
+      title += ` · ${view.i18n.t("mods.clickToggle")}`;
+      const flip = () => {
+        if (inf.toggle) setInfluenceActive(view, file, entry, inf, !influenceActive(view, entry, inf));
+        else setInfluenceDisabled(view, file, entry, inf, !influenceDisabled(view, entry, inf));
+      };
+      term.onclick = (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        flip();
+      };
     }
     term.setAttr("title", title);
   });

@@ -16,7 +16,19 @@ import type { EPSettings } from "../../core/model";
 import type { ViewService } from "../../core/registry";
 import { fmtMod } from "../../utils/misc";
 import { DEFAULT_DICE, DicePool, DiceSpec, formatDice, isMaxPool, isMinPool, rollPool } from "../../utils/dice";
-import { playRollAnimation } from "./dice-anim";
+import { playRollAnimation, RollPart } from "./dice-anim";
+
+export type { RollPart } from "./dice-anim";
+
+/** Per-roll options (overriding the panel mode, labeled modifier parts…). */
+export interface RollOpts {
+  /** Labeled summands of the modifier (shown in the animation chain). */
+  parts?: RollPart[];
+  /** Roll mode for this roll only (defaults to the panel's mode). */
+  mode?: RollMode;
+  /** Keep the result card on screen (multi-rolls force this). */
+  stay?: boolean;
+}
 
 /** Hub key under which the service is registered. */
 export const ROLL_SERVICE = "rolling.rolls";
@@ -55,24 +67,26 @@ export class RollService implements ViewService {
   }
 
   /**
-   * Roll `spec` + `modifier` under the current mode; log and toast the result.
+   * Roll `spec` + `modifier` under the current (or overridden) mode; log
+   * and toast the result once it resolves.
    * @param spec dice pool to roll (defaults to a single d20)
    */
-  roll(label: string, modifier: number, spec: DiceSpec = { ...DEFAULT_DICE }): void {
+  roll(label: string, modifier: number, spec: DiceSpec = { ...DEFAULT_DICE }, opts: RollOpts = {}): void {
+    const mode = opts.mode ?? this.mode;
     const pools: DicePool[] = [rollPool(spec)];
-    if (this.mode !== "normal") pools.push(rollPool(spec));
+    if (mode !== "normal") pools.push(rollPool(spec));
     const used =
       pools.length === 1
         ? pools[0]
-        : this.mode === "advantage"
+        : mode === "advantage"
           ? pools.reduce((a, b) => (b.total > a.total ? b : a))
           : pools.reduce((a, b) => (b.total < a.total ? b : a));
     const total = used.total + modifier;
 
     const tag =
-      this.mode === "advantage"
+      mode === "advantage"
         ? " " + this.i18n.t("roll.tagAdvantage")
-        : this.mode === "disadvantage"
+        : mode === "disadvantage"
           ? " " + this.i18n.t("roll.tagDisadvantage")
           : "";
     // Detail mirrors the classic format: "14", "[14, 8] -> 14", "[3, 5] -> 8".
@@ -93,14 +107,18 @@ export class RollService implements ViewService {
       new Notice(`${label}${tag}: ${total}`, 4000);
     };
     if (this.settings?.diceAnim) {
+      const parts =
+        opts.parts ?? (modifier !== 0 ? [{ label: this.i18n.t("roll.partMod"), value: modifier }] : []);
       playRollAnimation(
         {
           label: `${label}${tag}`,
           spec,
           faces: used.faces,
-          modifier,
+          parts,
           total,
           spins: this.settings.diceAnimRolls ?? 10,
+          stay: opts.stay || this.settings.diceAnimStay === true,
+          totalLabel: this.i18n.t("roll.partTotal"),
         },
         commit
       );

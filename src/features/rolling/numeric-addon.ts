@@ -14,11 +14,13 @@ import { Setting } from "obsidian";
 import type { EntryRef, EntryRenderCtx, OptionsCtx } from "../../core/context";
 import type { ClusterAddon, ClusterNeeds, NumericAccess } from "../../core/registry";
 import { ext } from "../../core/model";
-import { modifierTotal, ModExt } from "../../core/influences";
+import {
+  abbrFor, hasNoteOverride, influenceActive, influenceTerm, modifierTotal, ModExt,
+} from "../../core/influences";
 import { MODIFIABLE_TYPE_IDS } from "../../ui/render/modifier-addon";
 import { parseDiceOrDefault } from "../../utils/dice";
-import { ROLL_SERVICE, RollService } from "./roll-service";
-import { addDiceSettings } from "./dice-ui";
+import { ROLL_SERVICE, RollPart, RollService } from "./roll-service";
+import { addDiceSettings, openRollMenu } from "./dice-ui";
 
 /** Entry fields persisted by this addon. */
 export interface RollExt {
@@ -48,10 +50,37 @@ export const rollAddon: ClusterAddon = {
       // (between the modifier names and the modifier); the cell holds only
       // the button.
       const btn = cell.createEl("button", { cls: "ep-roll-btn", text: view.i18n.t("roll.roll") });
+      const svc = () => view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings));
+      // Labeled modifier parts for the animation chain.
+      const partsFor = (): RollPart[] => {
+        const me = ext<ModExt>(ctx.entry);
+        if (hasNoteOverride(view, ctx.entry) || me.rollOverride !== undefined)
+          return [{ label: view.i18n.t("roll.partOverride"), value: modifierTotal(view, ctx.entry) }];
+        return (me.mods ?? [])
+          .filter((inf) => influenceActive(view, ctx.entry, inf))
+          .map((inf) => ({
+            label: abbrFor(view.settings, inf.source || (ctx.entry.key as string) || ""),
+            value: influenceTerm(view, ctx.entry, inf),
+          }));
+      };
       btn.onclick = () =>
-        view.hub
-          .get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings))
-          .roll(num.label, modifierTotal(view, ctx.entry), parseDiceOrDefault(e.dice));
+        svc().roll(num.label, modifierTotal(view, ctx.entry), parseDiceOrDefault(e.dice), {
+          parts: partsFor(),
+        });
+      // Right-click: advantage/disadvantage + how many simultaneous rolls.
+      btn.addEventListener("contextmenu", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        openRollMenu(ev, view.i18n, svc().mode, (mode, times) => {
+          for (let i = 0; i < times; i++)
+            svc().roll(
+              times > 1 ? `${num.label} #${i + 1}` : num.label,
+              modifierTotal(view, ctx.entry),
+              parseDiceOrDefault(e.dice),
+              { parts: partsFor(), mode, stay: times > 1 }
+            );
+        });
+      });
     };
     return slots;
   },

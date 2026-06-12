@@ -106,6 +106,12 @@ export const coreDe: StringDict = {
   "type.number": "Zahl",
   "type.decimal": "Dezimalzahl",
   "type.derived": "abgeleitet",
+  "roll.partMod": "Modifikator",
+  "roll.partOverride": "Überschreibung",
+  "roll.partProf": "Übung",
+  "roll.partTotal": "Gesamt",
+  "roll.menu.count": "Anzahl Würfe",
+  "roll.menu.go": "Würfeln",
   "type.list": "Liste",
   "type.checkbox": "Kontrollkästchen",
   "type.color": "Farbe",
@@ -125,6 +131,7 @@ export const coreDe: StringDict = {
   "mods.termOptionsDesc":
     "Wie dieser Term in die Summe eingeht; eine Listen-Eigenschaft, die ihn pro Notiz umschaltet (wie Übung); das Kürzel für Anzeigen; und ob die Zeile das Kontrollkästchen dieses Terms zeigt.",
   "mods.showToggle": "Kontrollkästchen in der Zeile anzeigen",
+  "mods.clickToggle": "Klicken zum Umschalten",
   "mods.weightAdd": "+ addieren",
   "mods.weightSub": "− subtrahieren",
   "mods.toggleProp": "Umschalt-Listeneigenschaft",
@@ -371,6 +378,12 @@ export const coreDe: StringDict = {
     "Die geworfenen Würfel taumeln in 3D, bevor sie liegen bleiben; Modifikator und Gesamtwert werden danach eingeblendet, und Hinweis/Protokoll erscheinen erst, wenn der Wurf abgeschlossen ist. Klick auf die Überlagerung überspringt einen Wurf.",
   "settings.diceAnimRolls": "Würfe bis zum Ergebnis",
   "settings.diceAnimRollsDesc": "Wie oft die Würfelseiten durchwechseln, bevor das Ergebnis liegen bleibt.",
+  "settings.diceAnimStay": "Ergebnisse anzeigen lassen",
+  "settings.diceAnimStayDesc":
+    "An = Wurf-Karten bleiben, bis sie angeklickt werden; aus = sie schließen sich selbst. Klick auf eine Karte schaltet das Behalten immer um.",
+  "settings.modsOffProp": "Eigenschaft für deaktivierte Modifikatoren",
+  "settings.modsOffPropDesc":
+    "Listen-Eigenschaft, die per Klick auf ihr Kürzel abgeschaltete Modifikatoren speichert (Einträge als „Eigenschaft:Quelle“).",
   "settings.modDepth": "Modifikator-Kettentiefe",
   "settings.modDepthDesc":
     "Wie viele Eigenschaft→Eigenschaft-Schritte aufgelöst werden, wenn abgeleitete Werte andere abgeleitete Werte beeinflussen.",

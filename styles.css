@@ -431,3 +431,32 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 .ep-roll-sum .ep-roll-total { font-weight: 800; font-size: 1.3em; opacity: 0; transition: opacity .25s ease; }
 .ep-roll-sum .ep-roll-total.ep-in { opacity: 1; animation: ep-pop .25s ease; }
 @media (prefers-reduced-motion: reduce) { .ep-roll-die.ep-rolling, .ep-roll-die.ep-settled, .ep-roll-overlay { animation: none; } }
+
+/* round 26 additions — pinnable roll cards, value chain, fading decorations */
+/* non-blocking layer hosting (possibly several) roll cards */
+.ep-roll-layer { position: fixed; inset: 0; z-index: 10001; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: center; align-content: center; padding: 24px; pointer-events: none; }
+.ep-roll-layer .ep-roll-box { pointer-events: auto; cursor: pointer; animation: ep-fade .15s ease; }
+.ep-roll-layer .ep-roll-box.ep-closing { animation: ep-pop-out .15s ease forwards; pointer-events: none; }
+.ep-roll-box.ep-pinned { border-color: var(--interactive-accent); box-shadow: 0 0 0 2px var(--interactive-accent), 0 18px 48px rgba(0, 0, 0, 0.5); }
+/* dice dimmer so the cycling number reads clearly */
+.ep-roll-die-ico { opacity: 0.3; }
+/* the addition chain: value cells with origin labels underneath */
+.ep-roll-chain { display: flex; align-items: flex-start; gap: 7px; flex-wrap: wrap; justify-content: center; min-height: 2.8em; max-width: 420px; }
+.ep-roll-op { font-weight: 700; color: var(--text-faint); padding-top: 0.05em; }
+.ep-roll-cell { display: flex; flex-direction: column; align-items: center; opacity: 0; transform: translateY(6px); transition: opacity .22s ease, transform .22s ease; }
+.ep-roll-cell.ep-in { opacity: 1; transform: none; }
+.ep-roll-cellval { font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.ep-roll-celllab { font-size: var(--font-ui-smaller); color: var(--text-faint); font-style: italic; line-height: 1.1; }
+.ep-roll-totalcell .ep-roll-cellval { font-size: 1.35em; }
+/* roll-options popup (right-click on a roll button) */
+.ep-rollmenu { display: flex; flex-direction: column; gap: 8px; padding: 8px; }
+.ep-rollmenu-count { display: flex; align-items: center; gap: 8px; font-size: var(--font-ui-smaller); }
+.ep-rollmenu-count .ep-edit-input { width: 4.5em; }
+/* decorations fade out (label and value always keep their room) */
+.ep-type-hint, .ep-entry-head .ep-denote, .ep-entry-head .ep-dice-tag { max-width: 16em; transition: max-width .25s ease, opacity .25s ease; }
+.ep-squeezed { display: inline-flex !important; max-width: 0 !important; opacity: 0 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; pointer-events: none !important; }
+.ep-measuring .ep-squeezed { display: none !important; }
+.ep-measuring .ep-type-hint, .ep-measuring .ep-denote, .ep-measuring .ep-dice-tag { transition: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .ep-roll-cell, .ep-type-hint, .ep-entry-head .ep-denote, .ep-entry-head .ep-dice-tag { transition: none; }
+}

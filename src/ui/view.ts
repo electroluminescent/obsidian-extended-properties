@@ -453,20 +453,34 @@ export class SidebarView extends ItemView implements ViewCtx {
    * Re-run on every render and on container resize.
    */
   private responsivePass(): void {
-    for (const secEl of this.content.findAll(".ep-section")) {
-      secEl.findAll(".ep-squeezed").forEach((el) => el.removeClass("ep-squeezed"));
-      alignClustersNow(secEl as HTMLElement);
+    // Decorations need this much spare room before they may stay; the
+    // label and value always keep theirs.
+    const SLACK = 24;
+    for (const el of this.content.findAll(".ep-section")) {
+      const sec = el as HTMLElement;
+      // Measure with transitions off and squeezed elements fully removed,
+      // so the tier decisions are exact.
+      sec.addClass("ep-measuring");
+      sec.findAll(".ep-squeezed").forEach((x) => x.removeClass("ep-squeezed"));
+      alignClustersNow(sec);
       const overflowing = () =>
-        (secEl.findAll(".ep-entry-head") as HTMLElement[]).some((h) => h.scrollWidth > h.clientWidth + 1);
+        (sec.findAll(".ep-entry-head") as HTMLElement[]).some((h) => h.scrollWidth + SLACK > h.clientWidth);
+      const hidden: HTMLElement[] = [];
       for (const cls of ["ep-type-hint", "ep-denote", "ep-dice-tag"]) {
         if (!overflowing()) break;
-        secEl.findAll(".ep-entry-head ." + cls).forEach((el) => {
-          el.addClass("ep-squeezed");
+        sec.findAll(".ep-entry-head ." + cls).forEach((x) => {
+          x.addClass("ep-squeezed");
+          hidden.push(x as HTMLElement);
           // Reclaim the column width the hidden decoration reserved.
-          const cell = el.closest("[data-ep-slot]") as HTMLElement | null;
+          const cell = x.closest("[data-ep-slot]") as HTMLElement | null;
           if (cell) cell.style.minWidth = "";
         });
       }
+      // Re-show instantly (still measuring), then fade them out for real.
+      hidden.forEach((x) => x.removeClass("ep-squeezed"));
+      void sec.offsetWidth;
+      sec.removeClass("ep-measuring");
+      if (hidden.length) requestAnimationFrame(() => hidden.forEach((x) => x.addClass("ep-squeezed")));
     }
   }
 

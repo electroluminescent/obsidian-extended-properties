@@ -109,6 +109,12 @@ export const coreEn: StringDict = {
   "type.number": "number",
   "type.decimal": "decimal",
   "type.derived": "derived",
+  "roll.partMod": "modifier",
+  "roll.partOverride": "override",
+  "roll.partProf": "prof",
+  "roll.partTotal": "total",
+  "roll.menu.count": "Number of rolls",
+  "roll.menu.go": "Roll",
   "type.list": "list",
   "type.checkbox": "checkbox",
   "type.color": "color",
@@ -128,6 +134,7 @@ export const coreEn: StringDict = {
   "mods.termOptionsDesc":
     "How this term enters the sum; a list property that toggles it per note (the way proficiency works); the short form shown in denotations; and whether the row shows this term's checkbox.",
   "mods.showToggle": "Show checkbox on the row",
+  "mods.clickToggle": "click to toggle",
   "mods.weightAdd": "+ add",
   "mods.weightSub": "− subtract",
   "mods.toggleProp": "Toggle list property",
@@ -374,6 +381,12 @@ export const coreEn: StringDict = {
     "Tumble the rolled dice in 3D before settling; the modifier and total animate in afterwards, and the notice/log appear only once the roll resolves. Click the overlay to skip a roll.",
   "settings.diceAnimRolls": "Rolls before settling",
   "settings.diceAnimRollsDesc": "How many times the dice faces cycle before the result settles.",
+  "settings.diceAnimStay": "Keep results on screen",
+  "settings.diceAnimStayDesc":
+    "On = roll cards stay until clicked; off = they dismiss themselves. Clicking a card always toggles keeping it.",
+  "settings.modsOffProp": "Disabled-modifiers property",
+  "settings.modsOffPropDesc":
+    "List property storing the modifiers switched off by clicking their short form (entries as “Property:Source”).",
   "settings.modDepth": "Modifier chain depth",
   "settings.modDepthDesc":
     "How many property→property hops are resolved when derived values influence other derived values.",

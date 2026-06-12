@@ -157,9 +157,40 @@ function sourceValue(env: InfluenceEnv, key: string, depth: number): number {
   return env.note.num(key, 0);
 }
 
-/** Whether a togglable influence is currently on for `entry`. */
+/** Token identifying one influence in the disabled-modifiers list. */
+function offToken(entry: Entry, inf: Influence): string {
+  return `${(entry.key as string) ?? ""}:${inf.source || (entry.key as string) || ""}`;
+}
+
+/**
+ * Whether a list-less influence has been switched off for this note by
+ * clicking its short form (stored in the disabled-modifiers property).
+ */
+export function influenceDisabled(env: InfluenceEnv, entry: Entry, inf: Influence): boolean {
+  if (inf.toggle) return false; // list-toggled terms use their own list
+  const prop = env.settings.modsOffProp || "Modifiers Off";
+  const token = offToken(entry, inf).toLowerCase();
+  return env.note.list(prop).some((x) => x.toLowerCase() === token);
+}
+
+/** Switch a list-less influence on/off for this note. */
+export function setInfluenceDisabled(
+  env: InfluenceEnv,
+  file: TFile,
+  entry: Entry,
+  inf: Influence,
+  off: boolean
+): void {
+  const prop = env.settings.modsOffProp || "Modifiers Off";
+  const token = offToken(entry, inf);
+  const cur = env.note.list(prop).filter((x) => x.toLowerCase() !== token.toLowerCase());
+  const next = off ? [...cur, token] : cur;
+  env.note.set(file, prop, next.length ? next : undefined);
+}
+
+/** Whether an influence is currently on for `entry` (list + click toggles). */
 export function influenceActive(env: InfluenceEnv, entry: Entry, inf: Influence): boolean {
-  if (!inf.toggle) return true;
+  if (!inf.toggle) return !influenceDisabled(env, entry, inf);
   const names = env.note.list(inf.toggle).map((x) => x.toLowerCase());
   const key = (entry.key ?? "").toLowerCase();
   const alias = ((entry.alias as string) ?? "").toLowerCase();

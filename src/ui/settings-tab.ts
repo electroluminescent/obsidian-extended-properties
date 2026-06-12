@@ -180,6 +180,15 @@ export class EPSettingTab extends PluginSettingTab {
           });
       });
     new Setting(c)
+      .setName(t("settings.modsOffProp"))
+      .setDesc(t("settings.modsOffPropDesc"))
+      .addText((tx) => {
+        tx.setValue(plugin.settings.modsOffProp).onChange((v) => {
+          plugin.settings.modsOffProp = v.trim() || "Modifiers Off";
+          save();
+        });
+      });
+    new Setting(c)
       .setName(t("settings.derivationAdd"))
       .addButton((b) =>
         b.setButtonText(t("settings.derivationAddBtn")).onClick(() => {
@@ -257,6 +266,15 @@ export class EPSettingTab extends PluginSettingTab {
             plugin.settings.diceAnimRolls = v;
             save();
           });
+      });
+    new Setting(c)
+      .setName(t("settings.diceAnimStay"))
+      .setDesc(t("settings.diceAnimStayDesc"))
+      .addToggle((tg) => {
+        tg.setValue(plugin.settings.diceAnimStay).onChange((v) => {
+          plugin.settings.diceAnimStay = v;
+          save();
+        });
       });
 
     // -- typography ---------------------------------------------------------------

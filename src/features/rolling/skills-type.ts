@@ -34,7 +34,7 @@ import { fmtMod, genId } from "../../utils/misc";
 import { parseDice, parseDiceOrDefault } from "../../utils/dice";
 import { deriveModifier, levelProfBonus, SourceMode } from "./modifiers";
 import { ROLL_SERVICE, RollService } from "./roll-service";
-import { addDiceSettings, openDiceMenu, renderDiceTag } from "./dice-ui";
+import { addDiceSettings, openDiceMenu, openRollMenu, renderDiceTag } from "./dice-ui";
 import { openNumberInput } from "../../ui/components/inline-edit";
 import { PropSuggest } from "../../ui/components/suggest";
 import { ConfirmModal, TextPromptModal } from "../../ui/modals/dialogs";
@@ -396,10 +396,44 @@ function renderRow(ctx: EntryRenderCtx, list: HTMLElement, records: SkillRecord[
 
   // Roll button: record dice (or entry default) + effective modifier.
   const rb = row.createEl("button", { cls: "ep-roll-btn", text: t("roll.roll") });
+  const svc = () => view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings));
+  const partsFor = () => {
+    const parts: { label: string; value: number }[] = [];
+    const base =
+      rec.mod !== undefined
+        ? rec.mod
+        : rec.source
+          ? deriveModifier(e.skillMode, view.note.num(rec.source, 0))
+          : 0;
+    parts.push({
+      label:
+        rec.mod !== undefined
+          ? t("roll.partOverride")
+          : rec.source
+            ? abbrFor(view.settings, rec.source)
+            : t("roll.partMod"),
+      value: base,
+    });
+    if (rec.prof) parts.push({ label: t("roll.partProf"), value: profBonus(view, e) });
+    return parts;
+  };
   rb.onclick = () =>
-    view.hub
-      .get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings))
-      .roll(rec.name, effectiveMod(view, e, rec), parseDiceOrDefault(rec.dice ?? e.dice));
+    svc().roll(rec.name, effectiveMod(view, e, rec), parseDiceOrDefault(rec.dice ?? e.dice), {
+      parts: partsFor(),
+    });
+  rb.addEventListener("contextmenu", (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    openRollMenu(ev, view.i18n, svc().mode, (mode, times) => {
+      for (let i = 0; i < times; i++)
+        svc().roll(
+          times > 1 ? `${rec.name} #${i + 1}` : rec.name,
+          effectiveMod(view, e, rec),
+          parseDiceOrDefault(rec.dice ?? e.dice),
+          { parts: partsFor(), mode, stay: times > 1 }
+        );
+    });
+  });
 
   // Row menu: source, dice, override, order, removal.
   row.addEventListener("contextmenu", (ev) => {

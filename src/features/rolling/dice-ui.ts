@@ -13,8 +13,10 @@
 import { App, Menu, Setting, TextComponent } from "obsidian";
 import type { I18n } from "../../i18n/i18n";
 import { DICE_PRESETS, DiceSpec, formatDice, isDefaultDice, parseDice, parseDiceOrDefault } from "../../utils/dice";
+import { clamp } from "../../utils/misc";
 import { diceIconId } from "../../ui/render/dice-icons";
 import { TextPromptModal } from "../../ui/modals/dialogs";
+import type { RollMode } from "./roll-service";
 
 /** Get/set the persisted dice notation (undefined = default d20). */
 export interface DiceBinding {
@@ -108,6 +110,77 @@ export function addDiceSettings(container: HTMLElement, i18n: I18n, binding: Dic
       if (Number.isFinite(n) && n >= 1) commit(binding, { count: n, sides: cur().sides });
     });
   });
+}
+
+/**
+ * Right-click menu for roll buttons: choose advantage / normal /
+ * disadvantage and how many rolls to make. Multiple rolls run
+ * simultaneously as separate cards that stay on screen.
+ */
+export function openRollMenu(
+  ev: MouseEvent,
+  i18n: I18n,
+  current: RollMode,
+  run: (mode: RollMode, times: number) => void
+): void {
+  const pop = document.body.createDiv({ cls: "ep-popup ep-rollmenu" });
+  pop.style.left = ev.clientX + "px";
+  pop.style.top = ev.clientY + 2 + "px";
+
+  let mode: RollMode = current;
+  const row = pop.createDiv({ cls: "ep-mode" });
+  const btns = new Map<RollMode, HTMLElement>();
+  const modes: [RollMode, string][] = [
+    ["disadvantage", i18n.t("roll.modeDisadvantage")],
+    ["normal", i18n.t("roll.modeNormal")],
+    ["advantage", i18n.t("roll.modeAdvantage")],
+  ];
+  for (const [m, lbl] of modes) {
+    const b = row.createEl("button", { cls: "ep-mode-btn", text: lbl });
+    btns.set(m, b);
+    b.onclick = () => {
+      mode = m;
+      for (const [k, el] of btns) el.toggleClass("is-active", k === mode);
+    };
+  }
+  for (const [k, el] of btns) el.toggleClass("is-active", k === mode);
+
+  const cntRow = pop.createDiv({ cls: "ep-rollmenu-count" });
+  cntRow.createSpan({ text: i18n.t("roll.menu.count") });
+  const input = cntRow.createEl("input", { cls: "ep-edit-input" });
+  input.type = "number";
+  input.min = "1";
+  input.max = "20";
+  input.value = "1";
+
+  const dismiss = () => {
+    pop.remove();
+    document.removeEventListener("mousedown", outside);
+  };
+  const go = pop.createEl("button", { cls: "mod-cta ep-rollmenu-go", text: i18n.t("roll.menu.go") });
+  go.onclick = () => {
+    const n = clamp(Math.round(Number(input.value) || 1), 1, 20);
+    dismiss();
+    run(mode, n);
+  };
+  input.onkeydown = (e: KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      go.click();
+    } else if (e.key === "Escape") {
+      dismiss();
+    }
+  };
+  const outside = (e: MouseEvent) => {
+    if (!pop.contains(e.target as Node)) dismiss();
+  };
+  window.setTimeout(() => document.addEventListener("mousedown", outside), 0);
+
+  // Keep within the window.
+  const w = pop.offsetWidth;
+  const h = pop.offsetHeight;
+  if (ev.clientX + w > window.innerWidth - 4) pop.style.left = Math.max(4, window.innerWidth - w - 4) + "px";
+  if (ev.clientY + h > window.innerHeight - 4) pop.style.top = Math.max(4, ev.clientY - h - 2) + "px";
 }
 
 /**

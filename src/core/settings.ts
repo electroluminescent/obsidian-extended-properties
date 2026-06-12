@@ -47,6 +47,8 @@ export function defaultSettings(): EPSettings {
     modDepth: 8,
     diceAnim: true,
     diceAnimRolls: 10,
+    diceAnimStay: false,
+    modsOffProp: "Modifiers Off",
   };
 }
 
@@ -81,6 +83,9 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
     if (typeof data.diceAnim === "boolean") s.diceAnim = data.diceAnim;
     if (typeof data.diceAnimRolls === "number" && data.diceAnimRolls >= 1)
       s.diceAnimRolls = Math.min(60, Math.floor(data.diceAnimRolls));
+    if (typeof data.diceAnimStay === "boolean") s.diceAnimStay = data.diceAnimStay;
+    if (typeof data.modsOffProp === "string" && data.modsOffProp.trim())
+      s.modsOffProp = data.modsOffProp.trim();
   }
   for (const t of s.types) {
     const k = t.toLowerCase();

@@ -205,4 +205,8 @@ export interface EPSettings {
   diceAnim: boolean;
   /** How many times the dice faces cycle before settling. */
   diceAnimRolls: number;
+  /** Keep roll cards on screen by default (clicking always toggles). */
+  diceAnimStay: boolean;
+  /** List property storing modifiers switched off by clicking their short form. */
+  modsOffProp: string;
 }
