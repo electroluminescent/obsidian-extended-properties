@@ -40,44 +40,54 @@ export function viewColorHost(view: ViewCtx): ColorHost {
  * Render the complete options UI for `octx.entry` into `octx.container`.
  * @param onDone    called when the user presses Done
  * @param onRemoved called after the entry was removed from its section
+ * @param opts.multi multi-target mode: the entry is a proxy whose changes
+ *                   are mirrored to several entries — per-entry identity
+ *                   (key, label) and removal are hidden.
  */
-export function renderEntryOptionsBody(octx: OptionsCtx, onDone: () => void, onRemoved: () => void): void {
+export function renderEntryOptionsBody(
+  octx: OptionsCtx,
+  onDone: () => void,
+  onRemoved: () => void,
+  opts: { multi?: boolean } = {}
+): void {
   const { view, section, entry: e, container: c, changed, redraw } = octx;
   const t = view.i18n.t.bind(view.i18n);
   const isProp = e.kind === "prop";
 
-  // -- identity -----------------------------------------------------------
-  c.createEl("h4", { text: isProp ? t("options.propertyHeading") : t("options.objectHeading") });
-  if (isProp) {
-    new Setting(c)
-      .setName(t("options.property"))
-      .setDesc(t("options.propertyDesc"))
-      .addText((tx) => {
-        tx.setValue((e.key as string) ?? "");
-        new PropSuggest(view.app, tx.inputEl, view.i18n, () => view.propCandidates(true), (k) => {
-          view.renameKey(e, k);
-          redraw();
-        }, false);
-        tx.inputEl.addEventListener("change", () => {
-          const v = tx.getValue().trim();
-          if (v && v !== e.key) {
-            view.renameKey(e, v);
+  // -- identity (per-entry only) --------------------------------------------
+  if (!opts.multi) {
+    c.createEl("h4", { text: isProp ? t("options.propertyHeading") : t("options.objectHeading") });
+    if (isProp) {
+      new Setting(c)
+        .setName(t("options.property"))
+        .setDesc(t("options.propertyDesc"))
+        .addText((tx) => {
+          tx.setValue((e.key as string) ?? "");
+          new PropSuggest(view.app, tx.inputEl, view.i18n, () => view.propCandidates(true), (k) => {
+            view.renameKey(e, k);
             redraw();
-          }
+          }, false);
+          tx.inputEl.addEventListener("change", () => {
+            const v = tx.getValue().trim();
+            if (v && v !== e.key) {
+              view.renameKey(e, v);
+              redraw();
+            }
+          });
         });
+    }
+    new Setting(c)
+      .setName(t("options.label"))
+      .setDesc(t("options.labelDesc", { default: view.defaultLabelFor(e) }))
+      .addText((tx) => {
+        tx.setPlaceholder(view.defaultLabelFor(e))
+          .setValue((e.alias as string) ?? "")
+          .onChange((v) => {
+            e.alias = v.trim() || undefined;
+            changed();
+          });
       });
   }
-  new Setting(c)
-    .setName(t("options.label"))
-    .setDesc(t("options.labelDesc", { default: view.defaultLabelFor(e) }))
-    .addText((tx) => {
-      tx.setPlaceholder(view.defaultLabelFor(e))
-        .setValue((e.alias as string) ?? "")
-        .onChange((v) => {
-          e.alias = v.trim() || undefined;
-          changed();
-        });
-    });
 
   // -- type-specific -------------------------------------------------------
   if (isProp) {
@@ -188,13 +198,15 @@ export function renderEntryOptionsBody(octx: OptionsCtx, onDone: () => void, onR
   }
 
   // -- placement -----------------------------------------------------------
-  c.createEl("h4", { text: t("options.placementHeading") });
-  new Setting(c).addButton((b) =>
-    b.setButtonText(t("entry.menu.remove")).setWarning().onClick(() => {
-      view.removeEntry(section, e);
-      onRemoved();
-    })
-  );
+  if (!opts.multi) {
+    c.createEl("h4", { text: t("options.placementHeading") });
+    new Setting(c).addButton((b) =>
+      b.setButtonText(t("entry.menu.remove")).setWarning().onClick(() => {
+        view.removeEntry(section, e);
+        onRemoved();
+      })
+    );
+  }
   new Setting(c).addButton((b) => b.setButtonText(t("common.done")).setCta().onClick(() => onDone()));
 }
 

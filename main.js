@@ -22,7 +22,7 @@ __export(main_exports, {
   default: () => ExtendedPropertiesPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian26 = require("obsidian");
+var import_obsidian27 = require("obsidian");
 
 // src/i18n/i18n.ts
 var I18n = class {
@@ -296,6 +296,8 @@ var coreEn = {
   "options.rangeAuto": "Blank = this property's lowest/highest value across notes",
   "options.sharedHeading": "Shared settings ({n} selected)",
   "options.mixed": "Mixed values \u2014 changing this writes it to every selected tab.",
+  "options.multiNote": "Editing {n} {type} properties together \u2014 every setting you change here is written to all of them.",
+  "options.multiMixed": "Currently differing across the selection: {list}.",
   "options.showLabel": "Show label",
   "options.showLabelDesc": "On = the label is visible outside edit mode",
   "options.showWhenEmpty": "Show when empty",
@@ -417,6 +419,11 @@ var coreEn = {
   "settings.derivationAddBtn": "+ Block",
   "settings.derivationReseed": "Restore defaults",
   "settings.newDerivation": "New derivation",
+  "settings.diceHeading": "Dice",
+  "settings.diceAnim": "Roll animation",
+  "settings.diceAnimDesc": "Tumble the rolled dice in 3D before settling; the modifier and total animate in afterwards, and the notice/log appear only once the roll resolves. Click the overlay to skip a roll.",
+  "settings.diceAnimRolls": "Rolls before settling",
+  "settings.diceAnimRollsDesc": "How many times the dice faces cycle before the result settles.",
   "settings.modDepth": "Modifier chain depth",
   "settings.modDepthDesc": "How many property\u2192property hops are resolved when derived values influence other derived values.",
   "settings.abbrHeading": "Short forms",
@@ -667,6 +674,8 @@ var coreDe = {
   "options.rangeAuto": "Leer = kleinster/gr\xF6\xDFter Wert dieser Eigenschaft \xFCber alle Notizen",
   "options.sharedHeading": "Gemeinsame Einstellungen ({n} ausgew\xE4hlt)",
   "options.mixed": "Unterschiedliche Werte \u2014 eine \xC4nderung schreibt sie in alle ausgew\xE4hlten Tabs.",
+  "options.multiNote": "{n} {type}-Eigenschaften werden gemeinsam bearbeitet \u2014 jede hier ge\xE4nderte Einstellung wird in alle geschrieben.",
+  "options.multiMixed": "Derzeit unterschiedlich in der Auswahl: {list}.",
   "options.showLabel": "Namen anzeigen",
   "options.showLabelDesc": "An = der Name ist au\xDFerhalb des Bearbeitungsmodus sichtbar",
   "options.showWhenEmpty": "Auch leer anzeigen",
@@ -788,6 +797,11 @@ var coreDe = {
   "settings.derivationAddBtn": "+ Baustein",
   "settings.derivationReseed": "Standards wiederherstellen",
   "settings.newDerivation": "Neue Ableitung",
+  "settings.diceHeading": "W\xFCrfel",
+  "settings.diceAnim": "Wurf-Animation",
+  "settings.diceAnimDesc": "Die geworfenen W\xFCrfel taumeln in 3D, bevor sie liegen bleiben; Modifikator und Gesamtwert werden danach eingeblendet, und Hinweis/Protokoll erscheinen erst, wenn der Wurf abgeschlossen ist. Klick auf die \xDCberlagerung \xFCberspringt einen Wurf.",
+  "settings.diceAnimRolls": "W\xFCrfe bis zum Ergebnis",
+  "settings.diceAnimRollsDesc": "Wie oft die W\xFCrfelseiten durchwechseln, bevor das Ergebnis liegen bleibt.",
   "settings.modDepth": "Modifikator-Kettentiefe",
   "settings.modDepthDesc": "Wie viele Eigenschaft\u2192Eigenschaft-Schritte aufgel\xF6st werden, wenn abgeleitete Werte andere abgeleitete Werte beeinflussen.",
   "settings.abbrHeading": "K\xFCrzel",
@@ -1165,7 +1179,9 @@ function defaultSettings() {
     features: {},
     derivations: defaultDerivations(),
     sourceAbbrs: {},
-    modDepth: 8
+    modDepth: 8,
+    diceAnim: true,
+    diceAnimRolls: 10
   };
 }
 function normalizeSettings(data, defaultLayout) {
@@ -1191,6 +1207,9 @@ function normalizeSettings(data, defaultLayout) {
     if (data.sourceAbbrs && typeof data.sourceAbbrs === "object") s.sourceAbbrs = data.sourceAbbrs;
     if (typeof data.modDepth === "number" && data.modDepth >= 0)
       s.modDepth = Math.min(32, Math.floor(data.modDepth));
+    if (typeof data.diceAnim === "boolean") s.diceAnim = data.diceAnim;
+    if (typeof data.diceAnimRolls === "number" && data.diceAnimRolls >= 1)
+      s.diceAnimRolls = Math.min(60, Math.floor(data.diceAnimRolls));
   }
   for (const t of s.types) {
     const k = t.toLowerCase();
@@ -2193,10 +2212,11 @@ function paintDice(parent, entry) {
   const spec = parseDiceOrDefault(typeof e["dice"] === "string" ? e["dice"] : void 0);
   const tag = parent.createSpan({ cls: "ep-dice-tag ep-line-abbr" });
   if (e["showDiceIcon"] !== false) {
+    tag.addClass("ep-dice-stack");
     const ic = tag.createSpan({ cls: "ep-dice-ico" });
     (0, import_obsidian5.setIcon)(ic, diceIconId(spec.sides));
   }
-  tag.appendText(formatDice(spec));
+  tag.createSpan({ text: formatDice(spec) });
 }
 function paintBadge(cell, ref) {
   cell.empty();
@@ -2429,7 +2449,8 @@ var modifierAddon = {
         changed();
       });
     });
-    if (isDerived && entry.key) {
+    const isMulti = entry["__multi"] === true;
+    if (isDerived && entry.key && !isMulti) {
       const key = entry.key;
       const on = hasNoteOverride(view, entry);
       const ov = new import_obsidian5.Setting(c).setName(t("mods.overrideNote")).setDesc(t("mods.overrideNoteDesc"));
@@ -4008,36 +4029,38 @@ function viewColorHost(view) {
     }
   };
 }
-function renderEntryOptionsBody(octx, onDone, onRemoved) {
+function renderEntryOptionsBody(octx, onDone, onRemoved, opts = {}) {
   var _a, _b, _c, _d;
   const { view, section, entry: e, container: c, changed, redraw } = octx;
   const t = view.i18n.t.bind(view.i18n);
   const isProp = e.kind === "prop";
-  c.createEl("h4", { text: isProp ? t("options.propertyHeading") : t("options.objectHeading") });
-  if (isProp) {
-    new import_obsidian15.Setting(c).setName(t("options.property")).setDesc(t("options.propertyDesc")).addText((tx) => {
-      var _a2;
-      tx.setValue((_a2 = e.key) != null ? _a2 : "");
-      new PropSuggest(view.app, tx.inputEl, view.i18n, () => view.propCandidates(true), (k) => {
-        view.renameKey(e, k);
-        redraw();
-      }, false);
-      tx.inputEl.addEventListener("change", () => {
-        const v = tx.getValue().trim();
-        if (v && v !== e.key) {
-          view.renameKey(e, v);
+  if (!opts.multi) {
+    c.createEl("h4", { text: isProp ? t("options.propertyHeading") : t("options.objectHeading") });
+    if (isProp) {
+      new import_obsidian15.Setting(c).setName(t("options.property")).setDesc(t("options.propertyDesc")).addText((tx) => {
+        var _a2;
+        tx.setValue((_a2 = e.key) != null ? _a2 : "");
+        new PropSuggest(view.app, tx.inputEl, view.i18n, () => view.propCandidates(true), (k) => {
+          view.renameKey(e, k);
           redraw();
-        }
+        }, false);
+        tx.inputEl.addEventListener("change", () => {
+          const v = tx.getValue().trim();
+          if (v && v !== e.key) {
+            view.renameKey(e, v);
+            redraw();
+          }
+        });
+      });
+    }
+    new import_obsidian15.Setting(c).setName(t("options.label")).setDesc(t("options.labelDesc", { default: view.defaultLabelFor(e) })).addText((tx) => {
+      var _a2;
+      tx.setPlaceholder(view.defaultLabelFor(e)).setValue((_a2 = e.alias) != null ? _a2 : "").onChange((v) => {
+        e.alias = v.trim() || void 0;
+        changed();
       });
     });
   }
-  new import_obsidian15.Setting(c).setName(t("options.label")).setDesc(t("options.labelDesc", { default: view.defaultLabelFor(e) })).addText((tx) => {
-    var _a2;
-    tx.setPlaceholder(view.defaultLabelFor(e)).setValue((_a2 = e.alias) != null ? _a2 : "").onChange((v) => {
-      e.alias = v.trim() || void 0;
-      changed();
-    });
-  });
   if (isProp) {
     c.createEl("h4", { text: t("options.typeHeading") });
     const cur = view.resolveType(e);
@@ -4115,13 +4138,15 @@ function renderEntryOptionsBody(octx, onDone, onRemoved) {
       });
     });
   }
-  c.createEl("h4", { text: t("options.placementHeading") });
-  new import_obsidian15.Setting(c).addButton(
-    (b) => b.setButtonText(t("entry.menu.remove")).setWarning().onClick(() => {
-      view.removeEntry(section, e);
-      onRemoved();
-    })
-  );
+  if (!opts.multi) {
+    c.createEl("h4", { text: t("options.placementHeading") });
+    new import_obsidian15.Setting(c).addButton(
+      (b) => b.setButtonText(t("entry.menu.remove")).setWarning().onClick(() => {
+        view.removeEntry(section, e);
+        onRemoved();
+      })
+    );
+  }
   new import_obsidian15.Setting(c).addButton((b) => b.setButtonText(t("common.done")).setCta().onClick(() => onDone()));
 }
 
@@ -4332,9 +4357,64 @@ var SectionOptionsModal = class extends import_obsidian16.Modal {
         redraw: () => this.draw()
       };
       renderEntryOptionsBody(octx, () => this.close(), () => this.draw());
+    } else if (!withSection && targets.length > 1 && this.file && targets.every((e) => e.kind === "prop") && new Set(targets.map((e) => this.view.resolveType(e))).size === 1) {
+      this.drawMultiSameType(c, targets);
     } else {
       this.drawSharedBody(c, targets, withSection);
     }
+  }
+  /**
+   * Multi-edit for selections that share one data type: every option is
+   * visible. The UI edits a proxy of the first entry; whenever a setting
+   * changes, exactly the fields that changed are copied to all selected
+   * entries (identity fields are excluded). Settings whose values differ
+   * across the selection are listed in the note on top — changing one
+   * writes it to all.
+   */
+  drawMultiSameType(c, ents) {
+    var _a, _b;
+    const view = this.view;
+    const t = view.i18n.t.bind(view.i18n);
+    const SKIP = /* @__PURE__ */ new Set(["id", "key", "alias", "__multi"]);
+    const typeId = view.resolveType(ents[0]);
+    const typeName = (_b = (_a = view.registries.valueTypes.get(typeId)) == null ? void 0 : _a.name(view.i18n)) != null ? _b : typeId;
+    const allKeys = /* @__PURE__ */ new Set();
+    for (const e of ents) for (const k of Object.keys(e)) if (!SKIP.has(k)) allKeys.add(k);
+    const mixed = [...allKeys].filter((k) => {
+      const first = JSON.stringify(ents[0][k]);
+      return ents.some((e) => JSON.stringify(e[k]) !== first);
+    });
+    let note = t("options.multiNote", { n: ents.length, type: typeName });
+    if (mixed.length) note += " " + t("options.multiMixed", { list: mixed.sort().join(", ") });
+    c.createEl("p", { cls: "setting-item-description ep-multi-note", text: note });
+    const proxy = JSON.parse(JSON.stringify(ents[0]));
+    proxy["__multi"] = true;
+    let snap = JSON.stringify(proxy);
+    const applyDiff = () => {
+      const cur = proxy;
+      const old = JSON.parse(snap);
+      for (const k of /* @__PURE__ */ new Set([...Object.keys(cur), ...Object.keys(old)])) {
+        if (SKIP.has(k)) continue;
+        const now = JSON.stringify(cur[k]);
+        if (now === JSON.stringify(old[k])) continue;
+        for (const e of ents) {
+          if (cur[k] === void 0) delete e[k];
+          else e[k] = JSON.parse(now);
+        }
+      }
+      snap = JSON.stringify(proxy);
+      this.changed();
+    };
+    const octx = {
+      view,
+      file: this.file,
+      section: this.section,
+      entry: proxy,
+      container: c,
+      changed: applyDiff,
+      redraw: () => this.draw()
+    };
+    renderEntryOptionsBody(octx, () => this.close(), () => this.draw(), { multi: true });
   }
   // -- shared multi-edit ------------------------------------------------------
   /**
@@ -6448,6 +6528,20 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
         }, () => plugin.props.knownProps()).open()
       )
     );
+    c.createEl("h3", { text: t("settings.diceHeading") });
+    new import_obsidian20.Setting(c).setName(t("settings.diceAnim")).setDesc(t("settings.diceAnimDesc")).addToggle((tg) => {
+      tg.setValue(plugin.settings.diceAnim).onChange((v) => {
+        plugin.settings.diceAnim = v;
+        save();
+      });
+    });
+    new import_obsidian20.Setting(c).setName(t("settings.diceAnimRolls")).setDesc(t("settings.diceAnimRollsDesc")).addSlider((sl) => {
+      var _a;
+      sl.setLimits(1, 30, 1).setValue((_a = plugin.settings.diceAnimRolls) != null ? _a : 10).setDynamicTooltip().onChange((v) => {
+        plugin.settings.diceAnimRolls = v;
+        save();
+      });
+    });
     c.createEl("h3", { text: t("settings.typographyHeading") });
     c.createEl("p", { cls: "setting-item-description", text: t("settings.typographyDesc") });
     new import_obsidian20.Setting(c).setName(t("settings.fontFamily")).addText((tx) => {
@@ -6685,12 +6779,89 @@ function augmentPropsMenu(host) {
 }
 
 // src/features/rolling/roll-service.ts
+var import_obsidian23 = require("obsidian");
+
+// src/features/rolling/dice-anim.ts
 var import_obsidian22 = require("obsidian");
+var MAX_DICE_SHOWN = 12;
+var TICK_MS = 80;
+function playRollAnimation(job, done) {
+  var _a, _b;
+  if ((_b = (_a = window.matchMedia) == null ? void 0 : _a.call(window, "(prefers-reduced-motion: reduce)")) == null ? void 0 : _b.matches) {
+    done();
+    return;
+  }
+  const overlay = document.body.createDiv({ cls: "ep-roll-overlay" });
+  const box = overlay.createDiv({ cls: "ep-roll-box" });
+  box.createDiv({ cls: "ep-roll-label", text: job.label });
+  const diceRow = box.createDiv({ cls: "ep-roll-dice" });
+  const sum = box.createDiv({ cls: "ep-roll-sum" });
+  const shown = Math.min(job.faces.length, MAX_DICE_SHOWN);
+  const dies = [];
+  for (let i = 0; i < shown; i++) {
+    const el = diceRow.createDiv({ cls: "ep-roll-die ep-rolling" });
+    const ic = el.createDiv({ cls: "ep-roll-die-ico" });
+    (0, import_obsidian22.setIcon)(ic, diceIconId(job.spec.sides));
+    const num = el.createDiv({ cls: "ep-roll-die-num" });
+    dies.push({ el, num });
+  }
+  let timer = 0;
+  let t1 = 0;
+  let t2 = 0;
+  let t3 = 0;
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    window.clearInterval(timer);
+    window.clearTimeout(t1);
+    window.clearTimeout(t2);
+    window.clearTimeout(t3);
+    overlay.addClass("ep-closing");
+    window.setTimeout(() => overlay.remove(), 160);
+    done();
+  };
+  overlay.onclick = finish;
+  const diceTotal = job.faces.reduce((a, b) => a + b, 0);
+  const settle = () => {
+    window.clearInterval(timer);
+    dies.forEach((d, i) => {
+      d.el.removeClass("ep-rolling");
+      d.el.addClass("ep-settled");
+      d.num.setText(String(job.faces[i]));
+    });
+    t1 = window.setTimeout(() => {
+      if (finished) return;
+      const breakdown = job.faces.length > 1 && job.faces.length <= MAX_DICE_SHOWN ? `${job.faces.join(" + ")} = ${diceTotal}` : String(diceTotal);
+      sum.createSpan({ text: breakdown });
+      if (job.modifier !== 0) {
+        const m = sum.createSpan({ cls: "ep-roll-mod", text: fmtMod(job.modifier) });
+        requestAnimationFrame(() => m.addClass("ep-in"));
+      }
+      const tot = sum.createSpan({ cls: "ep-roll-total", text: "= " + job.total });
+      t2 = window.setTimeout(() => {
+        if (finished) return;
+        tot.addClass("ep-in");
+        t3 = window.setTimeout(finish, 950);
+      }, job.modifier !== 0 ? 380 : 120);
+    }, 300);
+  };
+  let spin = 0;
+  const spins = Math.max(1, Math.floor(job.spins) || 1);
+  timer = window.setInterval(() => {
+    for (const d of dies) d.num.setText(String(1 + Math.floor(Math.random() * job.spec.sides)));
+    spin++;
+    if (spin >= spins) settle();
+  }, TICK_MS);
+}
+
+// src/features/rolling/roll-service.ts
 var ROLL_SERVICE = "rolling.rolls";
 var LOG_LIMIT = 6;
 var RollService = class {
-  constructor(i18n) {
+  constructor(i18n, settings) {
     this.i18n = i18n;
+    this.settings = settings;
     this.mode = "normal";
     this.log = [];
     this.listeners = /* @__PURE__ */ new Set();
@@ -6716,6 +6887,7 @@ var RollService = class {
    * @param spec dice pool to roll (defaults to a single d20)
    */
   roll(label, modifier, spec = { ...DEFAULT_DICE }) {
+    var _a, _b;
     const pools = [rollPool(spec)];
     if (this.mode !== "normal") pools.push(rollPool(spec));
     const used = pools.length === 1 ? pools[0] : this.mode === "advantage" ? pools.reduce((a, b) => b.total > a.total ? b : a) : pools.reduce((a, b) => b.total < a.total ? b : a);
@@ -6723,16 +6895,33 @@ var RollService = class {
     const tag = this.mode === "advantage" ? " " + this.i18n.t("roll.tagAdvantage") : this.mode === "disadvantage" ? " " + this.i18n.t("roll.tagDisadvantage") : "";
     const detail = pools.length > 1 ? `[${pools.map((p) => p.total).join(", ")}] -> ${used.total}` : spec.count > 1 ? `[${used.faces.join(", ")}] -> ${used.total}` : `${used.total}`;
     const tone = isMaxPool(spec, used) ? "crit" : isMinPool(used) ? "fail" : "normal";
-    this.log.unshift({ text: `${label}${tag}: ${total}   (${formatDice(spec)} ${detail} ${fmtMod(modifier)})`, tone });
-    if (this.log.length > LOG_LIMIT) this.log.pop();
-    this.emit();
-    new import_obsidian22.Notice(`${label}${tag}: ${total}`, 4e3);
+    const commit2 = () => {
+      this.log.unshift({ text: `${label}${tag}: ${total}   (${formatDice(spec)} ${detail} ${fmtMod(modifier)})`, tone });
+      if (this.log.length > LOG_LIMIT) this.log.pop();
+      this.emit();
+      new import_obsidian23.Notice(`${label}${tag}: ${total}`, 4e3);
+    };
+    if ((_a = this.settings) == null ? void 0 : _a.diceAnim) {
+      playRollAnimation(
+        {
+          label: `${label}${tag}`,
+          spec,
+          faces: used.faces,
+          modifier,
+          total,
+          spins: (_b = this.settings.diceAnimRolls) != null ? _b : 10
+        },
+        commit2
+      );
+    } else {
+      commit2();
+    }
   }
 };
 
 // src/features/rolling/rolls-panel.ts
 function rollService(view) {
-  return view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n));
+  return view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings));
 }
 var rollsKind = {
   id: "rolls",
@@ -6783,16 +6972,16 @@ var rollsKind = {
 };
 
 // src/features/rolling/numeric-addon.ts
-var import_obsidian24 = require("obsidian");
+var import_obsidian25 = require("obsidian");
 
 // src/features/rolling/dice-ui.ts
-var import_obsidian23 = require("obsidian");
+var import_obsidian24 = require("obsidian");
 function commit(binding, spec) {
   binding.set(isDefaultDice(spec) ? void 0 : formatDice(spec));
 }
 function openDiceMenu(e, app, i18n, binding) {
   const cur = parseDiceOrDefault(binding.get());
-  const menu = new import_obsidian23.Menu();
+  const menu = new import_obsidian24.Menu();
   for (const sides of DICE_PRESETS) {
     menu.addItem(
       (i) => i.setTitle(formatDice({ count: cur.count, sides })).setIcon(diceIconId(sides)).setChecked(cur.sides === sides).onClick(() => commit(binding, { count: cur.count, sides }))
@@ -6826,7 +7015,7 @@ function addDiceSettings(container, i18n, binding) {
     sizeBox.setDisabled(!on);
     sizeBox.inputEl.toggleClass("ep-disabled", !on);
   };
-  new import_obsidian23.Setting(container).setName(i18n.t("dice.die")).setDesc(i18n.t("dice.dieDesc")).addDropdown((d) => {
+  new import_obsidian24.Setting(container).setName(i18n.t("dice.die")).setDesc(i18n.t("dice.dieDesc")).addDropdown((d) => {
     for (const sides of DICE_PRESETS) d.addOption(String(sides), "d" + sides);
     d.addOption("custom", i18n.t("dice.custom"));
     const c = cur();
@@ -6852,7 +7041,7 @@ function addDiceSettings(container, i18n, binding) {
       if (Number.isFinite(n) && n >= 2) commit(binding, { count: cur().count, sides: n });
     });
   });
-  new import_obsidian23.Setting(container).setName(i18n.t("dice.countLabel")).addText((t) => {
+  new import_obsidian24.Setting(container).setName(i18n.t("dice.countLabel")).addText((t) => {
     t.setValue(String(cur().count)).onChange((v) => {
       const n = parseInt(v);
       if (Number.isFinite(n) && n >= 1) commit(binding, { count: n, sides: cur().sides });
@@ -6883,7 +7072,7 @@ var rollAddon = {
     const slots = {};
     slots["roll"] = (cell) => {
       const btn = cell.createEl("button", { cls: "ep-roll-btn", text: view.i18n.t("roll.roll") });
-      btn.onclick = () => view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n)).roll(num.label, modifierTotal(view, ctx.entry), parseDiceOrDefault(e.dice));
+      btn.onclick = () => view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings)).roll(num.label, modifierTotal(view, ctx.entry), parseDiceOrDefault(e.dice));
     };
     return slots;
   },
@@ -6893,7 +7082,7 @@ var rollAddon = {
     const t = view.i18n.t.bind(view.i18n);
     const e = ext(entry);
     c.createEl("h4", { text: t("roll.options.heading") });
-    new import_obsidian24.Setting(c).setName(t("roll.options.rollButton")).setDesc(t("roll.options.rollButtonDesc")).addToggle((tg) => {
+    new import_obsidian25.Setting(c).setName(t("roll.options.rollButton")).setDesc(t("roll.options.rollButtonDesc")).addToggle((tg) => {
       tg.setValue(!!e.roll).onChange((v) => {
         var _a;
         e.roll = v || void 0;
@@ -6911,13 +7100,13 @@ var rollAddon = {
           changed();
         }
       });
-      new import_obsidian24.Setting(c).setName(t("mods.showDice")).setDesc(t("mods.showDiceDesc")).addToggle((tg) => {
+      new import_obsidian25.Setting(c).setName(t("mods.showDice")).setDesc(t("mods.showDiceDesc")).addToggle((tg) => {
         tg.setValue(entry.showDice !== false).onChange((v) => {
           entry.showDice = v ? void 0 : false;
           changed();
         });
       });
-      new import_obsidian24.Setting(c).setName(t("mods.showDiceIcon")).setDesc(t("mods.showDiceIconDesc")).addToggle((tg) => {
+      new import_obsidian25.Setting(c).setName(t("mods.showDiceIcon")).setDesc(t("mods.showDiceIconDesc")).addToggle((tg) => {
         tg.setValue(entry.showDiceIcon !== false).onChange((v) => {
           entry.showDiceIcon = v ? void 0 : false;
           changed();
@@ -6928,7 +7117,7 @@ var rollAddon = {
 };
 
 // src/features/rolling/skills-type.ts
-var import_obsidian25 = require("obsidian");
+var import_obsidian26 = require("obsidian");
 
 // src/features/rolling/modifiers.ts
 function abilityMod(score) {
@@ -7005,7 +7194,7 @@ function convertToProperties(ref) {
   const preset = view.registries.skillPresets.get(e.skillsPreset);
   if (!records.length && preset) records = preset.records();
   if (!records.length) {
-    new import_obsidian25.Notice(t("skills.convertEmpty"));
+    new import_obsidian26.Notice(t("skills.convertEmpty"));
     return;
   }
   const useProf = e.profMode === "level" || e.profMode === "fixed";
@@ -7064,7 +7253,7 @@ function convertToProperties(ref) {
   ensurePropEntries(view.layout, section, [...new Set(records.map((r) => r.source).filter((x) => !!x))]);
   view.saveLayout();
   view.rerender();
-  new import_obsidian25.Notice(t("skills.convertDone", { n: fresh.length }));
+  new import_obsidian26.Notice(t("skills.convertDone", { n: fresh.length }));
 }
 function confirmConvert(ref) {
   new ConfirmModal(
@@ -7100,7 +7289,7 @@ function addBlankSkill(view, file, key) {
   }).open();
 }
 function openAddSkillsMenu(e, view, file, key) {
-  const menu = new import_obsidian25.Menu();
+  const menu = new import_obsidian26.Menu();
   for (const preset of view.registries.skillPresets.all()) {
     menu.addItem(
       (i) => i.setTitle(view.i18n.t("skills.menu.addPreset", { name: preset.name(view.i18n) })).setIcon("list-plus").onClick(() => populateFromPreset(view, file, key, preset))
@@ -7226,12 +7415,12 @@ function renderRow(ctx, list, records, index) {
   const rb = row.createEl("button", { cls: "ep-roll-btn", text: t("roll.roll") });
   rb.onclick = () => {
     var _a2;
-    return view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n)).roll(rec.name, effectiveMod(view, e, rec), parseDiceOrDefault((_a2 = rec.dice) != null ? _a2 : e.dice));
+    return view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings)).roll(rec.name, effectiveMod(view, e, rec), parseDiceOrDefault((_a2 = rec.dice) != null ? _a2 : e.dice));
   };
   row.addEventListener("contextmenu", (ev) => {
     ev.preventDefault();
     ev.stopPropagation();
-    const menu = new import_obsidian25.Menu();
+    const menu = new import_obsidian26.Menu();
     menu.addItem(
       (i) => i.setTitle(t("skills.menu.setSource")).setIcon("link").onClick(() => inlineSource(ctx, abbrSpan, index))
     );
@@ -7321,10 +7510,10 @@ var skillsType = {
     const e = ext(entry);
     c.createEl("h4", { text: t("skills.options.heading") });
     c.createEl("p", { cls: "setting-item-description", text: t("skills.options.editHint") });
-    new import_obsidian25.Setting(c).setName(t("skills.convert")).setDesc(t("skills.convertDesc")).addButton(
+    new import_obsidian26.Setting(c).setName(t("skills.convert")).setDesc(t("skills.convertDesc")).addButton(
       (b) => b.setButtonText(t("skills.convertBtn")).onClick(() => confirmConvert(octx))
     );
-    new import_obsidian25.Setting(c).setName(t("skills.options.sourceMode")).addDropdown((d) => {
+    new import_obsidian26.Setting(c).setName(t("skills.options.sourceMode")).addDropdown((d) => {
       var _a;
       d.addOption("value", t("skills.options.modeValue"));
       d.addOption("abilityMod", t("skills.options.modeAbilityMod"));
@@ -7334,7 +7523,7 @@ var skillsType = {
         changed();
       });
     });
-    new import_obsidian25.Setting(c).setName(t("skills.options.profMode")).addDropdown((d) => {
+    new import_obsidian26.Setting(c).setName(t("skills.options.profMode")).addDropdown((d) => {
       var _a;
       d.addOption("none", t("skills.options.profNone"));
       d.addOption("level", t("skills.options.profLevel"));
@@ -7347,7 +7536,7 @@ var skillsType = {
       });
     });
     if (e.profMode === "level") {
-      new import_obsidian25.Setting(c).setName(t("skills.options.profSource")).addText((tx) => {
+      new import_obsidian26.Setting(c).setName(t("skills.options.profSource")).addText((tx) => {
         var _a;
         tx.setPlaceholder("Level").setValue((_a = e.profSource) != null ? _a : "").onChange((v) => {
           e.profSource = v.trim() || void 0;
@@ -7356,7 +7545,7 @@ var skillsType = {
       });
     }
     if (e.profMode === "fixed") {
-      new import_obsidian25.Setting(c).setName(t("skills.options.profFixedValue")).addText((tx) => {
+      new import_obsidian26.Setting(c).setName(t("skills.options.profFixedValue")).addText((tx) => {
         tx.setValue(e.profFixed !== void 0 ? String(e.profFixed) : "").onChange((v) => {
           const n = Number(v);
           e.profFixed = v.trim() === "" || !Number.isFinite(n) ? void 0 : n;
@@ -7375,7 +7564,7 @@ var skillsType = {
     if (presets.length) {
       c.createEl("h4", { text: t("skills.options.presets") });
       for (const preset of presets) {
-        new import_obsidian25.Setting(c).setName(preset.name(view.i18n)).addButton(
+        new import_obsidian26.Setting(c).setName(preset.name(view.i18n)).addButton(
           (b) => b.setButtonText(t("skills.options.addPreset")).onClick(() => {
             populateFromPreset(view, octx.file, entry.key, preset);
             changed();
@@ -7820,7 +8009,7 @@ var dnd5eModule = {
 
 // src/main.ts
 var FEATURE_MODULES = [rollingModule, dnd5eModule];
-var ExtendedPropertiesPlugin = class extends import_obsidian26.Plugin {
+var ExtendedPropertiesPlugin = class extends import_obsidian27.Plugin {
   constructor() {
     super(...arguments);
     this.i18n = new I18n();
@@ -7867,7 +8056,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian26.Plugin {
         const k = v.trim();
         if (!k) return;
         this.hide.hideKey(k);
-        new import_obsidian26.Notice(this.i18n.t("notice.hiding", { key: k }));
+        new import_obsidian27.Notice(this.i18n.t("notice.hiding", { key: k }));
       }, () => this.props.knownProps()).open()
     });
     this.addSettingTab(new EPSettingTab(this.app, this));

@@ -406,3 +406,28 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
    point; empty cells keep a row-height minimum outside edit mode too */
 .ep-grid.ep-mode-grid { align-items: stretch; }
 .ep-grid.ep-mode-grid > .ep-empty-cell { min-height: 28px; }
+
+/* round 25 additions — stacked dice tag, multi-edit note, roll animation */
+/* die icon stacked above the notation, both centered */
+.ep-dice-tag.ep-dice-stack { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.05; }
+.ep-dice-stack .ep-dice-ico { margin: 0; }
+.ep-multi-note { border-left: 2px solid var(--interactive-accent); padding-left: 8px; }
+/* roll overlay */
+.ep-roll-overlay { position: fixed; inset: 0; z-index: 10001; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.45); animation: ep-fade .15s ease; cursor: pointer; }
+.ep-roll-overlay.ep-closing { animation: ep-pop-out .15s ease forwards; pointer-events: none; }
+.ep-roll-box { background: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-radius: 12px; padding: 18px 28px; display: flex; flex-direction: column; align-items: center; gap: 12px; box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5); }
+.ep-roll-label { font-weight: 700; }
+.ep-roll-dice { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; max-width: 420px; perspective: 480px; }
+.ep-roll-die { position: relative; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; transform-style: preserve-3d; }
+.ep-roll-die-ico { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
+.ep-roll-die-ico svg { width: 64px; height: 64px; }
+.ep-roll-die-num { position: relative; font-weight: 800; font-size: 1.3em; font-variant-numeric: tabular-nums; }
+.ep-roll-die.ep-rolling { animation: ep-tumble .45s linear infinite; }
+@keyframes ep-tumble { from { transform: rotate3d(1, 1, 0, 0deg); } to { transform: rotate3d(1, 1, 0, 360deg); } }
+.ep-roll-die.ep-settled { animation: ep-pop .25s ease; }
+.ep-roll-sum { min-height: 1.7em; display: flex; gap: 8px; align-items: center; font-variant-numeric: tabular-nums; }
+.ep-roll-sum .ep-roll-mod { opacity: 0; transform: translateX(-8px); transition: opacity .25s ease, transform .25s ease; color: var(--text-muted); }
+.ep-roll-sum .ep-roll-mod.ep-in { opacity: 1; transform: none; }
+.ep-roll-sum .ep-roll-total { font-weight: 800; font-size: 1.3em; opacity: 0; transition: opacity .25s ease; }
+.ep-roll-sum .ep-roll-total.ep-in { opacity: 1; animation: ep-pop .25s ease; }
+@media (prefers-reduced-motion: reduce) { .ep-roll-die.ep-rolling, .ep-roll-die.ep-settled, .ep-roll-overlay { animation: none; } }

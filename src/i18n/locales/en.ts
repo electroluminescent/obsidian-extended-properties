@@ -235,6 +235,9 @@ export const coreEn: StringDict = {
   "options.rangeAuto": "Blank = this property's lowest/highest value across notes",
   "options.sharedHeading": "Shared settings ({n} selected)",
   "options.mixed": "Mixed values — changing this writes it to every selected tab.",
+  "options.multiNote":
+    "Editing {n} {type} properties together — every setting you change here is written to all of them.",
+  "options.multiMixed": "Currently differing across the selection: {list}.",
   "options.showLabel": "Show label",
   "options.showLabelDesc": "On = the label is visible outside edit mode",
   "options.showWhenEmpty": "Show when empty",
@@ -365,6 +368,12 @@ export const coreEn: StringDict = {
   "settings.derivationAddBtn": "+ Block",
   "settings.derivationReseed": "Restore defaults",
   "settings.newDerivation": "New derivation",
+  "settings.diceHeading": "Dice",
+  "settings.diceAnim": "Roll animation",
+  "settings.diceAnimDesc":
+    "Tumble the rolled dice in 3D before settling; the modifier and total animate in afterwards, and the notice/log appear only once the roll resolves. Click the overlay to skip a roll.",
+  "settings.diceAnimRolls": "Rolls before settling",
+  "settings.diceAnimRollsDesc": "How many times the dice faces cycle before the result settles.",
   "settings.modDepth": "Modifier chain depth",
   "settings.modDepthDesc":
     "How many property→property hops are resolved when derived values influence other derived values.",

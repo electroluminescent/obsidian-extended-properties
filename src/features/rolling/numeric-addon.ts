@@ -50,7 +50,7 @@ export const rollAddon: ClusterAddon = {
       const btn = cell.createEl("button", { cls: "ep-roll-btn", text: view.i18n.t("roll.roll") });
       btn.onclick = () =>
         view.hub
-          .get(ROLL_SERVICE, () => new RollService(view.i18n))
+          .get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings))
           .roll(num.label, modifierTotal(view, ctx.entry), parseDiceOrDefault(e.dice));
     };
     return slots;

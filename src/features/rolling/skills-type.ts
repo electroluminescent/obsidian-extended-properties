@@ -398,7 +398,7 @@ function renderRow(ctx: EntryRenderCtx, list: HTMLElement, records: SkillRecord[
   const rb = row.createEl("button", { cls: "ep-roll-btn", text: t("roll.roll") });
   rb.onclick = () =>
     view.hub
-      .get(ROLL_SERVICE, () => new RollService(view.i18n))
+      .get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings))
       .roll(rec.name, effectiveMod(view, e, rec), parseDiceOrDefault(rec.dice ?? e.dice));
 
   // Row menu: source, dice, override, order, removal.

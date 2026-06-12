@@ -254,9 +254,75 @@ export class SectionOptionsModal extends Modal {
         redraw: () => this.draw(),
       };
       renderEntryOptionsBody(octx, () => this.close(), () => this.draw());
+    } else if (
+      !withSection &&
+      targets.length > 1 &&
+      this.file &&
+      targets.every((e) => e.kind === "prop") &&
+      new Set(targets.map((e) => this.view.resolveType(e))).size === 1
+    ) {
+      // Same data type everywhere: show the *full* option set, multi-target.
+      this.drawMultiSameType(c, targets);
     } else {
       this.drawSharedBody(c, targets, withSection);
     }
+  }
+
+  /**
+   * Multi-edit for selections that share one data type: every option is
+   * visible. The UI edits a proxy of the first entry; whenever a setting
+   * changes, exactly the fields that changed are copied to all selected
+   * entries (identity fields are excluded). Settings whose values differ
+   * across the selection are listed in the note on top — changing one
+   * writes it to all.
+   */
+  private drawMultiSameType(c: HTMLElement, ents: Entry[]): void {
+    const view = this.view;
+    const t = view.i18n.t.bind(view.i18n);
+    const SKIP = new Set(["id", "key", "alias", "__multi"]);
+
+    const typeId = view.resolveType(ents[0]);
+    const typeName = view.registries.valueTypes.get(typeId)?.name(view.i18n) ?? typeId;
+    const allKeys = new Set<string>();
+    for (const e of ents) for (const k of Object.keys(e)) if (!SKIP.has(k)) allKeys.add(k);
+    const mixed = [...allKeys].filter((k) => {
+      const first = JSON.stringify((ents[0] as Record<string, unknown>)[k]);
+      return ents.some((e) => JSON.stringify((e as Record<string, unknown>)[k]) !== first);
+    });
+    let note = t("options.multiNote", { n: ents.length, type: typeName });
+    if (mixed.length) note += " " + t("options.multiMixed", { list: mixed.sort().join(", ") });
+    c.createEl("p", { cls: "setting-item-description ep-multi-note", text: note });
+
+    // Proxy of the first entry; diffs propagate to every selected entry.
+    const proxy = JSON.parse(JSON.stringify(ents[0])) as Entry;
+    (proxy as Record<string, unknown>)["__multi"] = true;
+    let snap = JSON.stringify(proxy);
+    const applyDiff = () => {
+      const cur = proxy as Record<string, unknown>;
+      const old = JSON.parse(snap) as Record<string, unknown>;
+      for (const k of new Set([...Object.keys(cur), ...Object.keys(old)])) {
+        if (SKIP.has(k)) continue;
+        const now = JSON.stringify(cur[k]);
+        if (now === JSON.stringify(old[k])) continue;
+        for (const e of ents) {
+          if (cur[k] === undefined) delete (e as Record<string, unknown>)[k];
+          else (e as Record<string, unknown>)[k] = JSON.parse(now);
+        }
+      }
+      snap = JSON.stringify(proxy);
+      this.changed();
+    };
+
+    const octx: OptionsCtx = {
+      view,
+      file: this.file!,
+      section: this.section,
+      entry: proxy,
+      container: c,
+      changed: applyDiff,
+      redraw: () => this.draw(),
+    };
+    renderEntryOptionsBody(octx, () => this.close(), () => this.draw(), { multi: true });
   }
 
   // -- shared multi-edit ------------------------------------------------------

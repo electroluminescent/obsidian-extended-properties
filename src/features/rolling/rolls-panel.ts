@@ -9,7 +9,7 @@ import type { ViewCtx } from "../../core/context";
 import { ROLL_SERVICE, RollMode, RollService } from "./roll-service";
 
 function rollService(view: ViewCtx): RollService {
-  return view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n));
+  return view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings));
 }
 
 export const rollsKind: EntryKindDef = {

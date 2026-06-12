@@ -45,6 +45,8 @@ export function defaultSettings(): EPSettings {
     derivations: defaultDerivations(),
     sourceAbbrs: {},
     modDepth: 8,
+    diceAnim: true,
+    diceAnimRolls: 10,
   };
 }
 
@@ -76,6 +78,9 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
     if (data.sourceAbbrs && typeof data.sourceAbbrs === "object") s.sourceAbbrs = data.sourceAbbrs;
     if (typeof data.modDepth === "number" && data.modDepth >= 0)
       s.modDepth = Math.min(32, Math.floor(data.modDepth));
+    if (typeof data.diceAnim === "boolean") s.diceAnim = data.diceAnim;
+    if (typeof data.diceAnimRolls === "number" && data.diceAnimRolls >= 1)
+      s.diceAnimRolls = Math.min(60, Math.floor(data.diceAnimRolls));
   }
   for (const t of s.types) {
     const k = t.toLowerCase();

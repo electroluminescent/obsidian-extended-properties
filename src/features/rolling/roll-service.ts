@@ -12,9 +12,11 @@
 
 import { Notice } from "obsidian";
 import type { I18n } from "../../i18n/i18n";
+import type { EPSettings } from "../../core/model";
 import type { ViewService } from "../../core/registry";
 import { fmtMod } from "../../utils/misc";
 import { DEFAULT_DICE, DicePool, DiceSpec, formatDice, isMaxPool, isMinPool, rollPool } from "../../utils/dice";
+import { playRollAnimation } from "./dice-anim";
 
 /** Hub key under which the service is registered. */
 export const ROLL_SERVICE = "rolling.rolls";
@@ -30,7 +32,7 @@ export class RollService implements ViewService {
   log: RollEntry[] = [];
   private listeners = new Set<() => void>();
 
-  constructor(private i18n: I18n) {}
+  constructor(private i18n: I18n, private settings?: EPSettings) {}
 
   /** The log is per-note; the mode survives note switches. */
   onFileChange(): void {
@@ -82,9 +84,28 @@ export class RollService implements ViewService {
           : `${used.total}`;
     const tone: RollEntry["tone"] = isMaxPool(spec, used) ? "crit" : isMinPool(used) ? "fail" : "normal";
 
-    this.log.unshift({ text: `${label}${tag}: ${total}   (${formatDice(spec)} ${detail} ${fmtMod(modifier)})`, tone });
-    if (this.log.length > LOG_LIMIT) this.log.pop();
-    this.emit();
-    new Notice(`${label}${tag}: ${total}`, 4000);
+    // The result is committed (log + notice) only once the roll resolves —
+    // immediately without animation, after the dice settle with it.
+    const commit = () => {
+      this.log.unshift({ text: `${label}${tag}: ${total}   (${formatDice(spec)} ${detail} ${fmtMod(modifier)})`, tone });
+      if (this.log.length > LOG_LIMIT) this.log.pop();
+      this.emit();
+      new Notice(`${label}${tag}: ${total}`, 4000);
+    };
+    if (this.settings?.diceAnim) {
+      playRollAnimation(
+        {
+          label: `${label}${tag}`,
+          spec,
+          faces: used.faces,
+          modifier,
+          total,
+          spins: this.settings.diceAnimRolls ?? 10,
+        },
+        commit
+      );
+    } else {
+      commit();
+    }
   }
 }

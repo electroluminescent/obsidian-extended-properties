@@ -201,4 +201,8 @@ export interface EPSettings {
    * resolved when derived values feed other derived values.
    */
   modDepth: number;
+  /** Play the 3D dice-roll animation before committing roll results. */
+  diceAnim: boolean;
+  /** How many times the dice faces cycle before settling. */
+  diceAnimRolls: number;
 }

@@ -112,10 +112,12 @@ export function paintDice(parent: HTMLElement, entry: Entry): void {
   const spec = parseDiceOrDefault(typeof e["dice"] === "string" ? (e["dice"] as string) : undefined);
   const tag = parent.createSpan({ cls: "ep-dice-tag ep-line-abbr" });
   if (e["showDiceIcon"] !== false) {
+    // Icon stacked above the notation, both centered.
+    tag.addClass("ep-dice-stack");
     const ic = tag.createSpan({ cls: "ep-dice-ico" });
     setIcon(ic, diceIconId(spec.sides));
   }
-  tag.appendText(formatDice(spec));
+  tag.createSpan({ text: formatDice(spec) });
 }
 
 /** Badge: denotation + dice breakdown + computed total. */
@@ -386,7 +388,8 @@ export const modifierAddon: ClusterAddon = {
         });
       });
 
-    if (isDerived && entry.key) {
+    const isMulti = (entry as Record<string, unknown>)["__multi"] === true;
+    if (isDerived && entry.key && !isMulti) {
       // Per-note override: a stored note value replacing the derived sum.
       // Editing the value in the sidebar turns this on; clearing it (or
       // this toggle) turns it off.

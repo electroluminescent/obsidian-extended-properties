@@ -232,6 +232,9 @@ export const coreDe: StringDict = {
   "options.rangeAuto": "Leer = kleinster/größter Wert dieser Eigenschaft über alle Notizen",
   "options.sharedHeading": "Gemeinsame Einstellungen ({n} ausgewählt)",
   "options.mixed": "Unterschiedliche Werte — eine Änderung schreibt sie in alle ausgewählten Tabs.",
+  "options.multiNote":
+    "{n} {type}-Eigenschaften werden gemeinsam bearbeitet — jede hier geänderte Einstellung wird in alle geschrieben.",
+  "options.multiMixed": "Derzeit unterschiedlich in der Auswahl: {list}.",
   "options.showLabel": "Namen anzeigen",
   "options.showLabelDesc": "An = der Name ist außerhalb des Bearbeitungsmodus sichtbar",
   "options.showWhenEmpty": "Auch leer anzeigen",
@@ -362,6 +365,12 @@ export const coreDe: StringDict = {
   "settings.derivationAddBtn": "+ Baustein",
   "settings.derivationReseed": "Standards wiederherstellen",
   "settings.newDerivation": "Neue Ableitung",
+  "settings.diceHeading": "Würfel",
+  "settings.diceAnim": "Wurf-Animation",
+  "settings.diceAnimDesc":
+    "Die geworfenen Würfel taumeln in 3D, bevor sie liegen bleiben; Modifikator und Gesamtwert werden danach eingeblendet, und Hinweis/Protokoll erscheinen erst, wenn der Wurf abgeschlossen ist. Klick auf die Überlagerung überspringt einen Wurf.",
+  "settings.diceAnimRolls": "Würfe bis zum Ergebnis",
+  "settings.diceAnimRollsDesc": "Wie oft die Würfelseiten durchwechseln, bevor das Ergebnis liegen bleibt.",
   "settings.modDepth": "Modifikator-Kettentiefe",
   "settings.modDepthDesc":
     "Wie viele Eigenschaft→Eigenschaft-Schritte aufgelöst werden, wenn abgeleitete Werte andere abgeleitete Werte beeinflussen.",

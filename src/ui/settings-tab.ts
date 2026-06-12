@@ -235,6 +235,30 @@ export class EPSettingTab extends PluginSettingTab {
       )
     );
 
+    // -- dice ----------------------------------------------------------------------
+    c.createEl("h3", { text: t("settings.diceHeading") });
+    new Setting(c)
+      .setName(t("settings.diceAnim"))
+      .setDesc(t("settings.diceAnimDesc"))
+      .addToggle((tg) => {
+        tg.setValue(plugin.settings.diceAnim).onChange((v) => {
+          plugin.settings.diceAnim = v;
+          save();
+        });
+      });
+    new Setting(c)
+      .setName(t("settings.diceAnimRolls"))
+      .setDesc(t("settings.diceAnimRollsDesc"))
+      .addSlider((sl) => {
+        sl.setLimits(1, 30, 1)
+          .setValue(plugin.settings.diceAnimRolls ?? 10)
+          .setDynamicTooltip()
+          .onChange((v) => {
+            plugin.settings.diceAnimRolls = v;
+            save();
+          });
+      });
+
     // -- typography ---------------------------------------------------------------
     c.createEl("h3", { text: t("settings.typographyHeading") });
     c.createEl("p", { cls: "setting-item-description", text: t("settings.typographyDesc") });
