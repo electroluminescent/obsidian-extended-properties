@@ -6143,10 +6143,17 @@ var SidebarView = class extends import_obsidian19.ItemView {
       sec.addClass("ep-measuring");
       sec.findAll(".ep-squeezed").forEach((x) => x.removeClass("ep-squeezed"));
       alignClustersNow(sec);
+      const spareOf = (n) => {
+        const r = n.ownerDocument.createRange();
+        r.selectNodeContents(n);
+        const cw = r.getBoundingClientRect().width;
+        r.detach();
+        return n.getBoundingClientRect().width - cw;
+      };
       for (const h of sec.findAll(".ep-entry-head")) {
         if (h.clientWidth === 0) continue;
         const name = h.querySelector(".ep-line-name");
-        const tight = () => h.scrollWidth > h.clientWidth + 1 || !!name && name.clientWidth - name.scrollWidth < SLACK;
+        const tight = () => h.scrollWidth > h.clientWidth + 1 || !!name && spareOf(name) < SLACK;
         for (const cls of TIERS) {
           if (!tight()) break;
           h.findAll(cls).forEach((x) => {
@@ -8164,9 +8171,13 @@ var rollingModule = {
       build: (i18n) => ({
         id: "diceroller",
         title: i18n.t("roller.title"),
-        columns: 1,
+        columns: 2,
+        layoutMode: "columns",
         collapsible: true,
-        entries: [{ id: genId(), kind: "diceroller" }]
+        entries: [
+          { id: genId(), kind: "diceroller" },
+          { id: genId(), kind: "rolls" }
+        ]
       })
     });
   },
