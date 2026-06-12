@@ -21,7 +21,7 @@ import { influenceSources } from "../core/influences";
 import * as ops from "../core/layout-ops";
 import { genId } from "../utils/misc";
 import { buildCluster } from "./render/cluster";
-import { renderSection } from "./render/section-renderer";
+import { alignClustersNow, renderSection } from "./render/section-renderer";
 import { DragController } from "./drag";
 import { PopupManager } from "./components/popups";
 import { renderLinkedText } from "./components/links";
@@ -199,9 +199,12 @@ export class SidebarView extends ItemView implements ViewCtx {
     // Type-specific settings rarely survive a key change meaningfully.
     entry.alias = undefined;
     entry.slider = undefined;
+    entry.sliderCurve = undefined;
     entry.steppers = undefined;
     entry.roll = undefined;
     entry.showMod = undefined;
+    entry.showChain = undefined;
+    entry.showDice = undefined;
     entry.mods = undefined;
     entry.rollOverride = undefined;
     entry.dice = undefined;
@@ -273,8 +276,14 @@ export class SidebarView extends ItemView implements ViewCtx {
   getIcon(): string { return "panel-right"; }
 
   async onOpen(): Promise<void> {
-    this.registerDomEvent(window, "resize", () => this.reflowSticky());
-    this.resizeObs = new ResizeObserver(() => this.reflowSticky());
+    this.registerDomEvent(window, "resize", () => {
+      this.reflowSticky();
+      this.responsivePass();
+    });
+    this.resizeObs = new ResizeObserver(() => {
+      this.reflowSticky();
+      this.responsivePass();
+    });
     this.register(() => this.resizeObs?.disconnect());
     this.registerDomEvent(this.content, "scroll", () => {
       this.content.addClass("ep-scrolling");
@@ -428,15 +437,36 @@ export class SidebarView extends ItemView implements ViewCtx {
       span.onclick = () => this.highlight(span);
     }
 
-    // Data-type hint beside the label — removed when there's no room.
-    if (entry.kind === "prop") {
+    // Data-type hint beside the label. Visibility is decided dynamically by
+    // the responsive pass (and the per-entry "Show data type" toggle).
+    if (entry.kind === "prop" && entry.showType !== false) {
       const typeId = this.resolveType(entry);
       const def = this.registries.valueTypes.get(typeId);
-      const hint = span.createSpan({ cls: "ep-type-hint", text: def ? def.name(this.i18n) : typeId });
-      requestAnimationFrame(() => {
-        if (!span.isConnected) return;
-        if (span.scrollWidth > span.clientWidth + 1) hint.detach();
-      });
+      span.createSpan({ cls: "ep-type-hint", text: def ? def.name(this.i18n) : typeId });
+    }
+  }
+
+  /**
+   * Width-responsive decorations: per section, progressively hide the
+   * data-type hints, then the modifier chains, then the dice tags while
+   * any row overflows — and bring them back when the sidebar grows.
+   * Re-run on every render and on container resize.
+   */
+  private responsivePass(): void {
+    for (const secEl of this.content.findAll(".ep-section")) {
+      secEl.findAll(".ep-squeezed").forEach((el) => el.removeClass("ep-squeezed"));
+      alignClustersNow(secEl as HTMLElement);
+      const overflowing = () =>
+        (secEl.findAll(".ep-entry-head") as HTMLElement[]).some((h) => h.scrollWidth > h.clientWidth + 1);
+      for (const cls of ["ep-type-hint", "ep-denote", "ep-dice-tag"]) {
+        if (!overflowing()) break;
+        secEl.findAll(".ep-entry-head ." + cls).forEach((el) => {
+          el.addClass("ep-squeezed");
+          // Reclaim the column width the hidden decoration reserved.
+          const cell = el.closest("[data-ep-slot]") as HTMLElement | null;
+          if (cell) cell.style.minWidth = "";
+        });
+      }
     }
   }
 
@@ -615,11 +645,16 @@ export class SidebarView extends ItemView implements ViewCtx {
     this.lastEmptySig = this.emptySig();
 
     container.scrollTop = prevScroll;
-    requestAnimationFrame(() => this.reflowSticky());
+    requestAnimationFrame(() => {
+      this.reflowSticky();
+      // After the per-section alignment passes have run.
+      requestAnimationFrame(() => this.responsivePass());
+    });
     if (this.resizeObs) {
       this.resizeObs.disconnect();
       if (this.headerEl) this.resizeObs.observe(this.headerEl);
       if (this.stickyZoneEl) this.resizeObs.observe(this.stickyZoneEl);
+      if (this.flowEl) this.resizeObs.observe(this.flowEl);
     }
     if (animate)
       requestAnimationFrame(() => {

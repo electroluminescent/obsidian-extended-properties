@@ -32,6 +32,8 @@ export class SectionOptionsModal extends Modal {
   private snapshot = "";
   private selected = new Set<string>([SECTION_TAB]);
   private file: TFile | null = null;
+  /** Anchor for Shift ranges and drag selection. */
+  private anchorId: string | null = null;
 
   constructor(private view: ViewCtx, private section: Section) {
     super(view.app);
@@ -60,27 +62,86 @@ export class SectionOptionsModal extends Modal {
 
   private drawTabs(c: HTMLElement): void {
     const t = this.view.i18n.t.bind(this.view.i18n);
-    const bar = c.createDiv({ cls: "ep-tabs" });
-    const mk = (id: string, label: string) => {
-      const chip = bar.createDiv({ cls: "ep-tab", text: label });
+    const tabbable = this.section.entries.filter((e) => e.kind !== "blank");
+    const order: string[] = [SECTION_TAB, ...tabbable.map((e) => e.id)];
+    const chips = new Map<string, HTMLElement>();
+
+    let dragging = false;
+    let dragBase = new Set<string>();
+    let dragAnchor: string | null = null;
+
+    const applySelection = () => {
+      for (const [id, el] of chips) el.toggleClass("is-active", this.selected.has(id));
+    };
+    const rangeIds = (a: string, b: string): string[] => {
+      const i = order.indexOf(a);
+      const j = order.indexOf(b);
+      if (i < 0 || j < 0) return [b];
+      const [lo, hi] = i < j ? [i, j] : [j, i];
+      return order.slice(lo, hi + 1);
+    };
+
+    const mk = (parent: HTMLElement, id: string, label: string) => {
+      const chip = parent.createDiv({ cls: "ep-tab", text: label });
+      chips.set(id, chip);
       if (this.selected.has(id)) chip.addClass("is-active");
-      chip.onclick = (ev) => {
-        if (ev.ctrlKey || ev.metaKey) {
+      chip.addEventListener("pointerdown", (ev: PointerEvent) => {
+        if (ev.button !== 0) return;
+        ev.preventDefault();
+        if (ev.shiftKey && this.anchorId) {
+          const range = rangeIds(this.anchorId, id);
+          this.selected = ev.ctrlKey || ev.metaKey ? new Set([...this.selected, ...range]) : new Set(range);
+          dragAnchor = this.anchorId;
+        } else if (ev.ctrlKey || ev.metaKey) {
           if (this.selected.has(id)) {
             if (this.selected.size > 1) this.selected.delete(id);
           } else {
             this.selected.add(id);
           }
+          this.anchorId = id;
+          dragAnchor = id;
         } else {
           this.selected = new Set([id]);
+          this.anchorId = id;
+          dragAnchor = id;
         }
-        this.draw();
-      };
+        // Drag across tabs extends the selection from the anchor.
+        dragging = true;
+        dragBase = ev.ctrlKey || ev.metaKey ? new Set(this.selected) : new Set<string>();
+        applySelection();
+        document.addEventListener(
+          "pointerup",
+          () => {
+            dragging = false;
+            this.draw();
+          },
+          { once: true }
+        );
+      });
+      chip.addEventListener("pointerenter", () => {
+        if (!dragging || !dragAnchor) return;
+        this.selected = new Set([...dragBase, ...rangeIds(dragAnchor, id)]);
+        applySelection();
+      });
     };
-    mk(SECTION_TAB, t("sectionOptions.tabSection"));
-    for (const e of this.section.entries) {
-      if (e.kind === "blank") continue;
-      mk(e.id, this.entryLabel(e));
+
+    const bar = c.createDiv({ cls: "ep-tabs" });
+    mk(bar, SECTION_TAB, t("sectionOptions.tabSection"));
+
+    // Columns layout: group the entry tabs the way the section groups them.
+    if (sectionMode(this.section) === "columns") {
+      const ncol = Math.max(1, this.section.columns || 1);
+      const all = this.section.entries;
+      const per = Math.max(1, Math.ceil(all.length / ncol));
+      for (let cc = 0; cc < ncol; cc++) {
+        const group = all.slice(cc * per, (cc + 1) * per).filter((e) => e.kind !== "blank");
+        if (!group.length) continue;
+        const row = c.createDiv({ cls: "ep-tabs" });
+        row.createSpan({ cls: "ep-tab-collabel", text: t("sectionOptions.columnN", { n: cc + 1 }) });
+        for (const e of group) mk(row, e.id, this.entryLabel(e));
+      }
+    } else {
+      for (const e of tabbable) mk(bar, e.id, this.entryLabel(e));
     }
     c.createEl("p", { cls: "setting-item-description", text: t("sectionOptions.tabsHint") });
   }
@@ -155,15 +216,15 @@ export class SectionOptionsModal extends Modal {
       () => read((x) => x["iconColor"] as string | undefined).v,
       (v) => apply((x) => (x["iconColor"] = v)));
     {
-      const s = read((x) => !!x["hideLabel"]);
-      new Setting(c).setName(t("options.hideLabel")).setDesc(mixedDesc(s.mixed)).addToggle((tg) => {
-        tg.setValue(s.v).onChange((v) => apply((x) => (x["hideLabel"] = v || undefined)));
+      const s = read((x) => !x["hideLabel"]);
+      new Setting(c).setName(t("options.showLabel")).setDesc(mixedDesc(s.mixed)).addToggle((tg) => {
+        tg.setValue(s.v).onChange((v) => apply((x) => (x["hideLabel"] = v ? undefined : true)));
       });
     }
     {
-      const s = read((x) => x["hideIfEmpty"] !== false);
-      new Setting(c).setName(t("options.hideIfEmpty")).setDesc(mixedDesc(s.mixed)).addToggle((tg) => {
-        tg.setValue(s.v).onChange((v) => apply((x) => (x["hideIfEmpty"] = v ? undefined : false)));
+      const s = read((x) => x["hideIfEmpty"] === false);
+      new Setting(c).setName(t("options.showWhenEmpty")).setDesc(mixedDesc(s.mixed)).addToggle((tg) => {
+        tg.setValue(s.v).onChange((v) => apply((x) => (x["hideIfEmpty"] = v ? false : undefined)));
       });
     }
 
@@ -196,6 +257,12 @@ export class SectionOptionsModal extends Modal {
         new Setting(c).setName(t("options.showInObsidian")).setDesc(mixedDesc(s.mixed)).addToggle((tg) => {
           tg.setValue(s.v).onChange((v) => apply((x) => (x["showInObsidian"] = v || undefined)));
         });
+        {
+          const ty = read((x) => x["showType"] !== false);
+          new Setting(c).setName(t("options.showType")).setDesc(mixedDesc(ty.mixed)).addToggle((tg) => {
+            tg.setValue(ty.v).onChange((v) => apply((x) => (x["showType"] = v ? undefined : false)));
+          });
+        }
 
         const types = ents.map((e) => view.resolveType(e));
         if (types.every((ty) => NUMERIC_SET.has(ty))) {
@@ -241,6 +308,14 @@ export class SectionOptionsModal extends Modal {
           new Setting(c).setName(t("roll.options.rollButton")).setDesc(mixedDesc(ro.mixed)).addToggle((tg) => {
             tg.setValue(ro.v).onChange((v) => apply((x) => (x["roll"] = v || undefined)));
           });
+          const ch = read((x) => x["showChain"] !== false);
+          new Setting(c).setName(t("mods.showChain")).setDesc(mixedDesc(ch.mixed)).addToggle((tg) => {
+            tg.setValue(ch.v).onChange((v) => apply((x) => (x["showChain"] = v ? undefined : false)));
+          });
+          const di = read((x) => x["showDice"] !== false);
+          new Setting(c).setName(t("mods.showDice")).setDesc(mixedDesc(di.mixed)).addToggle((tg) => {
+            tg.setValue(di.v).onChange((v) => apply((x) => (x["showDice"] = v ? undefined : false)));
+          });
         }
       }
     }
@@ -276,9 +351,9 @@ export class SectionOptionsModal extends Modal {
       s.iconColor = v;
       this.changed();
     });
-    new Setting(c).setName(t("options.hideLabel")).addToggle((tg) => {
-      tg.setValue(!!s.hideLabel).onChange((v) => {
-        s.hideLabel = v || undefined;
+    new Setting(c).setName(t("options.showLabel")).addToggle((tg) => {
+      tg.setValue(!s.hideLabel).onChange((v) => {
+        s.hideLabel = v ? undefined : true;
         this.changed();
       });
     });
@@ -302,11 +377,11 @@ export class SectionOptionsModal extends Modal {
       });
     });
     new Setting(c)
-      .setName(t("options.hideIfEmpty"))
-      .setDesc(t("sectionOptions.hideIfEmptyDesc"))
+      .setName(t("options.showWhenEmpty"))
+      .setDesc(t("sectionOptions.showWhenEmptyDesc"))
       .addToggle((tg) => {
-        tg.setValue(s.hideIfEmpty !== false).onChange((v) => {
-          s.hideIfEmpty = v ? undefined : false;
+        tg.setValue(s.hideIfEmpty === false).onChange((v) => {
+          s.hideIfEmpty = v ? false : undefined;
           this.changed();
         });
       });

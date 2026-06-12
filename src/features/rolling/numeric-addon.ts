@@ -81,6 +81,15 @@ export const rollAddon: ClusterAddon = {
           changed();
         },
       });
+      new Setting(c)
+        .setName(t("mods.showDice"))
+        .setDesc(t("mods.showDiceDesc"))
+        .addToggle((tg) => {
+          tg.setValue(entry.showDice !== false).onChange((v) => {
+            entry.showDice = v ? undefined : false;
+            changed();
+          });
+        });
     }
   },
 };

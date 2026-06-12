@@ -208,6 +208,13 @@ var coreEn = {
   "mods.moveDown": "Move down",
   "mods.showBadge": "Show modifier badge",
   "mods.showBadgeDesc": "Short-form denotation plus the computed total, next to the value",
+  "mods.showChain": "Show modifier chain",
+  "mods.showChainDesc": "The short-form denotation (INT + DEX); auto-hidden when space is tight",
+  "mods.showDice": "Show dice",
+  "mods.showDiceDesc": "The dice breakdown (2d20) before the modifier; auto-hidden when space is tight",
+  "mods.showToggleDesc": "On = the checkbox bound to \u201C{list}\u201D is shown on the row",
+  "mods.overrideNote": "Modifier override (this note)",
+  "mods.overrideNoteDesc": "On = this note stores a fixed value instead of the derived sum. Editing the value in the sidebar turns this on; clearing the field turns it off.",
   "mods.override": "Modifier override",
   "mods.overrideDesc": "Fixed value replacing the computed sum for every note. A number stored in the note's own property overrides per note (click the value on the row); blank derives from the influences.",
   "mods.clearNoteOverride": "Clear this note's override",
@@ -285,6 +292,12 @@ var coreEn = {
   "options.rangeAuto": "Blank = this property's lowest/highest value across notes",
   "options.sharedHeading": "Shared settings ({n} selected)",
   "options.mixed": "Mixed values \u2014 changing this writes it to every selected tab.",
+  "options.showLabel": "Show label",
+  "options.showLabelDesc": "On = the label is visible outside edit mode",
+  "options.showWhenEmpty": "Show when empty",
+  "options.showWhenEmptyDesc": "On = stays visible outside edit mode even without a value",
+  "options.showType": "Show data type",
+  "options.showTypeDesc": "Small italic tag beside the label; auto-hidden when space is tight",
   "options.minimum": "Minimum",
   "options.maximum": "Maximum",
   "options.clamp": "Clamp typed values",
@@ -315,7 +328,9 @@ var coreEn = {
   // -- section options modal ----------------------------------------------------------------
   "sectionOptions.title": "Format \u201C{name}\u201D",
   "sectionOptions.tabSection": "Section",
-  "sectionOptions.tabsHint": "Click a tab to edit it; Ctrl/Cmd-click to select several and edit their shared settings together \u2014 only settings you change are written to all selected tabs.",
+  "sectionOptions.tabsHint": "Click a tab to edit it. Ctrl/Cmd-click toggles single tabs, Shift-click selects a range, and dragging across tabs selects several \u2014 the body then shows their shared settings, and only settings you change are written to all selected tabs.",
+  "sectionOptions.columnN": "Column {n}",
+  "sectionOptions.showWhenEmptyDesc": "On = the section stays visible even when it has no visible properties (outside edit mode)",
   "sectionOptions.sectionHeading": "Section",
   "sectionOptions.name": "Name",
   "sectionOptions.nameDesc": "Optional \u2014 blank shows \u201CSection\u201D",
@@ -555,6 +570,13 @@ var coreDe = {
   "mods.moveDown": "Nach unten",
   "mods.showBadge": "Modifikator-Anzeige",
   "mods.showBadgeDesc": "K\xFCrzel-Summe plus berechneter Gesamtwert neben dem Wert",
+  "mods.showChain": "Modifikator-Kette anzeigen",
+  "mods.showChainDesc": "Die K\xFCrzel-Summe (INT + DEX); wird bei Platzmangel automatisch ausgeblendet",
+  "mods.showDice": "W\xFCrfel anzeigen",
+  "mods.showDiceDesc": "Die W\xFCrfel-Aufschl\xFCsselung (2W20) vor dem Modifikator; wird bei Platzmangel automatisch ausgeblendet",
+  "mods.showToggleDesc": "An = das an \u201E{list}\u201C gebundene Kontrollk\xE4stchen wird in der Zeile angezeigt",
+  "mods.overrideNote": "Modifikator-\xDCberschreibung (diese Notiz)",
+  "mods.overrideNoteDesc": "An = diese Notiz speichert einen festen Wert statt der abgeleiteten Summe. Bearbeiten des Werts in der Seitenleiste schaltet dies ein; Leeren des Felds schaltet es aus.",
   "mods.override": "Modifikator-\xDCberschreibung",
   "mods.overrideDesc": "Fester Wert statt der berechneten Summe f\xFCr alle Notizen. Eine in der Eigenschaft der Notiz gespeicherte Zahl \xFCberschreibt pro Notiz (Wert in der Zeile anklicken); leer = aus den Einfl\xFCssen abgeleitet.",
   "mods.clearNoteOverride": "\xDCberschreibung dieser Notiz entfernen",
@@ -632,6 +654,12 @@ var coreDe = {
   "options.rangeAuto": "Leer = kleinster/gr\xF6\xDFter Wert dieser Eigenschaft \xFCber alle Notizen",
   "options.sharedHeading": "Gemeinsame Einstellungen ({n} ausgew\xE4hlt)",
   "options.mixed": "Unterschiedliche Werte \u2014 eine \xC4nderung schreibt sie in alle ausgew\xE4hlten Tabs.",
+  "options.showLabel": "Namen anzeigen",
+  "options.showLabelDesc": "An = der Name ist au\xDFerhalb des Bearbeitungsmodus sichtbar",
+  "options.showWhenEmpty": "Auch leer anzeigen",
+  "options.showWhenEmptyDesc": "An = bleibt au\xDFerhalb des Bearbeitungsmodus auch ohne Wert sichtbar",
+  "options.showType": "Datentyp anzeigen",
+  "options.showTypeDesc": "Kleines kursives K\xFCrzel neben dem Namen; wird bei Platzmangel automatisch ausgeblendet",
   "options.minimum": "Minimum",
   "options.maximum": "Maximum",
   "options.clamp": "Eingegebene Werte begrenzen",
@@ -662,7 +690,9 @@ var coreDe = {
   // -- section options modal ----------------------------------------------------------------
   "sectionOptions.title": "\u201E{name}\u201C formatieren",
   "sectionOptions.tabSection": "Abschnitt",
-  "sectionOptions.tabsHint": "Tab anklicken zum Bearbeiten; Strg/Cmd-Klick w\xE4hlt mehrere aus, um ihre gemeinsamen Einstellungen zusammen zu bearbeiten \u2014 nur ge\xE4nderte Einstellungen werden in alle ausgew\xE4hlten Tabs geschrieben.",
+  "sectionOptions.tabsHint": "Tab anklicken zum Bearbeiten. Strg/Cmd-Klick schaltet einzelne Tabs um, Umschalt-Klick w\xE4hlt einen Bereich, und Ziehen \xFCber Tabs w\xE4hlt mehrere \u2014 der Bereich zeigt dann die gemeinsamen Einstellungen, und nur ge\xE4nderte Einstellungen werden in alle ausgew\xE4hlten Tabs geschrieben.",
+  "sectionOptions.columnN": "Spalte {n}",
+  "sectionOptions.showWhenEmptyDesc": "An = der Abschnitt bleibt sichtbar, auch wenn er keine sichtbaren Eigenschaften hat (au\xDFerhalb des Bearbeitungsmodus)",
   "sectionOptions.sectionHeading": "Abschnitt",
   "sectionOptions.name": "Name",
   "sectionOptions.nameDesc": "Optional \u2014 leer zeigt \u201EAbschnitt\u201C",
@@ -1481,9 +1511,14 @@ function openNumberInput(span, value, commit2, o) {
   input.select();
   let done = false;
   const finish = (save) => {
+    var _a;
     if (done) return;
     done = true;
     if (input.parentElement) input.replaceWith(span);
+    if (input.value.trim() === "") {
+      if (save) (_a = o.onEmpty) == null ? void 0 : _a.call(o);
+      return;
+    }
     let n = Number(input.value);
     if (!Number.isFinite(n)) return;
     if (!o.float) n = Math.round(n);
@@ -2077,13 +2112,13 @@ function paintDenotation(parent, view, entry) {
 }
 function paintDice(parent, entry) {
   const e = entry;
-  if (!e["roll"]) return;
+  if (!e["roll"] || e["showDice"] === false) return;
   const spec = parseDiceOrDefault(typeof e["dice"] === "string" ? e["dice"] : void 0);
   parent.createSpan({ cls: "ep-dice-tag ep-line-abbr", text: formatDice(spec) });
 }
 function paintBadge(cell, ref) {
   cell.empty();
-  paintDenotation(cell, ref.view, ref.entry);
+  if (ref.entry.showChain !== false) paintDenotation(cell, ref.view, ref.entry);
   paintDice(cell, ref.entry);
   cell.appendText(fmtMod(modifierTotal(ref.view, ref.entry)));
 }
@@ -2154,7 +2189,7 @@ var modifierAddon = {
     }
     const cell = cells["mod"];
     cell.empty();
-    paintDenotation(cell, view, ctx.entry);
+    if (ctx.entry.showChain !== false) paintDenotation(cell, view, ctx.entry);
     paintDice(cell, ctx.entry);
     cell.appendText(fmtMod(total));
   },
@@ -2275,13 +2310,15 @@ var modifierAddon = {
           changed();
         });
       });
-      sub.addToggle((tg) => {
-        tg.setValue(!!inf.toggle && !inf.hideToggle).setTooltip(t("mods.showToggle")).setDisabled(!inf.toggle).onChange((v) => {
-          inf.hideToggle = v ? void 0 : true;
-          changed();
-        });
-      });
       sub.setDesc(t("mods.termOptionsDesc"));
+      if (inf.toggle) {
+        new import_obsidian4.Setting(c).setName(t("mods.showToggle")).setDesc(t("mods.showToggleDesc", { list: inf.toggle })).setClass("ep-mods-sub").addToggle((tg) => {
+          tg.setValue(!inf.hideToggle).onChange((v) => {
+            inf.hideToggle = v ? void 0 : true;
+            changed();
+          });
+        });
+      }
     });
     new import_obsidian4.Setting(c).addButton(
       (b) => b.setButtonText(t("mods.addInfluence")).onClick(() => {
@@ -2298,13 +2335,43 @@ var modifierAddon = {
         });
       });
     }
-    new import_obsidian4.Setting(c).setName(t("mods.override")).setDesc(t("mods.overrideDesc")).addText((tx) => {
-      tx.setValue(e.rollOverride !== void 0 ? String(e.rollOverride) : "").onChange((v) => {
-        const n = Number(v);
-        e.rollOverride = v.trim() === "" || !Number.isFinite(n) ? void 0 : n;
+    new import_obsidian4.Setting(c).setName(t("mods.showChain")).setDesc(t("mods.showChainDesc")).addToggle((tg) => {
+      tg.setValue(entry.showChain !== false).onChange((v) => {
+        entry.showChain = v ? void 0 : false;
         changed();
       });
     });
+    if (isDerived && entry.key) {
+      const key = entry.key;
+      const on = hasNoteOverride(view, entry);
+      const ov = new import_obsidian4.Setting(c).setName(t("mods.overrideNote")).setDesc(t("mods.overrideNoteDesc"));
+      ov.addToggle((tg) => {
+        tg.setValue(on).onChange((v) => {
+          view.note.set(octx.file, key, v ? modifierTotal(view, entry) : void 0);
+          redraw();
+        });
+      });
+      ov.addText((tx) => {
+        tx.setValue(on ? String(view.note.num(key, 0)) : "");
+        tx.setPlaceholder(fmtMod(modifierTotal(view, entry)));
+        tx.onChange((v) => {
+          if (v.trim() === "") {
+            view.note.set(octx.file, key, void 0);
+            return;
+          }
+          const n = Number(v);
+          if (Number.isFinite(n)) view.note.set(octx.file, key, n);
+        });
+      });
+    } else {
+      new import_obsidian4.Setting(c).setName(t("mods.override")).setDesc(t("mods.overrideDesc")).addText((tx) => {
+        tx.setValue(e.rollOverride !== void 0 ? String(e.rollOverride) : "").onChange((v) => {
+          const n = Number(v);
+          e.rollOverride = v.trim() === "" || !Number.isFinite(n) ? void 0 : n;
+          changed();
+        });
+      });
+    }
   }
 };
 
@@ -2326,7 +2393,7 @@ var derivedType = {
       den: (cell) => {
         const paint = () => {
           cell.empty();
-          paintDenotation(cell, view, entry);
+          if (entry.showChain !== false) paintDenotation(cell, view, entry);
           paintDice(cell, entry);
         };
         paint();
@@ -2349,7 +2416,8 @@ var derivedType = {
         min: -9999,
         max: 9999,
         float: false,
-        clamp: false
+        clamp: false,
+        onEmpty: () => view.note.set(ctx.file, entry.key, void 0)
       })
     );
     view.registerUpdater(sync);
@@ -3908,15 +3976,23 @@ function renderEntryOptionsBody(octx, onDone, onRemoved) {
     e.iconColor = v;
     changed();
   });
-  new import_obsidian14.Setting(c).setName(t("options.hideLabel")).setDesc(t("options.hideLabelDesc")).addToggle((tg) => {
-    tg.setValue(!!e.hideLabel).onChange((v) => {
-      e.hideLabel = v || void 0;
+  new import_obsidian14.Setting(c).setName(t("options.showLabel")).setDesc(t("options.showLabelDesc")).addToggle((tg) => {
+    tg.setValue(!e.hideLabel).onChange((v) => {
+      e.hideLabel = v ? void 0 : true;
       changed();
     });
   });
-  new import_obsidian14.Setting(c).setName(t("options.hideIfEmpty")).setDesc(t("options.hideIfEmptyDesc")).addToggle((tg) => {
-    tg.setValue(e.hideIfEmpty !== false).onChange((v) => {
-      e.hideIfEmpty = v ? void 0 : false;
+  if (isProp) {
+    new import_obsidian14.Setting(c).setName(t("options.showType")).setDesc(t("options.showTypeDesc")).addToggle((tg) => {
+      tg.setValue(e.showType !== false).onChange((v) => {
+        e.showType = v ? void 0 : false;
+        changed();
+      });
+    });
+  }
+  new import_obsidian14.Setting(c).setName(t("options.showWhenEmpty")).setDesc(t("options.showWhenEmptyDesc")).addToggle((tg) => {
+    tg.setValue(e.hideIfEmpty === false).onChange((v) => {
+      e.hideIfEmpty = v ? false : void 0;
       changed();
     });
   });
@@ -4021,6 +4097,8 @@ var SectionOptionsModal = class extends import_obsidian15.Modal {
     this.snapshot = "";
     this.selected = /* @__PURE__ */ new Set([SECTION_TAB]);
     this.file = null;
+    /** Anchor for Shift ranges and drag selection. */
+    this.anchorId = null;
   }
   changed() {
     this.view.saveLayout();
@@ -4040,27 +4118,79 @@ var SectionOptionsModal = class extends import_obsidian15.Modal {
   }
   drawTabs(c) {
     const t = this.view.i18n.t.bind(this.view.i18n);
-    const bar = c.createDiv({ cls: "ep-tabs" });
-    const mk = (id, label) => {
-      const chip = bar.createDiv({ cls: "ep-tab", text: label });
+    const tabbable = this.section.entries.filter((e) => e.kind !== "blank");
+    const order = [SECTION_TAB, ...tabbable.map((e) => e.id)];
+    const chips = /* @__PURE__ */ new Map();
+    let dragging = false;
+    let dragBase = /* @__PURE__ */ new Set();
+    let dragAnchor = null;
+    const applySelection = () => {
+      for (const [id, el] of chips) el.toggleClass("is-active", this.selected.has(id));
+    };
+    const rangeIds = (a, b) => {
+      const i = order.indexOf(a);
+      const j = order.indexOf(b);
+      if (i < 0 || j < 0) return [b];
+      const [lo, hi] = i < j ? [i, j] : [j, i];
+      return order.slice(lo, hi + 1);
+    };
+    const mk = (parent, id, label) => {
+      const chip = parent.createDiv({ cls: "ep-tab", text: label });
+      chips.set(id, chip);
       if (this.selected.has(id)) chip.addClass("is-active");
-      chip.onclick = (ev) => {
-        if (ev.ctrlKey || ev.metaKey) {
+      chip.addEventListener("pointerdown", (ev) => {
+        if (ev.button !== 0) return;
+        ev.preventDefault();
+        if (ev.shiftKey && this.anchorId) {
+          const range = rangeIds(this.anchorId, id);
+          this.selected = ev.ctrlKey || ev.metaKey ? /* @__PURE__ */ new Set([...this.selected, ...range]) : new Set(range);
+          dragAnchor = this.anchorId;
+        } else if (ev.ctrlKey || ev.metaKey) {
           if (this.selected.has(id)) {
             if (this.selected.size > 1) this.selected.delete(id);
           } else {
             this.selected.add(id);
           }
+          this.anchorId = id;
+          dragAnchor = id;
         } else {
           this.selected = /* @__PURE__ */ new Set([id]);
+          this.anchorId = id;
+          dragAnchor = id;
         }
-        this.draw();
-      };
+        dragging = true;
+        dragBase = ev.ctrlKey || ev.metaKey ? new Set(this.selected) : /* @__PURE__ */ new Set();
+        applySelection();
+        document.addEventListener(
+          "pointerup",
+          () => {
+            dragging = false;
+            this.draw();
+          },
+          { once: true }
+        );
+      });
+      chip.addEventListener("pointerenter", () => {
+        if (!dragging || !dragAnchor) return;
+        this.selected = /* @__PURE__ */ new Set([...dragBase, ...rangeIds(dragAnchor, id)]);
+        applySelection();
+      });
     };
-    mk(SECTION_TAB, t("sectionOptions.tabSection"));
-    for (const e of this.section.entries) {
-      if (e.kind === "blank") continue;
-      mk(e.id, this.entryLabel(e));
+    const bar = c.createDiv({ cls: "ep-tabs" });
+    mk(bar, SECTION_TAB, t("sectionOptions.tabSection"));
+    if (sectionMode(this.section) === "columns") {
+      const ncol = Math.max(1, this.section.columns || 1);
+      const all = this.section.entries;
+      const per = Math.max(1, Math.ceil(all.length / ncol));
+      for (let cc = 0; cc < ncol; cc++) {
+        const group = all.slice(cc * per, (cc + 1) * per).filter((e) => e.kind !== "blank");
+        if (!group.length) continue;
+        const row = c.createDiv({ cls: "ep-tabs" });
+        row.createSpan({ cls: "ep-tab-collabel", text: t("sectionOptions.columnN", { n: cc + 1 }) });
+        for (const e of group) mk(row, e.id, this.entryLabel(e));
+      }
+    } else {
+      for (const e of tabbable) mk(bar, e.id, this.entryLabel(e));
     }
     c.createEl("p", { cls: "setting-item-description", text: t("sectionOptions.tabsHint") });
   }
@@ -4132,15 +4262,15 @@ var SectionOptionsModal = class extends import_obsidian15.Modal {
       (v) => apply((x) => x["iconColor"] = v)
     );
     {
-      const s = read((x) => !!x["hideLabel"]);
-      new import_obsidian15.Setting(c).setName(t("options.hideLabel")).setDesc(mixedDesc(s.mixed)).addToggle((tg) => {
-        tg.setValue(s.v).onChange((v) => apply((x) => x["hideLabel"] = v || void 0));
+      const s = read((x) => !x["hideLabel"]);
+      new import_obsidian15.Setting(c).setName(t("options.showLabel")).setDesc(mixedDesc(s.mixed)).addToggle((tg) => {
+        tg.setValue(s.v).onChange((v) => apply((x) => x["hideLabel"] = v ? void 0 : true));
       });
     }
     {
-      const s = read((x) => x["hideIfEmpty"] !== false);
-      new import_obsidian15.Setting(c).setName(t("options.hideIfEmpty")).setDesc(mixedDesc(s.mixed)).addToggle((tg) => {
-        tg.setValue(s.v).onChange((v) => apply((x) => x["hideIfEmpty"] = v ? void 0 : false));
+      const s = read((x) => x["hideIfEmpty"] === false);
+      new import_obsidian15.Setting(c).setName(t("options.showWhenEmpty")).setDesc(mixedDesc(s.mixed)).addToggle((tg) => {
+        tg.setValue(s.v).onChange((v) => apply((x) => x["hideIfEmpty"] = v ? false : void 0));
       });
     }
     if (!withSection) {
@@ -4177,6 +4307,12 @@ var SectionOptionsModal = class extends import_obsidian15.Modal {
         new import_obsidian15.Setting(c).setName(t("options.showInObsidian")).setDesc(mixedDesc(s.mixed)).addToggle((tg) => {
           tg.setValue(s.v).onChange((v) => apply((x) => x["showInObsidian"] = v || void 0));
         });
+        {
+          const ty = read((x) => x["showType"] !== false);
+          new import_obsidian15.Setting(c).setName(t("options.showType")).setDesc(mixedDesc(ty.mixed)).addToggle((tg) => {
+            tg.setValue(ty.v).onChange((v) => apply((x) => x["showType"] = v ? void 0 : false));
+          });
+        }
         const types = ents.map((e) => view.resolveType(e));
         if (types.every((ty) => NUMERIC_SET.has(ty))) {
           c.createEl("h4", { text: t("options.numberHeading") });
@@ -4218,6 +4354,14 @@ var SectionOptionsModal = class extends import_obsidian15.Modal {
           new import_obsidian15.Setting(c).setName(t("roll.options.rollButton")).setDesc(mixedDesc(ro.mixed)).addToggle((tg) => {
             tg.setValue(ro.v).onChange((v) => apply((x) => x["roll"] = v || void 0));
           });
+          const ch = read((x) => x["showChain"] !== false);
+          new import_obsidian15.Setting(c).setName(t("mods.showChain")).setDesc(mixedDesc(ch.mixed)).addToggle((tg) => {
+            tg.setValue(ch.v).onChange((v) => apply((x) => x["showChain"] = v ? void 0 : false));
+          });
+          const di = read((x) => x["showDice"] !== false);
+          new import_obsidian15.Setting(c).setName(t("mods.showDice")).setDesc(mixedDesc(di.mixed)).addToggle((tg) => {
+            tg.setValue(di.v).onChange((v) => apply((x) => x["showDice"] = v ? void 0 : false));
+          });
         }
       }
     }
@@ -4243,9 +4387,9 @@ var SectionOptionsModal = class extends import_obsidian15.Modal {
       s.iconColor = v;
       this.changed();
     });
-    new import_obsidian15.Setting(c).setName(t("options.hideLabel")).addToggle((tg) => {
-      tg.setValue(!!s.hideLabel).onChange((v) => {
-        s.hideLabel = v || void 0;
+    new import_obsidian15.Setting(c).setName(t("options.showLabel")).addToggle((tg) => {
+      tg.setValue(!s.hideLabel).onChange((v) => {
+        s.hideLabel = v ? void 0 : true;
         this.changed();
       });
     });
@@ -4268,9 +4412,9 @@ var SectionOptionsModal = class extends import_obsidian15.Modal {
         this.changed();
       });
     });
-    new import_obsidian15.Setting(c).setName(t("options.hideIfEmpty")).setDesc(t("sectionOptions.hideIfEmptyDesc")).addToggle((tg) => {
-      tg.setValue(s.hideIfEmpty !== false).onChange((v) => {
-        s.hideIfEmpty = v ? void 0 : false;
+    new import_obsidian15.Setting(c).setName(t("options.showWhenEmpty")).setDesc(t("sectionOptions.showWhenEmptyDesc")).addToggle((tg) => {
+      tg.setValue(s.hideIfEmpty === false).onChange((v) => {
+        s.hideIfEmpty = v ? false : void 0;
         this.changed();
       });
     });
@@ -4690,27 +4834,28 @@ function computeFlags(view, file, section) {
   }
   return flags;
 }
+function alignClustersNow(det) {
+  var _a;
+  const groups = /* @__PURE__ */ new Map();
+  for (const el of det.findAll(".ep-cluster [data-ep-slot]")) {
+    const id = (_a = el.getAttribute("data-ep-slot")) != null ? _a : "";
+    if (!groups.has(id)) groups.set(id, []);
+    groups.get(id).push(el);
+  }
+  groups.set(" num", det.findAll(".ep-cluster .ep-num"));
+  for (const els of groups.values()) {
+    if (els.length < 2) continue;
+    let max = 0;
+    for (const el of els) {
+      el.style.minWidth = "";
+      max = Math.max(max, el.offsetWidth);
+    }
+    if (max <= 0) continue;
+    for (const el of els) el.style.minWidth = max + "px";
+  }
+}
 function alignClusters(det) {
-  requestAnimationFrame(() => {
-    var _a;
-    const groups = /* @__PURE__ */ new Map();
-    for (const el of det.findAll(".ep-cluster [data-ep-slot]")) {
-      const id = (_a = el.getAttribute("data-ep-slot")) != null ? _a : "";
-      if (!groups.has(id)) groups.set(id, []);
-      groups.get(id).push(el);
-    }
-    groups.set(" num", det.findAll(".ep-cluster .ep-num"));
-    for (const els of groups.values()) {
-      if (els.length < 2) continue;
-      let max = 0;
-      for (const el of els) {
-        el.style.minWidth = "";
-        max = Math.max(max, el.offsetWidth);
-      }
-      if (max <= 0) continue;
-      for (const el of els) el.style.minWidth = max + "px";
-    }
-  });
+  requestAnimationFrame(() => alignClustersNow(det));
 }
 function renderSection(parent, view, file, section, drag, host) {
   var _a;
@@ -5526,9 +5671,12 @@ var SidebarView = class extends import_obsidian18.ItemView {
     entry.key = newKey;
     entry.alias = void 0;
     entry.slider = void 0;
+    entry.sliderCurve = void 0;
     entry.steppers = void 0;
     entry.roll = void 0;
     entry.showMod = void 0;
+    entry.showChain = void 0;
+    entry.showDice = void 0;
     entry.mods = void 0;
     entry.rollOverride = void 0;
     entry.dice = void 0;
@@ -5599,8 +5747,14 @@ var SidebarView = class extends import_obsidian18.ItemView {
     return "panel-right";
   }
   async onOpen() {
-    this.registerDomEvent(window, "resize", () => this.reflowSticky());
-    this.resizeObs = new ResizeObserver(() => this.reflowSticky());
+    this.registerDomEvent(window, "resize", () => {
+      this.reflowSticky();
+      this.responsivePass();
+    });
+    this.resizeObs = new ResizeObserver(() => {
+      this.reflowSticky();
+      this.responsivePass();
+    });
     this.register(() => {
       var _a;
       return (_a = this.resizeObs) == null ? void 0 : _a.disconnect();
@@ -5743,14 +5897,31 @@ var SidebarView = class extends import_obsidian18.ItemView {
       span.addClass("ep-clickname");
       span.onclick = () => this.highlight(span);
     }
-    if (entry.kind === "prop") {
+    if (entry.kind === "prop" && entry.showType !== false) {
       const typeId = this.resolveType(entry);
       const def = this.registries.valueTypes.get(typeId);
-      const hint = span.createSpan({ cls: "ep-type-hint", text: def ? def.name(this.i18n) : typeId });
-      requestAnimationFrame(() => {
-        if (!span.isConnected) return;
-        if (span.scrollWidth > span.clientWidth + 1) hint.detach();
-      });
+      span.createSpan({ cls: "ep-type-hint", text: def ? def.name(this.i18n) : typeId });
+    }
+  }
+  /**
+   * Width-responsive decorations: per section, progressively hide the
+   * data-type hints, then the modifier chains, then the dice tags while
+   * any row overflows — and bring them back when the sidebar grows.
+   * Re-run on every render and on container resize.
+   */
+  responsivePass() {
+    for (const secEl of this.content.findAll(".ep-section")) {
+      secEl.findAll(".ep-squeezed").forEach((el) => el.removeClass("ep-squeezed"));
+      alignClustersNow(secEl);
+      const overflowing = () => secEl.findAll(".ep-entry-head").some((h) => h.scrollWidth > h.clientWidth + 1);
+      for (const cls of ["ep-type-hint", "ep-denote", "ep-dice-tag"]) {
+        if (!overflowing()) break;
+        secEl.findAll(".ep-entry-head ." + cls).forEach((el) => {
+          el.addClass("ep-squeezed");
+          const cell = el.closest("[data-ep-slot]");
+          if (cell) cell.style.minWidth = "";
+        });
+      }
     }
   }
   // -- layout & rendering -------------------------------------------------------
@@ -5912,11 +6083,15 @@ var SidebarView = class extends import_obsidian18.ItemView {
       renderSection(section.sticky ? this.stickyZoneEl : flow, this, file, section, this.drag, host);
     this.lastEmptySig = this.emptySig();
     container.scrollTop = prevScroll;
-    requestAnimationFrame(() => this.reflowSticky());
+    requestAnimationFrame(() => {
+      this.reflowSticky();
+      requestAnimationFrame(() => this.responsivePass());
+    });
     if (this.resizeObs) {
       this.resizeObs.disconnect();
       if (this.headerEl) this.resizeObs.observe(this.headerEl);
       if (this.stickyZoneEl) this.resizeObs.observe(this.stickyZoneEl);
+      if (this.flowEl) this.resizeObs.observe(this.flowEl);
     }
     if (animate)
       requestAnimationFrame(() => {
@@ -5998,6 +6173,7 @@ var EPSettingTab = class extends import_obsidian19.PluginSettingTab {
       plugin.refreshViews();
     };
     c.empty();
+    c.addClass("ep-settings");
     c.createEl("p", { text: t("settings.intro") });
     c.createEl("h3", { text: t("settings.typesHeading") });
     c.createEl("p", { cls: "setting-item-description", text: t("settings.typesDesc") });
@@ -6624,6 +6800,12 @@ var rollAddon = {
           e.dice = n;
           changed();
         }
+      });
+      new import_obsidian23.Setting(c).setName(t("mods.showDice")).setDesc(t("mods.showDiceDesc")).addToggle((tg) => {
+        tg.setValue(entry.showDice !== false).onChange((v) => {
+          entry.showDice = v ? void 0 : false;
+          changed();
+        });
       });
     }
   }

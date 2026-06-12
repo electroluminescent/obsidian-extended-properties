@@ -39,6 +39,12 @@ export interface EntryBase {
   hideLabel?: boolean;
   /** Hide the whole entry outside edit mode when the value is empty (default true). */
   hideIfEmpty?: boolean;
+  /** Show the data-type tag beside the label (default true; space permitting). */
+  showType?: boolean;
+  /** Show the modifier chain denotation, e.g. INT + DEX (default true). */
+  showChain?: boolean;
+  /** Show the dice breakdown, e.g. 2d20 (default true). */
+  showDice?: boolean;
   labelSize?: number;
   valueSize?: number;
   labelColor?: string;

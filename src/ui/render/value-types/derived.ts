@@ -39,7 +39,7 @@ export const derivedType: ValueTypeDef = {
       den: (cell) => {
         const paint = () => {
           cell.empty();
-          paintDenotation(cell, view, entry);
+          if (entry.showChain !== false) paintDenotation(cell, view, entry);
           // Roll breakdown between the modifier names and the value.
           paintDice(cell, entry);
         };
@@ -59,13 +59,15 @@ export const derivedType: ValueTypeDef = {
     };
     sync();
     // Per-note override: editing the value stores it in this note's
-    // frontmatter; clearing the property returns to the computed sum.
+    // frontmatter (which also flips the override toggle in the property
+    // settings); emptying the field clears it back to the derived sum.
     view.bindOpen(refs.val, () =>
       openNumberInput(refs.val, compute(), (v) => view.note.set(ctx.file, entry.key as string, v), {
         min: -9999,
         max: 9999,
         float: false,
         clamp: false,
+        onEmpty: () => view.note.set(ctx.file, entry.key as string, undefined),
       })
     );
     view.registerUpdater(sync);

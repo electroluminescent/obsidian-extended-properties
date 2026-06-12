@@ -18,8 +18,8 @@ import type { ClusterAddon, ClusterNeeds, ClusterSlot } from "../../core/registr
 import type { Entry } from "../../core/model";
 import { ext } from "../../core/model";
 import {
-  abbrFor, applyDerivation, defaultAbbr, denotationText, Influence, influenceActive,
-  influenceTerm, ModExt, modifierTotal, setAbbr, setInfluenceActive,
+  abbrFor, applyDerivation, defaultAbbr, denotationText, hasNoteOverride, Influence,
+  influenceActive, influenceTerm, ModExt, modifierTotal, setAbbr, setInfluenceActive,
 } from "../../core/influences";
 import type { ViewCtx } from "../../core/context";
 import { fmtMod } from "../../utils/misc";
@@ -79,7 +79,7 @@ export function paintDenotation(parent: HTMLElement, view: ViewCtx, entry: Entry
  */
 export function paintDice(parent: HTMLElement, entry: Entry): void {
   const e = entry as Record<string, unknown>;
-  if (!e["roll"]) return;
+  if (!e["roll"] || e["showDice"] === false) return;
   const spec = parseDiceOrDefault(typeof e["dice"] === "string" ? (e["dice"] as string) : undefined);
   parent.createSpan({ cls: "ep-dice-tag ep-line-abbr", text: formatDice(spec) });
 }
@@ -87,7 +87,7 @@ export function paintDice(parent: HTMLElement, entry: Entry): void {
 /** Badge: denotation + dice breakdown + computed total. */
 function paintBadge(cell: HTMLElement, ref: EntryRef): void {
   cell.empty();
-  paintDenotation(cell, ref.view, ref.entry);
+  if (ref.entry.showChain !== false) paintDenotation(cell, ref.view, ref.entry);
   paintDice(cell, ref.entry);
   cell.appendText(fmtMod(modifierTotal(ref.view, ref.entry)));
 }
@@ -170,7 +170,7 @@ export const modifierAddon: ClusterAddon = {
     }
     const cell = cells["mod"];
     cell.empty();
-    paintDenotation(cell, view, ctx.entry);
+    if (ctx.entry.showChain !== false) paintDenotation(cell, view, ctx.entry);
     paintDice(cell, ctx.entry);
     cell.appendText(fmtMod(total));
   },
@@ -297,16 +297,22 @@ export const modifierAddon: ClusterAddon = {
           changed();
         });
       });
-      sub.addToggle((tg) => {
-        tg.setValue(!!inf.toggle && !inf.hideToggle)
-          .setTooltip(t("mods.showToggle"))
-          .setDisabled(!inf.toggle)
-          .onChange((v) => {
-            inf.hideToggle = v ? undefined : true;
-            changed();
-          });
-      });
       sub.setDesc(t("mods.termOptionsDesc"));
+
+      // Labeled visibility toggle for this term's checkbox (proficiency
+      // style); only meaningful for togglable terms.
+      if (inf.toggle) {
+        new Setting(c)
+          .setName(t("mods.showToggle"))
+          .setDesc(t("mods.showToggleDesc", { list: inf.toggle }))
+          .setClass("ep-mods-sub")
+          .addToggle((tg) => {
+            tg.setValue(!inf.hideToggle).onChange((v) => {
+              inf.hideToggle = v ? undefined : true;
+              changed();
+            });
+          });
+      }
     });
 
     new Setting(c).addButton((b) =>
@@ -326,14 +332,51 @@ export const modifierAddon: ClusterAddon = {
       });
     }
     new Setting(c)
-      .setName(t("mods.override"))
-      .setDesc(t("mods.overrideDesc"))
-      .addText((tx) => {
-        tx.setValue(e.rollOverride !== undefined ? String(e.rollOverride) : "").onChange((v) => {
-          const n = Number(v);
-          e.rollOverride = v.trim() === "" || !Number.isFinite(n) ? undefined : n;
+      .setName(t("mods.showChain"))
+      .setDesc(t("mods.showChainDesc"))
+      .addToggle((tg) => {
+        tg.setValue(entry.showChain !== false).onChange((v) => {
+          entry.showChain = v ? undefined : false;
           changed();
         });
       });
+
+    if (isDerived && entry.key) {
+      // Per-note override: a stored note value replacing the derived sum.
+      // Editing the value in the sidebar turns this on; clearing it (or
+      // this toggle) turns it off.
+      const key = entry.key as string;
+      const on = hasNoteOverride(view, entry);
+      const ov = new Setting(c).setName(t("mods.overrideNote")).setDesc(t("mods.overrideNoteDesc"));
+      ov.addToggle((tg) => {
+        tg.setValue(on).onChange((v) => {
+          view.note.set(octx.file, key, v ? modifierTotal(view, entry) : undefined);
+          redraw();
+        });
+      });
+      ov.addText((tx) => {
+        tx.setValue(on ? String(view.note.num(key, 0)) : "");
+        tx.setPlaceholder(fmtMod(modifierTotal(view, entry)));
+        tx.onChange((v) => {
+          if (v.trim() === "") {
+            view.note.set(octx.file, key, undefined);
+            return;
+          }
+          const n = Number(v);
+          if (Number.isFinite(n)) view.note.set(octx.file, key, n);
+        });
+      });
+    } else {
+      new Setting(c)
+        .setName(t("mods.override"))
+        .setDesc(t("mods.overrideDesc"))
+        .addText((tx) => {
+          tx.setValue(e.rollOverride !== undefined ? String(e.rollOverride) : "").onChange((v) => {
+            const n = Number(v);
+            e.rollOverride = v.trim() === "" || !Number.isFinite(n) ? undefined : n;
+            changed();
+          });
+        });
+    }
   },
 };

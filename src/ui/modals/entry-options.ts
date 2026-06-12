@@ -112,20 +112,31 @@ export function renderEntryOptionsBody(octx: OptionsCtx, onDone: () => void, onR
     changed();
   });
   new Setting(c)
-    .setName(t("options.hideLabel"))
-    .setDesc(t("options.hideLabelDesc"))
+    .setName(t("options.showLabel"))
+    .setDesc(t("options.showLabelDesc"))
     .addToggle((tg) => {
-      tg.setValue(!!e.hideLabel).onChange((v) => {
-        e.hideLabel = v || undefined;
+      tg.setValue(!e.hideLabel).onChange((v) => {
+        e.hideLabel = v ? undefined : true;
         changed();
       });
     });
+  if (isProp) {
+    new Setting(c)
+      .setName(t("options.showType"))
+      .setDesc(t("options.showTypeDesc"))
+      .addToggle((tg) => {
+        tg.setValue(e.showType !== false).onChange((v) => {
+          e.showType = v ? undefined : false;
+          changed();
+        });
+      });
+  }
   new Setting(c)
-    .setName(t("options.hideIfEmpty"))
-    .setDesc(t("options.hideIfEmptyDesc"))
+    .setName(t("options.showWhenEmpty"))
+    .setDesc(t("options.showWhenEmptyDesc"))
     .addToggle((tg) => {
-      tg.setValue(e.hideIfEmpty !== false).onChange((v) => {
-        e.hideIfEmpty = v ? undefined : false;
+      tg.setValue(e.hideIfEmpty === false).onChange((v) => {
+        e.hideIfEmpty = v ? false : undefined;
         changed();
       });
     });

@@ -40,26 +40,28 @@ function computeFlags(view: ViewCtx, file: TFile, section: Section): ClusterFlag
  * width of their widest sibling, so influence strings, checkboxes and
  * numbers line up vertically even though every row owns its own grid.
  */
+export function alignClustersNow(det: HTMLElement): void {
+  const groups = new Map<string, HTMLElement[]>();
+  for (const el of det.findAll(".ep-cluster [data-ep-slot]")) {
+    const id = el.getAttribute("data-ep-slot") ?? "";
+    if (!groups.has(id)) groups.set(id, []);
+    groups.get(id)!.push(el as HTMLElement);
+  }
+  groups.set(" num", det.findAll(".ep-cluster .ep-num") as HTMLElement[]);
+  for (const els of groups.values()) {
+    if (els.length < 2) continue;
+    let max = 0;
+    for (const el of els) {
+      el.style.minWidth = "";
+      max = Math.max(max, el.offsetWidth);
+    }
+    if (max <= 0) continue;
+    for (const el of els) el.style.minWidth = max + "px";
+  }
+}
+
 function alignClusters(det: HTMLElement): void {
-  requestAnimationFrame(() => {
-    const groups = new Map<string, HTMLElement[]>();
-    for (const el of det.findAll(".ep-cluster [data-ep-slot]")) {
-      const id = el.getAttribute("data-ep-slot") ?? "";
-      if (!groups.has(id)) groups.set(id, []);
-      groups.get(id)!.push(el as HTMLElement);
-    }
-    groups.set(" num", det.findAll(".ep-cluster .ep-num") as HTMLElement[]);
-    for (const els of groups.values()) {
-      if (els.length < 2) continue;
-      let max = 0;
-      for (const el of els) {
-        el.style.minWidth = "";
-        max = Math.max(max, el.offsetWidth);
-      }
-      if (max <= 0) continue;
-      for (const el of els) el.style.minWidth = max + "px";
-    }
-  });
+  requestAnimationFrame(() => alignClustersNow(det));
 }
 
 export interface SectionHost {

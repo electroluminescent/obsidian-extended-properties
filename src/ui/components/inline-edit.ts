@@ -12,6 +12,8 @@ export interface NumberInputOptions {
   max: number;
   float: boolean;
   clamp: boolean;
+  /** Called instead of `commit` when the field is emptied (e.g. to clear an override). */
+  onEmpty?: () => void;
 }
 
 /** Swap `span` for a number input; commit the parsed (and clamped) value. */
@@ -33,6 +35,11 @@ export function openNumberInput(
     if (done) return;
     done = true;
     if (input.parentElement) input.replaceWith(span);
+    if (input.value.trim() === "") {
+      // An emptied field clears rather than committing 0.
+      if (save) o.onEmpty?.();
+      return;
+    }
     let n = Number(input.value);
     if (!Number.isFinite(n)) return;
     if (!o.float) n = Math.round(n);

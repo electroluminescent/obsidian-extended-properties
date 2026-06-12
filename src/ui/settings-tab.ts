@@ -32,6 +32,7 @@ export class EPSettingTab extends PluginSettingTab {
       plugin.refreshViews();
     };
     c.empty();
+    c.addClass("ep-settings");
 
     c.createEl("p", { text: t("settings.intro") });
 
