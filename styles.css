@@ -525,5 +525,8 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 .ep-macros-lbl { font-size: var(--font-ui-smaller); color: var(--text-muted); margin-right: 2px; }
 .ep-macro-chip { cursor: pointer; }
 .ep-macro-chip:hover { border-color: var(--interactive-accent); }
-/* invalid macro notation in settings */
+/* invalid macro/expression notation in settings */
 .ep-invalid { border-color: var(--text-error) !important; }
+/* expression engine: failed derivations (—) and the inline expression field */
+.ep-expr-error { color: var(--text-error); cursor: help; font-weight: 700; }
+.ep-expr-input { width: 100%; font-family: var(--font-monospace); }

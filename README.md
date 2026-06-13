@@ -51,6 +51,7 @@ Any numeric or derived entry can carry a list of *influences* — terms summed i
 
 - **Source**: a property, referenced by name. Chains resolve through other derived properties (a derived value feeding another derived value) up to a configurable depth (default 8, set in the plugin settings).
 - **Derivation**: "value as-is", a named formula block from settings (seeded with *Ability modifier* and *Proficiency bonus* — rename, edit or delete them freely), or a custom formula in `x`.
+- **Expression**: a full expression over many properties — `floor((STR + DEX) / 2) + max(PB, 2)` — referencing them by name or short form (`[Quoted Names]` for spaces). Functions: `floor`, `ceil`, `round`, `min`, `max`, `clamp`, `abs`, `if`, comparisons and `&&`/`||`; your derivation blocks are callable too (`abilityMod(Dexterity)`). A typo degrades to "—" with a tooltip and reference cycles are detected explicitly, never breaking the sheet.
 - **Sign**: added or subtracted.
 - **Toggle**: a list property that switches the term on/off per note — the generic form of proficiency. The row gets a checkbox, and the term in the chain can be double-clicked to toggle it.
 

@@ -101,6 +101,8 @@ is built from user-editable blocks:
   (`settings.derivations`, seeded with "Ability modifier" and "Proficiency
   bonus"; all editable in the settings tab), or a per-influence custom
   formula in `x`.
+- **expr** — a full expression (`core/expr.ts`) over many properties, e.g.
+  `floor((STR + DEX) / 2) + max(PB, 2)`; when set it wins over source/mode.
 - **weight** — adds or subtracts the term.
 - **toggle** — a list property that switches the term per note (the generic
   form of proficiency): the term applies while the entry's key or alias is
@@ -110,6 +112,15 @@ The denotation shown next to values is the sum of the sources' *short
 forms* ("INT + DEX − AGE"). A short form defaults to the capitalized first
 three letters of the source property and can be overridden per property
 (`settings.sourceAbbrs`, editable inline and in the settings tab).
+
+Evaluation runs through a per-note `NoteEval` context: values are memoized by
+key and a visiting set detects reference cycles explicitly (the `modDepth`
+setting is now only a backstop), with the affected entry showing "—". The
+generic math is `core/expr.ts` — a pure tokenizer/Pratt-parser/evaluator
+(resolver + user-function env) shared by expressions, the `formula` value type
+(`utils/formula.ts` delegates to it) and, later, conditional visibility. Refs
+resolve by property key or short form; derivation blocks are exposed to
+expressions as callable functions.
 
 UI lives in `ui/render/modifier-addon.ts` (badge, toggles, influence
 editor) and `ui/render/value-types/derived.ts` (computed values such as

@@ -127,6 +127,12 @@ export const coreDe: StringDict = {
   "mods.sourceSelf": "(diese Eigenschaft)",
   "mods.modeFormula": "Eigene Formel…",
   "mods.formula": "Formel f(x)",
+  "mods.modeExpr": "Ausdruck…",
+  "mods.expr": "Ausdruck",
+  "mods.exprDesc":
+    "Rechnen über Eigenschaften per Name oder Kürzel, z. B. floor((STR + DEX) / 2) + max(PB, 2). Funktionen: floor, ceil, round, min, max, clamp, abs, if; eigene Ableitungen sind ebenfalls aufrufbar.",
+  "mods.errExpr": "Dieser Wert kann nicht berechnet werden — Ausdruck prüfen (unbekannte Eigenschaft oder Syntax).",
+  "mods.errCycle": "Dieser Wert hängt von sich selbst ab (Referenzzyklus).",
   "mods.termOptions": "Vorzeichen · Umschalter · Kürzel",
   "mods.termOptionsDesc":
     "Wie dieser Term in die Summe eingeht; eine Listen-Eigenschaft, die ihn pro Notiz umschaltet (wie Übung); das Kürzel für Anzeigen; und ob die Zeile das Kontrollkästchen dieses Terms zeigt.",

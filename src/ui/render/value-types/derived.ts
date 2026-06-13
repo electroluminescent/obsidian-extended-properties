@@ -12,7 +12,7 @@
 
 import type { EntryRef, OptionsCtx } from "../../../core/context";
 import type { ValueTypeDef } from "../../../core/registry";
-import { hasNoteOverride, modifierTotal } from "../../../core/influences";
+import { hasNoteOverride, modifierInfo, modifierTotal } from "../../../core/influences";
 import { fmtMod } from "../../../utils/misc";
 import { addonsFor, emptyFlags, mergeNeeds } from "../cluster";
 import { openNumberInput } from "../../components/inline-edit";
@@ -49,13 +49,27 @@ export const derivedType: ValueTypeDef = {
     };
     for (const a of addonsFor(ctx)) Object.assign(slots, a.fillSlots(ctx, { get: compute, label }));
 
-    const refs = view.buildCluster(ctx.head, ctx.flags, { display: fmtMod(compute()), slots });
+    const disp = () => {
+      const r = modifierInfo(view, entry);
+      return r.value === undefined ? "—" : fmtMod(r.value);
+    };
+    const refs = view.buildCluster(ctx.head, ctx.flags, { display: disp(), slots });
     refs.val.addClass("ep-num-join");
     if (entry.valueSize) refs.val.style.fontSize = entry.valueSize + "px";
     if (entry.valueColor) refs.val.style.color = entry.valueColor as string;
     const sync = () => {
-      refs.val.setText(fmtMod(compute()));
-      refs.val.toggleClass("ep-overridden", hasNoteOverride(view, entry));
+      const info = modifierInfo(view, entry);
+      if (info.value === undefined) {
+        refs.val.setText("—");
+        refs.val.addClass("ep-expr-error");
+        refs.val.removeClass("ep-overridden");
+        refs.val.setAttr("title", view.i18n.t(info.error === "cycle" ? "mods.errCycle" : "mods.errExpr"));
+      } else {
+        refs.val.setText(fmtMod(info.value));
+        refs.val.removeClass("ep-expr-error");
+        refs.val.removeAttribute("title");
+        refs.val.toggleClass("ep-overridden", hasNoteOverride(view, entry));
+      }
     };
     sync();
     // Per-note override: editing the value stores it in this note's

@@ -200,6 +200,11 @@ var coreEn = {
   "mods.sourceSelf": "(this property)",
   "mods.modeFormula": "Custom formula\u2026",
   "mods.formula": "Formula f(x)",
+  "mods.modeExpr": "Expression\u2026",
+  "mods.expr": "Expression",
+  "mods.exprDesc": "Math over properties by name or short form, e.g. floor((STR + DEX) / 2) + max(PB, 2). Functions: floor, ceil, round, min, max, clamp, abs, if; your derivations are callable too.",
+  "mods.errExpr": "This value can't be computed \u2014 check the expression (unknown property or syntax).",
+  "mods.errCycle": "This value depends on itself (a reference cycle).",
   "mods.termOptions": "Sign \xB7 toggle \xB7 short form",
   "mods.termOptionsDesc": "How this term enters the sum; a list property that toggles it per note (the way proficiency works); the short form shown in denotations; and whether the row shows this term's checkbox.",
   "mods.showToggle": "Show checkbox on the row",
@@ -617,6 +622,11 @@ var coreDe = {
   "mods.sourceSelf": "(diese Eigenschaft)",
   "mods.modeFormula": "Eigene Formel\u2026",
   "mods.formula": "Formel f(x)",
+  "mods.modeExpr": "Ausdruck\u2026",
+  "mods.expr": "Ausdruck",
+  "mods.exprDesc": "Rechnen \xFCber Eigenschaften per Name oder K\xFCrzel, z. B. floor((STR + DEX) / 2) + max(PB, 2). Funktionen: floor, ceil, round, min, max, clamp, abs, if; eigene Ableitungen sind ebenfalls aufrufbar.",
+  "mods.errExpr": "Dieser Wert kann nicht berechnet werden \u2014 Ausdruck pr\xFCfen (unbekannte Eigenschaft oder Syntax).",
+  "mods.errCycle": "Dieser Wert h\xE4ngt von sich selbst ab (Referenzzyklus).",
   "mods.termOptions": "Vorzeichen \xB7 Umschalter \xB7 K\xFCrzel",
   "mods.termOptionsDesc": "Wie dieser Term in die Summe eingeht; eine Listen-Eigenschaft, die ihn pro Notiz umschaltet (wie \xDCbung); das K\xFCrzel f\xFCr Anzeigen; und ob die Zeile das Kontrollk\xE4stchen dieses Terms zeigt.",
   "mods.showToggle": "Kontrollk\xE4stchen in der Zeile anzeigen",
@@ -930,147 +940,302 @@ function sectionMode(section) {
 }
 var LAYOUT_VERSION = 4;
 
-// src/utils/formula.ts
-var UNARY = {
+// src/core/expr.ts
+var TWO = /* @__PURE__ */ new Set(["==", "!=", "<=", ">=", "&&", "||"]);
+function tokenize(s) {
+  const toks = [];
+  let i = 0;
+  while (i < s.length) {
+    const c = s[i];
+    if (/\s/.test(c)) {
+      i++;
+      continue;
+    }
+    if (/[0-9.]/.test(c)) {
+      let n = "";
+      while (i < s.length && /[0-9.]/.test(s[i])) n += s[i++];
+      if ((n.match(/\./g) || []).length > 1 || n === ".") return null;
+      const v = parseFloat(n);
+      if (!Number.isFinite(v)) return null;
+      toks.push({ t: "num", v });
+      continue;
+    }
+    if (/[A-Za-z_]/.test(c)) {
+      let id = "";
+      while (i < s.length && /[A-Za-z0-9_]/.test(s[i])) id += s[i++];
+      toks.push({ t: "name", v: id });
+      continue;
+    }
+    if (c === "[") {
+      const end = s.indexOf("]", i + 1);
+      if (end < 0) return null;
+      const name = s.slice(i + 1, end).trim();
+      if (!name) return null;
+      toks.push({ t: "name", v: name });
+      i = end + 1;
+      continue;
+    }
+    const two = s.slice(i, i + 2);
+    if (TWO.has(two)) {
+      toks.push({ t: "op", v: two });
+      i += 2;
+      continue;
+    }
+    if ("+-*/%^<>".includes(c)) {
+      toks.push({ t: "op", v: c });
+      i++;
+      continue;
+    }
+    if (c === "!") {
+      toks.push({ t: "op", v: "!" });
+      i++;
+      continue;
+    }
+    if (c === "(") {
+      toks.push({ t: "(" });
+      i++;
+      continue;
+    }
+    if (c === ")") {
+      toks.push({ t: ")" });
+      i++;
+      continue;
+    }
+    if (c === ",") {
+      toks.push({ t: "," });
+      i++;
+      continue;
+    }
+    return null;
+  }
+  toks.push({ t: "eof" });
+  return toks;
+}
+var BP = {
+  "||": 1,
+  "&&": 2,
+  "==": 3,
+  "!=": 3,
+  "<": 4,
+  "<=": 4,
+  ">": 4,
+  ">=": 4,
+  "+": 5,
+  "-": 5,
+  "*": 6,
+  "/": 6,
+  "%": 6,
+  "^": 8
+};
+var PREFIX_BP = 7;
+function parseExpr(text) {
+  const toks = tokenize(text != null ? text : "");
+  if (!toks) return null;
+  let p = 0;
+  const peek = () => toks[p];
+  const next = () => toks[p++];
+  try {
+    const ast = parseBp(0);
+    if (peek().t !== "eof") return null;
+    return ast;
+  } catch (e) {
+    return null;
+  }
+  function parseBp(minBp) {
+    let left = nud();
+    for (; ; ) {
+      const tok = peek();
+      if (tok.t !== "op" || tok.v === "!") break;
+      const lbp = BP[tok.v];
+      if (lbp === void 0 || lbp < minBp) break;
+      next();
+      const rbp = tok.v === "^" ? lbp : lbp + 1;
+      const right = parseBp(rbp);
+      left = { kind: "binary", op: tok.v, left, right };
+    }
+    return left;
+  }
+  function nud() {
+    const tok = next();
+    if (tok.t === "num") return { kind: "num", value: tok.v };
+    if (tok.t === "(") {
+      const e = parseBp(0);
+      if (next().t !== ")") throw 0;
+      return e;
+    }
+    if (tok.t === "op" && (tok.v === "-" || tok.v === "+" || tok.v === "!")) {
+      const arg = parseBp(PREFIX_BP);
+      if (tok.v === "+") return arg;
+      return { kind: "unary", op: tok.v, arg };
+    }
+    if (tok.t === "name") {
+      if (peek().t === "(") {
+        next();
+        const args = [];
+        if (peek().t !== ")") {
+          args.push(parseBp(0));
+          while (peek().t === ",") {
+            next();
+            args.push(parseBp(0));
+          }
+        }
+        if (next().t !== ")") throw 0;
+        return { kind: "call", name: tok.v, args };
+      }
+      return { kind: "ref", name: tok.v };
+    }
+    throw 0;
+  }
+}
+var ExprError = class extends Error {
+};
+var CONSTS = { pi: Math.PI, e: Math.E, true: 1, false: 0 };
+var FN1 = {
+  floor: Math.floor,
+  ceil: Math.ceil,
+  round: Math.round,
+  abs: Math.abs,
+  sign: Math.sign,
   sqrt: Math.sqrt,
   cbrt: Math.cbrt,
-  abs: Math.abs,
+  exp: Math.exp,
+  ln: Math.log,
   sin: Math.sin,
   cos: Math.cos,
   tan: Math.tan,
   asin: Math.asin,
   acos: Math.acos,
-  atan: Math.atan,
-  exp: Math.exp,
-  floor: Math.floor,
-  ceil: Math.ceil,
-  round: Math.round,
-  sign: Math.sign,
-  ln: Math.log,
-  log: (v) => Math.log10(v)
+  atan: Math.atan
 };
-function compileFormula(expr) {
-  const s = expr;
-  let i = 0;
-  const ws = () => {
-    while (i < s.length && /\s/.test(s[i])) i++;
-  };
-  const peek = () => s[i];
-  function parseExpr() {
-    let n = parseTerm();
-    ws();
-    while (peek() === "+" || peek() === "-") {
-      const op = s[i++];
-      const r = parseTerm();
-      const a = n;
-      n = op === "+" ? (x) => a(x) + r(x) : (x) => a(x) - r(x);
-      ws();
+function evalNode(node, env) {
+  switch (node.kind) {
+    case "num":
+      return node.value;
+    case "ref": {
+      const lc = node.name.toLowerCase();
+      if (lc in CONSTS) return CONSTS[lc];
+      const v = env.resolve(node.name);
+      if (v === void 0 || !Number.isFinite(v)) throw new ExprError("unresolved: " + node.name);
+      return v;
     }
-    return n;
+    case "unary": {
+      const a = evalNode(node.arg, env);
+      return node.op === "-" ? -a : a !== 0 ? 0 : 1;
+    }
+    case "binary":
+      return evalBinary(node, env);
+    case "call":
+      return evalCall(node, env);
   }
-  function parseTerm() {
-    let n = parseFactor();
-    ws();
-    while (peek() === "*" || peek() === "/") {
-      const op = s[i++];
-      const r = parseFactor();
-      const a = n;
-      n = op === "*" ? (x) => a(x) * r(x) : (x) => a(x) / r(x);
-      ws();
-    }
-    return n;
+}
+function evalBinary(node, env) {
+  const { op } = node;
+  if (op === "&&") return evalNode(node.left, env) !== 0 && evalNode(node.right, env) !== 0 ? 1 : 0;
+  if (op === "||") return evalNode(node.left, env) !== 0 || evalNode(node.right, env) !== 0 ? 1 : 0;
+  const a = evalNode(node.left, env);
+  const b = evalNode(node.right, env);
+  switch (op) {
+    case "+":
+      return a + b;
+    case "-":
+      return a - b;
+    case "*":
+      return a * b;
+    case "/":
+      return a / b;
+    case "%":
+      return a % b;
+    case "^":
+      return Math.pow(a, b);
+    case "==":
+      return a === b ? 1 : 0;
+    case "!=":
+      return a !== b ? 1 : 0;
+    case "<":
+      return a < b ? 1 : 0;
+    case "<=":
+      return a <= b ? 1 : 0;
+    case ">":
+      return a > b ? 1 : 0;
+    case ">=":
+      return a >= b ? 1 : 0;
   }
-  function parseFactor() {
-    ws();
-    if (peek() === "-") {
-      i++;
-      const f = parseFactor();
-      return (x) => -f(x);
-    }
-    if (peek() === "+") {
-      i++;
-      return parseFactor();
-    }
-    let n = parseBase();
-    ws();
-    while (peek() === "^") {
-      i++;
-      const r = parseFactor();
-      const a = n;
-      n = (x) => Math.pow(a(x), r(x));
-      ws();
-    }
-    return n;
+  throw new ExprError("op: " + op);
+}
+function evalCall(node, env) {
+  var _a;
+  const name = node.name;
+  const lc = name.toLowerCase();
+  if (lc === "if") {
+    if (node.args.length !== 3) throw new ExprError("if needs 3 args");
+    return evalNode(node.args[0], env) !== 0 ? evalNode(node.args[1], env) : evalNode(node.args[2], env);
   }
-  function parseBase() {
-    ws();
-    const c = peek();
-    if (c === "(") {
-      i++;
-      const e = parseExpr();
-      ws();
-      if (peek() === ")") i++;
-      else throw 0;
-      return e;
-    }
-    if (c !== void 0 && /[0-9.]/.test(c)) {
-      let num = "";
-      while (i < s.length && /[0-9.]/.test(s[i])) num += s[i++];
-      if ((num.match(/\./g) || []).length > 1 || num === ".") throw 0;
-      const v = parseFloat(num);
-      if (!Number.isFinite(v)) throw 0;
-      return () => v;
-    }
-    if (c !== void 0 && /[a-zA-Z_]/.test(c)) {
-      let id = "";
-      while (i < s.length && /[a-zA-Z0-9_]/.test(s[i])) id += s[i++];
-      ws();
-      if (peek() === "(") {
-        i++;
-        const args = [parseExpr()];
-        ws();
-        while (peek() === ",") {
-          i++;
-          args.push(parseExpr());
-          ws();
-        }
-        if (peek() === ")") i++;
-        else throw 0;
-        const a0 = args[0];
-        if (id === "log" && args.length === 2) {
-          const b = args[1];
-          return (x) => Math.log(a0(x)) / Math.log(b(x));
-        }
-        if (UNARY[id]) {
-          const fn = UNARY[id];
-          return (x) => fn(a0(x));
-        }
-        if (id === "pow") {
-          const b = args[1];
-          return (x) => Math.pow(a0(x), b(x));
-        }
-        if (id === "min") return (x) => Math.min(...args.map((a) => a(x)));
-        if (id === "max") return (x) => Math.max(...args.map((a) => a(x)));
-        throw 0;
-      }
-      if (id === "x") return (x) => x;
-      if (id === "pi") return () => Math.PI;
-      if (id === "e") return () => Math.E;
-      throw 0;
-    }
-    throw 0;
+  const a = node.args.map((x) => evalNode(x, env));
+  switch (lc) {
+    case "min":
+      return Math.min(...a);
+    case "max":
+      return Math.max(...a);
+    case "clamp":
+      return Math.min(Math.max(a[0], a[1]), a[2]);
+    case "pow":
+      return Math.pow(a[0], a[1]);
+    case "log":
+      return a.length >= 2 ? Math.log(a[0]) / Math.log(a[1]) : Math.log10(a[0]);
   }
+  if (lc in FN1) return FN1[lc](a[0]);
+  const uf = (_a = env.fn) == null ? void 0 : _a.call(env, name);
+  if (uf) {
+    const r = uf(a);
+    if (r === void 0 || !Number.isFinite(r)) throw new ExprError("fn: " + name);
+    return r;
+  }
+  throw new ExprError("unknown fn: " + name);
+}
+function evalExpr(ast, env) {
   try {
-    ws();
-    const fn = parseExpr();
-    ws();
-    if (i !== s.length) return null;
-    const probe = fn(1);
-    if (typeof probe !== "number" || Number.isNaN(probe)) return null;
-    return fn;
+    const v = evalNode(ast, env);
+    return Number.isFinite(v) ? v : void 0;
   } catch (e) {
-    return null;
+    return void 0;
   }
+}
+function quote(name) {
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : `[${name}]`;
+}
+function serializeExpr(ast, mapRef) {
+  const ser = (n, parentBp) => {
+    switch (n.kind) {
+      case "num":
+        return String(n.value);
+      case "ref":
+        return mapRef ? mapRef(n.name) : quote(n.name);
+      case "unary":
+        return n.op + ser(n.arg, PREFIX_BP);
+      case "call":
+        return n.name + "(" + n.args.map((a) => ser(a, 0)).join(", ") + ")";
+      case "binary": {
+        const bp = BP[n.op];
+        const rbp = n.op === "^" ? bp : bp + 1;
+        const s = `${ser(n.left, bp)} ${n.op} ${ser(n.right, rbp)}`;
+        return bp < parentBp ? `(${s})` : s;
+      }
+    }
+  };
+  return ser(ast, 0);
+}
+
+// src/utils/formula.ts
+function compileFormula(expr) {
+  const ast = parseExpr(expr);
+  if (!ast) return null;
+  const fn = (x) => {
+    const v = evalExpr(ast, { resolve: (n) => n.toLowerCase() === "x" ? x : void 0 });
+    return v === void 0 ? NaN : v;
+  };
+  const probe = fn(1);
+  if (typeof probe !== "number" || !Number.isFinite(probe)) return null;
+  return fn;
 }
 function invertFormula(f, target, min, max) {
   const N = 400;
@@ -1125,15 +1290,6 @@ function findDerivedEntry(env, key) {
       if (e.kind === "prop" && e.key && e.key.toLowerCase() === kl && e.dataType === "derived") return e;
   return null;
 }
-function sourceValue(env, key, depth) {
-  const stored = numericRaw(env, key);
-  if (stored !== null) return stored;
-  if (depth > 0) {
-    const en = findDerivedEntry(env, key);
-    if (en) return totalAt(env, en, depth - 1);
-  }
-  return env.note.num(key, 0);
-}
 function offToken(entry, inf) {
   var _a;
   return `${(_a = entry.key) != null ? _a : ""}:${inf.source || entry.key || ""}`;
@@ -1179,28 +1335,137 @@ function applyDerivation(env, inf, raw) {
   const def = env.registries.derivations.get((_b = inf.mode) != null ? _b : "value");
   return def ? def.apply(raw) : raw;
 }
-function termAt(env, entry, inf, depth) {
-  if (!influenceActive(env, entry, inf)) return 0;
-  const key = inf.source || entry.key || "";
-  const raw = sourceValue(env, key, depth);
-  const sign = inf.weight === -1 ? -1 : 1;
-  return sign * applyDerivation(env, inf, raw);
-}
-function totalAt(env, entry, depth) {
+function buildFnEnv(env) {
   var _a;
-  const e = ext(entry);
-  if (entry.dataType === "derived" && entry.key) {
-    const stored = numericRaw(env, entry.key);
-    if (stored !== null) return stored;
-  }
-  if (e.rollOverride !== void 0) return e.rollOverride;
-  return ((_a = e.mods) != null ? _a : []).reduce((sum, inf) => sum + termAt(env, entry, inf, depth), 0);
+  const derivs = (_a = env.settings.derivations) != null ? _a : [];
+  return (name) => {
+    const d = derivs.find((x) => x.id.toLowerCase() === name.toLowerCase());
+    if (!d) return void 0;
+    const f = compileFormula(d.formula);
+    if (!f) return void 0;
+    return (args) => {
+      var _a2;
+      return f((_a2 = args[0]) != null ? _a2 : 0);
+    };
+  };
 }
+var NoteEval = class {
+  constructor(env) {
+    this.env = env;
+    this.cache = /* @__PURE__ */ new Map();
+    this.visiting = /* @__PURE__ */ new Set();
+    /** Lower-cased keys found to participate in a cycle (for the error badge). */
+    this.cycles = /* @__PURE__ */ new Set();
+    this.parsed = /* @__PURE__ */ new Map();
+    this.fnEnv = buildFnEnv(env);
+  }
+  total(entry) {
+    return this.totalAt(entry, maxDepth(this.env));
+  }
+  term(entry, inf) {
+    return this.termAt(entry, inf, maxDepth(this.env));
+  }
+  parseExprCached(expr) {
+    var _a;
+    if (!this.parsed.has(expr)) this.parsed.set(expr, parseExpr(expr));
+    return (_a = this.parsed.get(expr)) != null ? _a : null;
+  }
+  totalAt(entry, depth) {
+    var _a;
+    const e = ext(entry);
+    const key = entry.key || "";
+    const kl = key.toLowerCase();
+    if (entry.dataType === "derived" && key) {
+      const stored = numericRaw(this.env, key);
+      if (stored !== null) return stored;
+    }
+    if (e.rollOverride !== void 0) return e.rollOverride;
+    if (kl) {
+      if (this.visiting.has(kl)) {
+        this.cycles.add(kl);
+        return void 0;
+      }
+      if (this.cache.has(kl)) return this.cache.get(kl);
+      this.visiting.add(kl);
+    }
+    let sum = 0;
+    let bad = false;
+    for (const inf of (_a = e.mods) != null ? _a : []) {
+      const term = this.termAt(entry, inf, depth);
+      if (term === void 0) {
+        bad = true;
+        break;
+      }
+      sum += term;
+    }
+    if (kl) this.visiting.delete(kl);
+    const res = bad ? void 0 : sum;
+    if (kl) this.cache.set(kl, res);
+    return res;
+  }
+  termAt(entry, inf, depth) {
+    if (!influenceActive(this.env, entry, inf)) return 0;
+    const sign = inf.weight === -1 ? -1 : 1;
+    if (inf.expr) {
+      const ast = this.parseExprCached(inf.expr);
+      if (!ast) return void 0;
+      const v = evalExpr(ast, { resolve: (n) => this.refValue(n, depth), fn: this.fnEnv });
+      return v === void 0 ? void 0 : sign * v;
+    }
+    const key = inf.source || entry.key || "";
+    return sign * applyDerivation(this.env, inf, this.sourceValue(key, depth));
+  }
+  /** Legacy source resolution: never errors (absent → 0). */
+  sourceValue(key, depth) {
+    var _a;
+    const stored = numericRaw(this.env, key);
+    if (stored !== null) return stored;
+    if (depth > 0) {
+      const en = findDerivedEntry(this.env, key);
+      if (en) return (_a = this.totalAt(en, depth - 1)) != null ? _a : 0;
+    }
+    return this.env.note.num(key, 0);
+  }
+  /** Expression reference: known property → value (0 if absent); unknown → undefined. */
+  refValue(name, depth) {
+    const key = this.keyFor(name);
+    if (key === null) return void 0;
+    const stored = numericRaw(this.env, key);
+    if (stored !== null) return stored;
+    if (depth > 0) {
+      const en = findDerivedEntry(this.env, key);
+      if (en) return this.totalAt(en, depth - 1);
+    }
+    return this.env.note.num(key, 0);
+  }
+  /** Map a referenced name to a known property key — exact key first, then short form. */
+  keyFor(name) {
+    const nl = name.trim().toLowerCase();
+    if (!nl) return null;
+    for (const k of Object.keys(this.env.note.raw)) if (k.toLowerCase() === nl) return k;
+    const layout = this.env.layout;
+    if (layout) {
+      for (const s of layout.sections)
+        for (const en of s.entries) if (en.kind === "prop" && en.key && en.key.toLowerCase() === nl) return en.key;
+      for (const s of layout.sections)
+        for (const en of s.entries)
+          if (en.kind === "prop" && en.key && abbrFor(this.env.settings, en.key).toLowerCase() === nl) return en.key;
+    }
+    return null;
+  }
+};
 function influenceTerm(env, entry, inf) {
-  return termAt(env, entry, inf, maxDepth(env));
+  var _a;
+  return (_a = new NoteEval(env).term(entry, inf)) != null ? _a : 0;
 }
 function modifierTotal(env, entry) {
-  return totalAt(env, entry, maxDepth(env));
+  var _a;
+  return (_a = new NoteEval(env).total(entry)) != null ? _a : 0;
+}
+function modifierInfo(env, entry) {
+  const ev = new NoteEval(env);
+  const value = ev.total(entry);
+  return { value, error: value === void 0 ? ev.cycles.size > 0 ? "cycle" : "expr" : null };
 }
 function hasNoteOverride(env, entry) {
   return entry.dataType === "derived" && !!entry.key && numericRaw(env, entry.key) !== null;
@@ -1223,13 +1488,20 @@ function setAbbr(settings, key, abbr) {
   const v = (abbr != null ? abbr : "").trim();
   if (v && v !== defaultAbbr(key)) settings.sourceAbbrs[key] = v;
 }
+function exprDenotation(settings, expr) {
+  const ast = parseExpr(expr);
+  return ast ? serializeExpr(ast, (name) => abbrFor(settings, name)) : expr;
+}
+function termDenotation(settings, entry, inf) {
+  return inf.expr ? exprDenotation(settings, inf.expr) : abbrFor(settings, inf.source || entry.key || "");
+}
 function denotationText(settings, entry, mods2) {
   let out = "";
   mods2.forEach((inf, i) => {
     const neg = inf.weight === -1;
     if (i > 0) out += neg ? " \u2212 " : " + ";
     else if (neg) out += "\u2212";
-    out += abbrFor(settings, inf.source || entry.key || "");
+    out += termDenotation(settings, entry, inf);
   });
   return out;
 }
@@ -2302,9 +2574,14 @@ function paintDenotation(parent, view, entry, file) {
     if (i > 0) den.createSpan({ cls: "ep-denote-op", text: neg ? "\u2212" : "+" });
     else if (neg) den.createSpan({ cls: "ep-denote-op", text: "\u2212" });
     const srcKey = inf.source || entry.key || "";
-    const term = den.createSpan({ cls: "ep-line-abbr ep-denote-term", text: abbrFor(view.settings, srcKey) });
-    const modeName = inf.mode === "formula" ? (_a = inf.formula) != null ? _a : "x" : (_d = (_c = view.registries.derivations.get((_b = inf.mode) != null ? _b : "value")) == null ? void 0 : _c.name(view.i18n)) != null ? _d : "";
-    let title = srcKey + (modeName ? ` \xB7 ${modeName}` : "") + (inf.toggle ? ` \xB7 ${inf.toggle}` : "");
+    const term = den.createSpan({ cls: "ep-line-abbr ep-denote-term", text: termDenotation(view.settings, entry, inf) });
+    let title;
+    if (inf.expr) {
+      title = inf.expr + (inf.toggle ? ` \xB7 ${inf.toggle}` : "");
+    } else {
+      const modeName = inf.mode === "formula" ? (_a = inf.formula) != null ? _a : "x" : (_d = (_c = view.registries.derivations.get((_b = inf.mode) != null ? _b : "value")) == null ? void 0 : _c.name(view.i18n)) != null ? _d : "";
+      title = srcKey + (modeName ? ` \xB7 ${modeName}` : "") + (inf.toggle ? ` \xB7 ${inf.toggle}` : "");
+    }
     if (!influenceActive(view, entry, inf)) term.addClass("ep-denote-off");
     if (file) {
       term.addClass("ep-denote-tog");
@@ -2339,7 +2616,13 @@ function paintBadge(cell, ref) {
   cell.empty();
   if (ref.entry.showChain !== false) paintDenotation(cell, ref.view, ref.entry, ref.file);
   paintDice(cell, ref.entry);
-  cell.appendText(fmtMod(modifierTotal(ref.view, ref.entry)));
+  const info = modifierInfo(ref.view, ref.entry);
+  if (info.value === void 0) {
+    const m = cell.createSpan({ cls: "ep-expr-error", text: "\u2014" });
+    m.setAttr("title", ref.view.i18n.t(info.error === "cycle" ? "mods.errCycle" : "mods.errExpr"));
+  } else {
+    cell.appendText(fmtMod(info.value));
+  }
 }
 var modifierAddon = {
   id: "core.mods",
@@ -2399,7 +2682,7 @@ var modifierAddon = {
     const view = ctx.view;
     let total = 0;
     for (const inf of mods(ctx.entry)) {
-      if (inf.source) {
+      if (inf.source || inf.expr) {
         total += influenceTerm(view, ctx.entry, inf);
         continue;
       }
@@ -2436,6 +2719,7 @@ var modifierAddon = {
       head.addText((tx) => {
         var _a;
         tx.setPlaceholder(t("mods.sourceSelf")).setValue((_a = inf.source) != null ? _a : "");
+        if (inf.expr !== void 0) tx.setDisabled(true);
         new PropSuggest(view.app, tx.inputEl, view.i18n, () => view.propCandidates(true), (k) => {
           inf.source = k || void 0;
           changed();
@@ -2452,9 +2736,17 @@ var modifierAddon = {
         for (const def of view.registries.derivations.all())
           if (def.id !== "value") d.addOption(def.id, def.name(view.i18n));
         d.addOption("formula", t("mods.modeFormula"));
-        d.setValue((_c = inf.mode) != null ? _c : "value");
+        d.addOption("expr", t("mods.modeExpr"));
+        d.setValue(inf.expr !== void 0 ? "expr" : (_c = inf.mode) != null ? _c : "value");
         d.onChange((v) => {
-          inf.mode = v === "value" ? void 0 : v;
+          var _a2;
+          if (v === "expr") {
+            inf.expr = (_a2 = inf.expr) != null ? _a2 : "";
+            inf.mode = void 0;
+          } else {
+            inf.expr = void 0;
+            inf.mode = v === "value" ? void 0 : v;
+          }
           changed();
           redraw();
         });
@@ -2485,7 +2777,20 @@ var modifierAddon = {
           redraw();
         })
       );
-      if (inf.mode === "formula") {
+      if (inf.expr !== void 0) {
+        new import_obsidian5.Setting(c).setName(t("mods.expr")).setDesc(t("mods.exprDesc")).setClass("ep-mods-sub").addText((tx) => {
+          var _a, _b;
+          tx.setValue((_a = inf.expr) != null ? _a : "");
+          tx.inputEl.addClass("ep-expr-input");
+          const validate = (val) => tx.inputEl.toggleClass("ep-invalid", val.trim() !== "" && !parseExpr(val));
+          validate((_b = inf.expr) != null ? _b : "");
+          tx.onChange((val) => {
+            inf.expr = val;
+            validate(val);
+            changed();
+          });
+        });
+      } else if (inf.mode === "formula") {
         new import_obsidian5.Setting(c).setName(t("mods.formula")).setDesc(t("options.formulaDesc")).setClass("ep-mods-sub").addText((tx) => {
           var _a;
           tx.setValue((_a = inf.formula) != null ? _a : "x").onChange((v) => {
@@ -2627,13 +2932,27 @@ var derivedType = {
       }
     };
     for (const a of addonsFor(ctx)) Object.assign(slots, a.fillSlots(ctx, { get: compute, label }));
-    const refs = view.buildCluster(ctx.head, ctx.flags, { display: fmtMod(compute()), slots });
+    const disp = () => {
+      const r = modifierInfo(view, entry);
+      return r.value === void 0 ? "\u2014" : fmtMod(r.value);
+    };
+    const refs = view.buildCluster(ctx.head, ctx.flags, { display: disp(), slots });
     refs.val.addClass("ep-num-join");
     if (entry.valueSize) refs.val.style.fontSize = entry.valueSize + "px";
     if (entry.valueColor) refs.val.style.color = entry.valueColor;
     const sync = () => {
-      refs.val.setText(fmtMod(compute()));
-      refs.val.toggleClass("ep-overridden", hasNoteOverride(view, entry));
+      const info = modifierInfo(view, entry);
+      if (info.value === void 0) {
+        refs.val.setText("\u2014");
+        refs.val.addClass("ep-expr-error");
+        refs.val.removeClass("ep-overridden");
+        refs.val.setAttr("title", view.i18n.t(info.error === "cycle" ? "mods.errCycle" : "mods.errExpr"));
+      } else {
+        refs.val.setText(fmtMod(info.value));
+        refs.val.removeClass("ep-expr-error");
+        refs.val.removeAttribute("title");
+        refs.val.toggleClass("ep-overridden", hasNoteOverride(view, entry));
+      }
     };
     sync();
     view.bindOpen(
@@ -6893,7 +7212,9 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
         });
       }).addText((tx) => {
         tx.setPlaceholder("f(x)").setValue(dv.formula).onChange((v) => {
-          if (v.trim() && !compileFormula(v.trim())) return;
+          const invalid = !!v.trim() && !compileFormula(v.trim());
+          tx.inputEl.toggleClass("ep-invalid", invalid);
+          if (invalid) return;
           dv.formula = v.trim() || "x";
           applyDerivations();
         });

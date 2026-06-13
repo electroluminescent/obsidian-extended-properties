@@ -155,7 +155,9 @@ export class EPSettingTab extends PluginSettingTab {
         })
         .addText((tx) => {
           tx.setPlaceholder("f(x)").setValue(dv.formula).onChange((v) => {
-            if (v.trim() && !compileFormula(v.trim())) return;
+            const invalid = !!v.trim() && !compileFormula(v.trim());
+            tx.inputEl.toggleClass("ep-invalid", invalid);
+            if (invalid) return;
             dv.formula = v.trim() || "x";
             applyDerivations();
           });
