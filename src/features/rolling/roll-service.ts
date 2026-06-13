@@ -13,14 +13,15 @@
  * Every log entry carries a `redo` closure so the history is re-rollable.
  */
 
-import { Notice } from "obsidian";
+import { App, Notice } from "obsidian";
 import type { I18n } from "../../i18n/i18n";
-import type { EPSettings } from "../../core/model";
-import type { ViewService } from "../../core/registry";
-import { fmtMod } from "../../utils/misc";
+import type { EPSettings, RollRecord } from "../../core/model";
+import { fmtMod, genId } from "../../utils/misc";
 import { DEFAULT_DICE, DiceSpec, formatDice } from "../../utils/dice";
+import type { ViewService } from "../../core/registry";
 import { rollFace } from "./karma";
 import { playRollAnimation, RollAnimGroup, RollPart } from "./dice-anim";
+import type { HistoryService } from "./history";
 
 export type { RollPart } from "./dice-anim";
 
@@ -41,41 +42,23 @@ export const ROLL_SERVICE = "rolling.rolls";
 
 export type RollMode = "normal" | "advantage" | "disadvantage";
 
-export interface RollEntry {
-  text: string;
-  /** Short form: label and total only. */
-  brief: string;
-  tone: "normal" | "crit" | "fail";
-  /** Re-run the roll that produced this entry. */
-  redo?: () => void;
-}
-
 export class RollService implements ViewService {
+  /** Default roll mode for this view (overridable per roll via {@link RollOpts.mode}). */
   mode: RollMode = "normal";
-  /** Full session history (scrolled by the panel, never trimmed). */
-  log: RollEntry[] = [];
-  private listeners = new Set<() => void>();
 
-  constructor(private i18n: I18n, private settings?: EPSettings) {}
+  /**
+   * @param history plugin-level store every resolved roll is recorded into
+   * @param app     used to attribute each record to the active note
+   */
+  constructor(
+    private i18n: I18n,
+    private settings?: EPSettings,
+    private history?: HistoryService,
+    private app?: App
+  ) {}
 
-  /** The log spans the whole session — note switches keep it. */
-  onFileChange(): void {
-    this.emit();
-  }
-
-  subscribe(fn: () => void): () => void {
-    this.listeners.add(fn);
-    return () => this.listeners.delete(fn);
-  }
-
-  private emit(): void {
-    for (const fn of this.listeners) fn();
-  }
-
-  setMode(mode: RollMode): void {
-    this.mode = mode;
-    this.emit();
-  }
+  /** {@link ViewService} hook. The history is plugin-level, so a note switch needs no per-view reaction. */
+  onFileChange(): void {}
 
   /**
    * Roll `spec` + `modifier` under the current (or overridden) mode; log
@@ -130,7 +113,7 @@ export class RollService implements ViewService {
           ? `[${faces.join(", ")}] -> ${primTotal}`
           : `${primTotal}`;
     // Crit/fail tone evaluates the kept dice of the primary pool only.
-    const tone: RollEntry["tone"] =
+    const tone: RollRecord["tone"] =
       kept.every((f) => f === spec.sides) ? "crit" : kept.every((f) => f === 1) ? "fail" : "normal";
 
     const brief = `${label}${tag}: ${total}`;
@@ -139,13 +122,21 @@ export class RollService implements ViewService {
     // The result is committed (log + notice) only once the roll resolves —
     // immediately without animation, after the dice settle with it.
     const commit = () => {
-      this.log.unshift({
+      const file = this.app?.workspace.getActiveFile();
+      const rec: RollRecord = {
+        id: genId(),
+        time: Date.now(),
+        note: file?.path ?? null,
+        noteName: file?.basename,
+        label: `${label}${tag}`,
         text: `${brief}   (${formatDice(spec)} ${detail}${extraTxt} ${fmtMod(modifier)})`,
         brief,
+        total,
+        mode,
         tone,
-        redo,
-      });
-      this.emit();
+        dice: formatDice(spec),
+      };
+      this.history?.append(rec, redo);
       new Notice(brief, 4000);
     };
     if (this.settings?.diceAnim) {

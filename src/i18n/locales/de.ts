@@ -428,4 +428,24 @@ export const coreDe: StringDict = {
   "settings.hidePromptTitle": "Name der auszublendenden Eigenschaft",
   "settings.featuresHeading": "Funktionen",
   "settings.featuresDesc": "Optionale Module. Beim Deaktivieren verschwinden Widgets und Vorlagen; Layouts und Notiz-Eigenschaften bleiben erhalten.",
+
+  // -- Würfe (Verlauf & Makros) ------------------------------------------------------------------
+  "settings.rollsHeading": "Würfe",
+  "settings.rollHistory": "Dauerhafter Wurfverlauf",
+  "settings.rollHistoryDesc": "Behält den Wurfverlauf über Neustarts hinweg. Aus = Verlauf nur für die aktuelle Sitzung.",
+  "settings.rollHistoryLimit": "Verlaufslimit",
+  "settings.rollHistoryLimitDesc": "Maximale Anzahl gespeicherter Würfe; älteste werden zuerst entfernt.",
+  "settings.rollHistoryClear": "Wurfverlauf leeren",
+  "settings.rollHistoryClearBtn": "Leeren",
+  "settings.rollHistoryClearConfirm": "Den gesamten Wurfverlauf leeren?",
+  "settings.rollHistoryCleared": "Wurfverlauf geleert.",
+  "settings.macrosHeading": "Gespeicherte Würfe (Makros)",
+  "settings.macrosDesc":
+    "Wiederverwendbare Würfe auf dem Würfelbrett, auch als Befehle verfügbar. Notation wie „2d6 + 1d8 + 3“; auf einen Typ beschränken oder für alle verfügbar lassen.",
+  "settings.macroName": "Name",
+  "settings.macroGlobal": "Alle Typen",
+  "settings.macroDelete": "Makro löschen",
+  "settings.macroAdd": "Makro hinzufügen",
+  "settings.macroAddBtn": "+ Makro",
+  "settings.macroNewName": "Neues Makro",
 };

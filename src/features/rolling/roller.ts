@@ -16,12 +16,15 @@
  *   rollerMode   "advantage" | "disadvantage" (unset = normal)
  */
 
+import { Menu, Notice } from "obsidian";
 import type { EntryKindDef } from "../../core/registry";
 import type { ViewCtx } from "../../core/context";
-import { ext } from "../../core/model";
-import { parseDiceOrDefault } from "../../utils/dice";
-import { ROLL_SERVICE, RollMode, RollPart, RollService } from "./roll-service";
+import { ext, type RollMacro } from "../../core/model";
+import { genId } from "../../utils/misc";
+import { ROLL_SERVICE, RollMode, RollService } from "./roll-service";
 import { openDiceMenu } from "./dice-ui";
+import { applicableMacros, runMacro, runRoll, segsToText } from "./macros";
+import { TextPromptModal } from "../../ui/modals/dialogs";
 
 /** One link of the user-assembled chain: a dice group or a flat number. */
 export interface RollerSeg {
@@ -37,7 +40,7 @@ export interface RollerExt {
 }
 
 function svc(view: ViewCtx): RollService {
-  return view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings));
+  return view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings, view.history, view.app));
 }
 
 export const rollerKind: EntryKindDef = {
@@ -167,30 +170,91 @@ export const rollerKind: EntryKindDef = {
 
     const go = ctl.createEl("button", { cls: "ep-roll-btn ep-roller-go", text: t("roll.roll") });
     go.onclick = () => {
-      const list = segs();
-      const diceSegs = list.filter((s) => s.dice !== undefined);
-      const spec = parseDiceOrDefault(diceSegs[0]?.dice);
-      // Further dice groups roll as real pools on the same card — every
-      // die type tumbles and settles visibly (mode applies to the first).
-      const extra = diceSegs.slice(1).map((s) => parseDiceOrDefault(s.dice));
-      const parts: RollPart[] = [];
-      let modifier = 0;
-      for (const s of list) {
-        if (typeof s.add === "number" && s.add !== 0) {
-          parts.push({ label: t("roll.partMod"), value: s.add });
-          modifier += s.add;
+      const label = (ctx.entry as { alias?: string }).alias || t("roller.title");
+      // The roller, a macro chip and a macro command all share one executor.
+      runRoll(svc(view), view.i18n, { segs: segs(), mode: curMode(), times: e.rollerTimes ?? 1, label });
+    };
+
+    // -- saved macros ("custom roll objects") --------------------------------
+    // Saved rolls applicable to this note type live right on the roll screen:
+    // click to roll, right-click to load into the builder, rename or delete.
+    const macrosEl = wrap.createDiv({ cls: "ep-macros" });
+    const loadMacro = (m: RollMacro): void => {
+      const next = (m.segs ?? []).map((s) => ({ ...s }));
+      e.rollerSegs = next.length ? next : undefined;
+      e.rollerMode = m.mode === "advantage" || m.mode === "disadvantage" ? m.mode : undefined;
+      e.rollerTimes = m.times && m.times > 1 ? m.times : undefined;
+      save();
+      drawChain();
+      paintMode();
+      times.value = String(e.rollerTimes ?? 1);
+    };
+    const drawMacros = (): void => {
+      macrosEl.empty();
+      const list = applicableMacros(view.settings, view.activeTypeKey);
+      if (list.length) {
+        macrosEl.createSpan({ cls: "ep-macros-lbl", text: t("roller.macros") });
+        for (const m of list) {
+          const chip = macrosEl.createSpan({ cls: "ep-roller-chip ep-macro-chip" });
+          chip.createSpan({ cls: "ep-roller-chiplab", text: m.name });
+          chip.setAttr("title", segsToText(m.segs) || t("roller.macroRun"));
+          chip.onclick = (ev) => {
+            ev.stopPropagation();
+            runMacro(svc(view), view.i18n, m);
+          };
+          chip.oncontextmenu = (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            const menu = new Menu();
+            menu.addItem((i) =>
+              i.setTitle(t("roller.macroRun")).setIcon("dices").onClick(() => runMacro(svc(view), view.i18n, m))
+            );
+            menu.addItem((i) => i.setTitle(t("roller.macroLoad")).setIcon("download").onClick(() => loadMacro(m)));
+            menu.addItem((i) =>
+              i.setTitle(t("roller.macroRename")).setIcon("pencil").onClick(() =>
+                new TextPromptModal(view.app, view.i18n, t("roller.macroRenamePrompt"), m.name, (v) => {
+                  const nm = v.trim();
+                  if (!nm) return;
+                  m.name = nm;
+                  save();
+                  drawMacros();
+                }).open()
+              )
+            );
+            menu.addItem((i) =>
+              i.setTitle(t("roller.macroDelete")).setIcon("trash").onClick(() => {
+                view.settings.macros = (view.settings.macros ?? []).filter((x) => x.id !== m.id);
+                save();
+                drawMacros();
+              })
+            );
+            menu.showAtMouseEvent(ev);
+          };
         }
       }
-      const label = (ctx.entry as { alias?: string }).alias || t("roller.title");
-      const n = Math.max(1, Math.min(20, e.rollerTimes ?? 1));
-      for (let i = 0; i < n; i++) {
-        svc(view).roll(n > 1 ? `${label} #${i + 1}` : label, modifier, spec, {
-          parts,
-          extra,
-          mode: curMode(),
-          stay: n > 1,
-        });
-      }
+      const saveBtn = macrosEl.createEl("button", { cls: "ep-roller-add", text: t("roller.saveMacro") });
+      saveBtn.onclick = () => {
+        if (!segs().some((s) => s.dice !== undefined)) {
+          new Notice(t("roller.saveMacroEmpty"));
+          return;
+        }
+        new TextPromptModal(view.app, view.i18n, t("roller.saveMacroPrompt"), "", (v) => {
+          const nm = v.trim();
+          if (!nm) return;
+          const macro: RollMacro = {
+            id: genId(),
+            name: nm,
+            segs: segs().map((s) => ({ ...s })),
+            mode: curMode() === "normal" ? undefined : curMode(),
+            times: e.rollerTimes && e.rollerTimes > 1 ? e.rollerTimes : undefined,
+          };
+          view.settings.macros = [...(view.settings.macros ?? []), macro];
+          save();
+          drawMacros();
+          new Notice(t("roller.macroSaved", { name: nm }));
+        }).open();
+      };
     };
+    drawMacros();
   },
 };

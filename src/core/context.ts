@@ -14,6 +14,7 @@ import type { ClusterSlot, Registries, ServiceHub } from "./registry";
 import type { NoteModel } from "./note-model";
 import type { PropertyIndex } from "./property-index";
 import type { HideService } from "./hide-service";
+import type { HistoryService } from "../features/rolling/history";
 
 /** Aligned slot columns shared by all entries of one section. */
 export interface ClusterFlags {
@@ -98,10 +99,14 @@ export interface ViewCtx {
   readonly hide: HideService;
   /** Per-view feature services. */
   readonly hub: ServiceHub;
+  /** Plugin-level, persistent roll history (shared by every view). */
+  readonly history: HistoryService;
 
   readonly editMode: boolean;
   /** Layout of the active note's type. */
   readonly layout: Layout;
+  /** Lower-cased type key of the shown layout (null = no matching type). */
+  readonly activeTypeKey: string | null;
 
   // -- persistence & refresh ------------------------------------------------
   /** Persist settings (layouts live inside settings). */

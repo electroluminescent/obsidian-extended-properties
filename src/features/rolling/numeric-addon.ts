@@ -50,7 +50,8 @@ export const rollAddon: ClusterAddon = {
       // (between the modifier names and the modifier); the cell holds only
       // the button.
       const btn = cell.createEl("button", { cls: "ep-roll-btn", text: view.i18n.t("roll.roll") });
-      const svc = () => view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings));
+      const svc = () =>
+        view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings, view.history, view.app));
       // Labeled modifier parts for the animation chain.
       const partsFor = (): RollPart[] => {
         const me = ext<ModExt>(ctx.entry);

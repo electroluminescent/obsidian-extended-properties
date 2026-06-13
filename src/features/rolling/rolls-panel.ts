@@ -1,18 +1,24 @@
 /**
- * "rolls" entry kind: the live roll history, backed by the per-view
- * {@link RollService}. Clicking an entry re-runs the roll that produced
- * it; a toggle switches between the full roll chain and label & result.
- * (Advantage/disadvantage is chosen per roll via right-click — there is
- * no global mode switch here.)
+ * "rolls" entry kind: the roll history panel.
+ *
+ * Renders the plugin-level, persistent {@link HistoryService} that every view
+ * shares, so the log survives note switches and reloads. Toggles: the global
+ * RNG system (random / karmic), the full roll chain vs. label & result, and
+ * limiting the list to the current note. A clear action empties the history
+ * (everything, or just the current note when the note filter is on). Clicking
+ * an entry re-runs it while its re-roll closure is still in memory (this
+ * session). Advantage/disadvantage is chosen per roll via right-click — there
+ * is no global mode switch here.
  */
 
 import type { EntryKindDef } from "../../core/registry";
-import type { ViewCtx } from "../../core/context";
 import { ext } from "../../core/model";
-import { ROLL_SERVICE, RollService } from "./roll-service";
+import { ConfirmModal } from "../../ui/modals/dialogs";
 
-function rollService(view: ViewCtx): RollService {
-  return view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings));
+/** Per-entry display state persisted via `ext`. */
+interface RollsExt {
+  rollsBrief?: boolean;
+  rollsNoteOnly?: boolean;
 }
 
 export const rollsKind: EntryKindDef = {
@@ -24,8 +30,8 @@ export const rollsKind: EntryKindDef = {
     const { view } = ctx;
     const t = view.i18n.t.bind(view.i18n);
     view.renderLabel(ctx.head, ctx);
-    const service = rollService(view);
-    const e = ext<{ rollsBrief?: boolean }>(ctx.entry);
+    const history = view.history;
+    const e = ext<RollsExt>(ctx.entry);
 
     const tools = ctx.extra.createDiv({ cls: "ep-log-tools" });
     // Global RNG system: pure random vs adaptive ("karmic") luck debt.
@@ -38,37 +44,60 @@ export const rollsKind: EntryKindDef = {
     };
     const chainBtn = tools.createEl("button", { cls: "ep-mode-btn", text: t("roll.logChains") });
     chainBtn.setAttr("title", t("roll.logChainsHint"));
+    chainBtn.onclick = () => {
+      e.rollsBrief = e.rollsBrief ? undefined : true;
+      view.saveLayout();
+      redraw();
+    };
+    // Limit the list to rolls made on the current note.
+    const noteBtn = tools.createEl("button", { cls: "ep-mode-btn", text: t("roll.logNoteOnly") });
+    noteBtn.setAttr("title", t("roll.logNoteOnlyHint"));
+    noteBtn.onclick = () => {
+      e.rollsNoteOnly = e.rollsNoteOnly ? undefined : true;
+      view.saveLayout();
+      redraw();
+    };
+    const clearBtn = tools.createEl("button", { cls: "ep-mode-btn", text: t("roll.logClear") });
+    clearBtn.setAttr("title", t("roll.logClearHint"));
+    clearBtn.onclick = () => {
+      const noteOnly = !!e.rollsNoteOnly && !!view.note.path;
+      new ConfirmModal(
+        view.app,
+        view.i18n,
+        t(noteOnly ? "roll.logClearNoteConfirm" : "roll.logClearConfirm"),
+        () => history.clear(noteOnly ? view.note.path : undefined)
+      ).open();
+    };
+
     const logEl = ctx.extra.createDiv({ cls: "ep-log" });
 
     const redraw = () => {
       rngBtn.setText(view.settings.karmicRolls ? t("roll.rngKarmic") : t("roll.rngRandom"));
       rngBtn.toggleClass("is-active", view.settings.karmicRolls === true);
       chainBtn.toggleClass("is-active", !e.rollsBrief);
+      noteBtn.toggleClass("is-active", !!e.rollsNoteOnly);
       logEl.empty();
-      if (service.log.length === 0) {
+      const records = history.query({ note: e.rollsNoteOnly ? view.note.path : undefined });
+      if (records.length === 0) {
         logEl.createDiv({ cls: "ep-log-empty", text: t("roll.logEmpty") });
         return;
       }
-      for (const en of service.log) {
+      for (const r of records) {
         const row = logEl.createDiv({ cls: "ep-log-row" });
-        if (en.tone === "crit") row.addClass("ep-crit");
-        if (en.tone === "fail") row.addClass("ep-fail");
-        row.setText(e.rollsBrief ? en.brief ?? en.text : en.text);
-        if (en.redo) {
+        if (r.tone === "crit") row.addClass("ep-crit");
+        if (r.tone === "fail") row.addClass("ep-fail");
+        row.setText(e.rollsBrief ? r.brief ?? r.text : r.text);
+        const redo = history.redoFor(r.id);
+        if (redo) {
           row.addClass("ep-log-click");
           row.setAttr("title", t("roll.redoHint"));
-          row.onclick = () => en.redo?.();
+          row.onclick = () => redo();
         }
       }
     };
-    chainBtn.onclick = () => {
-      e.rollsBrief = e.rollsBrief ? undefined : true;
-      view.saveLayout();
-      redraw();
-    };
     redraw();
     // Self-cleaning subscription: drop it once this DOM is replaced.
-    const unsub = service.subscribe(() => {
+    const unsub = history.subscribe(() => {
       if (!logEl.isConnected) {
         unsub();
         return;

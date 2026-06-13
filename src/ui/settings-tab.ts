@@ -13,6 +13,7 @@ import { defaultAbbr, defaultDerivations } from "../core/influences";
 import { compileFormula } from "../utils/formula";
 import { genId } from "../utils/misc";
 import { ConfirmModal, TextPromptModal } from "./modals/dialogs";
+import { segsToText, textToSegs } from "../features/rolling/macros";
 
 /** Max override rows rendered at once (the list is searchable). */
 const OVERRIDE_ROW_LIMIT = 25;
@@ -285,6 +286,102 @@ export class EPSettingTab extends PluginSettingTab {
           save();
         });
       });
+
+    // -- rolls: history & macros ---------------------------------------------
+    if (plugin.settings.features["rolling"] !== false) {
+      c.createEl("h3", { text: t("settings.rollsHeading") });
+      new Setting(c)
+        .setName(t("settings.rollHistory"))
+        .setDesc(t("settings.rollHistoryDesc"))
+        .addToggle((tg) => {
+          tg.setValue(plugin.settings.rollHistoryEnabled !== false).onChange((v) => {
+            plugin.settings.rollHistoryEnabled = v;
+            plugin.history.setEnabled(v);
+            save();
+          });
+        });
+      new Setting(c)
+        .setName(t("settings.rollHistoryLimit"))
+        .setDesc(t("settings.rollHistoryLimitDesc"))
+        .addSlider((sl) => {
+          sl.setLimits(50, 2000, 50)
+            .setValue(plugin.settings.rollHistoryLimit ?? 500)
+            .setDynamicTooltip()
+            .onChange((v) => {
+              plugin.settings.rollHistoryLimit = v;
+              plugin.history.applyLimit();
+              save();
+            });
+        });
+      new Setting(c).setName(t("settings.rollHistoryClear")).addButton((b) =>
+        b.setButtonText(t("settings.rollHistoryClearBtn")).setWarning().onClick(() =>
+          new ConfirmModal(this.app, i18n, t("settings.rollHistoryClearConfirm"), () => {
+            plugin.history.clear();
+            new Notice(t("settings.rollHistoryCleared"));
+          }).open()
+        )
+      );
+
+      // Macros ("custom roll objects"): name · notation · mode · scope · delete.
+      c.createEl("h4", { text: t("settings.macrosHeading") });
+      c.createEl("p", { cls: "setting-item-description", text: t("settings.macrosDesc") });
+      const macros = plugin.settings.macros;
+      for (const m of [...macros]) {
+        new Setting(c)
+          .addText((tx) =>
+            tx.setPlaceholder(t("settings.macroName")).setValue(m.name).onChange((v) => {
+              m.name = v.trim() || m.name;
+              save();
+            })
+          )
+          .addText((tx) => {
+            tx.setPlaceholder("2d6 + 3").setValue(segsToText(m.segs));
+            tx.onChange((v) => {
+              const segs = textToSegs(v);
+              if (!segs) {
+                tx.inputEl.addClass("ep-invalid");
+                return;
+              }
+              tx.inputEl.removeClass("ep-invalid");
+              m.segs = segs;
+              save();
+            });
+          })
+          .addDropdown((dd) => {
+            dd.addOption("normal", t("roll.modeNormal"));
+            dd.addOption("advantage", t("roll.modeAdvantage"));
+            dd.addOption("disadvantage", t("roll.modeDisadvantage"));
+            dd.setValue(m.mode === "advantage" || m.mode === "disadvantage" ? m.mode : "normal");
+            dd.onChange((v) => {
+              m.mode = v === "normal" ? undefined : v;
+              save();
+            });
+          })
+          .addDropdown((dd) => {
+            dd.addOption("", t("settings.macroGlobal"));
+            for (const tp of plugin.settings.types) dd.addOption(tp.toLowerCase(), tp);
+            dd.setValue(m.typeKey ?? "");
+            dd.onChange((v) => {
+              m.typeKey = v || undefined;
+              save();
+            });
+          })
+          .addExtraButton((b) =>
+            b.setIcon("trash").setTooltip(t("settings.macroDelete")).onClick(() => {
+              plugin.settings.macros = macros.filter((x) => x.id !== m.id);
+              save();
+              this.display();
+            })
+          );
+      }
+      new Setting(c).setName(t("settings.macroAdd")).addButton((b) =>
+        b.setButtonText(t("settings.macroAddBtn")).onClick(() => {
+          macros.push({ id: genId(), name: t("settings.macroNewName"), segs: [{ dice: "d20" }] });
+          save();
+          this.display();
+        })
+      );
+    }
 
     // -- typography ---------------------------------------------------------------
     c.createEl("h3", { text: t("settings.typographyHeading") });

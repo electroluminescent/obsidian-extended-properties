@@ -75,6 +75,7 @@ export class SidebarView extends ItemView implements ViewCtx {
   get registries() { return this.plugin.registries; }
   get props() { return this.plugin.props; }
   get hide() { return this.plugin.hide; }
+  get history() { return this.plugin.history; }
   get layout(): Layout { return this.plugin.ensureLayout(this.activeTypeKey || "character"); }
 
   saveLayout(): void { this.plugin.saveSettings(); }

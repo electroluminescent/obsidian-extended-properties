@@ -165,6 +165,60 @@ export interface Defaults {
   listSize: number;
 }
 
+/**
+ * One link of a saved roll chain: a dice group ("2d6") or a flat number.
+ * Mirrors the roller widget's segment so a roller chain serializes verbatim
+ * into a macro (and back).
+ */
+export interface RollSeg {
+  dice?: string;
+  add?: number;
+}
+
+/**
+ * A named, reusable roll — a "custom roll object". Stored vault-globally in
+ * settings; an optional `typeKey` scopes it to one note type. Until the roll
+ * AST lands (roadmap A2) the roll is represented as a segment chain plus the
+ * roller's mode/repeat, which is exactly what the roller widget round-trips.
+ */
+export interface RollMacro {
+  id: string;
+  name: string;
+  segs: RollSeg[];
+  /** "advantage" | "disadvantage"; unset = normal. */
+  mode?: string;
+  /** Simultaneous rolls (unset = 1). */
+  times?: number;
+  /** Lower-cased note-type key this macro is limited to (unset = global). */
+  typeKey?: string;
+}
+
+/**
+ * One persisted roll result. The durable counterpart to the old per-view log
+ * entry: serializable (no closures), so it survives reloads in `data.json`.
+ */
+export interface RollRecord {
+  id: string;
+  /** Epoch milliseconds. */
+  time: number;
+  /** Path of the note the roll was made on (null when none was active). */
+  note: string | null;
+  /** Note basename, kept for display/export without a vault lookup. */
+  noteName?: string;
+  /** Roll label including any advantage/disadvantage tag. */
+  label: string;
+  /** Full roll-chain text (dice, faces, modifier). */
+  text: string;
+  /** Short form: "label: total". */
+  brief: string;
+  total: number;
+  /** RollMode string. */
+  mode: string;
+  tone: "normal" | "crit" | "fail";
+  /** Primary dice notation ("2d6"). */
+  dice?: string;
+}
+
 /** Root settings object persisted to `data.json`. */
 export interface EPSettings {
   /** Note `Type` values that activate the sidebar; each has a layout. */
@@ -213,4 +267,12 @@ export interface EPSettings {
   karmicRolls?: boolean;
   /** List property storing modifiers switched off by clicking their short form. */
   modsOffProp: string;
+  /** Saved reusable rolls ("custom roll objects"), available on the roll screen and as commands. */
+  macros: RollMacro[];
+  /** Durable roll history (most-recent-first); pruned to {@link rollHistoryLimit}. */
+  rollHistory: RollRecord[];
+  /** Maximum stored history entries before FIFO pruning. */
+  rollHistoryLimit: number;
+  /** Persist roll history across sessions (false = legacy in-memory-only behavior). */
+  rollHistoryEnabled: boolean;
 }

@@ -513,9 +513,17 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 .ep-roll-sum-die .ep-roll-sum-ico svg { width: 100%; height: 100%; }
 .ep-roll-sum-die .ep-roll-sum-num { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; }
 /* roll history: chain toggle row + re-rollable entries */
-.ep-log-tools { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+.ep-log-tools { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; margin-bottom: 4px; }
 .ep-log-row.ep-log-click { cursor: pointer; }
 .ep-log-row.ep-log-click:hover { color: var(--text-normal); background: var(--background-modifier-hover); border-radius: 4px; }
 /* the panel holds the whole session history — scroll it */
 .ep-log { max-height: 260px; overflow-y: auto; }
 @media (prefers-reduced-motion: reduce) { .ep-roll-sum-die { transition: none; } }
+
+/* saved roll macros ("custom roll objects") on the roll screen */
+.ep-macros { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ep-macros-lbl { font-size: var(--font-ui-smaller); color: var(--text-muted); margin-right: 2px; }
+.ep-macro-chip { cursor: pointer; }
+.ep-macro-chip:hover { border-color: var(--interactive-accent); }
+/* invalid macro notation in settings */
+.ep-invalid { border-color: var(--text-error) !important; }

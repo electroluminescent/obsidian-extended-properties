@@ -62,7 +62,8 @@ Enable the rolling feature (default-on; toggle in Settings → Features) for ful
 
 - **Roll buttons** on numeric and derived properties roll the configured dice plus the entry's influence sum; the row reads like the roll (`STR + PRO 2d20 +5`).
 - **Preset dice**: d2, d4, d6, d8, d10, d12, d20, d100, or custom die sizes with any quantity — with isometric die icons in the dice menus and inline before the notation (sources in `assets/dice/`).
-- **Roll log panel**: Persistent history of all rolls in the current note.
+- **Roll history panel**: A durable, plugin-wide log that survives note switches and reloads (capped, configurable in Settings → Rolls). Toggle the full chain vs. label & result, filter to the current note, clear it, and re-run any in-session roll by clicking it. *Export roll history to a note* writes it out as a Markdown table.
+- **Saved rolls (macros)**: Reusable "custom roll objects" — name a chain like `2d6 + 1d8 + 3`, then roll it from the dice roller, from the command palette (one command per macro), with optional per-type scope. Build one in the roller and *save as macro*, or manage them in Settings → Rolls.
 - **Roll modes**: Normal, advantage (roll twice, take higher), and disadvantage (roll twice, take lower)—selectable per roll.
 - **Skills value type (legacy)**: The record-based list type is kept for existing notes and offers a one-click *Convert to property entries* that turns each record into a derived property (proficiency becomes a togglable influence backed by a list property). New layouts use sections of derived properties instead.
 

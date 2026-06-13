@@ -396,7 +396,8 @@ function renderRow(ctx: EntryRenderCtx, list: HTMLElement, records: SkillRecord[
 
   // Roll button: record dice (or entry default) + effective modifier.
   const rb = row.createEl("button", { cls: "ep-roll-btn", text: t("roll.roll") });
-  const svc = () => view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings));
+  const svc = () =>
+    view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings, view.history, view.app));
   const partsFor = () => {
     const parts: { label: string; value: number }[] = [];
     const base =

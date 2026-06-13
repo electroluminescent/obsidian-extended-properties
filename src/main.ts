@@ -25,6 +25,9 @@ import { TextPromptModal } from "./ui/modals/dialogs";
 import { augmentPropsMenu, showPropMenu } from "./ui/menus/prop-panel-menu";
 import { rollingModule } from "./features/rolling/index";
 import { dnd5eModule } from "./features/dnd5e/index";
+import { HistoryService } from "./features/rolling/history";
+import { RollService } from "./features/rolling/roll-service";
+import { runMacro } from "./features/rolling/macros";
 
 /**
  * All available feature modules, in registration order (later modules may
@@ -40,6 +43,14 @@ export default class ExtendedPropertiesPlugin extends Plugin {
   readonly registries = new Registries();
   props!: PropertyIndex;
   hide!: HideService;
+  /** Plugin-level, persistent roll history shared by every view. */
+  history!: HistoryService;
+  /** View-less roll service for macro commands (created on first use). */
+  private rollSvc?: RollService;
+  /** Command ids registered for the current macro set (for clean removal). */
+  private macroCmdIds: string[] = [];
+  /** Signature of the registered macro set; guards needless re-registration. */
+  private macroSig = "";
 
   /** All known feature modules (enabled or not) — the settings tab lists them. */
   get featureModules(): FeatureModule[] {
@@ -75,6 +86,12 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       refreshViews: () => this.refreshViews(),
     });
     this.register(this.hide.install());
+
+    // Plugin-level roll history (shared by all views; persists across reloads).
+    this.history = new HistoryService(this.settings, () => {
+      void this.saveData(this.settings);
+    });
+
     if (migrated) await this.saveSettings();
 
     // -- view, ribbon, commands ---------------------------------------------
@@ -97,6 +114,16 @@ export default class ExtendedPropertiesPlugin extends Plugin {
         }, () => this.props.knownProps()).open(),
     });
     this.addSettingTab(new EPSettingTab(this.app, this));
+
+    // Rolling commands (the feature may be disabled): export + per-macro.
+    if (this.settings.features["rolling"] !== false) {
+      this.addCommand({
+        id: "export-roll-history",
+        name: this.i18n.t("roll.cmd.exportHistory"),
+        callback: () => void this.exportRollHistory(),
+      });
+    }
+    this.syncMacroCommands();
 
     // -- view refresh on workspace / metadata events ---------------------------
     const refresh = (file?: TFile) => {
@@ -135,6 +162,63 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     });
   }
 
+  onunload(): void {
+    // Persist any debounced roll-history writes before the plugin goes away.
+    this.history?.flushNow();
+  }
+
+  // -- rolling: history export & macro commands -------------------------------
+
+  /** Lazily-created roll service for view-less rolls (macro commands). */
+  private rollService(): RollService {
+    if (!this.rollSvc) this.rollSvc = new RollService(this.i18n, this.settings, this.history, this.app);
+    return this.rollSvc;
+  }
+
+  /**
+   * Keep exactly one command per saved macro registered, removing commands of
+   * deleted macros. A signature check makes the frequent {@link saveSettings}
+   * caller a no-op unless the macro set actually changed. When the rolling
+   * feature is disabled, all macro commands are removed.
+   */
+  syncMacroCommands(): void {
+    const enabled = this.settings.features["rolling"] !== false;
+    const macros = enabled && Array.isArray(this.settings.macros) ? this.settings.macros : [];
+    const sig = (enabled ? "" : "off|") + macros.map((m) => `${m.id}:${m.name}`).join("|");
+    if (sig === this.macroSig) return;
+    this.macroSig = sig;
+    // removeCommand is not in the public API but is the standard way to drop a
+    // dynamically-registered command; guarded so a future API change can't throw.
+    const cmds = (this.app as unknown as { commands?: { removeCommand?: (id: string) => void } }).commands;
+    for (const id of this.macroCmdIds) cmds?.removeCommand?.(`${this.manifest.id}:${id}`);
+    this.macroCmdIds = [];
+    for (const m of macros) {
+      const cmdId = `roll-macro-${m.id}`;
+      this.addCommand({
+        id: cmdId,
+        name: this.i18n.t("roll.cmd.macroPrefix", { name: m.name }),
+        callback: () => runMacro(this.rollService(), this.i18n, m),
+      });
+      this.macroCmdIds.push(cmdId);
+    }
+  }
+
+  /** Export the roll history to a new note as a Markdown table. */
+  private async exportRollHistory(): Promise<void> {
+    const md = this.history.exportMarkdown(this.i18n);
+    const base = this.i18n.t("roll.export.fileName");
+    let path = `${base}.md`;
+    let n = 2;
+    while (this.app.vault.getAbstractFileByPath(path)) path = `${base} ${n++}.md`;
+    try {
+      const f = await this.app.vault.create(path, md);
+      await this.app.workspace.getLeaf(true).openFile(f);
+      new Notice(this.i18n.t("roll.export.done"));
+    } catch (err) {
+      new Notice(this.i18n.t("roll.export.failed", { error: String(err) }));
+    }
+  }
+
   // -- registries -------------------------------------------------------------
 
   /** (Re)build all registries from core + enabled feature modules. */
@@ -161,6 +245,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
     this.hide.update();
+    this.syncMacroCommands();
   }
 
   ensureLayout(typeKey: string): Layout {

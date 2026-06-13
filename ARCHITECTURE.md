@@ -146,11 +146,19 @@ Obsidian fires for them.
 
 ### Per-view services (`ServiceHub`)
 
-Features sometimes need shared state inside one view — the D&D roll mode and
-log are used by roll buttons (addon), computed entries, save/skill blocks and
-the log panel. `view.hub.get(key, factory)` lazily creates such a service;
-`onFileChange()` lets it react to note switches. Renderers never hold
-references to each other.
+Features sometimes need shared state inside one view — the roll mode is used
+by roll buttons (addon), computed entries and save/skill blocks.
+`view.hub.get(key, factory)` lazily creates such a service; `onFileChange()`
+lets it react to note switches. Renderers never hold references to each other.
+
+Roll **history**, by contrast, belongs to the plugin, not a view: it must
+survive note switches and be shared across windows (popouts share the one
+plugin instance). `HistoryService` (`features/rolling/history.ts`) is owned by
+`main.ts`, exposed on `ViewCtx` as `view.history`, and persisted (debounced)
+into `settings.rollHistory`. The per-view `RollService` only appends records
+and is constructed with the history plus the `App` (to attribute each record
+to the active note). Saved roll **macros** live in `settings.macros`; one
+command is registered per macro and kept in sync on settings save.
 
 ## i18n
 

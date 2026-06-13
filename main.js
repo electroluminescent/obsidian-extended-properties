@@ -22,7 +22,7 @@ __export(main_exports, {
   default: () => ExtendedPropertiesPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian27 = require("obsidian");
+var import_obsidian28 = require("obsidian");
 
 // src/i18n/i18n.ts
 var I18n = class {
@@ -474,7 +474,25 @@ var coreEn = {
   "settings.hidePropertyBtn": "+ Hide property",
   "settings.hidePromptTitle": "Property name to hide",
   "settings.featuresHeading": "Features",
-  "settings.featuresDesc": "Optional modules. Disabling one hides its widgets and templates; layouts and note properties are kept."
+  "settings.featuresDesc": "Optional modules. Disabling one hides its widgets and templates; layouts and note properties are kept.",
+  // -- rolls (history & macros) ------------------------------------------------------------------
+  "settings.rollsHeading": "Rolls",
+  "settings.rollHistory": "Persistent roll history",
+  "settings.rollHistoryDesc": "Keep the roll history across reloads. Off = history lives only for the current session.",
+  "settings.rollHistoryLimit": "History limit",
+  "settings.rollHistoryLimitDesc": "Maximum stored rolls; the oldest are dropped first.",
+  "settings.rollHistoryClear": "Clear roll history",
+  "settings.rollHistoryClearBtn": "Clear",
+  "settings.rollHistoryClearConfirm": "Clear the entire roll history?",
+  "settings.rollHistoryCleared": "Roll history cleared.",
+  "settings.macrosHeading": "Saved rolls (macros)",
+  "settings.macrosDesc": "Reusable rolls shown on the roll screen and available as commands. Notation like \u201C2d6 + 1d8 + 3\u201D; scope to a type or leave it available to all.",
+  "settings.macroName": "Name",
+  "settings.macroGlobal": "All types",
+  "settings.macroDelete": "Delete macro",
+  "settings.macroAdd": "Add a macro",
+  "settings.macroAddBtn": "+ Macro",
+  "settings.macroNewName": "New macro"
 };
 
 // src/i18n/locales/de.ts
@@ -865,7 +883,25 @@ var coreDe = {
   "settings.hidePropertyBtn": "+ Eigenschaft ausblenden",
   "settings.hidePromptTitle": "Name der auszublendenden Eigenschaft",
   "settings.featuresHeading": "Funktionen",
-  "settings.featuresDesc": "Optionale Module. Beim Deaktivieren verschwinden Widgets und Vorlagen; Layouts und Notiz-Eigenschaften bleiben erhalten."
+  "settings.featuresDesc": "Optionale Module. Beim Deaktivieren verschwinden Widgets und Vorlagen; Layouts und Notiz-Eigenschaften bleiben erhalten.",
+  // -- Würfe (Verlauf & Makros) ------------------------------------------------------------------
+  "settings.rollsHeading": "W\xFCrfe",
+  "settings.rollHistory": "Dauerhafter Wurfverlauf",
+  "settings.rollHistoryDesc": "Beh\xE4lt den Wurfverlauf \xFCber Neustarts hinweg. Aus = Verlauf nur f\xFCr die aktuelle Sitzung.",
+  "settings.rollHistoryLimit": "Verlaufslimit",
+  "settings.rollHistoryLimitDesc": "Maximale Anzahl gespeicherter W\xFCrfe; \xE4lteste werden zuerst entfernt.",
+  "settings.rollHistoryClear": "Wurfverlauf leeren",
+  "settings.rollHistoryClearBtn": "Leeren",
+  "settings.rollHistoryClearConfirm": "Den gesamten Wurfverlauf leeren?",
+  "settings.rollHistoryCleared": "Wurfverlauf geleert.",
+  "settings.macrosHeading": "Gespeicherte W\xFCrfe (Makros)",
+  "settings.macrosDesc": "Wiederverwendbare W\xFCrfe auf dem W\xFCrfelbrett, auch als Befehle verf\xFCgbar. Notation wie \u201E2d6 + 1d8 + 3\u201C; auf einen Typ beschr\xE4nken oder f\xFCr alle verf\xFCgbar lassen.",
+  "settings.macroName": "Name",
+  "settings.macroGlobal": "Alle Typen",
+  "settings.macroDelete": "Makro l\xF6schen",
+  "settings.macroAdd": "Makro hinzuf\xFCgen",
+  "settings.macroAddBtn": "+ Makro",
+  "settings.macroNewName": "Neues Makro"
 };
 
 // src/core/model.ts
@@ -1227,7 +1263,11 @@ function defaultSettings() {
     diceAnimRolls: 10,
     diceAnimStay: false,
     diceAnimBlock: true,
-    modsOffProp: "Modifiers Off"
+    modsOffProp: "Modifiers Off",
+    macros: [],
+    rollHistory: [],
+    rollHistoryLimit: 500,
+    rollHistoryEnabled: true
   };
 }
 function normalizeSettings(data, defaultLayout) {
@@ -1261,6 +1301,20 @@ function normalizeSettings(data, defaultLayout) {
     if (data.karmicRolls === true) s.karmicRolls = true;
     if (typeof data.modsOffProp === "string" && data.modsOffProp.trim())
       s.modsOffProp = data.modsOffProp.trim();
+    if (Array.isArray(data.macros))
+      s.macros = data.macros.filter((m) => m && typeof m.id === "string" && typeof m.name === "string").map((m) => ({
+        id: m.id,
+        name: m.name,
+        segs: Array.isArray(m.segs) ? m.segs.filter((x) => x && typeof x === "object") : [],
+        mode: m.mode === "advantage" || m.mode === "disadvantage" ? m.mode : void 0,
+        times: typeof m.times === "number" && m.times > 1 ? Math.min(20, Math.floor(m.times)) : void 0,
+        typeKey: typeof m.typeKey === "string" && m.typeKey ? m.typeKey : void 0
+      }));
+    if (Array.isArray(data.rollHistory))
+      s.rollHistory = data.rollHistory.filter((r) => r && typeof r === "object" && typeof r.id === "string");
+    if (typeof data.rollHistoryLimit === "number" && data.rollHistoryLimit > 0)
+      s.rollHistoryLimit = Math.min(5e3, Math.floor(data.rollHistoryLimit));
+    if (data.rollHistoryEnabled === false) s.rollHistoryEnabled = false;
   }
   for (const t of s.types) {
     const k = t.toLowerCase();
@@ -5781,6 +5835,9 @@ var SidebarView = class extends import_obsidian19.ItemView {
   get hide() {
     return this.plugin.hide;
   }
+  get history() {
+    return this.plugin.history;
+  }
   get layout() {
     return this.plugin.ensureLayout(this.activeTypeKey || "character");
   }
@@ -6402,6 +6459,97 @@ var SidebarView = class extends import_obsidian19.ItemView {
 
 // src/ui/settings-tab.ts
 var import_obsidian20 = require("obsidian");
+
+// src/features/rolling/macros.ts
+function asMode(mode) {
+  return mode === "advantage" || mode === "disadvantage" ? mode : "normal";
+}
+function runRoll(svc2, i18n, o) {
+  var _a, _b, _c, _d;
+  const dice = ((_a = o.segs) != null ? _a : []).filter((s) => s.dice !== void 0);
+  const spec = parseDiceOrDefault((_b = dice[0]) == null ? void 0 : _b.dice);
+  const extra = dice.slice(1).map((s) => parseDiceOrDefault(s.dice));
+  const parts = [];
+  let modifier = 0;
+  for (const s of (_c = o.segs) != null ? _c : []) {
+    if (typeof s.add === "number" && s.add !== 0) {
+      parts.push({ label: i18n.t("roll.partMod"), value: s.add });
+      modifier += s.add;
+    }
+  }
+  const mode = asMode(o.mode);
+  const n = Math.max(1, Math.min(20, (_d = o.times) != null ? _d : 1));
+  for (let i = 0; i < n; i++) {
+    svc2.roll(n > 1 ? `${o.label} #${i + 1}` : o.label, modifier, spec, {
+      parts,
+      extra,
+      mode,
+      stay: n > 1
+    });
+  }
+}
+function runMacro(svc2, i18n, m) {
+  var _a;
+  runRoll(svc2, i18n, {
+    segs: (_a = m.segs) != null ? _a : [],
+    mode: m.mode,
+    times: m.times,
+    label: m.name || i18n.t("roller.title")
+  });
+}
+function applicableMacros(settings, typeKey) {
+  const list = Array.isArray(settings.macros) ? settings.macros : [];
+  return list.filter((m) => !m.typeKey || !!typeKey && m.typeKey === typeKey);
+}
+function segsToText(segs) {
+  const tokens = [];
+  for (const s of segs != null ? segs : []) {
+    if (s.dice !== void 0) {
+      const d = parseDice(s.dice);
+      tokens.push(d ? formatDice(d) : s.dice);
+    } else if (typeof s.add === "number") {
+      tokens.push(String(s.add));
+    }
+  }
+  let txt = "";
+  tokens.forEach((tok, i) => {
+    if (i === 0) txt = tok;
+    else if (tok.startsWith("-")) txt += " - " + tok.slice(1);
+    else txt += " + " + tok;
+  });
+  return txt;
+}
+function textToSegs(text) {
+  const compact = (text != null ? text : "").replace(/\s+/g, "");
+  if (!compact) return [];
+  const tokens = compact.match(/[+-]?[^+-]+/g);
+  if (!tokens) return null;
+  const segs = [];
+  for (const raw of tokens) {
+    let tok = raw;
+    let sign = 1;
+    if (tok.startsWith("+")) tok = tok.slice(1);
+    else if (tok.startsWith("-")) {
+      sign = -1;
+      tok = tok.slice(1);
+    }
+    if (!tok) return null;
+    const d = parseDice(tok);
+    if (d) {
+      segs.push({ dice: formatDice(d) });
+      continue;
+    }
+    const num = Number(tok);
+    if (Number.isFinite(num)) {
+      segs.push({ add: sign * num });
+      continue;
+    }
+    return null;
+  }
+  return segs;
+}
+
+// src/ui/settings-tab.ts
 var OVERRIDE_ROW_LIMIT = 25;
 var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
   constructor(app, plugin) {
@@ -6615,6 +6763,86 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
         save();
       });
     });
+    if (plugin.settings.features["rolling"] !== false) {
+      c.createEl("h3", { text: t("settings.rollsHeading") });
+      new import_obsidian20.Setting(c).setName(t("settings.rollHistory")).setDesc(t("settings.rollHistoryDesc")).addToggle((tg) => {
+        tg.setValue(plugin.settings.rollHistoryEnabled !== false).onChange((v) => {
+          plugin.settings.rollHistoryEnabled = v;
+          plugin.history.setEnabled(v);
+          save();
+        });
+      });
+      new import_obsidian20.Setting(c).setName(t("settings.rollHistoryLimit")).setDesc(t("settings.rollHistoryLimitDesc")).addSlider((sl) => {
+        var _a;
+        sl.setLimits(50, 2e3, 50).setValue((_a = plugin.settings.rollHistoryLimit) != null ? _a : 500).setDynamicTooltip().onChange((v) => {
+          plugin.settings.rollHistoryLimit = v;
+          plugin.history.applyLimit();
+          save();
+        });
+      });
+      new import_obsidian20.Setting(c).setName(t("settings.rollHistoryClear")).addButton(
+        (b) => b.setButtonText(t("settings.rollHistoryClearBtn")).setWarning().onClick(
+          () => new ConfirmModal(this.app, i18n, t("settings.rollHistoryClearConfirm"), () => {
+            plugin.history.clear();
+            new import_obsidian20.Notice(t("settings.rollHistoryCleared"));
+          }).open()
+        )
+      );
+      c.createEl("h4", { text: t("settings.macrosHeading") });
+      c.createEl("p", { cls: "setting-item-description", text: t("settings.macrosDesc") });
+      const macros = plugin.settings.macros;
+      for (const m of [...macros]) {
+        new import_obsidian20.Setting(c).addText(
+          (tx) => tx.setPlaceholder(t("settings.macroName")).setValue(m.name).onChange((v) => {
+            m.name = v.trim() || m.name;
+            save();
+          })
+        ).addText((tx) => {
+          tx.setPlaceholder("2d6 + 3").setValue(segsToText(m.segs));
+          tx.onChange((v) => {
+            const segs = textToSegs(v);
+            if (!segs) {
+              tx.inputEl.addClass("ep-invalid");
+              return;
+            }
+            tx.inputEl.removeClass("ep-invalid");
+            m.segs = segs;
+            save();
+          });
+        }).addDropdown((dd) => {
+          dd.addOption("normal", t("roll.modeNormal"));
+          dd.addOption("advantage", t("roll.modeAdvantage"));
+          dd.addOption("disadvantage", t("roll.modeDisadvantage"));
+          dd.setValue(m.mode === "advantage" || m.mode === "disadvantage" ? m.mode : "normal");
+          dd.onChange((v) => {
+            m.mode = v === "normal" ? void 0 : v;
+            save();
+          });
+        }).addDropdown((dd) => {
+          var _a;
+          dd.addOption("", t("settings.macroGlobal"));
+          for (const tp of plugin.settings.types) dd.addOption(tp.toLowerCase(), tp);
+          dd.setValue((_a = m.typeKey) != null ? _a : "");
+          dd.onChange((v) => {
+            m.typeKey = v || void 0;
+            save();
+          });
+        }).addExtraButton(
+          (b) => b.setIcon("trash").setTooltip(t("settings.macroDelete")).onClick(() => {
+            plugin.settings.macros = macros.filter((x) => x.id !== m.id);
+            save();
+            this.display();
+          })
+        );
+      }
+      new import_obsidian20.Setting(c).setName(t("settings.macroAdd")).addButton(
+        (b) => b.setButtonText(t("settings.macroAddBtn")).onClick(() => {
+          macros.push({ id: genId(), name: t("settings.macroNewName"), segs: [{ dice: "d20" }] });
+          save();
+          this.display();
+        })
+      );
+    }
     c.createEl("h3", { text: t("settings.typographyHeading") });
     c.createEl("p", { cls: "setting-item-description", text: t("settings.typographyDesc") });
     new import_obsidian20.Setting(c).setName(t("settings.fontFamily")).addText((tx) => {
@@ -6850,6 +7078,90 @@ function augmentPropsMenu(host) {
     });
   }
 }
+
+// src/features/rolling/rolls-panel.ts
+var rollsKind = {
+  id: "rolls",
+  addable: true,
+  defaultLabel: (i18n) => i18n.t("roll.rolls"),
+  render(ctx) {
+    const { view } = ctx;
+    const t = view.i18n.t.bind(view.i18n);
+    view.renderLabel(ctx.head, ctx);
+    const history = view.history;
+    const e = ext(ctx.entry);
+    const tools = ctx.extra.createDiv({ cls: "ep-log-tools" });
+    const rngBtn = tools.createEl("button", { cls: "ep-mode-btn" });
+    rngBtn.setAttr("title", t("roll.rngHint"));
+    rngBtn.onclick = () => {
+      view.settings.karmicRolls = view.settings.karmicRolls ? void 0 : true;
+      view.saveLayout();
+      redraw();
+    };
+    const chainBtn = tools.createEl("button", { cls: "ep-mode-btn", text: t("roll.logChains") });
+    chainBtn.setAttr("title", t("roll.logChainsHint"));
+    chainBtn.onclick = () => {
+      e.rollsBrief = e.rollsBrief ? void 0 : true;
+      view.saveLayout();
+      redraw();
+    };
+    const noteBtn = tools.createEl("button", { cls: "ep-mode-btn", text: t("roll.logNoteOnly") });
+    noteBtn.setAttr("title", t("roll.logNoteOnlyHint"));
+    noteBtn.onclick = () => {
+      e.rollsNoteOnly = e.rollsNoteOnly ? void 0 : true;
+      view.saveLayout();
+      redraw();
+    };
+    const clearBtn = tools.createEl("button", { cls: "ep-mode-btn", text: t("roll.logClear") });
+    clearBtn.setAttr("title", t("roll.logClearHint"));
+    clearBtn.onclick = () => {
+      const noteOnly = !!e.rollsNoteOnly && !!view.note.path;
+      new ConfirmModal(
+        view.app,
+        view.i18n,
+        t(noteOnly ? "roll.logClearNoteConfirm" : "roll.logClearConfirm"),
+        () => history.clear(noteOnly ? view.note.path : void 0)
+      ).open();
+    };
+    const logEl = ctx.extra.createDiv({ cls: "ep-log" });
+    const redraw = () => {
+      var _a;
+      rngBtn.setText(view.settings.karmicRolls ? t("roll.rngKarmic") : t("roll.rngRandom"));
+      rngBtn.toggleClass("is-active", view.settings.karmicRolls === true);
+      chainBtn.toggleClass("is-active", !e.rollsBrief);
+      noteBtn.toggleClass("is-active", !!e.rollsNoteOnly);
+      logEl.empty();
+      const records = history.query({ note: e.rollsNoteOnly ? view.note.path : void 0 });
+      if (records.length === 0) {
+        logEl.createDiv({ cls: "ep-log-empty", text: t("roll.logEmpty") });
+        return;
+      }
+      for (const r of records) {
+        const row = logEl.createDiv({ cls: "ep-log-row" });
+        if (r.tone === "crit") row.addClass("ep-crit");
+        if (r.tone === "fail") row.addClass("ep-fail");
+        row.setText(e.rollsBrief ? (_a = r.brief) != null ? _a : r.text : r.text);
+        const redo = history.redoFor(r.id);
+        if (redo) {
+          row.addClass("ep-log-click");
+          row.setAttr("title", t("roll.redoHint"));
+          row.onclick = () => redo();
+        }
+      }
+    };
+    redraw();
+    const unsub = history.subscribe(() => {
+      if (!logEl.isConnected) {
+        unsub();
+        return;
+      }
+      redraw();
+    });
+  }
+};
+
+// src/features/rolling/roller.ts
+var import_obsidian25 = require("obsidian");
 
 // src/features/rolling/roll-service.ts
 var import_obsidian23 = require("obsidian");
@@ -7160,28 +7472,20 @@ function playRollAnimation(job, i18n, done) {
 // src/features/rolling/roll-service.ts
 var ROLL_SERVICE = "rolling.rolls";
 var RollService = class {
-  constructor(i18n, settings) {
+  /**
+   * @param history plugin-level store every resolved roll is recorded into
+   * @param app     used to attribute each record to the active note
+   */
+  constructor(i18n, settings, history, app) {
     this.i18n = i18n;
     this.settings = settings;
+    this.history = history;
+    this.app = app;
+    /** Default roll mode for this view (overridable per roll via {@link RollOpts.mode}). */
     this.mode = "normal";
-    /** Full session history (scrolled by the panel, never trimmed). */
-    this.log = [];
-    this.listeners = /* @__PURE__ */ new Set();
   }
-  /** The log spans the whole session — note switches keep it. */
+  /** {@link ViewService} hook. The history is plugin-level, so a note switch needs no per-view reaction. */
   onFileChange() {
-    this.emit();
-  }
-  subscribe(fn) {
-    this.listeners.add(fn);
-    return () => this.listeners.delete(fn);
-  }
-  emit() {
-    for (const fn of this.listeners) fn();
-  }
-  setMode(mode) {
-    this.mode = mode;
-    this.emit();
   }
   /**
    * Roll `spec` + `modifier` under the current (or overridden) mode; log
@@ -7222,13 +7526,22 @@ var RollService = class {
     const brief = `${label}${tag}: ${total}`;
     const redo = () => this.roll(label, modifier, spec, opts);
     const commit2 = () => {
-      this.log.unshift({
+      var _a2, _b2, _c2;
+      const file = (_a2 = this.app) == null ? void 0 : _a2.workspace.getActiveFile();
+      const rec = {
+        id: genId(),
+        time: Date.now(),
+        note: (_b2 = file == null ? void 0 : file.path) != null ? _b2 : null,
+        noteName: file == null ? void 0 : file.basename,
+        label: `${label}${tag}`,
         text: `${brief}   (${formatDice(spec)} ${detail}${extraTxt} ${fmtMod(modifier)})`,
         brief,
+        total,
+        mode,
         tone,
-        redo
-      });
-      this.emit();
+        dice: formatDice(spec)
+      };
+      (_c2 = this.history) == null ? void 0 : _c2.append(rec, redo);
       new import_obsidian23.Notice(brief, 4e3);
     };
     if ((_d = this.settings) == null ? void 0 : _d.diceAnim) {
@@ -7250,72 +7563,6 @@ var RollService = class {
     } else {
       commit2();
     }
-  }
-};
-
-// src/features/rolling/rolls-panel.ts
-function rollService(view) {
-  return view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings));
-}
-var rollsKind = {
-  id: "rolls",
-  addable: true,
-  defaultLabel: (i18n) => i18n.t("roll.rolls"),
-  render(ctx) {
-    const { view } = ctx;
-    const t = view.i18n.t.bind(view.i18n);
-    view.renderLabel(ctx.head, ctx);
-    const service = rollService(view);
-    const e = ext(ctx.entry);
-    const tools = ctx.extra.createDiv({ cls: "ep-log-tools" });
-    const rngBtn = tools.createEl("button", { cls: "ep-mode-btn" });
-    rngBtn.setAttr("title", t("roll.rngHint"));
-    rngBtn.onclick = () => {
-      view.settings.karmicRolls = view.settings.karmicRolls ? void 0 : true;
-      view.saveLayout();
-      redraw();
-    };
-    const chainBtn = tools.createEl("button", { cls: "ep-mode-btn", text: t("roll.logChains") });
-    chainBtn.setAttr("title", t("roll.logChainsHint"));
-    const logEl = ctx.extra.createDiv({ cls: "ep-log" });
-    const redraw = () => {
-      var _a;
-      rngBtn.setText(view.settings.karmicRolls ? t("roll.rngKarmic") : t("roll.rngRandom"));
-      rngBtn.toggleClass("is-active", view.settings.karmicRolls === true);
-      chainBtn.toggleClass("is-active", !e.rollsBrief);
-      logEl.empty();
-      if (service.log.length === 0) {
-        logEl.createDiv({ cls: "ep-log-empty", text: t("roll.logEmpty") });
-        return;
-      }
-      for (const en of service.log) {
-        const row = logEl.createDiv({ cls: "ep-log-row" });
-        if (en.tone === "crit") row.addClass("ep-crit");
-        if (en.tone === "fail") row.addClass("ep-fail");
-        row.setText(e.rollsBrief ? (_a = en.brief) != null ? _a : en.text : en.text);
-        if (en.redo) {
-          row.addClass("ep-log-click");
-          row.setAttr("title", t("roll.redoHint"));
-          row.onclick = () => {
-            var _a2;
-            return (_a2 = en.redo) == null ? void 0 : _a2.call(en);
-          };
-        }
-      }
-    };
-    chainBtn.onclick = () => {
-      e.rollsBrief = e.rollsBrief ? void 0 : true;
-      view.saveLayout();
-      redraw();
-    };
-    redraw();
-    const unsub = service.subscribe(() => {
-      if (!logEl.isConnected) {
-        unsub();
-        return;
-      }
-      redraw();
-    });
   }
 };
 
@@ -7457,7 +7704,7 @@ function renderDiceTag(parent, notation, alwaysShow = false) {
 
 // src/features/rolling/roller.ts
 function svc(view) {
-  return view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings));
+  return view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings, view.history, view.app));
 }
 var rollerKind = {
   id: "diceroller",
@@ -7578,35 +7825,96 @@ var rollerKind = {
     };
     const go = ctl.createEl("button", { cls: "ep-roll-btn ep-roller-go", text: t("roll.roll") });
     go.onclick = () => {
+      var _a2;
+      const label = ctx.entry.alias || t("roller.title");
+      runRoll(svc(view), view.i18n, { segs: segs(), mode: curMode(), times: (_a2 = e.rollerTimes) != null ? _a2 : 1, label });
+    };
+    const macrosEl = wrap.createDiv({ cls: "ep-macros" });
+    const loadMacro = (m) => {
       var _a2, _b;
-      const list = segs();
-      const diceSegs = list.filter((s) => s.dice !== void 0);
-      const spec = parseDiceOrDefault((_a2 = diceSegs[0]) == null ? void 0 : _a2.dice);
-      const extra = diceSegs.slice(1).map((s) => parseDiceOrDefault(s.dice));
-      const parts = [];
-      let modifier = 0;
-      for (const s of list) {
-        if (typeof s.add === "number" && s.add !== 0) {
-          parts.push({ label: t("roll.partMod"), value: s.add });
-          modifier += s.add;
+      const next = ((_a2 = m.segs) != null ? _a2 : []).map((s) => ({ ...s }));
+      e.rollerSegs = next.length ? next : void 0;
+      e.rollerMode = m.mode === "advantage" || m.mode === "disadvantage" ? m.mode : void 0;
+      e.rollerTimes = m.times && m.times > 1 ? m.times : void 0;
+      save();
+      drawChain();
+      paintMode();
+      times.value = String((_b = e.rollerTimes) != null ? _b : 1);
+    };
+    const drawMacros = () => {
+      macrosEl.empty();
+      const list = applicableMacros(view.settings, view.activeTypeKey);
+      if (list.length) {
+        macrosEl.createSpan({ cls: "ep-macros-lbl", text: t("roller.macros") });
+        for (const m of list) {
+          const chip = macrosEl.createSpan({ cls: "ep-roller-chip ep-macro-chip" });
+          chip.createSpan({ cls: "ep-roller-chiplab", text: m.name });
+          chip.setAttr("title", segsToText(m.segs) || t("roller.macroRun"));
+          chip.onclick = (ev) => {
+            ev.stopPropagation();
+            runMacro(svc(view), view.i18n, m);
+          };
+          chip.oncontextmenu = (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            const menu = new import_obsidian25.Menu();
+            menu.addItem(
+              (i) => i.setTitle(t("roller.macroRun")).setIcon("dices").onClick(() => runMacro(svc(view), view.i18n, m))
+            );
+            menu.addItem((i) => i.setTitle(t("roller.macroLoad")).setIcon("download").onClick(() => loadMacro(m)));
+            menu.addItem(
+              (i) => i.setTitle(t("roller.macroRename")).setIcon("pencil").onClick(
+                () => new TextPromptModal(view.app, view.i18n, t("roller.macroRenamePrompt"), m.name, (v) => {
+                  const nm = v.trim();
+                  if (!nm) return;
+                  m.name = nm;
+                  save();
+                  drawMacros();
+                }).open()
+              )
+            );
+            menu.addItem(
+              (i) => i.setTitle(t("roller.macroDelete")).setIcon("trash").onClick(() => {
+                var _a2;
+                view.settings.macros = ((_a2 = view.settings.macros) != null ? _a2 : []).filter((x) => x.id !== m.id);
+                save();
+                drawMacros();
+              })
+            );
+            menu.showAtMouseEvent(ev);
+          };
         }
       }
-      const label = ctx.entry.alias || t("roller.title");
-      const n = Math.max(1, Math.min(20, (_b = e.rollerTimes) != null ? _b : 1));
-      for (let i = 0; i < n; i++) {
-        svc(view).roll(n > 1 ? `${label} #${i + 1}` : label, modifier, spec, {
-          parts,
-          extra,
-          mode: curMode(),
-          stay: n > 1
-        });
-      }
+      const saveBtn = macrosEl.createEl("button", { cls: "ep-roller-add", text: t("roller.saveMacro") });
+      saveBtn.onclick = () => {
+        if (!segs().some((s) => s.dice !== void 0)) {
+          new import_obsidian25.Notice(t("roller.saveMacroEmpty"));
+          return;
+        }
+        new TextPromptModal(view.app, view.i18n, t("roller.saveMacroPrompt"), "", (v) => {
+          var _a2;
+          const nm = v.trim();
+          if (!nm) return;
+          const macro = {
+            id: genId(),
+            name: nm,
+            segs: segs().map((s) => ({ ...s })),
+            mode: curMode() === "normal" ? void 0 : curMode(),
+            times: e.rollerTimes && e.rollerTimes > 1 ? e.rollerTimes : void 0
+          };
+          view.settings.macros = [...(_a2 = view.settings.macros) != null ? _a2 : [], macro];
+          save();
+          drawMacros();
+          new import_obsidian25.Notice(t("roller.macroSaved", { name: nm }));
+        }).open();
+      };
     };
+    drawMacros();
   }
 };
 
 // src/features/rolling/numeric-addon.ts
-var import_obsidian25 = require("obsidian");
+var import_obsidian26 = require("obsidian");
 var rollAddon = {
   id: "rolling.roll",
   appliesTo(ref) {
@@ -7623,7 +7931,7 @@ var rollAddon = {
     const slots = {};
     slots["roll"] = (cell) => {
       const btn = cell.createEl("button", { cls: "ep-roll-btn", text: view.i18n.t("roll.roll") });
-      const svc2 = () => view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings));
+      const svc2 = () => view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings, view.history, view.app));
       const partsFor = () => {
         var _a;
         const me = ext(ctx.entry);
@@ -7659,7 +7967,7 @@ var rollAddon = {
     const t = view.i18n.t.bind(view.i18n);
     const e = ext(entry);
     c.createEl("h4", { text: t("roll.options.heading") });
-    new import_obsidian25.Setting(c).setName(t("roll.options.rollButton")).setDesc(t("roll.options.rollButtonDesc")).addToggle((tg) => {
+    new import_obsidian26.Setting(c).setName(t("roll.options.rollButton")).setDesc(t("roll.options.rollButtonDesc")).addToggle((tg) => {
       tg.setValue(!!e.roll).onChange((v) => {
         var _a;
         e.roll = v || void 0;
@@ -7677,13 +7985,13 @@ var rollAddon = {
           changed();
         }
       });
-      new import_obsidian25.Setting(c).setName(t("mods.showDice")).setDesc(t("mods.showDiceDesc")).addToggle((tg) => {
+      new import_obsidian26.Setting(c).setName(t("mods.showDice")).setDesc(t("mods.showDiceDesc")).addToggle((tg) => {
         tg.setValue(entry.showDice !== false).onChange((v) => {
           entry.showDice = v ? void 0 : false;
           changed();
         });
       });
-      new import_obsidian25.Setting(c).setName(t("mods.showDiceIcon")).setDesc(t("mods.showDiceIconDesc")).addToggle((tg) => {
+      new import_obsidian26.Setting(c).setName(t("mods.showDiceIcon")).setDesc(t("mods.showDiceIconDesc")).addToggle((tg) => {
         tg.setValue(entry.showDiceIcon !== false).onChange((v) => {
           entry.showDiceIcon = v ? void 0 : false;
           changed();
@@ -7694,7 +8002,7 @@ var rollAddon = {
 };
 
 // src/features/rolling/skills-type.ts
-var import_obsidian26 = require("obsidian");
+var import_obsidian27 = require("obsidian");
 
 // src/features/rolling/modifiers.ts
 function abilityMod(score) {
@@ -7771,7 +8079,7 @@ function convertToProperties(ref) {
   const preset = view.registries.skillPresets.get(e.skillsPreset);
   if (!records.length && preset) records = preset.records();
   if (!records.length) {
-    new import_obsidian26.Notice(t("skills.convertEmpty"));
+    new import_obsidian27.Notice(t("skills.convertEmpty"));
     return;
   }
   const useProf = e.profMode === "level" || e.profMode === "fixed";
@@ -7830,7 +8138,7 @@ function convertToProperties(ref) {
   ensurePropEntries(view.layout, section, [...new Set(records.map((r) => r.source).filter((x) => !!x))]);
   view.saveLayout();
   view.rerender();
-  new import_obsidian26.Notice(t("skills.convertDone", { n: fresh.length }));
+  new import_obsidian27.Notice(t("skills.convertDone", { n: fresh.length }));
 }
 function confirmConvert(ref) {
   new ConfirmModal(
@@ -7866,7 +8174,7 @@ function addBlankSkill(view, file, key) {
   }).open();
 }
 function openAddSkillsMenu(e, view, file, key) {
-  const menu = new import_obsidian26.Menu();
+  const menu = new import_obsidian27.Menu();
   for (const preset of view.registries.skillPresets.all()) {
     menu.addItem(
       (i) => i.setTitle(view.i18n.t("skills.menu.addPreset", { name: preset.name(view.i18n) })).setIcon("list-plus").onClick(() => populateFromPreset(view, file, key, preset))
@@ -7990,7 +8298,7 @@ function renderRow(ctx, list, records, index) {
     }, { min: -999, max: 999, float: false, clamp: false })
   );
   const rb = row.createEl("button", { cls: "ep-roll-btn", text: t("roll.roll") });
-  const svc2 = () => view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings));
+  const svc2 = () => view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings, view.history, view.app));
   const partsFor = () => {
     const parts = [];
     const base = rec.mod !== void 0 ? rec.mod : rec.source ? deriveModifier(e.skillMode, view.note.num(rec.source, 0)) : 0;
@@ -8024,7 +8332,7 @@ function renderRow(ctx, list, records, index) {
   row.addEventListener("contextmenu", (ev) => {
     ev.preventDefault();
     ev.stopPropagation();
-    const menu = new import_obsidian26.Menu();
+    const menu = new import_obsidian27.Menu();
     menu.addItem(
       (i) => i.setTitle(t("skills.menu.setSource")).setIcon("link").onClick(() => inlineSource(ctx, abbrSpan, index))
     );
@@ -8114,10 +8422,10 @@ var skillsType = {
     const e = ext(entry);
     c.createEl("h4", { text: t("skills.options.heading") });
     c.createEl("p", { cls: "setting-item-description", text: t("skills.options.editHint") });
-    new import_obsidian26.Setting(c).setName(t("skills.convert")).setDesc(t("skills.convertDesc")).addButton(
+    new import_obsidian27.Setting(c).setName(t("skills.convert")).setDesc(t("skills.convertDesc")).addButton(
       (b) => b.setButtonText(t("skills.convertBtn")).onClick(() => confirmConvert(octx))
     );
-    new import_obsidian26.Setting(c).setName(t("skills.options.sourceMode")).addDropdown((d) => {
+    new import_obsidian27.Setting(c).setName(t("skills.options.sourceMode")).addDropdown((d) => {
       var _a;
       d.addOption("value", t("skills.options.modeValue"));
       d.addOption("abilityMod", t("skills.options.modeAbilityMod"));
@@ -8127,7 +8435,7 @@ var skillsType = {
         changed();
       });
     });
-    new import_obsidian26.Setting(c).setName(t("skills.options.profMode")).addDropdown((d) => {
+    new import_obsidian27.Setting(c).setName(t("skills.options.profMode")).addDropdown((d) => {
       var _a;
       d.addOption("none", t("skills.options.profNone"));
       d.addOption("level", t("skills.options.profLevel"));
@@ -8140,7 +8448,7 @@ var skillsType = {
       });
     });
     if (e.profMode === "level") {
-      new import_obsidian26.Setting(c).setName(t("skills.options.profSource")).addText((tx) => {
+      new import_obsidian27.Setting(c).setName(t("skills.options.profSource")).addText((tx) => {
         var _a;
         tx.setPlaceholder("Level").setValue((_a = e.profSource) != null ? _a : "").onChange((v) => {
           e.profSource = v.trim() || void 0;
@@ -8149,7 +8457,7 @@ var skillsType = {
       });
     }
     if (e.profMode === "fixed") {
-      new import_obsidian26.Setting(c).setName(t("skills.options.profFixedValue")).addText((tx) => {
+      new import_obsidian27.Setting(c).setName(t("skills.options.profFixedValue")).addText((tx) => {
         tx.setValue(e.profFixed !== void 0 ? String(e.profFixed) : "").onChange((v) => {
           const n = Number(v);
           e.profFixed = v.trim() === "" || !Number.isFinite(n) ? void 0 : n;
@@ -8168,7 +8476,7 @@ var skillsType = {
     if (presets.length) {
       c.createEl("h4", { text: t("skills.options.presets") });
       for (const preset of presets) {
-        new import_obsidian26.Setting(c).setName(preset.name(view.i18n)).addButton(
+        new import_obsidian27.Setting(c).setName(preset.name(view.i18n)).addButton(
           (b) => b.setButtonText(t("skills.options.addPreset")).onClick(() => {
             populateFromPreset(view, octx.file, entry.key, preset);
             changed();
@@ -8209,12 +8517,40 @@ var rollingEn = {
   "roll.rngRandom": "Random",
   "roll.rngKarmic": "Karmic",
   "roll.rngHint": "Toggle the global roll system: pure random, or adaptive (karmic) \u2014 failures build hidden luck debt that converts some future failures into successes; streaks of bad luck fade out.",
+  "roll.logNoteOnly": "This note",
+  "roll.logNoteOnlyHint": "Show only rolls made on the current note",
+  "roll.logClear": "Clear",
+  "roll.logClearHint": "Clear the roll history",
+  "roll.logClearConfirm": "Clear the entire roll history?",
+  "roll.logClearNoteConfirm": "Clear this note\u2019s roll history?",
+  "roll.cmd.exportHistory": "Export roll history to a note",
+  "roll.cmd.macroPrefix": "Roll macro: {name}",
+  "roll.export.title": "Roll history",
+  "roll.export.fileName": "Roll history",
+  "roll.export.time": "Time",
+  "roll.export.note": "Note",
+  "roll.export.label": "Roll",
+  "roll.export.total": "Total",
+  "roll.export.mode": "Mode",
+  "roll.export.detail": "Detail",
+  "roll.export.done": "Roll history exported.",
+  "roll.export.failed": "Export failed: {error}",
   "roller.title": "Dice roller",
   "roller.addDie": "+ die",
   "roller.addNum": "+ number",
   "roller.times": "Rolls",
   "roller.chipHint": "Click to edit, \u2715 to remove",
   "roller.removeSeg": "Remove",
+  "roller.macros": "Macros",
+  "roller.saveMacro": "+ save as macro",
+  "roller.saveMacroPrompt": "Macro name",
+  "roller.saveMacroEmpty": "Add at least one die before saving a macro.",
+  "roller.macroRun": "Roll",
+  "roller.macroLoad": "Load into builder",
+  "roller.macroRename": "Rename",
+  "roller.macroRenamePrompt": "Macro name",
+  "roller.macroDelete": "Delete macro",
+  "roller.macroSaved": "Saved macro \u201C{name}\u201D.",
   "dice.die": "Die",
   "dice.dieDesc": "Preset die, or type a custom size next to it",
   "dice.custom": "Custom\u2026",
@@ -8291,12 +8627,40 @@ var rollingDe = {
   "roll.rngRandom": "Zufall",
   "roll.rngKarmic": "Karmisch",
   "roll.rngHint": "Globales Wurfsystem umschalten: reiner Zufall oder adaptiv (karmisch) \u2014 Fehlschl\xE4ge bauen verborgene Gl\xFCcksschuld auf, die k\xFCnftige Fehlschl\xE4ge teils in Erfolge wandelt; Pechstr\xE4hnen klingen ab.",
+  "roll.logNoteOnly": "Diese Notiz",
+  "roll.logNoteOnlyHint": "Nur W\xFCrfe der aktuellen Notiz anzeigen",
+  "roll.logClear": "Leeren",
+  "roll.logClearHint": "Wurfverlauf leeren",
+  "roll.logClearConfirm": "Den gesamten Wurfverlauf leeren?",
+  "roll.logClearNoteConfirm": "Den Wurfverlauf dieser Notiz leeren?",
+  "roll.cmd.exportHistory": "Wurfverlauf in eine Notiz exportieren",
+  "roll.cmd.macroPrefix": "Makro w\xFCrfeln: {name}",
+  "roll.export.title": "Wurfverlauf",
+  "roll.export.fileName": "Wurfverlauf",
+  "roll.export.time": "Zeit",
+  "roll.export.note": "Notiz",
+  "roll.export.label": "Wurf",
+  "roll.export.total": "Summe",
+  "roll.export.mode": "Modus",
+  "roll.export.detail": "Detail",
+  "roll.export.done": "Wurfverlauf exportiert.",
+  "roll.export.failed": "Export fehlgeschlagen: {error}",
   "roller.title": "W\xFCrfelbrett",
   "roller.addDie": "+ W\xFCrfel",
   "roller.addNum": "+ Zahl",
   "roller.times": "W\xFCrfe",
   "roller.chipHint": "Klicken zum Bearbeiten, \u2715 zum Entfernen",
   "roller.removeSeg": "Entfernen",
+  "roller.macros": "Makros",
+  "roller.saveMacro": "+ als Makro speichern",
+  "roller.saveMacroPrompt": "Makroname",
+  "roller.saveMacroEmpty": "F\xFCge mindestens einen W\xFCrfel hinzu, bevor du ein Makro speicherst.",
+  "roller.macroRun": "W\xFCrfeln",
+  "roller.macroLoad": "In den Builder laden",
+  "roller.macroRename": "Umbenennen",
+  "roller.macroRenamePrompt": "Makroname",
+  "roller.macroDelete": "Makro l\xF6schen",
+  "roller.macroSaved": "Makro \u201E{name}\u201C gespeichert.",
   "dice.die": "W\xFCrfel",
   "dice.dieDesc": "Vordefinierter W\xFCrfel, oder eigene Gr\xF6\xDFe daneben eintragen",
   "dice.custom": "Eigene\u2026",
@@ -8665,13 +9029,144 @@ var dnd5eModule = {
   }
 };
 
+// src/features/rolling/history.ts
+var DEFAULT_LIMIT = 500;
+var FLUSH_MS = 1500;
+var HistoryService = class {
+  constructor(settings, save) {
+    this.settings = settings;
+    this.save = save;
+    /** Most-recent-first. The source of truth the panel renders from. */
+    this.entries = [];
+    /** id → re-roll closure (this session only; not persisted). */
+    this.redos = /* @__PURE__ */ new Map();
+    this.listeners = /* @__PURE__ */ new Set();
+    this.flushTimer = 0;
+    this.dirty = false;
+    const stored = Array.isArray(settings.rollHistory) ? settings.rollHistory : [];
+    this.entries = stored.map((r) => ({ ...r }));
+    this.prune();
+  }
+  enabled() {
+    return this.settings.rollHistoryEnabled !== false;
+  }
+  limit() {
+    const n = this.settings.rollHistoryLimit;
+    return typeof n === "number" && n > 0 ? Math.min(5e3, Math.floor(n)) : DEFAULT_LIMIT;
+  }
+  /** All entries (most-recent-first). */
+  all() {
+    return this.entries;
+  }
+  /** Entries, optionally limited to one note and/or a tail length. */
+  query(o = {}) {
+    let list = this.entries;
+    if (o.note) list = list.filter((r) => r.note === o.note);
+    return typeof o.limit === "number" ? list.slice(0, o.limit) : list;
+  }
+  /** Re-roll closure for a record made this session, if any. */
+  redoFor(id) {
+    return this.redos.get(id);
+  }
+  /** Append a freshly resolved roll. `redo` re-runs it (kept in-session only). */
+  append(rec, redo) {
+    this.entries.unshift(rec);
+    if (redo) this.redos.set(rec.id, redo);
+    this.prune();
+    this.dirty = true;
+    this.emit();
+    this.scheduleFlush();
+  }
+  /** Clear all entries, or just those of `note`. Persists immediately. */
+  clear(note) {
+    if (note) {
+      this.entries = this.entries.filter((r) => r.note !== note);
+    } else {
+      this.entries = [];
+      this.redos.clear();
+    }
+    this.dirty = true;
+    this.emit();
+    this.flushNow();
+  }
+  /** React to the on/off setting changing: flush when turned on, drop the persisted copy when off. */
+  setEnabled(on) {
+    if (on) {
+      this.dirty = true;
+      this.flushNow();
+    } else {
+      this.settings.rollHistory = [];
+      this.dirty = false;
+      this.save();
+    }
+  }
+  /** React to the limit setting changing: prune now and persist. */
+  applyLimit() {
+    this.prune();
+    this.dirty = true;
+    this.flushNow();
+  }
+  subscribe(fn) {
+    this.listeners.add(fn);
+    return () => this.listeners.delete(fn);
+  }
+  emit() {
+    for (const fn of [...this.listeners]) fn();
+  }
+  prune() {
+    const lim = this.limit();
+    if (this.entries.length > lim) {
+      const removed = this.entries.splice(lim);
+      for (const r of removed) this.redos.delete(r.id);
+    }
+  }
+  scheduleFlush() {
+    if (!this.enabled() || this.flushTimer) return;
+    this.flushTimer = window.setTimeout(() => {
+      this.flushTimer = 0;
+      this.flush();
+    }, FLUSH_MS);
+  }
+  /** Persist now, cancelling any pending debounce (clear, unload, setting change). */
+  flushNow() {
+    if (this.flushTimer) {
+      window.clearTimeout(this.flushTimer);
+      this.flushTimer = 0;
+    }
+    this.flush();
+  }
+  flush() {
+    if (!this.dirty) return;
+    this.dirty = false;
+    this.settings.rollHistory = this.enabled() ? this.entries.slice(0, this.limit()) : [];
+    this.save();
+  }
+  /** Render the history (optionally one note's) as a Markdown table document. */
+  exportMarkdown(i18n, note) {
+    const rows = this.query({ note: note != null ? note : void 0 });
+    const cell = (s) => (s != null ? s : "").replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
+    const head = `| ${i18n.t("roll.export.time")} | ${i18n.t("roll.export.note")} | ${i18n.t("roll.export.label")} | ${i18n.t("roll.export.total")} | ${i18n.t("roll.export.mode")} | ${i18n.t("roll.export.detail")} |`;
+    const sep = "| --- | --- | --- | ---: | --- | --- |";
+    const body = rows.map((r) => {
+      const time = new Date(r.time).toLocaleString();
+      const noteName = cell(r.noteName || r.note || "");
+      return `| ${cell(time)} | ${noteName} | ${cell(r.label)} | ${r.total} | ${cell(r.mode)} | ${cell(r.text)} |`;
+    });
+    return [`# ${i18n.t("roll.export.title")}`, "", head, sep, ...body, ""].join("\n");
+  }
+};
+
 // src/main.ts
 var FEATURE_MODULES = [rollingModule, dnd5eModule];
-var ExtendedPropertiesPlugin = class extends import_obsidian27.Plugin {
+var ExtendedPropertiesPlugin = class extends import_obsidian28.Plugin {
   constructor() {
     super(...arguments);
     this.i18n = new I18n();
     this.registries = new Registries();
+    /** Command ids registered for the current macro set (for clean removal). */
+    this.macroCmdIds = [];
+    /** Signature of the registered macro set; guards needless re-registration. */
+    this.macroSig = "";
   }
   /** All known feature modules (enabled or not) — the settings tab lists them. */
   get featureModules() {
@@ -8699,6 +9194,9 @@ var ExtendedPropertiesPlugin = class extends import_obsidian27.Plugin {
       refreshViews: () => this.refreshViews()
     });
     this.register(this.hide.install());
+    this.history = new HistoryService(this.settings, () => {
+      void this.saveData(this.settings);
+    });
     if (migrated) await this.saveSettings();
     this.registerView(VIEW_TYPE, (leaf) => new SidebarView(leaf, this));
     this.addRibbonIcon("panel-right", this.i18n.t("command.openSidebar"), () => this.activateView());
@@ -8714,10 +9212,18 @@ var ExtendedPropertiesPlugin = class extends import_obsidian27.Plugin {
         const k = v.trim();
         if (!k) return;
         this.hide.hideKey(k);
-        new import_obsidian27.Notice(this.i18n.t("notice.hiding", { key: k }));
+        new import_obsidian28.Notice(this.i18n.t("notice.hiding", { key: k }));
       }, () => this.props.knownProps()).open()
     });
     this.addSettingTab(new EPSettingTab(this.app, this));
+    if (this.settings.features["rolling"] !== false) {
+      this.addCommand({
+        id: "export-roll-history",
+        name: this.i18n.t("roll.cmd.exportHistory"),
+        callback: () => void this.exportRollHistory()
+      });
+    }
+    this.syncMacroCommands();
     const refresh = (file) => {
       for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE)) {
         const v = leaf.view;
@@ -8753,6 +9259,57 @@ var ExtendedPropertiesPlugin = class extends import_obsidian27.Plugin {
       window.setTimeout(() => augmentPropsMenu(host), 0);
     });
   }
+  onunload() {
+    var _a;
+    (_a = this.history) == null ? void 0 : _a.flushNow();
+  }
+  // -- rolling: history export & macro commands -------------------------------
+  /** Lazily-created roll service for view-less rolls (macro commands). */
+  rollService() {
+    if (!this.rollSvc) this.rollSvc = new RollService(this.i18n, this.settings, this.history, this.app);
+    return this.rollSvc;
+  }
+  /**
+   * Keep exactly one command per saved macro registered, removing commands of
+   * deleted macros. A signature check makes the frequent {@link saveSettings}
+   * caller a no-op unless the macro set actually changed. When the rolling
+   * feature is disabled, all macro commands are removed.
+   */
+  syncMacroCommands() {
+    var _a;
+    const enabled = this.settings.features["rolling"] !== false;
+    const macros = enabled && Array.isArray(this.settings.macros) ? this.settings.macros : [];
+    const sig = (enabled ? "" : "off|") + macros.map((m) => `${m.id}:${m.name}`).join("|");
+    if (sig === this.macroSig) return;
+    this.macroSig = sig;
+    const cmds = this.app.commands;
+    for (const id of this.macroCmdIds) (_a = cmds == null ? void 0 : cmds.removeCommand) == null ? void 0 : _a.call(cmds, `${this.manifest.id}:${id}`);
+    this.macroCmdIds = [];
+    for (const m of macros) {
+      const cmdId = `roll-macro-${m.id}`;
+      this.addCommand({
+        id: cmdId,
+        name: this.i18n.t("roll.cmd.macroPrefix", { name: m.name }),
+        callback: () => runMacro(this.rollService(), this.i18n, m)
+      });
+      this.macroCmdIds.push(cmdId);
+    }
+  }
+  /** Export the roll history to a new note as a Markdown table. */
+  async exportRollHistory() {
+    const md = this.history.exportMarkdown(this.i18n);
+    const base = this.i18n.t("roll.export.fileName");
+    let path = `${base}.md`;
+    let n = 2;
+    while (this.app.vault.getAbstractFileByPath(path)) path = `${base} ${n++}.md`;
+    try {
+      const f = await this.app.vault.create(path, md);
+      await this.app.workspace.getLeaf(true).openFile(f);
+      new import_obsidian28.Notice(this.i18n.t("roll.export.done"));
+    } catch (err) {
+      new import_obsidian28.Notice(this.i18n.t("roll.export.failed", { error: String(err) }));
+    }
+  }
   // -- registries -------------------------------------------------------------
   /** (Re)build all registries from core + enabled feature modules. */
   rebuildRegistries() {
@@ -8774,6 +9331,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian27.Plugin {
   async saveSettings() {
     await this.saveData(this.settings);
     this.hide.update();
+    this.syncMacroCommands();
   }
   ensureLayout(typeKey) {
     var _a;

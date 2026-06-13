@@ -50,6 +50,10 @@ export function defaultSettings(): EPSettings {
     diceAnimStay: false,
     diceAnimBlock: true,
     modsOffProp: "Modifiers Off",
+    macros: [],
+    rollHistory: [],
+    rollHistoryLimit: 500,
+    rollHistoryEnabled: true,
   };
 }
 
@@ -89,6 +93,22 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
     if (data.karmicRolls === true) s.karmicRolls = true;
     if (typeof data.modsOffProp === "string" && data.modsOffProp.trim())
       s.modsOffProp = data.modsOffProp.trim();
+    if (Array.isArray(data.macros))
+      s.macros = data.macros
+        .filter((m: any) => m && typeof m.id === "string" && typeof m.name === "string")
+        .map((m: any) => ({
+          id: m.id,
+          name: m.name,
+          segs: Array.isArray(m.segs) ? m.segs.filter((x: any) => x && typeof x === "object") : [],
+          mode: m.mode === "advantage" || m.mode === "disadvantage" ? m.mode : undefined,
+          times: typeof m.times === "number" && m.times > 1 ? Math.min(20, Math.floor(m.times)) : undefined,
+          typeKey: typeof m.typeKey === "string" && m.typeKey ? m.typeKey : undefined,
+        }));
+    if (Array.isArray(data.rollHistory))
+      s.rollHistory = data.rollHistory.filter((r: any) => r && typeof r === "object" && typeof r.id === "string");
+    if (typeof data.rollHistoryLimit === "number" && data.rollHistoryLimit > 0)
+      s.rollHistoryLimit = Math.min(5000, Math.floor(data.rollHistoryLimit));
+    if (data.rollHistoryEnabled === false) s.rollHistoryEnabled = false;
   }
   for (const t of s.types) {
     const k = t.toLowerCase();

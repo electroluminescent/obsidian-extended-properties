@@ -431,4 +431,24 @@ export const coreEn: StringDict = {
   "settings.hidePromptTitle": "Property name to hide",
   "settings.featuresHeading": "Features",
   "settings.featuresDesc": "Optional modules. Disabling one hides its widgets and templates; layouts and note properties are kept.",
+
+  // -- rolls (history & macros) ------------------------------------------------------------------
+  "settings.rollsHeading": "Rolls",
+  "settings.rollHistory": "Persistent roll history",
+  "settings.rollHistoryDesc": "Keep the roll history across reloads. Off = history lives only for the current session.",
+  "settings.rollHistoryLimit": "History limit",
+  "settings.rollHistoryLimitDesc": "Maximum stored rolls; the oldest are dropped first.",
+  "settings.rollHistoryClear": "Clear roll history",
+  "settings.rollHistoryClearBtn": "Clear",
+  "settings.rollHistoryClearConfirm": "Clear the entire roll history?",
+  "settings.rollHistoryCleared": "Roll history cleared.",
+  "settings.macrosHeading": "Saved rolls (macros)",
+  "settings.macrosDesc":
+    "Reusable rolls shown on the roll screen and available as commands. Notation like “2d6 + 1d8 + 3”; scope to a type or leave it available to all.",
+  "settings.macroName": "Name",
+  "settings.macroGlobal": "All types",
+  "settings.macroDelete": "Delete macro",
+  "settings.macroAdd": "Add a macro",
+  "settings.macroAddBtn": "+ Macro",
+  "settings.macroNewName": "New macro",
 };
