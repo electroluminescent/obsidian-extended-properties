@@ -22,7 +22,7 @@ __export(main_exports, {
   default: () => ExtendedPropertiesPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian28 = require("obsidian");
+var import_obsidian30 = require("obsidian");
 
 // src/i18n/i18n.ts
 var I18n = class {
@@ -186,6 +186,7 @@ var coreEn = {
   "roll.partTotal": "total",
   "roll.menu.count": "Number of rolls",
   "roll.menu.go": "Roll",
+  "roll.menu.edit": "Edit source",
   "type.list": "list",
   "type.checkbox": "checkbox",
   "type.color": "color",
@@ -608,6 +609,7 @@ var coreDe = {
   "roll.partTotal": "Gesamt",
   "roll.menu.count": "Anzahl W\xFCrfe",
   "roll.menu.go": "W\xFCrfeln",
+  "roll.menu.edit": "Quelle bearbeiten",
   "type.list": "Liste",
   "type.checkbox": "Kontrollk\xE4stchen",
   "type.color": "Farbe",
@@ -3807,6 +3809,59 @@ var NoteModel = class {
         });
       }
     }
+  }
+};
+var NoteFacade = class {
+  constructor(app, i18n) {
+    this.app = app;
+    this.i18n = i18n;
+    this.timers = /* @__PURE__ */ new Map();
+    this.pending = /* @__PURE__ */ new Map();
+  }
+  /** Shallow copy of a file's frontmatter (empty object when none). */
+  raw(file) {
+    var _a;
+    const fm = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter;
+    return fm ? { ...fm } : {};
+  }
+  /** Raw value of `key` (case-insensitive), or undefined. */
+  get(file, key) {
+    const raw = this.raw(file);
+    const k = Object.keys(raw).find((x) => x.toLowerCase() === key.toLowerCase());
+    return k === void 0 ? void 0 : raw[k];
+  }
+  num(file, key, def = 0) {
+    return getNum(this.raw(file), key, def);
+  }
+  str(file, key) {
+    return getStr(this.raw(file), key);
+  }
+  list(file, key) {
+    return getList(this.raw(file), key);
+  }
+  /** Queue a frontmatter write (debounced per file; `undefined` removes the key). */
+  set(file, key, value) {
+    let m = this.pending.get(file.path);
+    if (!m) {
+      m = /* @__PURE__ */ new Map();
+      this.pending.set(file.path, m);
+    }
+    m.set(key, value);
+    const prev = this.timers.get(file.path);
+    if (prev) window.clearTimeout(prev);
+    this.timers.set(file.path, window.setTimeout(() => this.flush(file), 250));
+  }
+  flush(file) {
+    this.timers.delete(file.path);
+    const m = this.pending.get(file.path);
+    if (!m) return;
+    this.pending.delete(file.path);
+    this.app.fileManager.processFrontMatter(file, (fm) => {
+      for (const [k, v] of m) {
+        if (v === void 0) delete fm[k];
+        else fm[k] = v;
+      }
+    }).catch((err) => new import_obsidian9.Notice(this.i18n.t("notice.saveFailed", { error: String(err) })));
   }
 };
 
@@ -8281,7 +8336,7 @@ function addDiceSettings(container, i18n, binding) {
     });
   });
 }
-function openRollMenu(ev, i18n, current, run) {
+function openRollMenu(ev, i18n, current, run, opts) {
   const pop = document.body.createDiv({ cls: "ep-popup ep-rollmenu" });
   pop.style.left = ev.clientX + "px";
   pop.style.top = ev.clientY + 2 + "px";
@@ -8319,6 +8374,14 @@ function openRollMenu(ev, i18n, current, run) {
     dismiss();
     run(mode, n);
   };
+  if (opts == null ? void 0 : opts.onEdit) {
+    const edit = pop.createEl("button", { cls: "ep-mode-btn ep-rollmenu-edit", text: i18n.t("roll.menu.edit") });
+    edit.onclick = () => {
+      var _a;
+      dismiss();
+      (_a = opts.onEdit) == null ? void 0 : _a.call(opts);
+    };
+  }
   input.onkeydown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -9852,9 +9915,397 @@ var HistoryService = class {
   }
 };
 
+// src/features/inline/inline-render.ts
+var import_obsidian28 = require("obsidian");
+var enabled = (ctx) => ctx.settings.features["inline"] !== false;
+function processInline(el, mdctx, ctx) {
+  var _a, _b;
+  if (!enabled(ctx)) return;
+  const codes = Array.from(el.querySelectorAll("code"));
+  if (!codes.length) return;
+  const file = ctx.app.vault.getAbstractFileByPath(mdctx.sourcePath);
+  if (!(file instanceof import_obsidian28.TFile)) return;
+  for (const code of codes) {
+    if (code.closest("pre")) continue;
+    const m = /^(roll|prop)(?:\(([^)]*)\))?:\s*(.+)$/i.exec(((_a = code.textContent) != null ? _a : "").trim());
+    if (!m) continue;
+    const kind = m[1].toLowerCase();
+    const opt = ((_b = m[2]) != null ? _b : "").trim();
+    const body = m[3].trim();
+    if (kind === "roll") {
+      code.replaceWith(makeRollChip(ctx, file, body, opt));
+    } else {
+      const span = createSpan();
+      code.replaceWith(span);
+      mdctx.addChild(new PropInline(span, ctx, file, body));
+    }
+  }
+}
+function refValue(ctx, file, name) {
+  const v = ctx.facade.get(file, name);
+  if (v === void 0 || v === null || v === "") return void 0;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : void 0;
+}
+function primarySides(ast) {
+  if (ast) {
+    for (const term of ast.terms) if (term.node.kind === "dice") return term.node.sides;
+  }
+  return 20;
+}
+function applyMode(ast, mode) {
+  if (mode === "normal") return ast;
+  const terms = ast.terms.map(
+    (tm) => tm.node.kind === "dice" ? { neg: tm.neg, node: { ...tm.node, ops: [...tm.node.ops] } } : tm
+  );
+  const first = terms.find((tm) => tm.node.kind === "dice");
+  if (first) {
+    const dn = first.node;
+    dn.count += 1;
+    dn.ops.push(mode === "advantage" ? { t: "dl", n: 1 } : { t: "dh", n: 1 });
+  }
+  return { terms };
+}
+function runInlineRoll(ctx, file, body, mode, times) {
+  const t = ctx.i18n.t.bind(ctx.i18n);
+  if (!parseRoll(body)) {
+    new import_obsidian28.Notice(t("inline.rollInvalid"));
+    return;
+  }
+  const tag = mode === "advantage" ? " " + t("roll.tagAdvantage") : mode === "disadvantage" ? " " + t("roll.tagDisadvantage") : "";
+  const n = Math.max(1, Math.min(20, times || 1));
+  for (let i = 0; i < n; i++) {
+    ctx.roll.rollAst(n > 1 ? `${body} #${i + 1}` : body, applyMode(parseRoll(body), mode), {
+      tag,
+      mode,
+      stay: n > 1,
+      resolve: (name) => refValue(ctx, file, name)
+    });
+  }
+}
+function makeRollChip(ctx, file, body, opt, onEdit) {
+  const t = ctx.i18n.t.bind(ctx.i18n);
+  const ast = parseRoll(body);
+  const chip = createSpan({ cls: "ep-inline-roll" });
+  const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });
+  (0, import_obsidian28.setIcon)(ic, diceIconId(primarySides(ast)));
+  chip.createSpan({ cls: "ep-inline-roll-lab", text: body });
+  const mode = /^adv/i.test(opt) ? "advantage" : /^dis/i.test(opt) ? "disadvantage" : "normal";
+  if (!ast) chip.addClass("ep-expr-error");
+  chip.setAttr("title", ast ? t("inline.rollHint", { expr: body }) : t("inline.rollInvalid"));
+  chip.onclick = (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    runInlineRoll(ctx, file, body, mode, 1);
+  };
+  chip.oncontextmenu = (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    openRollMenu(ev, ctx.i18n, mode, (mo, ti) => runInlineRoll(ctx, file, body, mo, ti), onEdit ? { onEdit } : void 0);
+  };
+  return chip;
+}
+function renderPropValue(ctx, file, key) {
+  const t = ctx.i18n.t.bind(ctx.i18n);
+  const raw = ctx.facade.get(file, key);
+  const text = raw === void 0 || raw === null || raw === "" ? t("inline.empty") : Array.isArray(raw) ? raw.join(", ") : String(raw);
+  const val = createSpan({ cls: "ep-inline-val ep-inline-editable", text });
+  val.setAttr("title", t("inline.propHint", { key }));
+  val.onclick = (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const isNum = typeof raw === "number" || typeof raw === "string" && raw.trim() !== "" && Number.isFinite(Number(raw));
+    if (isNum) {
+      openNumberInput(
+        val,
+        Number(raw != null ? raw : 0),
+        (v) => {
+          ctx.facade.set(file, key, v);
+          val.setText(fmtNum(v));
+        },
+        {
+          min: -1e5,
+          max: 1e5,
+          float: true,
+          clamp: false,
+          onEmpty: () => {
+            ctx.facade.set(file, key, void 0);
+            val.setText(t("inline.empty"));
+          }
+        }
+      );
+    } else {
+      openTextInput(ctx.app, val, key, raw == null ? "" : String(raw), () => [], (v) => {
+        ctx.facade.set(file, key, v || void 0);
+        val.setText(v || t("inline.empty"));
+      });
+    }
+  };
+  return val;
+}
+var PropInline = class extends import_obsidian28.MarkdownRenderChild {
+  constructor(root, ctx, file, key) {
+    super(root);
+    this.root = root;
+    this.ctx = ctx;
+    this.file = file;
+    this.key = key;
+  }
+  onload() {
+    this.root.addClass("ep-inline-prop");
+    this.draw();
+    this.registerEvent(
+      this.ctx.app.metadataCache.on("changed", (f) => {
+        if (f.path === this.file.path) this.draw();
+      })
+    );
+  }
+  draw() {
+    this.root.empty();
+    this.root.appendChild(renderPropValue(this.ctx, this.file, this.key));
+  }
+};
+function buildEnv(ctx, file, layout) {
+  const raw = ctx.facade.raw(file);
+  const note = {
+    raw,
+    num: (k, d) => getNum(raw, k, d),
+    list: (k) => getList(raw, k)
+  };
+  return { note, registries: ctx.registries, settings: ctx.settings, layout };
+}
+function layoutForFile(ctx, file) {
+  const raw = ctx.facade.raw(file);
+  const tk = Object.keys(raw).find((k) => k.toLowerCase() === "type");
+  const tv = tk !== void 0 ? raw[tk] : void 0;
+  const types = Array.isArray(tv) ? tv.map(String) : tv === void 0 || tv === null ? [] : [String(tv)];
+  const match = ctx.settings.types.find((tp) => types.some((x) => x.toLowerCase() === tp.toLowerCase()));
+  if (!match) return null;
+  const layout = ctx.settings.layouts[match.toLowerCase()];
+  return layout && Array.isArray(layout.sections) ? layout : null;
+}
+function renderSheet(src, el, mdctx, ctx) {
+  const file = ctx.app.vault.getAbstractFileByPath(mdctx.sourcePath);
+  if (!(file instanceof import_obsidian28.TFile)) return;
+  mdctx.addChild(new SheetInline(el, ctx, file, src));
+}
+var SheetInline = class extends import_obsidian28.MarkdownRenderChild {
+  constructor(root, ctx, file, src) {
+    super(root);
+    this.root = root;
+    this.ctx = ctx;
+    this.file = file;
+    this.src = src;
+  }
+  onload() {
+    this.draw();
+    this.registerEvent(
+      this.ctx.app.metadataCache.on("changed", (f) => {
+        if (f.path === this.file.path) this.draw();
+      })
+    );
+  }
+  draw() {
+    const t = this.ctx.i18n.t.bind(this.ctx.i18n);
+    this.root.empty();
+    this.root.addClass("ep-inline-sheet");
+    if (!enabled(this.ctx)) return;
+    const layout = layoutForFile(this.ctx, this.file);
+    if (!layout) {
+      this.root.createDiv({ cls: "ep-inline-note", text: t("inline.sheetNoType") });
+      return;
+    }
+    const wanted = this.src.split("\n").map((s) => s.trim().toLowerCase()).filter(Boolean);
+    const env = buildEnv(this.ctx, this.file, layout);
+    let any = false;
+    for (const section of layout.sections) {
+      if (wanted.length && !wanted.includes((section.title || "").toLowerCase())) continue;
+      const entries = section.entries.filter((e) => e.kind === "prop" && e.key);
+      if (!entries.length) continue;
+      any = true;
+      const sec = this.root.createDiv({ cls: "ep-inline-sheet-sec" });
+      if (section.title) sec.createDiv({ cls: "ep-inline-sheet-title", text: section.title });
+      for (const entry of entries) this.row(sec, env, entry);
+    }
+    if (!any) this.root.createDiv({ cls: "ep-inline-note", text: t("inline.sheetEmpty") });
+  }
+  row(parent, env, entry) {
+    const t = this.ctx.i18n.t.bind(this.ctx.i18n);
+    const row = parent.createDiv({ cls: "ep-inline-sheet-row" });
+    row.createSpan({ cls: "ep-inline-sheet-lab", text: entry.alias || entry.key });
+    const valEl = row.createSpan({ cls: "ep-inline-sheet-val" });
+    if (entry.dataType === "derived") {
+      const info = modifierInfo(env, entry);
+      if (info.value === void 0) {
+        valEl.addClass("ep-expr-error");
+        valEl.setText(t("inline.empty"));
+        valEl.setAttr("title", t(info.error === "cycle" ? "mods.errCycle" : "mods.errExpr"));
+      } else {
+        valEl.setText(fmtMod(info.value));
+      }
+    } else {
+      const raw = this.ctx.facade.get(this.file, entry.key);
+      valEl.setText(
+        raw === void 0 || raw === null || raw === "" ? t("inline.empty") : Array.isArray(raw) ? raw.join(", ") : String(raw)
+      );
+    }
+    const e = ext(entry);
+    if (e.roll) {
+      const chip = row.createSpan({ cls: "ep-inline-roll ep-inline-sheet-roll" });
+      const spec = parseDiceOrDefault(typeof e.dice === "string" ? e.dice : void 0);
+      const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });
+      (0, import_obsidian28.setIcon)(ic, diceIconId(spec.sides));
+      chip.createSpan({ cls: "ep-inline-roll-lab", text: t("roll.roll") });
+      const label = entry.alias || entry.key || t("roll.roll");
+      chip.setAttr("title", t("inline.rollHint", { expr: label }));
+      chip.onclick = (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        this.ctx.roll.roll(label, modifierTotal(env, entry), spec, {});
+      };
+    }
+  }
+};
+
+// src/features/inline/live-preview.ts
+var import_view = require("@codemirror/view");
+var import_state = require("@codemirror/state");
+var import_language = require("@codemirror/language");
+var import_obsidian29 = require("obsidian");
+var PREFIX = /^(roll|prop)(?:\(([^)]*)\))?:\s*(.+)$/i;
+function backtickSpan(doc, from, to) {
+  let s = from;
+  while (s > 0 && doc.sliceString(s - 1, s) === "`") s--;
+  let e = to;
+  while (e < doc.length && doc.sliceString(e, e + 1) === "`") e++;
+  return { from: s, to: e };
+}
+var InlineWidget = class extends import_view.WidgetType {
+  constructor(ctx, file, kind, opt, body, from) {
+    super();
+    this.ctx = ctx;
+    this.file = file;
+    this.kind = kind;
+    this.opt = opt;
+    this.body = body;
+    this.from = from;
+  }
+  eq(o) {
+    return o.kind === this.kind && o.opt === this.opt && o.body === this.body && o.from === this.from && o.file.path === this.file.path;
+  }
+  toDOM(view) {
+    const reveal = () => {
+      view.dispatch({ selection: { anchor: this.from + 1 } });
+      view.focus();
+    };
+    if (this.kind === "roll") return makeRollChip(this.ctx, this.file, this.body, this.opt, reveal);
+    const wrap = createSpan({ cls: "ep-inline-prop" });
+    wrap.appendChild(renderPropValue(this.ctx, this.file, this.body));
+    wrap.oncontextmenu = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const menu = new import_obsidian29.Menu();
+      menu.addItem((i) => i.setTitle(this.ctx.i18n.t("inline.editSource")).setIcon("pencil").onClick(reveal));
+      menu.showAtMouseEvent(ev);
+    };
+    return wrap;
+  }
+  ignoreEvent() {
+    return true;
+  }
+};
+function buildDecos(view, ctx) {
+  var _a, _b;
+  const b = new import_state.RangeSetBuilder();
+  if (ctx.settings.features["inline"] === false) return b.finish();
+  if (!view.state.field(import_obsidian29.editorLivePreviewField, false)) return b.finish();
+  const file = (_b = (_a = view.state.field(import_obsidian29.editorInfoField, false)) == null ? void 0 : _a.file) != null ? _b : ctx.app.workspace.getActiveFile();
+  if (!file) return b.finish();
+  const sel = view.state.selection;
+  const doc = view.state.doc;
+  for (const { from, to } of view.visibleRanges) {
+    (0, import_language.syntaxTree)(view.state).iterate({
+      from,
+      to,
+      enter: (node) => {
+        var _a2;
+        const name = node.type.name;
+        if (!name.includes("inline-code") || name.includes("formatting")) return;
+        const m = PREFIX.exec(doc.sliceString(node.from, node.to).trim());
+        if (!m) return;
+        const span = backtickSpan(doc, node.from, node.to);
+        if (sel.ranges.some((r) => r.from <= span.to && r.to >= span.from)) return;
+        b.add(
+          span.from,
+          span.to,
+          import_view.Decoration.replace({
+            widget: new InlineWidget(ctx, file, m[1].toLowerCase(), ((_a2 = m[2]) != null ? _a2 : "").trim(), m[3].trim(), span.from)
+          })
+        );
+      }
+    });
+  }
+  return b.finish();
+}
+function inlineLivePreview(ctx) {
+  return import_view.ViewPlugin.fromClass(
+    class {
+      constructor(view) {
+        this.decorations = buildDecos(view, ctx);
+      }
+      update(u) {
+        if (u.docChanged || u.viewportChanged || u.selectionSet || u.startState.field(import_obsidian29.editorLivePreviewField, false) !== u.state.field(import_obsidian29.editorLivePreviewField, false)) {
+          this.decorations = buildDecos(u.view, ctx);
+        }
+      }
+    },
+    { decorations: (v) => v.decorations }
+  );
+}
+
+// src/features/inline/strings.ts
+var inlineEn = {
+  "inline.featureName": "Inline rolls & properties",
+  "inline.featureDesc": "Render `roll: 2d6+DEX` as a clickable roll and `prop: Strength` as a live, editable value in note bodies (reading mode), plus an `ep-sheet` code block that projects a note-type section.",
+  "inline.rollHint": "Click to roll \xB7 {expr}",
+  "inline.rollInvalid": "Invalid roll expression.",
+  "inline.propHint": "{key} \u2014 click to edit",
+  "inline.editSource": "Edit source",
+  "inline.empty": "\u2014",
+  "inline.sheetNoType": "ep-sheet: this note has no matching type.",
+  "inline.sheetEmpty": "ep-sheet: nothing to show."
+};
+var inlineDe = {
+  "inline.featureName": "Inline-W\xFCrfe & Eigenschaften",
+  "inline.featureDesc": "Stellt `roll: 2d6+DEX` als anklickbaren Wurf und `prop: St\xE4rke` als lebenden, bearbeitbaren Wert im Notiztext dar (Lesemodus), plus einen `ep-sheet`-Codeblock, der einen Abschnitt des Notiztyps projiziert.",
+  "inline.rollHint": "Zum W\xFCrfeln klicken \xB7 {expr}",
+  "inline.rollInvalid": "Ung\xFCltiger Wurf-Ausdruck.",
+  "inline.propHint": "{key} \u2014 zum Bearbeiten klicken",
+  "inline.editSource": "Quelle bearbeiten",
+  "inline.empty": "\u2014",
+  "inline.sheetNoType": "ep-sheet: Diese Notiz hat keinen passenden Typ.",
+  "inline.sheetEmpty": "ep-sheet: Nichts anzuzeigen."
+};
+
+// src/features/inline/index.ts
+var inlineModule = {
+  id: "inline",
+  name: (i18n) => i18n.t("inline.featureName"),
+  description: (i18n) => i18n.t("inline.featureDesc"),
+  register(ctx) {
+    ctx.i18n.register("en", inlineEn);
+    ctx.i18n.register("de", inlineDe);
+  }
+};
+function registerInline(plugin, ctx) {
+  plugin.registerMarkdownPostProcessor((el, mdctx) => processInline(el, mdctx, ctx));
+  plugin.registerMarkdownCodeBlockProcessor("ep-sheet", (src, el, mdctx) => renderSheet(src, el, mdctx, ctx));
+  plugin.registerEditorExtension(inlineLivePreview(ctx));
+}
+
 // src/main.ts
-var FEATURE_MODULES = [rollingModule, dnd5eModule];
-var ExtendedPropertiesPlugin = class extends import_obsidian28.Plugin {
+var FEATURE_MODULES = [rollingModule, dnd5eModule, inlineModule];
+var ExtendedPropertiesPlugin = class extends import_obsidian30.Plugin {
   constructor() {
     super(...arguments);
     this.i18n = new I18n();
@@ -9908,7 +10359,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian28.Plugin {
         const k = v.trim();
         if (!k) return;
         this.hide.hideKey(k);
-        new import_obsidian28.Notice(this.i18n.t("notice.hiding", { key: k }));
+        new import_obsidian30.Notice(this.i18n.t("notice.hiding", { key: k }));
       }, () => this.props.knownProps()).open()
     });
     this.addSettingTab(new EPSettingTab(this.app, this));
@@ -9920,6 +10371,14 @@ var ExtendedPropertiesPlugin = class extends import_obsidian28.Plugin {
       });
     }
     this.syncMacroCommands();
+    registerInline(this, {
+      app: this.app,
+      i18n: this.i18n,
+      settings: this.settings,
+      registries: this.registries,
+      facade: new NoteFacade(this.app, this.i18n),
+      roll: this.rollService()
+    });
     const refresh = (file) => {
       for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE)) {
         const v = leaf.view;
@@ -9973,9 +10432,9 @@ var ExtendedPropertiesPlugin = class extends import_obsidian28.Plugin {
    */
   syncMacroCommands() {
     var _a;
-    const enabled = this.settings.features["rolling"] !== false;
-    const macros = enabled && Array.isArray(this.settings.macros) ? this.settings.macros : [];
-    const sig = (enabled ? "" : "off|") + macros.map((m) => `${m.id}:${m.name}`).join("|");
+    const enabled2 = this.settings.features["rolling"] !== false;
+    const macros = enabled2 && Array.isArray(this.settings.macros) ? this.settings.macros : [];
+    const sig = (enabled2 ? "" : "off|") + macros.map((m) => `${m.id}:${m.name}`).join("|");
     if (sig === this.macroSig) return;
     this.macroSig = sig;
     const cmds = this.app.commands;
@@ -10001,9 +10460,9 @@ var ExtendedPropertiesPlugin = class extends import_obsidian28.Plugin {
     try {
       const f = await this.app.vault.create(path, md);
       await this.app.workspace.getLeaf(true).openFile(f);
-      new import_obsidian28.Notice(this.i18n.t("roll.export.done"));
+      new import_obsidian30.Notice(this.i18n.t("roll.export.done"));
     } catch (err) {
-      new import_obsidian28.Notice(this.i18n.t("roll.export.failed", { error: String(err) }));
+      new import_obsidian30.Notice(this.i18n.t("roll.export.failed", { error: String(err) }));
     }
   }
   // -- registries -------------------------------------------------------------

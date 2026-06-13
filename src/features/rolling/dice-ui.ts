@@ -121,7 +121,8 @@ export function openRollMenu(
   ev: MouseEvent,
   i18n: I18n,
   current: RollMode,
-  run: (mode: RollMode, times: number) => void
+  run: (mode: RollMode, times: number) => void,
+  opts?: { onEdit?: () => void }
 ): void {
   const pop = document.body.createDiv({ cls: "ep-popup ep-rollmenu" });
   pop.style.left = ev.clientX + "px";
@@ -163,6 +164,13 @@ export function openRollMenu(
     dismiss();
     run(mode, n);
   };
+  if (opts?.onEdit) {
+    const edit = pop.createEl("button", { cls: "ep-mode-btn ep-rollmenu-edit", text: i18n.t("roll.menu.edit") });
+    edit.onclick = () => {
+      dismiss();
+      opts.onEdit?.();
+    };
+  }
   input.onkeydown = (e: KeyboardEvent) => {
     if (e.key === "Enter") {
       e.preventDefault();

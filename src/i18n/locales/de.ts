@@ -112,6 +112,7 @@ export const coreDe: StringDict = {
   "roll.partTotal": "Gesamt",
   "roll.menu.count": "Anzahl Würfe",
   "roll.menu.go": "Würfeln",
+  "roll.menu.edit": "Quelle bearbeiten",
   "type.list": "Liste",
   "type.checkbox": "Kontrollkästchen",
   "type.color": "Farbe",

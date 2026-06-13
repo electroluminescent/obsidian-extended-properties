@@ -58,8 +58,10 @@ src/
     ├── rolling/             Dice model & UI, roll service & log panel, the
     │                        roll-button addon, the legacy "skills" type
     │                        (with conversion to derived properties).
-    └── dnd5e/               5e data: skill presets, section templates built
-                             on derived entries, layout preset, migrations.
+    ├── dnd5e/               5e data: skill presets, section templates built
+    │                        on derived entries, layout preset, migrations.
+    └── inline/              Reading-mode markdown processors: `roll:`/`prop:`
+                             inline code + the `ep-sheet` statblock block.
 ```
 
 Dependency rules (enforced by review, worth keeping):
@@ -180,6 +182,14 @@ keep/drop node; `RollService.rollAst` is the general path. The RNG, the
 reference resolver and the crit rules are injected, so the engine is
 unit-testable in isolation; the animation renders one dice row per group with a
 per-die dropped mask.
+
+Inline rolls and properties in note bodies (`features/inline/`) reuse all of
+this without a view: a `NoteFacade` (`core/note-model.ts`) reads/writes any
+file's frontmatter by path (debounced `processFrontMatter`), the plugin-level
+`RollService` runs the rolls, and the influence engine computes the `ep-sheet`
+statblock's derived values. Markdown post-processors resolve against
+`ctx.sourcePath`, and subscriptions ride on `MarkdownRenderChild`s so they
+unload with their block (no leaks).
 
 ## i18n
 

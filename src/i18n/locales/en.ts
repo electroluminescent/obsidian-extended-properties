@@ -115,6 +115,7 @@ export const coreEn: StringDict = {
   "roll.partTotal": "total",
   "roll.menu.count": "Number of rolls",
   "roll.menu.go": "Roll",
+  "roll.menu.edit": "Edit source",
   "type.list": "list",
   "type.checkbox": "checkbox",
   "type.color": "color",

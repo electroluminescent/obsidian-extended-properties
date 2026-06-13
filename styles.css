@@ -530,3 +530,23 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 /* expression engine: failed derivations (—) and the inline expression field */
 .ep-expr-error { color: var(--text-error); cursor: help; font-weight: 700; }
 .ep-expr-input { width: 100%; font-family: var(--font-monospace); }
+
+/* inline rolls & properties in note bodies (feature: inline) */
+.ep-inline-roll { display: inline-flex; align-items: center; gap: 3px; padding: 0 6px; border-radius: 999px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); cursor: pointer; font-size: var(--font-ui-smaller); vertical-align: baseline; line-height: 1.6; }
+.ep-inline-roll:hover { border-color: var(--interactive-accent); }
+.ep-inline-roll-ico { display: inline-flex; width: 0.95em; height: 0.95em; opacity: 0.8; }
+.ep-inline-roll-ico svg { width: 100%; height: 100%; }
+.ep-inline-roll-lab { font-variant-numeric: tabular-nums; }
+.ep-inline-prop { display: inline; }
+.ep-inline-editable { cursor: pointer; border-bottom: 1px dotted var(--text-faint); }
+.ep-inline-editable:hover { border-bottom-color: var(--interactive-accent); color: var(--text-normal); }
+.ep-inline-prop .ep-edit-input { width: 6em; }
+/* ep-sheet statblock projection */
+.ep-inline-sheet { display: flex; flex-direction: column; gap: 8px; padding: 8px 10px; border: 1px solid var(--background-modifier-border); border-radius: var(--ep-radius, 6px); background: var(--background-secondary); }
+.ep-inline-sheet-sec { display: flex; flex-direction: column; gap: 2px; }
+.ep-inline-sheet-title { font-weight: 700; font-size: var(--font-ui-small); color: var(--text-accent); border-bottom: 1px solid var(--background-modifier-border); padding-bottom: 2px; margin-bottom: 2px; }
+.ep-inline-sheet-row { display: flex; align-items: center; gap: 8px; }
+.ep-inline-sheet-lab { flex: 1; color: var(--text-muted); }
+.ep-inline-sheet-val { font-variant-numeric: tabular-nums; font-weight: 600; }
+.ep-inline-sheet-roll { margin-left: 4px; }
+.ep-inline-note { color: var(--text-faint); font-style: italic; font-size: var(--font-ui-smaller); }
