@@ -75,6 +75,8 @@ Enable the inline feature (default-on; toggle in Settings → Features) to proje
 
 - **Inline rolls**: `` `roll: 2d6+DEX` `` becomes a clickable roll chip — full dice notation and property references, with `` `roll(adv):` `` / `` `roll(dis):` `` for advantage/disadvantage. Rolls go through the same animation and history as the sidebar, with no view open.
 - **Inline properties**: `` `prop: Strength` `` shows the note's live value and is click-to-edit, writing back to frontmatter.
+- **Inline values**: `` `val: INT` `` renders a property (by name or short form) as a chip styled like a roll — with the property's icon, if it has one. `` `val: INTs` `` (the modifier suffix) shows that property's *modifier* instead of its value. Link values are clickable to navigate, with a right-click *Edit value* action.
+- **Modifier references**: append the configurable suffix (default `s`) to any reference to use a property's modifier rather than its value — in expressions, `` `roll:` `` (`2d6 + INTs`), and `` `val:` ``. If a property's modifier is overridden, that override is used.
 - **Statblock block**: an `ep-sheet` code block projects the note type's sections as a compact read-only statblock (derived values computed, roll buttons included). List section titles inside the block to show only those.
 
 Values resolve against the note the code lives in, so embeds and hover previews stay correct. Chips render in both **reading mode and Live Preview**. In Live Preview, moving the caret just before, into, or just after a chip reveals its raw text for editing; on a roll chip, right-click for the usual roll menu (advantage/disadvantage, number of rolls) plus an *Edit source* action.

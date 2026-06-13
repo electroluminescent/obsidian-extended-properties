@@ -23,7 +23,7 @@ import type { ViewCtx } from "../../core/context";
 import { ext, type RollMacro, type RollSeg } from "../../core/model";
 import { genId } from "../../utils/misc";
 import { parseDice } from "../../utils/dice";
-import { referenceSuggestions } from "../../core/influences";
+import { makeRefResolver, referenceSuggestions } from "../../core/influences";
 import { ROLL_SERVICE, RollMode, RollService } from "./roll-service";
 import { openDiceMenu } from "./dice-ui";
 import { applicableMacros, runMacro, runRoll, segsToText, textToSegs } from "./macros";
@@ -264,7 +264,13 @@ export const rollerKind: EntryKindDef = {
     go.onclick = () => {
       const label = (ctx.entry as { alias?: string }).alias || t("roller.title");
       // The roller, a macro chip and a macro command all share one executor.
-      runRoll(svc(view), view.i18n, { segs: segs(), mode: curMode(), times: e.rollerTimes ?? 1, label });
+      runRoll(svc(view), view.i18n, {
+        segs: segs(),
+        mode: curMode(),
+        times: e.rollerTimes ?? 1,
+        label,
+        resolve: makeRefResolver(view),
+      });
     };
 
     // -- saved macros ("custom roll objects") --------------------------------
@@ -292,14 +298,14 @@ export const rollerKind: EntryKindDef = {
           chip.setAttr("title", segsToText(m.segs) || t("roller.macroRun"));
           chip.onclick = (ev) => {
             ev.stopPropagation();
-            runMacro(svc(view), view.i18n, m);
+            runMacro(svc(view), view.i18n, m, makeRefResolver(view));
           };
           chip.oncontextmenu = (ev) => {
             ev.preventDefault();
             ev.stopPropagation();
             const menu = new Menu();
             menu.addItem((i) =>
-              i.setTitle(t("roller.macroRun")).setIcon("dices").onClick(() => runMacro(svc(view), view.i18n, m))
+              i.setTitle(t("roller.macroRun")).setIcon("dices").onClick(() => runMacro(svc(view), view.i18n, m, makeRefResolver(view)))
             );
             menu.addItem((i) => i.setTitle(t("roller.macroLoad")).setIcon("download").onClick(() => loadMacro(m)));
             menu.addItem((i) =>

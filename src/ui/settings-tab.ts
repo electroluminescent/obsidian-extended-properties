@@ -213,6 +213,17 @@ export class EPSettingTab extends PluginSettingTab {
     // -- short forms ------------------------------------------------------------------
     c.createEl("h3", { text: t("settings.abbrHeading") });
     c.createEl("p", { cls: "setting-item-description", text: t("settings.abbrDesc") });
+    new Setting(c)
+      .setName(t("settings.modSuffix"))
+      .setDesc(t("settings.modSuffixDesc"))
+      .addText((tx) => {
+        tx.setPlaceholder("s")
+          .setValue(plugin.settings.modifierSuffix ?? "s")
+          .onChange((v) => {
+            plugin.settings.modifierSuffix = v;
+            save();
+          });
+      });
     for (const key of Object.keys(plugin.settings.sourceAbbrs).sort((a, b) => a.localeCompare(b))) {
       new Setting(c)
         .setName(key)

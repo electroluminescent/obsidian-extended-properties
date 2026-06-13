@@ -72,7 +72,7 @@ function asMode(mode: string | undefined): RollMode {
 export function runRoll(
   svc: RollService,
   i18n: I18n,
-  o: { segs: RollSeg[]; mode?: string; times?: number; label: string }
+  o: { segs: RollSeg[]; mode?: string; times?: number; label: string; resolve?: (name: string) => number | undefined }
 ): void {
   const mode = asMode(o.mode);
   const n = Math.max(1, Math.min(20, o.times ?? 1));
@@ -92,13 +92,24 @@ export function runRoll(
         dn.ops = [...dn.ops, mode === "advantage" ? { t: "dl", n: 1 } : { t: "dh", n: 1 }];
       }
     }
-    svc.rollAst(n > 1 ? `${o.label} #${i + 1}` : o.label, ast, { stay: n > 1, tag, mode });
+    svc.rollAst(n > 1 ? `${o.label} #${i + 1}` : o.label, ast, { stay: n > 1, tag, mode, resolve: o.resolve });
   }
 }
 
-/** Run a saved macro. */
-export function runMacro(svc: RollService, i18n: I18n, m: RollMacro): void {
-  runRoll(svc, i18n, { segs: m.segs ?? [], mode: m.mode, times: m.times, label: m.name || i18n.t("roller.title") });
+/** Run a saved macro. `resolve` lets references (and `Xs` modifiers) resolve against a note context. */
+export function runMacro(
+  svc: RollService,
+  i18n: I18n,
+  m: RollMacro,
+  resolve?: (name: string) => number | undefined
+): void {
+  runRoll(svc, i18n, {
+    segs: m.segs ?? [],
+    mode: m.mode,
+    times: m.times,
+    label: m.name || i18n.t("roller.title"),
+    resolve,
+  });
 }
 
 /** Macros that apply to a note type: global (no scope) plus ones scoped to it. */

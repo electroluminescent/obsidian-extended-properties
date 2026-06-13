@@ -14,18 +14,21 @@
  * live on {@link MarkdownRenderChild}s, so they unload with their block.
  */
 
-import { App, MarkdownPostProcessorContext, MarkdownRenderChild, Notice, setIcon, TFile } from "obsidian";
+import { App, MarkdownPostProcessorContext, MarkdownRenderChild, Menu, Notice, setIcon, TFile } from "obsidian";
 import type { I18n } from "../../i18n/i18n";
 import type { Entry, EPSettings, Layout } from "../../core/model";
 import { ext } from "../../core/model";
 import type { Registries } from "../../core/registry";
 import type { NoteModel, NoteFacade } from "../../core/note-model";
-import { InfluenceEnv, keyForShortForm, modifierInfo, modifierTotal } from "../../core/influences";
+import {
+  InfluenceEnv, keyForShortForm, makeRefResolver, modifierBaseFor, modifierInfo, modifierTotal,
+} from "../../core/influences";
 import { DiceNode, parseRoll, RollAst, serializeRoll } from "../../utils/dice-expr";
 import { parseDiceOrDefault } from "../../utils/dice";
 import { fmtMod, fmtNum, getList, getNum } from "../../utils/misc";
 import { diceIconId } from "../../ui/render/dice-icons";
 import { openNumberInput, openTextInput } from "../../ui/components/inline-edit";
+import { renderLinkedText } from "../../ui/components/links";
 import { openRollMenu } from "../rolling/dice-ui";
 import type { RollMode, RollService } from "../rolling/roll-service";
 
@@ -63,11 +66,9 @@ export function processInline(el: HTMLElement, mdctx: MarkdownPostProcessorConte
     if (kind === "roll") {
       code.replaceWith(makeRollChip(ctx, file, body, opt));
     } else {
-      // `val:` takes a short form (or key); `prop:` takes a key.
-      const key = kind === "val" ? resolveRefKey(ctx, file, body) : body;
       const span = createSpan();
       code.replaceWith(span);
-      mdctx.addChild(new PropInline(span, ctx, file, key));
+      mdctx.addChild(kind === "val" ? new ValInline(span, ctx, file, body) : new PropInline(span, ctx, file, body));
     }
   }
 }
@@ -81,12 +82,9 @@ export function resolveRefKey(ctx: InlineCtx, file: TFile, name: string): string
   return keyForShortForm(ctx.settings, name, Object.keys(ctx.facade.raw(file))) ?? name;
 }
 
-/** Resolve a property reference (short form or key) to a number against `file`'s frontmatter. */
-function refValue(ctx: InlineCtx, file: TFile, name: string): number | undefined {
-  const v = ctx.facade.get(file, resolveRefKey(ctx, file, name));
-  if (v === undefined || v === null || v === "") return undefined;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : undefined;
+/** A reference resolver (names, short forms, `Xs` modifiers) against `file`'s note. */
+function refResolver(ctx: InlineCtx, file: TFile): (name: string) => number | undefined {
+  return makeRefResolver(envFor(ctx, file));
 }
 
 function primarySides(ast: RollAst | null): number {
@@ -123,12 +121,13 @@ export function runInlineRoll(ctx: InlineCtx, file: TFile, body: string, mode: R
         ? " " + t("roll.tagDisadvantage")
         : "";
   const n = Math.max(1, Math.min(20, times || 1));
+  const resolve = refResolver(ctx, file);
   for (let i = 0; i < n; i++) {
     ctx.roll.rollAst(n > 1 ? `${body} #${i + 1}` : body, applyMode(parseRoll(body)!, mode), {
       tag,
       mode,
       stay: n > 1,
-      resolve: (name) => refValue(ctx, file, name),
+      resolve,
     });
   }
 }
@@ -141,6 +140,7 @@ export function runInlineRoll(ctx: InlineCtx, file: TFile, body: string, mode: R
 export function makeRollChip(ctx: InlineCtx, file: TFile, body: string, opt: string, onEdit?: () => void): HTMLElement {
   const t = ctx.i18n.t.bind(ctx.i18n);
   const ast = parseRoll(body);
+  const resolve = refResolver(ctx, file);
   const chip = createSpan({ cls: "ep-inline-roll" });
   const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });
   setIcon(ic, diceIconId(primarySides(ast)));
@@ -150,7 +150,7 @@ export function makeRollChip(ctx: InlineCtx, file: TFile, body: string, opt: str
     cls: "ep-inline-roll-lab",
     text: ast
       ? serializeRoll(ast, (name) => {
-          const v = refValue(ctx, file, name);
+          const v = resolve(name);
           return v === undefined ? name : String(v);
         })
       : body,
@@ -235,19 +235,126 @@ class PropInline extends MarkdownRenderChild {
   }
 }
 
+/** The layout prop entry for `key` in `file`'s type (for its icon), or null. */
+function findInlineEntry(ctx: InlineCtx, file: TFile, key: string): Entry | null {
+  const layout = layoutForFile(ctx, file);
+  if (!layout) return null;
+  const kl = key.toLowerCase();
+  for (const s of layout.sections)
+    for (const e of s.entries) if (e.kind === "prop" && e.key && e.key.toLowerCase() === kl) return e;
+  return null;
+}
+
+/**
+ * A `val:` element — rendered like a roll chip (with the property's icon in the
+ * same slot the dice icon occupies on a roll). It shows a property's value
+ * (editable; link values are clickable to navigate, edited via the context
+ * menu) — or, when the reference uses the modifier suffix (`INTs`), that
+ * property's modifier (read-only). `onEditSource` adds an "Edit source" menu
+ * item (Live Preview, to reveal the raw text).
+ */
+export function makeValEl(ctx: InlineCtx, file: TFile, body: string, onEditSource?: () => void): HTMLElement {
+  const t = ctx.i18n.t.bind(ctx.i18n);
+  const noteKeys = Object.keys(ctx.facade.raw(file));
+  const directKey = keyForShortForm(ctx.settings, body, noteKeys);
+  const base = directKey ? null : modifierBaseFor(ctx.settings, body);
+  const baseKey = base ? keyForShortForm(ctx.settings, base, noteKeys) : null;
+
+  const chip = createSpan({ cls: "ep-inline-roll ep-inline-valchip" });
+  const iconKey = directKey ?? baseKey;
+  const entry = iconKey ? findInlineEntry(ctx, file, iconKey) : null;
+  if (entry?.icon) {
+    const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });
+    setIcon(ic, entry.icon);
+    if (entry.iconColor) ic.style.color = entry.iconColor as string;
+  }
+  const lab = chip.createSpan({ cls: "ep-inline-roll-lab" });
+  let editValue: (() => void) | null = null;
+
+  if (directKey) {
+    const key = directKey;
+    const raw = ctx.facade.get(file, key);
+    const str =
+      raw === undefined || raw === null || raw === "" ? "" : Array.isArray(raw) ? raw.join(", ") : String(raw);
+    editValue = () => {
+      const isNum = typeof raw === "number" || (str.trim() !== "" && Number.isFinite(Number(str)));
+      if (isNum) {
+        openNumberInput(lab, Number(raw ?? 0), (v) => { ctx.facade.set(file, key, v); lab.setText(fmtNum(v)); }, {
+          min: -100000, max: 100000, float: true, clamp: false,
+          onEmpty: () => { ctx.facade.set(file, key, undefined); lab.setText(t("inline.empty")); },
+        });
+      } else {
+        openTextInput(ctx.app, lab, key, str, () => [], (v) => { ctx.facade.set(file, key, v || undefined); lab.setText(v || t("inline.empty")); });
+      }
+    };
+    if (str && /\[\[.+?\]\]|\]\([^)]+\)/.test(str)) {
+      renderLinkedText(ctx.app, lab, str, file.path); // clickable link(s)
+    } else {
+      lab.setText(str || t("inline.empty"));
+      lab.addClass("ep-inline-editable");
+      lab.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); editValue?.(); };
+    }
+    chip.setAttr("title", t("inline.propHint", { key }));
+  } else {
+    const v = makeRefResolver(envFor(ctx, file))(body);
+    lab.setText(v === undefined ? t("inline.empty") : fmtMod(v));
+    if (v === undefined) chip.addClass("ep-expr-error");
+    chip.setAttr("title", body);
+  }
+
+  if (editValue || onEditSource) {
+    chip.oncontextmenu = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const menu = new Menu();
+      if (editValue && directKey)
+        menu.addItem((i) => i.setTitle(t("inline.editValue", { prop: directKey })).setIcon("pencil").onClick(editValue!));
+      if (onEditSource) menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
+      menu.showAtMouseEvent(ev);
+    };
+  }
+  return chip;
+}
+
+/** Reading-mode `val:` (refreshes on metadata change). */
+class ValInline extends MarkdownRenderChild {
+  constructor(public root: HTMLElement, private ctx: InlineCtx, private file: TFile, private body: string) {
+    super(root);
+  }
+
+  onload(): void {
+    this.draw();
+    this.registerEvent(
+      this.ctx.app.metadataCache.on("changed", (f) => {
+        if (f.path === this.file.path) this.draw();
+      })
+    );
+  }
+
+  private draw(): void {
+    this.root.empty();
+    this.root.appendChild(makeValEl(this.ctx, this.file, this.body));
+  }
+}
+
 // ---------------------------------------------------------------------------
 // `ep-sheet` code block — read-only statblock projection
 // ---------------------------------------------------------------------------
 
-/** Build a read-only influence environment for `file` against `layout`. */
-function buildEnv(ctx: InlineCtx, file: TFile, layout: Layout): InfluenceEnv {
+/** Build a read-only influence environment for `file` (optionally scoped to `layout`). */
+function buildEnv(ctx: InlineCtx, file: TFile, layout: Layout | null): InfluenceEnv {
   const raw = ctx.facade.raw(file);
   const note = {
     raw,
     num: (k: string, d: number) => getNum(raw, k, d),
     list: (k: string) => getList(raw, k),
   } as unknown as NoteModel;
-  return { note, registries: ctx.registries, settings: ctx.settings, layout };
+  return { note, registries: ctx.registries, settings: ctx.settings, layout: layout ?? undefined };
+}
+
+/** Influence environment for the file's own type layout (or none). */
+function envFor(ctx: InlineCtx, file: TFile): InfluenceEnv {
+  return buildEnv(ctx, file, layoutForFile(ctx, file));
 }
 
 /** Layout for a file's first matching configured type, or null. */

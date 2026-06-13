@@ -283,4 +283,6 @@ export interface EPSettings {
   critRanges: Record<string, number>;
   /** Treat an all-1s primary dice result as a fail (default true). */
   failOnOne: boolean;
+  /** Suffix that, appended to a reference, resolves to that property's modifier (default "s"). */
+  modifierSuffix: string;
 }

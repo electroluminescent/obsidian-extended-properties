@@ -414,6 +414,9 @@ export const coreEn: StringDict = {
   "settings.modDepth": "Modifier chain depth",
   "settings.modDepthDesc":
     "How many property→property hops are resolved when derived values influence other derived values.",
+  "settings.modSuffix": "Modifier suffix",
+  "settings.modSuffixDesc":
+    "Append this to a reference to use a property's modifier instead of its value (e.g. INTs in a roll or expression). Any length; blank disables it.",
   "settings.abbrHeading": "Short forms",
   "settings.abbrDesc":
     "Short forms used in modifier denotations (INT + DEX − AGE). The default is the capitalized first three letters of the property name; overrides apply everywhere the property is shown as a source.",

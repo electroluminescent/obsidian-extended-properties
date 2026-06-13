@@ -411,6 +411,9 @@ export const coreDe: StringDict = {
   "settings.modDepth": "Modifikator-Kettentiefe",
   "settings.modDepthDesc":
     "Wie viele Eigenschaft→Eigenschaft-Schritte aufgelöst werden, wenn abgeleitete Werte andere abgeleitete Werte beeinflussen.",
+  "settings.modSuffix": "Modifikator-Suffix",
+  "settings.modSuffixDesc":
+    "An eine Referenz angehängt, um den Modifikator einer Eigenschaft statt ihres Werts zu verwenden (z. B. INTs in einem Wurf oder Ausdruck). Beliebige Länge; leer deaktiviert.",
   "settings.abbrHeading": "Kürzel",
   "settings.abbrDesc":
     "Kürzel für Modifikator-Anzeigen (INT + DEX − ALT). Standard sind die ersten drei Großbuchstaben des Eigenschaftsnamens; Überschreibungen gelten überall, wo die Eigenschaft als Quelle erscheint.",

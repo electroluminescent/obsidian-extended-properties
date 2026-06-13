@@ -542,6 +542,11 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 .ep-inline-roll-ico { display: inline-flex; width: 0.95em; height: 0.95em; opacity: 0.8; }
 .ep-inline-roll-ico svg { width: 100%; height: 100%; }
 .ep-inline-roll-lab { font-variant-numeric: tabular-nums; }
+/* val: chip reuses the roll-chip look, but only its value/link is interactive */
+.ep-inline-valchip { cursor: default; }
+.ep-inline-valchip .ep-inline-editable { cursor: pointer; border-bottom: 1px dotted var(--text-faint); }
+.ep-inline-valchip .ep-inline-editable:hover { border-bottom-color: var(--interactive-accent); color: var(--text-normal); }
+.ep-inline-valchip a { cursor: pointer; }
 .ep-inline-prop { display: inline; }
 .ep-inline-editable { cursor: pointer; border-bottom: 1px dotted var(--text-faint); }
 .ep-inline-editable:hover { border-bottom-color: var(--interactive-accent); color: var(--text-normal); }

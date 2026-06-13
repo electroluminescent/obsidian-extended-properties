@@ -324,34 +324,65 @@ class NoteEval {
     return this.env.note.num(key, 0);
   }
 
-  /** Expression reference: known property → value (0 if absent); unknown → undefined. */
-  private refValue(name: string, depth: number): number | undefined {
-    const key = this.keyFor(name);
-    if (key === null) return undefined;
-    const stored = numericRaw(this.env, key);
-    if (stored !== null) return stored;
-    if (depth > 0) {
-      const en = findDerivedEntry(this.env, key);
-      if (en) return this.totalAt(en, depth - 1);
-    }
-    return this.env.note.num(key, 0);
+  /** Resolve a reference (name, short form, or `Xs` modifier) to a number. */
+  resolveRef(name: string): number | undefined {
+    return this.refValue(name, maxDepth(this.env));
   }
 
-  /** Map a referenced name to a known property key — exact key first, then short form. */
-  private keyFor(name: string): string | null {
-    const nl = name.trim().toLowerCase();
-    if (!nl) return null;
-    for (const k of Object.keys(this.env.note.raw)) if (k.toLowerCase() === nl) return k;
-    const layout = this.env.layout;
-    if (layout) {
-      for (const s of layout.sections)
-        for (const en of s.entries) if (en.kind === "prop" && en.key && en.key.toLowerCase() === nl) return en.key;
-      for (const s of layout.sections)
-        for (const en of s.entries)
-          if (en.kind === "prop" && en.key && abbrFor(this.env.settings, en.key).toLowerCase() === nl) return en.key;
+  /**
+   * Expression reference: a known property resolves to its value (0 if absent);
+   * a name suffixed with `s` (e.g. `INTs`) resolves to that property's
+   * *modifier* — its override-aware {@link totalAt} — instead of its value.
+   */
+  private refValue(name: string, depth: number): number | undefined {
+    const key = this.keyFor(name);
+    if (key !== null) {
+      const stored = numericRaw(this.env, key);
+      if (stored !== null) return stored;
+      if (depth > 0) {
+        const en = findDerivedEntry(this.env, key);
+        if (en) return this.totalAt(en, depth - 1);
+      }
+      return this.env.note.num(key, 0);
     }
+    const base = modifierBaseFor(this.env.settings, name);
+    if (base !== null) {
+      const bk = this.keyFor(base);
+      if (bk !== null) {
+        const entry = this.findPropEntry(bk);
+        if (entry) return this.totalAt(entry, depth);
+      }
+    }
+    return undefined;
+  }
+
+  /** Map a referenced name (key or short form) to a property key. */
+  private keyFor(name: string): string | null {
+    const candidates = [...Object.keys(this.env.note.raw)];
+    if (this.env.layout)
+      for (const s of this.env.layout.sections)
+        for (const en of s.entries) if (en.kind === "prop" && en.key) candidates.push(en.key);
+    return keyForShortForm(this.env.settings, name, candidates);
+  }
+
+  /** Any prop entry (number or derived) with `key` in the active layout. */
+  private findPropEntry(key: string): Entry | null {
+    if (!this.env.layout) return null;
+    const kl = key.toLowerCase();
+    for (const s of this.env.layout.sections)
+      for (const e of s.entries) if (e.kind === "prop" && e.key && e.key.toLowerCase() === kl) return e;
     return null;
   }
+}
+
+/**
+ * A reference resolver over one note: resolves names, short forms and `Xs`
+ * modifier references to numbers, sharing a single {@link NoteEval} (so
+ * memoization and cycle detection hold across an expression or a roll).
+ */
+export function makeRefResolver(env: InfluenceEnv): (name: string) => number | undefined {
+  const ev = new NoteEval(env);
+  return (name) => ev.resolveRef(name);
 }
 
 /** One influence's contribution to the sum (0 while toggled off or on error). */
@@ -528,6 +559,18 @@ export function materializeShortForms(settings: EPSettings): boolean {
   let changed = false;
   for (const k of keys) if (ensureShortForm(settings, k)) changed = true;
   return changed;
+}
+
+/** The configured modifier suffix (default "s"); empty disables modifier references. */
+export function modifierSuffix(settings: EPSettings): string {
+  return settings.modifierSuffix ?? "s";
+}
+
+/** If `name` ends with the modifier suffix, the base reference (without it); else null. */
+export function modifierBaseFor(settings: EPSettings, name: string): string | null {
+  const suf = modifierSuffix(settings);
+  if (!suf || name.length <= suf.length) return null;
+  return name.toLowerCase().endsWith(suf.toLowerCase()) ? name.slice(0, name.length - suf.length) : null;
 }
 
 /** Autocomplete options for reference fields: each property's name and short form (interchangeable). */

@@ -456,6 +456,8 @@ var coreEn = {
   "settings.modsOffPropDesc": "List property storing the modifiers switched off by clicking their short form (entries as \u201CProperty:Source\u201D).",
   "settings.modDepth": "Modifier chain depth",
   "settings.modDepthDesc": "How many property\u2192property hops are resolved when derived values influence other derived values.",
+  "settings.modSuffix": "Modifier suffix",
+  "settings.modSuffixDesc": "Append this to a reference to use a property's modifier instead of its value (e.g. INTs in a roll or expression). Any length; blank disables it.",
   "settings.abbrHeading": "Short forms",
   "settings.abbrDesc": "Short forms used in modifier denotations (INT + DEX \u2212 AGE). The default is the capitalized first three letters of the property name; overrides apply everywhere the property is shown as a source.",
   "settings.abbrDefault": "Default: {abbr}",
@@ -882,6 +884,8 @@ var coreDe = {
   "settings.modsOffPropDesc": "Listen-Eigenschaft, die per Klick auf ihr K\xFCrzel abgeschaltete Modifikatoren speichert (Eintr\xE4ge als \u201EEigenschaft:Quelle\u201C).",
   "settings.modDepth": "Modifikator-Kettentiefe",
   "settings.modDepthDesc": "Wie viele Eigenschaft\u2192Eigenschaft-Schritte aufgel\xF6st werden, wenn abgeleitete Werte andere abgeleitete Werte beeinflussen.",
+  "settings.modSuffix": "Modifikator-Suffix",
+  "settings.modSuffixDesc": "An eine Referenz angeh\xE4ngt, um den Modifikator einer Eigenschaft statt ihres Werts zu verwenden (z. B. INTs in einem Wurf oder Ausdruck). Beliebige L\xE4nge; leer deaktiviert.",
   "settings.abbrHeading": "K\xFCrzel",
   "settings.abbrDesc": "K\xFCrzel f\xFCr Modifikator-Anzeigen (INT + DEX \u2212 ALT). Standard sind die ersten drei Gro\xDFbuchstaben des Eigenschaftsnamens; \xDCberschreibungen gelten \xFCberall, wo die Eigenschaft als Quelle erscheint.",
   "settings.abbrDefault": "Standard: {abbr}",
@@ -1434,34 +1438,58 @@ var NoteEval = class {
     }
     return this.env.note.num(key, 0);
   }
-  /** Expression reference: known property → value (0 if absent); unknown → undefined. */
+  /** Resolve a reference (name, short form, or `Xs` modifier) to a number. */
+  resolveRef(name) {
+    return this.refValue(name, maxDepth(this.env));
+  }
+  /**
+   * Expression reference: a known property resolves to its value (0 if absent);
+   * a name suffixed with `s` (e.g. `INTs`) resolves to that property's
+   * *modifier* — its override-aware {@link totalAt} — instead of its value.
+   */
   refValue(name, depth) {
     const key = this.keyFor(name);
-    if (key === null) return void 0;
-    const stored = numericRaw(this.env, key);
-    if (stored !== null) return stored;
-    if (depth > 0) {
-      const en = findDerivedEntry(this.env, key);
-      if (en) return this.totalAt(en, depth - 1);
+    if (key !== null) {
+      const stored = numericRaw(this.env, key);
+      if (stored !== null) return stored;
+      if (depth > 0) {
+        const en = findDerivedEntry(this.env, key);
+        if (en) return this.totalAt(en, depth - 1);
+      }
+      return this.env.note.num(key, 0);
     }
-    return this.env.note.num(key, 0);
+    const base = modifierBaseFor(this.env.settings, name);
+    if (base !== null) {
+      const bk = this.keyFor(base);
+      if (bk !== null) {
+        const entry = this.findPropEntry(bk);
+        if (entry) return this.totalAt(entry, depth);
+      }
+    }
+    return void 0;
   }
-  /** Map a referenced name to a known property key — exact key first, then short form. */
+  /** Map a referenced name (key or short form) to a property key. */
   keyFor(name) {
-    const nl = name.trim().toLowerCase();
-    if (!nl) return null;
-    for (const k of Object.keys(this.env.note.raw)) if (k.toLowerCase() === nl) return k;
-    const layout = this.env.layout;
-    if (layout) {
-      for (const s of layout.sections)
-        for (const en of s.entries) if (en.kind === "prop" && en.key && en.key.toLowerCase() === nl) return en.key;
-      for (const s of layout.sections)
-        for (const en of s.entries)
-          if (en.kind === "prop" && en.key && abbrFor(this.env.settings, en.key).toLowerCase() === nl) return en.key;
+    const candidates = [...Object.keys(this.env.note.raw)];
+    if (this.env.layout) {
+      for (const s of this.env.layout.sections)
+        for (const en of s.entries) if (en.kind === "prop" && en.key) candidates.push(en.key);
     }
+    return keyForShortForm(this.env.settings, name, candidates);
+  }
+  /** Any prop entry (number or derived) with `key` in the active layout. */
+  findPropEntry(key) {
+    if (!this.env.layout) return null;
+    const kl = key.toLowerCase();
+    for (const s of this.env.layout.sections)
+      for (const e of s.entries) if (e.kind === "prop" && e.key && e.key.toLowerCase() === kl) return e;
     return null;
   }
 };
+function makeRefResolver(env) {
+  const ev = new NoteEval(env);
+  return (name) => ev.resolveRef(name);
+}
 function influenceTerm(env, entry, inf) {
   var _a;
   return (_a = new NoteEval(env).term(entry, inf)) != null ? _a : 0;
@@ -1579,6 +1607,15 @@ function materializeShortForms(settings) {
   for (const k of keys) if (ensureShortForm(settings, k)) changed = true;
   return changed;
 }
+function modifierSuffix(settings) {
+  var _a;
+  return (_a = settings.modifierSuffix) != null ? _a : "s";
+}
+function modifierBaseFor(settings, name) {
+  const suf = modifierSuffix(settings);
+  if (!suf || name.length <= suf.length) return null;
+  return name.toLowerCase().endsWith(suf.toLowerCase()) ? name.slice(0, name.length - suf.length) : null;
+}
 function referenceSuggestions(settings, keys) {
   const out = [];
   const seen = /* @__PURE__ */ new Set();
@@ -1675,7 +1712,8 @@ function defaultSettings() {
     rollHistoryLimit: 500,
     rollHistoryEnabled: true,
     critRanges: {},
-    failOnOne: true
+    failOnOne: true,
+    modifierSuffix: "s"
   };
 }
 function normalizeSettings(data, defaultLayout) {
@@ -1732,6 +1770,7 @@ function normalizeSettings(data, defaultLayout) {
       s.critRanges = out;
     }
     if (data.failOnOne === false) s.failOnOne = false;
+    if (typeof data.modifierSuffix === "string") s.modifierSuffix = data.modifierSuffix;
   }
   for (const t of s.types) {
     const k = t.toLowerCase();
@@ -7313,12 +7352,18 @@ function runRoll(svc2, i18n, o) {
         dn.ops = [...dn.ops, mode === "advantage" ? { t: "dl", n: 1 } : { t: "dh", n: 1 }];
       }
     }
-    svc2.rollAst(n > 1 ? `${o.label} #${i + 1}` : o.label, ast, { stay: n > 1, tag, mode });
+    svc2.rollAst(n > 1 ? `${o.label} #${i + 1}` : o.label, ast, { stay: n > 1, tag, mode, resolve: o.resolve });
   }
 }
-function runMacro(svc2, i18n, m) {
+function runMacro(svc2, i18n, m, resolve) {
   var _a;
-  runRoll(svc2, i18n, { segs: (_a = m.segs) != null ? _a : [], mode: m.mode, times: m.times, label: m.name || i18n.t("roller.title") });
+  runRoll(svc2, i18n, {
+    segs: (_a = m.segs) != null ? _a : [],
+    mode: m.mode,
+    times: m.times,
+    label: m.name || i18n.t("roller.title"),
+    resolve
+  });
 }
 function applicableMacros(settings, typeKey) {
   const list = Array.isArray(settings.macros) ? settings.macros : [];
@@ -7487,6 +7532,13 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
     );
     c.createEl("h3", { text: t("settings.abbrHeading") });
     c.createEl("p", { cls: "setting-item-description", text: t("settings.abbrDesc") });
+    new import_obsidian20.Setting(c).setName(t("settings.modSuffix")).setDesc(t("settings.modSuffixDesc")).addText((tx) => {
+      var _a;
+      tx.setPlaceholder("s").setValue((_a = plugin.settings.modifierSuffix) != null ? _a : "s").onChange((v) => {
+        plugin.settings.modifierSuffix = v;
+        save();
+      });
+    });
     for (const key of Object.keys(plugin.settings.sourceAbbrs).sort((a, b) => a.localeCompare(b))) {
       new import_obsidian20.Setting(c).setName(key).setDesc(t("settings.abbrDefault", { abbr: defaultAbbr(key) })).addText((tx) => {
         tx.setPlaceholder(defaultAbbr(key)).setValue(plugin.settings.sourceAbbrs[key]).onChange((v) => {
@@ -8795,7 +8847,13 @@ var rollerKind = {
     go.onclick = () => {
       var _a2;
       const label = ctx.entry.alias || t("roller.title");
-      runRoll(svc(view), view.i18n, { segs: segs(), mode: curMode(), times: (_a2 = e.rollerTimes) != null ? _a2 : 1, label });
+      runRoll(svc(view), view.i18n, {
+        segs: segs(),
+        mode: curMode(),
+        times: (_a2 = e.rollerTimes) != null ? _a2 : 1,
+        label,
+        resolve: makeRefResolver(view)
+      });
     };
     const macrosEl = wrap.createDiv({ cls: "ep-macros" });
     const loadMacro = (m) => {
@@ -8820,14 +8878,14 @@ var rollerKind = {
           chip.setAttr("title", segsToText(m.segs) || t("roller.macroRun"));
           chip.onclick = (ev) => {
             ev.stopPropagation();
-            runMacro(svc(view), view.i18n, m);
+            runMacro(svc(view), view.i18n, m, makeRefResolver(view));
           };
           chip.oncontextmenu = (ev) => {
             ev.preventDefault();
             ev.stopPropagation();
             const menu = new import_obsidian25.Menu();
             menu.addItem(
-              (i) => i.setTitle(t("roller.macroRun")).setIcon("dices").onClick(() => runMacro(svc(view), view.i18n, m))
+              (i) => i.setTitle(t("roller.macroRun")).setIcon("dices").onClick(() => runMacro(svc(view), view.i18n, m, makeRefResolver(view)))
             );
             menu.addItem((i) => i.setTitle(t("roller.macroLoad")).setIcon("download").onClick(() => loadMacro(m)));
             menu.addItem(
@@ -10164,22 +10222,14 @@ function processInline(el, mdctx, ctx) {
     if (kind === "roll") {
       code.replaceWith(makeRollChip(ctx, file, body, opt));
     } else {
-      const key = kind === "val" ? resolveRefKey(ctx, file, body) : body;
       const span = createSpan();
       code.replaceWith(span);
-      mdctx.addChild(new PropInline(span, ctx, file, key));
+      mdctx.addChild(kind === "val" ? new ValInline(span, ctx, file, body) : new PropInline(span, ctx, file, body));
     }
   }
 }
-function resolveRefKey(ctx, file, name) {
-  var _a;
-  return (_a = keyForShortForm(ctx.settings, name, Object.keys(ctx.facade.raw(file)))) != null ? _a : name;
-}
-function refValue(ctx, file, name) {
-  const v = ctx.facade.get(file, resolveRefKey(ctx, file, name));
-  if (v === void 0 || v === null || v === "") return void 0;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : void 0;
+function refResolver(ctx, file) {
+  return makeRefResolver(envFor(ctx, file));
 }
 function primarySides(ast) {
   if (ast) {
@@ -10208,25 +10258,27 @@ function runInlineRoll(ctx, file, body, mode, times) {
   }
   const tag = mode === "advantage" ? " " + t("roll.tagAdvantage") : mode === "disadvantage" ? " " + t("roll.tagDisadvantage") : "";
   const n = Math.max(1, Math.min(20, times || 1));
+  const resolve = refResolver(ctx, file);
   for (let i = 0; i < n; i++) {
     ctx.roll.rollAst(n > 1 ? `${body} #${i + 1}` : body, applyMode(parseRoll(body), mode), {
       tag,
       mode,
       stay: n > 1,
-      resolve: (name) => refValue(ctx, file, name)
+      resolve
     });
   }
 }
 function makeRollChip(ctx, file, body, opt, onEdit) {
   const t = ctx.i18n.t.bind(ctx.i18n);
   const ast = parseRoll(body);
+  const resolve = refResolver(ctx, file);
   const chip = createSpan({ cls: "ep-inline-roll" });
   const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });
   (0, import_obsidian28.setIcon)(ic, diceIconId(primarySides(ast)));
   chip.createSpan({
     cls: "ep-inline-roll-lab",
     text: ast ? serializeRoll(ast, (name) => {
-      const v = refValue(ctx, file, name);
+      const v = resolve(name);
       return v === void 0 ? name : String(v);
     }) : body
   });
@@ -10305,6 +10357,109 @@ var PropInline = class extends import_obsidian28.MarkdownRenderChild {
     this.root.appendChild(renderPropValue(this.ctx, this.file, this.key));
   }
 };
+function findInlineEntry(ctx, file, key) {
+  const layout = layoutForFile(ctx, file);
+  if (!layout) return null;
+  const kl = key.toLowerCase();
+  for (const s of layout.sections)
+    for (const e of s.entries) if (e.kind === "prop" && e.key && e.key.toLowerCase() === kl) return e;
+  return null;
+}
+function makeValEl(ctx, file, body, onEditSource) {
+  const t = ctx.i18n.t.bind(ctx.i18n);
+  const noteKeys = Object.keys(ctx.facade.raw(file));
+  const directKey = keyForShortForm(ctx.settings, body, noteKeys);
+  const base = directKey ? null : modifierBaseFor(ctx.settings, body);
+  const baseKey = base ? keyForShortForm(ctx.settings, base, noteKeys) : null;
+  const chip = createSpan({ cls: "ep-inline-roll ep-inline-valchip" });
+  const iconKey = directKey != null ? directKey : baseKey;
+  const entry = iconKey ? findInlineEntry(ctx, file, iconKey) : null;
+  if (entry == null ? void 0 : entry.icon) {
+    const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });
+    (0, import_obsidian28.setIcon)(ic, entry.icon);
+    if (entry.iconColor) ic.style.color = entry.iconColor;
+  }
+  const lab = chip.createSpan({ cls: "ep-inline-roll-lab" });
+  let editValue = null;
+  if (directKey) {
+    const key = directKey;
+    const raw = ctx.facade.get(file, key);
+    const str = raw === void 0 || raw === null || raw === "" ? "" : Array.isArray(raw) ? raw.join(", ") : String(raw);
+    editValue = () => {
+      const isNum = typeof raw === "number" || str.trim() !== "" && Number.isFinite(Number(str));
+      if (isNum) {
+        openNumberInput(lab, Number(raw != null ? raw : 0), (v) => {
+          ctx.facade.set(file, key, v);
+          lab.setText(fmtNum(v));
+        }, {
+          min: -1e5,
+          max: 1e5,
+          float: true,
+          clamp: false,
+          onEmpty: () => {
+            ctx.facade.set(file, key, void 0);
+            lab.setText(t("inline.empty"));
+          }
+        });
+      } else {
+        openTextInput(ctx.app, lab, key, str, () => [], (v) => {
+          ctx.facade.set(file, key, v || void 0);
+          lab.setText(v || t("inline.empty"));
+        });
+      }
+    };
+    if (str && /\[\[.+?\]\]|\]\([^)]+\)/.test(str)) {
+      renderLinkedText(ctx.app, lab, str, file.path);
+    } else {
+      lab.setText(str || t("inline.empty"));
+      lab.addClass("ep-inline-editable");
+      lab.onclick = (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        editValue == null ? void 0 : editValue();
+      };
+    }
+    chip.setAttr("title", t("inline.propHint", { key }));
+  } else {
+    const v = makeRefResolver(envFor(ctx, file))(body);
+    lab.setText(v === void 0 ? t("inline.empty") : fmtMod(v));
+    if (v === void 0) chip.addClass("ep-expr-error");
+    chip.setAttr("title", body);
+  }
+  if (editValue || onEditSource) {
+    chip.oncontextmenu = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const menu = new import_obsidian28.Menu();
+      if (editValue && directKey)
+        menu.addItem((i) => i.setTitle(t("inline.editValue", { prop: directKey })).setIcon("pencil").onClick(editValue));
+      if (onEditSource) menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
+      menu.showAtMouseEvent(ev);
+    };
+  }
+  return chip;
+}
+var ValInline = class extends import_obsidian28.MarkdownRenderChild {
+  constructor(root, ctx, file, body) {
+    super(root);
+    this.root = root;
+    this.ctx = ctx;
+    this.file = file;
+    this.body = body;
+  }
+  onload() {
+    this.draw();
+    this.registerEvent(
+      this.ctx.app.metadataCache.on("changed", (f) => {
+        if (f.path === this.file.path) this.draw();
+      })
+    );
+  }
+  draw() {
+    this.root.empty();
+    this.root.appendChild(makeValEl(this.ctx, this.file, this.body));
+  }
+};
 function buildEnv(ctx, file, layout) {
   const raw = ctx.facade.raw(file);
   const note = {
@@ -10312,7 +10467,10 @@ function buildEnv(ctx, file, layout) {
     num: (k, d) => getNum(raw, k, d),
     list: (k) => getList(raw, k)
   };
-  return { note, registries: ctx.registries, settings: ctx.settings, layout };
+  return { note, registries: ctx.registries, settings: ctx.settings, layout: layout != null ? layout : void 0 };
+}
+function envFor(ctx, file) {
+  return buildEnv(ctx, file, layoutForFile(ctx, file));
 }
 function layoutForFile(ctx, file) {
   const raw = ctx.facade.raw(file);
@@ -10439,9 +10597,9 @@ var InlineWidget = class extends import_view.WidgetType {
       view.focus();
     };
     if (this.kind === "roll") return makeRollChip(this.ctx, this.file, this.body, this.opt, reveal);
-    const key = this.kind === "val" ? resolveRefKey(this.ctx, this.file, this.body) : this.body;
+    if (this.kind === "val") return makeValEl(this.ctx, this.file, this.body, reveal);
     const wrap = createSpan({ cls: "ep-inline-prop" });
-    wrap.appendChild(renderPropValue(this.ctx, this.file, key));
+    wrap.appendChild(renderPropValue(this.ctx, this.file, this.body));
     wrap.oncontextmenu = (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
@@ -10512,6 +10670,7 @@ var inlineEn = {
   "inline.rollInvalid": "Invalid roll expression.",
   "inline.propHint": "{key} \u2014 click to edit",
   "inline.editSource": "Edit source",
+  "inline.editValue": "Edit {prop} value",
   "inline.empty": "\u2014",
   "inline.sheetNoType": "ep-sheet: this note has no matching type.",
   "inline.sheetEmpty": "ep-sheet: nothing to show."
@@ -10523,6 +10682,7 @@ var inlineDe = {
   "inline.rollInvalid": "Ung\xFCltiger Wurf-Ausdruck.",
   "inline.propHint": "{key} \u2014 zum Bearbeiten klicken",
   "inline.editSource": "Quelle bearbeiten",
+  "inline.editValue": "Wert von {prop} bearbeiten",
   "inline.empty": "\u2014",
   "inline.sheetNoType": "ep-sheet: Diese Notiz hat keinen passenden Typ.",
   "inline.sheetEmpty": "ep-sheet: Nichts anzuzeigen."

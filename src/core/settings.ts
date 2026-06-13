@@ -56,6 +56,7 @@ export function defaultSettings(): EPSettings {
     rollHistoryEnabled: true,
     critRanges: {},
     failOnOne: true,
+    modifierSuffix: "s",
   };
 }
 
@@ -120,6 +121,7 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
       s.critRanges = out;
     }
     if (data.failOnOne === false) s.failOnOne = false;
+    if (typeof data.modifierSuffix === "string") s.modifierSuffix = data.modifierSuffix;
   }
   for (const t of s.types) {
     const k = t.toLowerCase();
