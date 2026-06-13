@@ -20,8 +20,8 @@ import type { Entry, EPSettings, Layout } from "../../core/model";
 import { ext } from "../../core/model";
 import type { Registries } from "../../core/registry";
 import type { NoteModel, NoteFacade } from "../../core/note-model";
-import { InfluenceEnv, modifierInfo, modifierTotal } from "../../core/influences";
-import { DiceNode, parseRoll, RollAst } from "../../utils/dice-expr";
+import { InfluenceEnv, keyForShortForm, modifierInfo, modifierTotal } from "../../core/influences";
+import { DiceNode, parseRoll, RollAst, serializeRoll } from "../../utils/dice-expr";
 import { parseDiceOrDefault } from "../../utils/dice";
 import { fmtMod, fmtNum, getList, getNum } from "../../utils/misc";
 import { diceIconId } from "../../ui/render/dice-icons";
@@ -55,7 +55,7 @@ export function processInline(el: HTMLElement, mdctx: MarkdownPostProcessorConte
   if (!(file instanceof TFile)) return;
   for (const code of codes) {
     if (code.closest("pre")) continue; // skip fenced code blocks
-    const m = /^(roll|prop)(?:\(([^)]*)\))?:\s*(.+)$/i.exec((code.textContent ?? "").trim());
+    const m = /^(roll|prop|val)(?:\(([^)]*)\))?:\s*(.+)$/i.exec((code.textContent ?? "").trim());
     if (!m) continue;
     const kind = m[1].toLowerCase();
     const opt = (m[2] ?? "").trim();
@@ -63,9 +63,11 @@ export function processInline(el: HTMLElement, mdctx: MarkdownPostProcessorConte
     if (kind === "roll") {
       code.replaceWith(makeRollChip(ctx, file, body, opt));
     } else {
+      // `val:` takes a short form (or key); `prop:` takes a key.
+      const key = kind === "val" ? resolveRefKey(ctx, file, body) : body;
       const span = createSpan();
       code.replaceWith(span);
-      mdctx.addChild(new PropInline(span, ctx, file, body));
+      mdctx.addChild(new PropInline(span, ctx, file, key));
     }
   }
 }
@@ -74,9 +76,14 @@ export function processInline(el: HTMLElement, mdctx: MarkdownPostProcessorConte
 // Shared chip / value builders (reading mode + Live Preview)
 // ---------------------------------------------------------------------------
 
-/** Resolve a property reference to a number against `file`'s frontmatter. */
+/** Resolve a short form (or a property key) to a property key for `file`. */
+export function resolveRefKey(ctx: InlineCtx, file: TFile, name: string): string {
+  return keyForShortForm(ctx.settings, name, Object.keys(ctx.facade.raw(file))) ?? name;
+}
+
+/** Resolve a property reference (short form or key) to a number against `file`'s frontmatter. */
 function refValue(ctx: InlineCtx, file: TFile, name: string): number | undefined {
-  const v = ctx.facade.get(file, name);
+  const v = ctx.facade.get(file, resolveRefKey(ctx, file, name));
   if (v === undefined || v === null || v === "") return undefined;
   const n = Number(v);
   return Number.isFinite(n) ? n : undefined;
@@ -137,7 +144,17 @@ export function makeRollChip(ctx: InlineCtx, file: TFile, body: string, opt: str
   const chip = createSpan({ cls: "ep-inline-roll" });
   const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });
   setIcon(ic, diceIconId(primarySides(ast)));
-  chip.createSpan({ cls: "ep-inline-roll-lab", text: body });
+  // The label shows short forms resolved to their current values; the tooltip
+  // keeps the symbolic formula (e.g. label "2d6 + 3", title "2d6+INT").
+  chip.createSpan({
+    cls: "ep-inline-roll-lab",
+    text: ast
+      ? serializeRoll(ast, (name) => {
+          const v = refValue(ctx, file, name);
+          return v === undefined ? name : String(v);
+        })
+      : body,
+  });
   const mode: RollMode = /^adv/i.test(opt) ? "advantage" : /^dis/i.test(opt) ? "disadvantage" : "normal";
   if (!ast) chip.addClass("ep-expr-error");
   chip.setAttr("title", ast ? t("inline.rollHint", { expr: body }) : t("inline.rollInvalid"));

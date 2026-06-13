@@ -19,16 +19,17 @@ import type { ClusterAddon, ClusterNeeds, ClusterSlot } from "../../core/registr
 import type { Entry } from "../../core/model";
 import { ext } from "../../core/model";
 import {
-  abbrFor, applyDerivation, defaultAbbr, denotationText, hasNoteOverride, Influence,
-  influenceActive, influenceDisabled, influenceTerm, ModExt, modifierInfo, modifierTotal,
-  setAbbr, setInfluenceActive, setInfluenceDisabled, termDenotation,
+  abbrFor, applyDerivation, assignShortForm, defaultAbbr, denotationText, ensureShortForm, hasNoteOverride,
+  Influence, influenceActive, influenceDisabled, influenceTerm, ModExt, modifierInfo, modifierTotal,
+  reassignDerived, referenceSuggestions, setInfluenceActive, setInfluenceDisabled, shortFormConflict, termDenotation,
 } from "../../core/influences";
 import { parseExpr } from "../../core/expr";
+import { ConfirmModal } from "../modals/dialogs";
 import type { ViewCtx } from "../../core/context";
 import { fmtMod } from "../../utils/misc";
 import { formatDice, parseDiceOrDefault } from "../../utils/dice";
 import { diceIconId } from "./dice-icons";
-import { PropSuggest } from "../components/suggest";
+import { PropSuggest, RefSuggest } from "../components/suggest";
 
 /** Value types the modifier system attaches to. */
 export const MODIFIABLE_TYPE_IDS = new Set(["number", "decimal", "formula", "derived"]);
@@ -241,9 +242,45 @@ export const modifierAddon: ClusterAddon = {
       });
     }
 
-    list.forEach((inf, idx) => {
-      const srcKey = () => inf.source || (entry.key as string) || "";
+    // Per-property short form, used in modifier chains and inline val:/roll: refs.
+    // Short forms are unique; setting one already in use prompts to overwrite,
+    // in which case the previous owner gets a freshly derived short form.
+    if (entry.key && (entry as Record<string, unknown>)["__multi"] !== true) {
+      const key = entry.key as string;
+      if (ensureShortForm(view.settings, key)) changed();
+      new Setting(c)
+        .setName(t("mods.shortForm"))
+        .setDesc(t("mods.shortFormDesc"))
+        .addText((tx) => {
+          tx.setValue(abbrFor(view.settings, key)).setPlaceholder(defaultAbbr(key));
+          tx.inputEl.addClass("ep-abbr-input");
+          tx.inputEl.addEventListener("change", () => {
+            const desired = tx.getValue().trim().toUpperCase();
+            if (!desired) {
+              reassignDerived(view.settings, key);
+              changed();
+              tx.setValue(abbrFor(view.settings, key));
+              return;
+            }
+            if (desired === abbrFor(view.settings, key)) return;
+            const other = shortFormConflict(view.settings, key, desired);
+            if (other) {
+              tx.setValue(abbrFor(view.settings, key)); // revert until confirmed
+              new ConfirmModal(view.app, view.i18n, t("mods.shortFormConflict", { abbr: desired, other }), () => {
+                assignShortForm(view.settings, key, desired);
+                reassignDerived(view.settings, other);
+                changed();
+                redraw();
+              }).open();
+              return;
+            }
+            assignShortForm(view.settings, key, desired);
+            changed();
+          });
+        });
+    }
 
+    list.forEach((inf, idx) => {
       const head = new Setting(c).setName(t("mods.influence", { n: idx + 1 }));
       head.addText((tx) => {
         tx.setPlaceholder(t("mods.sourceSelf")).setValue(inf.source ?? "");
@@ -313,6 +350,9 @@ export const modifierAddon: ClusterAddon = {
           .addText((tx) => {
             tx.setValue(inf.expr ?? "");
             tx.inputEl.addClass("ep-expr-input");
+            new RefSuggest(view.app, tx.inputEl, () =>
+              referenceSuggestions(view.settings, view.propCandidates(true).map((c) => c.key))
+            );
             const validate = (val: string) =>
               tx.inputEl.toggleClass("ep-invalid", val.trim() !== "" && !parseExpr(val));
             validate(inf.expr ?? "");
@@ -355,17 +395,6 @@ export const modifierAddon: ClusterAddon = {
         }, false);
         tx.inputEl.addEventListener("change", () => {
           inf.toggle = tx.getValue().trim() || undefined;
-          changed();
-        });
-      });
-      sub.addText((tx) => {
-        tx.setPlaceholder(defaultAbbr(srcKey())).setValue(
-          abbrFor(view.settings, srcKey()) === defaultAbbr(srcKey()) ? "" : abbrFor(view.settings, srcKey())
-        );
-        tx.inputEl.setAttr("aria-label", t("mods.abbr"));
-        tx.inputEl.addClass("ep-abbr-input");
-        tx.onChange((v) => {
-          setAbbr(view.settings, srcKey(), v);
           changed();
         });
       });

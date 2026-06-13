@@ -155,30 +155,13 @@
             },
             {
               "id": "mq2w6anx6qaf6",
-              "kind": "prop",
-              "key": "Initiative",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "mods": [
-                {
-                  "source": "Dexterity",
-                  "mode": "abilityMod"
-                }
-              ],
-              "roll": true
+              "kind": "computed",
+              "computed": "initiative"
             },
             {
               "id": "mq2w6anxngs4r",
-              "kind": "prop",
-              "key": "Proficiency Bonus",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "mods": [
-                {
-                  "source": "Level",
-                  "mode": "profBonus"
-                }
-              ]
+              "kind": "computed",
+              "computed": "proficiency"
             }
           ],
           "collapsed": false,
@@ -197,14 +180,8 @@
               "slider": true,
               "min": 1,
               "max": 30,
-              "roll": true,
-              "showMod": true,
-              "mods": [
-                {
-                  "mode": "abilityMod"
-                }
-              ],
-              "dataType": "number"
+              "roll": "abilityMod",
+              "showMod": true
             },
             {
               "id": "mq2w6anx7ob7t",
@@ -213,14 +190,8 @@
               "slider": true,
               "min": 1,
               "max": 30,
-              "roll": true,
-              "showMod": true,
-              "mods": [
-                {
-                  "mode": "abilityMod"
-                }
-              ],
-              "dataType": "number"
+              "roll": "abilityMod",
+              "showMod": true
             },
             {
               "id": "mq2w6anxoeok0",
@@ -229,14 +200,8 @@
               "slider": true,
               "min": 1,
               "max": 30,
-              "roll": true,
-              "showMod": true,
-              "mods": [
-                {
-                  "mode": "abilityMod"
-                }
-              ],
-              "dataType": "number"
+              "roll": "abilityMod",
+              "showMod": true
             },
             {
               "id": "mq2w6anxw957d",
@@ -245,14 +210,8 @@
               "slider": true,
               "min": 1,
               "max": 30,
-              "roll": true,
-              "showMod": true,
-              "mods": [
-                {
-                  "mode": "abilityMod"
-                }
-              ],
-              "dataType": "number"
+              "roll": "abilityMod",
+              "showMod": true
             },
             {
               "id": "mq2w6anxnl8bx",
@@ -261,14 +220,8 @@
               "slider": true,
               "min": 1,
               "max": 30,
-              "roll": true,
-              "showMod": true,
-              "mods": [
-                {
-                  "mode": "abilityMod"
-                }
-              ],
-              "dataType": "number"
+              "roll": "abilityMod",
+              "showMod": true
             },
             {
               "id": "mq2w6anx5tuzf",
@@ -277,14 +230,8 @@
               "slider": true,
               "min": 1,
               "max": 30,
-              "roll": true,
-              "showMod": true,
-              "mods": [
-                {
-                  "mode": "abilityMod"
-                }
-              ],
-              "dataType": "number"
+              "roll": "abilityMod",
+              "showMod": true
             }
           ],
           "collapsed": false
@@ -295,118 +242,15 @@
           "columns": 1,
           "entries": [
             {
-              "id": "mqctv3roy4qpz",
+              "id": "mq2w6anxxn58u",
               "kind": "prop",
-              "key": "Strength Save",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Strength",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Saving Throw Proficiencies"
-                }
-              ],
-              "alias": "Strength"
-            },
-            {
-              "id": "mqctv3rovpyjn",
-              "kind": "prop",
-              "key": "Dexterity Save",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Dexterity",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Saving Throw Proficiencies"
-                }
-              ],
-              "alias": "Dexterity"
-            },
-            {
-              "id": "mqctv3romihzg",
-              "kind": "prop",
-              "key": "Constitution Save",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Constitution",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Saving Throw Proficiencies"
-                }
-              ],
-              "alias": "Constitution"
-            },
-            {
-              "id": "mqctv3rokazuo",
-              "kind": "prop",
-              "key": "Intelligence Save",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Intelligence",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Saving Throw Proficiencies"
-                }
-              ],
-              "alias": "Intelligence"
-            },
-            {
-              "id": "mqctv3rpfcqht",
-              "kind": "prop",
-              "key": "Wisdom Save",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Wisdom",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Saving Throw Proficiencies"
-                }
-              ],
-              "alias": "Wisdom"
-            },
-            {
-              "id": "mqctv3rptd5qi",
-              "kind": "prop",
-              "key": "Charisma Save",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Charisma",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Saving Throw Proficiencies"
-                }
-              ],
-              "alias": "Charisma"
+              "key": "Saving Throws",
+              "dataType": "skills",
+              "skillsPreset": "dnd5e-saves",
+              "skillMode": "abilityMod",
+              "profMode": "level",
+              "profSource": "Level",
+              "hideIfEmpty": false
             }
           ],
           "collapsed": false,
@@ -418,329 +262,15 @@
           "columns": 1,
           "entries": [
             {
-              "id": "mqctv220377nl",
+              "id": "mq2w6anxqt6jj",
               "kind": "prop",
-              "key": "Acrobatics",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Dexterity",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Skill Proficiencies"
-                }
-              ]
-            },
-            {
-              "id": "mqctv220dvype",
-              "kind": "prop",
-              "key": "Animal Handling",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Wisdom",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Skill Proficiencies"
-                }
-              ]
-            },
-            {
-              "id": "mqctv220t6hm9",
-              "kind": "prop",
-              "key": "Arcana",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Intelligence",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Skill Proficiencies"
-                }
-              ]
-            },
-            {
-              "id": "mqctv220flmna",
-              "kind": "prop",
-              "key": "Athletics",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Strength",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Skill Proficiencies"
-                }
-              ]
-            },
-            {
-              "id": "mqctv220w2gx6",
-              "kind": "prop",
-              "key": "Deception",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Charisma",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Skill Proficiencies"
-                }
-              ]
-            },
-            {
-              "id": "mqctv22066a8g",
-              "kind": "prop",
-              "key": "History",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Intelligence",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Skill Proficiencies"
-                }
-              ]
-            },
-            {
-              "id": "mqctv220hku7s",
-              "kind": "prop",
-              "key": "Insight",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Wisdom",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Skill Proficiencies"
-                }
-              ]
-            },
-            {
-              "id": "mqctv220x98g6",
-              "kind": "prop",
-              "key": "Intimidation",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Charisma",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Skill Proficiencies"
-                }
-              ]
-            },
-            {
-              "id": "mqctv220k1555",
-              "kind": "prop",
-              "key": "Investigation",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Intelligence",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Skill Proficiencies"
-                }
-              ]
-            },
-            {
-              "id": "mqctv2203m6k6",
-              "kind": "prop",
-              "key": "Medicine",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Wisdom",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Skill Proficiencies"
-                }
-              ]
-            },
-            {
-              "id": "mqctv2201btct",
-              "kind": "prop",
-              "key": "Nature Save",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Intelligence",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Skill Proficiencies"
-                }
-              ],
-              "alias": "Nature"
-            },
-            {
-              "id": "mqctv2207ed5k",
-              "kind": "prop",
-              "key": "Perception",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Wisdom",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Skill Proficiencies"
-                }
-              ]
-            },
-            {
-              "id": "mqctv220hvoax",
-              "kind": "prop",
-              "key": "Performance",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Charisma",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Skill Proficiencies"
-                }
-              ]
-            },
-            {
-              "id": "mqctv220mym99",
-              "kind": "prop",
-              "key": "Persuasion",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Charisma",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Skill Proficiencies"
-                }
-              ]
-            },
-            {
-              "id": "mqctv220aytug",
-              "kind": "prop",
-              "key": "Religion",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Intelligence",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Skill Proficiencies"
-                }
-              ]
-            },
-            {
-              "id": "mqctv220u2j7m",
-              "kind": "prop",
-              "key": "Sleight of Hand",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Dexterity",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Skill Proficiencies"
-                }
-              ]
-            },
-            {
-              "id": "mqctv22069vux",
-              "kind": "prop",
-              "key": "Stealth",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Dexterity",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Skill Proficiencies"
-                }
-              ]
-            },
-            {
-              "id": "mqctv220l7em6",
-              "kind": "prop",
-              "key": "Survival",
-              "dataType": "derived",
-              "hideIfEmpty": false,
-              "roll": true,
-              "mods": [
-                {
-                  "source": "Wisdom",
-                  "mode": "abilityMod"
-                },
-                {
-                  "source": "Proficiency Bonus",
-                  "toggle": "Skill Proficiencies"
-                }
-              ]
+              "key": "Skills",
+              "dataType": "skills",
+              "skillsPreset": "dnd5e-skills",
+              "skillMode": "abilityMod",
+              "profMode": "level",
+              "profSource": "Level",
+              "hideIfEmpty": false
             }
           ],
           "collapsed": false,
@@ -779,63 +309,5 @@
   "propMenu": true,
   "language": "en",
   "stringOverrides": {},
-  "features": {},
-  "derivations": [
-    {
-      "id": "abilityMod",
-      "name": "Ability modifier",
-      "formula": "floor((x - 10) / 2)"
-    },
-    {
-      "id": "profBonus",
-      "name": "Proficiency bonus",
-      "formula": "2 + floor((max(x, 1) - 1) / 4)"
-    }
-  ],
-  "sourceAbbrs": {
-    "Age": "AGE",
-    "Initiative": "INI",
-    "Dexterity": "DEX",
-    "Proficiency Bonus": "PRO",
-    "Level": "LEV"
-  },
-  "modDepth": 8,
-  "diceAnim": true,
-  "diceAnimRolls": 10,
-  "diceAnimStay": false,
-  "diceAnimBlock": true,
-  "modsOffProp": "Modifiers Off",
-  "macros": [],
-  "rollHistory": [
-    {
-      "id": "mqctvg0jw3kud",
-      "time": 1781383720915,
-      "note": "Blight/Characters/Forged Characters/Liora.md",
-      "noteName": "Liora",
-      "label": "2d6+INT",
-      "text": "2d6+INT: 26   ([3, 6] -> 9 +17 INT)",
-      "brief": "2d6+INT: 26",
-      "total": 26,
-      "mode": "normal",
-      "tone": "normal",
-      "dice": "2d6 + INT"
-    },
-    {
-      "id": "mqctuhr5iyf9w",
-      "time": 1781383676513,
-      "note": "Blight/Characters/Forged Characters/Liora.md",
-      "noteName": "Liora",
-      "label": "2d6+INT (adv)",
-      "text": "2d6+INT (adv): 25   ([4, (3), 4] -> 8 +17 INT)",
-      "brief": "2d6+INT (adv): 25",
-      "total": 25,
-      "mode": "advantage",
-      "tone": "normal",
-      "dice": "3d6dl + INT"
-    }
-  ],
-  "rollHistoryLimit": 500,
-  "rollHistoryEnabled": true,
-  "critRanges": {},
-  "failOnOne": true
+  "features": {}
 }

@@ -416,6 +416,150 @@ export function setAbbr(settings: EPSettings, key: string, abbr: string | undefi
   if (v && v !== defaultAbbr(key)) settings.sourceAbbrs[key] = v;
 }
 
+// ---------------------------------------------------------------------------
+// Short-form registry (unique per property)
+//
+// `settings.sourceAbbrs` is the authoritative key → short-form map. Short
+// forms are unique (case-insensitive); on a clash the loser is re-derived by
+// "moving down the string": keep the leading letters and advance the last one
+// (Dexterity → DEX, Dexterous → DET).
+// ---------------------------------------------------------------------------
+
+/** Lower-cased short forms currently in use, optionally excluding one key. */
+export function takenShortForms(settings: EPSettings, exceptKey?: string): Set<string> {
+  const out = new Set<string>();
+  const ex = (exceptKey ?? "").toLowerCase();
+  for (const k of Object.keys(settings.sourceAbbrs ?? {})) {
+    if (ex && k.toLowerCase() === ex) continue;
+    const v = settings.sourceAbbrs[k];
+    if (v) out.add(v.toLowerCase());
+  }
+  return out;
+}
+
+/** A unique short form for `name` avoiding `taken`, walking the word for the 3rd letter. */
+export function deriveShortForm(name: string, taken: Set<string>): string {
+  const letters = (name ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const has = (s: string) => taken.has(s.toLowerCase());
+  if (!letters) {
+    let n = 1;
+    while (has("X" + n)) n++;
+    return "X" + n;
+  }
+  const base = letters.slice(0, 3);
+  if (!has(base)) return base;
+  // Keep the first two letters, advance the third through the remaining word.
+  const p2 = letters.slice(0, 2);
+  for (let j = 3; j < letters.length; j++) {
+    const c = p2 + letters[j];
+    if (!has(c)) return c;
+  }
+  // Keep the first letter, walk the second and third.
+  const p1 = letters.slice(0, 1);
+  for (let a = 1; a < letters.length; a++)
+    for (let b = a + 1; b < letters.length; b++) {
+      const c = p1 + letters[a] + letters[b];
+      if (!has(c)) return c;
+    }
+  // Last resort: number the base.
+  let n = 2;
+  while (has(base + n)) n++;
+  return base + n;
+}
+
+/** The other property currently holding `abbr` (case-insensitive), or null. */
+export function shortFormConflict(settings: EPSettings, key: string, abbr: string): string | null {
+  const a = (abbr ?? "").trim().toLowerCase();
+  const kl = (key ?? "").toLowerCase();
+  if (!a) return null;
+  for (const k of Object.keys(settings.sourceAbbrs ?? {})) {
+    if (k.toLowerCase() === kl) continue;
+    if ((settings.sourceAbbrs[k] ?? "").toLowerCase() === a) return k;
+  }
+  return null;
+}
+
+/** Store a normalized (upper-case) short form for `key`, replacing any prior one. */
+export function assignShortForm(settings: EPSettings, key: string, abbr: string): void {
+  const kl = key.toLowerCase();
+  for (const k of Object.keys(settings.sourceAbbrs)) if (k.toLowerCase() === kl) delete settings.sourceAbbrs[k];
+  const v = (abbr ?? "").trim().toUpperCase();
+  if (v) settings.sourceAbbrs[key] = v;
+}
+
+/** Give `key` a freshly derived, unique short form (used for the clash loser). */
+export function reassignDerived(settings: EPSettings, key: string): string {
+  const v = deriveShortForm(key, takenShortForms(settings, key));
+  assignShortForm(settings, key, v);
+  return v;
+}
+
+/** Materialize a unique short form for `key` if it has none. Returns true if changed. */
+export function ensureShortForm(settings: EPSettings, key: string): boolean {
+  const kl = key.toLowerCase();
+  for (const k of Object.keys(settings.sourceAbbrs)) if (k.toLowerCase() === kl && settings.sourceAbbrs[k]) return false;
+  assignShortForm(settings, key, deriveShortForm(key, takenShortForms(settings, key)));
+  return true;
+}
+
+/**
+ * Ensure every number/derived property and every influence source across all
+ * layouts has a unique short form recorded. Returns true if anything changed.
+ */
+export function materializeShortForms(settings: EPSettings): boolean {
+  const keys: string[] = [];
+  const seen = new Set<string>();
+  const add = (k: string): void => {
+    const kl = k.toLowerCase();
+    if (kl && !seen.has(kl)) {
+      seen.add(kl);
+      keys.push(k);
+    }
+  };
+  for (const lk of Object.keys(settings.layouts ?? {}))
+    for (const s of settings.layouts[lk].sections ?? [])
+      for (const e of s.entries ?? []) {
+        if (e.kind !== "prop" || !e.key) continue;
+        const dt = (e as Record<string, unknown>).dataType;
+        if (dt === "number" || dt === "decimal" || dt === "derived") add(e.key as string);
+        const mods = (e as Record<string, unknown>).mods;
+        if (Array.isArray(mods)) for (const inf of mods as Influence[]) if (inf && inf.source) add(inf.source);
+      }
+  let changed = false;
+  for (const k of keys) if (ensureShortForm(settings, k)) changed = true;
+  return changed;
+}
+
+/** Autocomplete options for reference fields: each property's name and short form (interchangeable). */
+export function referenceSuggestions(settings: EPSettings, keys: string[]): { text: string; hint: string }[] {
+  const out: { text: string; hint: string }[] = [];
+  const seen = new Set<string>();
+  const add = (text: string, hint: string): void => {
+    const tl = text.toLowerCase();
+    if (text && !seen.has(tl)) {
+      seen.add(tl);
+      out.push({ text, hint });
+    }
+  };
+  for (const k of keys) {
+    const a = abbrFor(settings, k);
+    add(k, a);
+    add(a, k);
+  }
+  return out;
+}
+
+/** Resolve a short form (or a property key) to a property key among `candidateKeys`. */
+export function keyForShortForm(settings: EPSettings, abbr: string, candidateKeys: string[]): string | null {
+  const a = (abbr ?? "").trim().toLowerCase();
+  if (!a) return null;
+  for (const k of Object.keys(settings.sourceAbbrs ?? {}))
+    if ((settings.sourceAbbrs[k] ?? "").toLowerCase() === a) return k;
+  for (const k of candidateKeys) if (k.toLowerCase() === a) return k;
+  for (const k of candidateKeys) if (defaultAbbr(k).toLowerCase() === a) return k;
+  return null;
+}
+
 /** An expression rendered with its references replaced by their short forms. */
 export function exprDenotation(settings: EPSettings, expr: string): string {
   const ast = parseExpr(expr);
