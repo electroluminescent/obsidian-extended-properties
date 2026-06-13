@@ -16,9 +16,9 @@ import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetTy
 import { RangeSetBuilder } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import { editorInfoField, editorLivePreviewField, Menu, TFile } from "obsidian";
-import { InlineCtx, makeRollChip, renderPropValue, resolveRefKey } from "./inline-render";
+import { InlineCtx, makeRollChip, renderPropValue } from "./inline-render";
 
-const PREFIX = /^(roll|prop|val)(?:\(([^)]*)\))?:\s*(.+)$/i;
+const PREFIX = /^(roll|prop)(?:\(([^)]*)\))?:\s*(.+)$/i;
 
 /** Expand an inline-code content range to include its backtick fences. */
 function backtickSpan(doc: { sliceString(a: number, b: number): string; length: number }, from: number, to: number) {
@@ -58,9 +58,8 @@ class InlineWidget extends WidgetType {
       view.focus();
     };
     if (this.kind === "roll") return makeRollChip(this.ctx, this.file, this.body, this.opt, reveal);
-    const key = this.kind === "val" ? resolveRefKey(this.ctx, this.file, this.body) : this.body;
     const wrap = createSpan({ cls: "ep-inline-prop" });
-    wrap.appendChild(renderPropValue(this.ctx, this.file, key));
+    wrap.appendChild(renderPropValue(this.ctx, this.file, this.body));
     wrap.oncontextmenu = (ev) => {
       ev.preventDefault();
       ev.stopPropagation();

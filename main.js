@@ -206,11 +206,8 @@ var coreEn = {
   "mods.exprDesc": "Math over properties by name or short form, e.g. floor((STR + DEX) / 2) + max(PB, 2). Functions: floor, ceil, round, min, max, clamp, abs, if; your derivations are callable too.",
   "mods.errExpr": "This value can't be computed \u2014 check the expression (unknown property or syntax).",
   "mods.errCycle": "This value depends on itself (a reference cycle).",
-  "mods.termOptions": "Sign \xB7 toggle",
-  "mods.termOptionsDesc": "How this term enters the sum, and a list property that toggles it per note (the way proficiency works).",
-  "mods.shortForm": "Short form",
-  "mods.shortFormDesc": "Abbreviation used in modifier chains (INT + DEX) and inline val:/roll: references. Must be unique across properties.",
-  "mods.shortFormConflict": "\u201C{abbr}\u201D is already the short form of \u201C{other}\u201D. Use it here instead? \u201C{other}\u201D will be given a new short form.",
+  "mods.termOptions": "Sign \xB7 toggle \xB7 short form",
+  "mods.termOptionsDesc": "How this term enters the sum; a list property that toggles it per note (the way proficiency works); the short form shown in denotations; and whether the row shows this term's checkbox.",
   "mods.showToggle": "Show checkbox on the row",
   "mods.clickToggle": "click to toggle",
   "mods.weightAdd": "+ add",
@@ -632,11 +629,8 @@ var coreDe = {
   "mods.exprDesc": "Rechnen \xFCber Eigenschaften per Name oder K\xFCrzel, z. B. floor((STR + DEX) / 2) + max(PB, 2). Funktionen: floor, ceil, round, min, max, clamp, abs, if; eigene Ableitungen sind ebenfalls aufrufbar.",
   "mods.errExpr": "Dieser Wert kann nicht berechnet werden \u2014 Ausdruck pr\xFCfen (unbekannte Eigenschaft oder Syntax).",
   "mods.errCycle": "Dieser Wert h\xE4ngt von sich selbst ab (Referenzzyklus).",
-  "mods.termOptions": "Vorzeichen \xB7 Umschalter",
-  "mods.termOptionsDesc": "Wie dieser Term in die Summe eingeht, und eine Listen-Eigenschaft, die ihn pro Notiz umschaltet (wie \xDCbung).",
-  "mods.shortForm": "K\xFCrzel",
-  "mods.shortFormDesc": "Abk\xFCrzung f\xFCr Modifikator-Ketten (INT + DEX) und Inline-Referenzen val:/roll:. Muss \xFCber Eigenschaften hinweg eindeutig sein.",
-  "mods.shortFormConflict": "\u201E{abbr}\u201C ist bereits das K\xFCrzel von \u201E{other}\u201C. Hier stattdessen verwenden? \u201E{other}\u201C erh\xE4lt ein neues K\xFCrzel.",
+  "mods.termOptions": "Vorzeichen \xB7 Umschalter \xB7 K\xFCrzel",
+  "mods.termOptionsDesc": "Wie dieser Term in die Summe eingeht; eine Listen-Eigenschaft, die ihn pro Notiz umschaltet (wie \xDCbung); das K\xFCrzel f\xFCr Anzeigen; und ob die Zeile das Kontrollk\xE4stchen dieses Terms zeigt.",
   "mods.showToggle": "Kontrollk\xE4stchen in der Zeile anzeigen",
   "mods.clickToggle": "Klicken zum Umschalten",
   "mods.weightAdd": "+ addieren",
@@ -1489,122 +1483,12 @@ function abbrFor(settings, key) {
   for (const k of Object.keys(abbrs)) if (k.toLowerCase() === kl) return abbrs[k];
   return defaultAbbr(key);
 }
-function takenShortForms(settings, exceptKey) {
-  var _a;
-  const out = /* @__PURE__ */ new Set();
-  const ex = (exceptKey != null ? exceptKey : "").toLowerCase();
-  for (const k of Object.keys((_a = settings.sourceAbbrs) != null ? _a : {})) {
-    if (ex && k.toLowerCase() === ex) continue;
-    const v = settings.sourceAbbrs[k];
-    if (v) out.add(v.toLowerCase());
-  }
-  return out;
-}
-function deriveShortForm(name, taken) {
-  const letters = (name != null ? name : "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-  const has = (s) => taken.has(s.toLowerCase());
-  if (!letters) {
-    let n2 = 1;
-    while (has("X" + n2)) n2++;
-    return "X" + n2;
-  }
-  const base = letters.slice(0, 3);
-  if (!has(base)) return base;
-  const p2 = letters.slice(0, 2);
-  for (let j = 3; j < letters.length; j++) {
-    const c = p2 + letters[j];
-    if (!has(c)) return c;
-  }
-  const p1 = letters.slice(0, 1);
-  for (let a = 1; a < letters.length; a++)
-    for (let b = a + 1; b < letters.length; b++) {
-      const c = p1 + letters[a] + letters[b];
-      if (!has(c)) return c;
-    }
-  let n = 2;
-  while (has(base + n)) n++;
-  return base + n;
-}
-function shortFormConflict(settings, key, abbr) {
-  var _a, _b;
-  const a = (abbr != null ? abbr : "").trim().toLowerCase();
+function setAbbr(settings, key, abbr) {
   const kl = (key != null ? key : "").toLowerCase();
-  if (!a) return null;
-  for (const k of Object.keys((_a = settings.sourceAbbrs) != null ? _a : {})) {
-    if (k.toLowerCase() === kl) continue;
-    if (((_b = settings.sourceAbbrs[k]) != null ? _b : "").toLowerCase() === a) return k;
-  }
-  return null;
-}
-function assignShortForm(settings, key, abbr) {
-  const kl = key.toLowerCase();
-  for (const k of Object.keys(settings.sourceAbbrs)) if (k.toLowerCase() === kl) delete settings.sourceAbbrs[k];
-  const v = (abbr != null ? abbr : "").trim().toUpperCase();
-  if (v) settings.sourceAbbrs[key] = v;
-}
-function reassignDerived(settings, key) {
-  const v = deriveShortForm(key, takenShortForms(settings, key));
-  assignShortForm(settings, key, v);
-  return v;
-}
-function ensureShortForm(settings, key) {
-  const kl = key.toLowerCase();
-  for (const k of Object.keys(settings.sourceAbbrs)) if (k.toLowerCase() === kl && settings.sourceAbbrs[k]) return false;
-  assignShortForm(settings, key, deriveShortForm(key, takenShortForms(settings, key)));
-  return true;
-}
-function materializeShortForms(settings) {
-  var _a, _b, _c;
-  const keys = [];
-  const seen = /* @__PURE__ */ new Set();
-  const add = (k) => {
-    const kl = k.toLowerCase();
-    if (kl && !seen.has(kl)) {
-      seen.add(kl);
-      keys.push(k);
-    }
-  };
-  for (const lk of Object.keys((_a = settings.layouts) != null ? _a : {}))
-    for (const s of (_b = settings.layouts[lk].sections) != null ? _b : [])
-      for (const e of (_c = s.entries) != null ? _c : []) {
-        if (e.kind !== "prop" || !e.key) continue;
-        const dt = e.dataType;
-        if (dt === "number" || dt === "decimal" || dt === "derived") add(e.key);
-        const mods2 = e.mods;
-        if (Array.isArray(mods2)) {
-          for (const inf of mods2) if (inf && inf.source) add(inf.source);
-        }
-      }
-  let changed = false;
-  for (const k of keys) if (ensureShortForm(settings, k)) changed = true;
-  return changed;
-}
-function referenceSuggestions(settings, keys) {
-  const out = [];
-  const seen = /* @__PURE__ */ new Set();
-  const add = (text, hint) => {
-    const tl = text.toLowerCase();
-    if (text && !seen.has(tl)) {
-      seen.add(tl);
-      out.push({ text, hint });
-    }
-  };
-  for (const k of keys) {
-    const a = abbrFor(settings, k);
-    add(k, a);
-    add(a, k);
-  }
-  return out;
-}
-function keyForShortForm(settings, abbr, candidateKeys) {
-  var _a, _b;
-  const a = (abbr != null ? abbr : "").trim().toLowerCase();
-  if (!a) return null;
-  for (const k of Object.keys((_a = settings.sourceAbbrs) != null ? _a : {}))
-    if (((_b = settings.sourceAbbrs[k]) != null ? _b : "").toLowerCase() === a) return k;
-  for (const k of candidateKeys) if (k.toLowerCase() === a) return k;
-  for (const k of candidateKeys) if (defaultAbbr(k).toLowerCase() === a) return k;
-  return null;
+  for (const k of Object.keys(settings.sourceAbbrs))
+    if (k.toLowerCase() === kl) delete settings.sourceAbbrs[k];
+  const v = (abbr != null ? abbr : "").trim();
+  if (v && v !== defaultAbbr(key)) settings.sourceAbbrs[key] = v;
 }
 function exprDenotation(settings, expr) {
   const ast = parseExpr(expr);
@@ -2033,40 +1917,6 @@ var PropSuggest = class extends import_obsidian.AbstractInputSuggest {
     (_a = this.close) == null ? void 0 : _a.call(this);
   }
 };
-var _RefSuggest = class _RefSuggest extends import_obsidian.AbstractInputSuggest {
-  constructor(app, inputEl, getRefs) {
-    super(app, inputEl);
-    this.getRefs = getRefs;
-    this.el = inputEl;
-  }
-  getSuggestions(value) {
-    const m = _RefSuggest.TOKEN.exec(value);
-    if (!m) return [];
-    const tl = m[0].toLowerCase();
-    return this.getRefs().filter((r) => r.text.toLowerCase().includes(tl)).slice(0, 30);
-  }
-  renderSuggestion(r, el) {
-    el.createSpan({ text: r.text });
-    if (r.hint) el.createSpan({ cls: "ep-sug-badge", text: r.hint });
-  }
-  selectSuggestion(r) {
-    var _a;
-    const val = this.el.value;
-    const m = _RefSuggest.TOKEN.exec(val);
-    const start = m ? val.length - m[0].length : val.length;
-    const next = val.slice(0, start) + r.text;
-    this.el.value = next;
-    this.el.dispatchEvent(new Event("input"));
-    this.el.focus();
-    try {
-      this.el.setSelectionRange(next.length, next.length);
-    } catch (e) {
-    }
-    (_a = this.close) == null ? void 0 : _a.call(this);
-  }
-};
-_RefSuggest.TOKEN = /[A-Za-z_][A-Za-z0-9_]*$/;
-var RefSuggest = _RefSuggest;
 var ValueSuggest = class extends import_obsidian.AbstractInputSuggest {
   constructor(app, inputEl, getOptions, onChoose, clearOnSelect = true) {
     super(app, inputEl);
@@ -2865,38 +2715,8 @@ var modifierAddon = {
         })
       });
     }
-    if (entry.key && entry["__multi"] !== true) {
-      const key = entry.key;
-      if (ensureShortForm(view.settings, key)) changed();
-      new import_obsidian5.Setting(c).setName(t("mods.shortForm")).setDesc(t("mods.shortFormDesc")).addText((tx) => {
-        tx.setValue(abbrFor(view.settings, key)).setPlaceholder(defaultAbbr(key));
-        tx.inputEl.addClass("ep-abbr-input");
-        tx.inputEl.addEventListener("change", () => {
-          const desired = tx.getValue().trim().toUpperCase();
-          if (!desired) {
-            reassignDerived(view.settings, key);
-            changed();
-            tx.setValue(abbrFor(view.settings, key));
-            return;
-          }
-          if (desired === abbrFor(view.settings, key)) return;
-          const other = shortFormConflict(view.settings, key, desired);
-          if (other) {
-            tx.setValue(abbrFor(view.settings, key));
-            new ConfirmModal(view.app, view.i18n, t("mods.shortFormConflict", { abbr: desired, other }), () => {
-              assignShortForm(view.settings, key, desired);
-              reassignDerived(view.settings, other);
-              changed();
-              redraw();
-            }).open();
-            return;
-          }
-          assignShortForm(view.settings, key, desired);
-          changed();
-        });
-      });
-    }
     list.forEach((inf, idx) => {
+      const srcKey = () => inf.source || entry.key || "";
       const head = new import_obsidian5.Setting(c).setName(t("mods.influence", { n: idx + 1 }));
       head.addText((tx) => {
         var _a;
@@ -2964,11 +2784,6 @@ var modifierAddon = {
           var _a, _b;
           tx.setValue((_a = inf.expr) != null ? _a : "");
           tx.inputEl.addClass("ep-expr-input");
-          new RefSuggest(
-            view.app,
-            tx.inputEl,
-            () => referenceSuggestions(view.settings, view.propCandidates(true).map((c2) => c2.key))
-          );
           const validate = (val) => tx.inputEl.toggleClass("ep-invalid", val.trim() !== "" && !parseExpr(val));
           validate((_b = inf.expr) != null ? _b : "");
           tx.onChange((val) => {
@@ -3007,6 +2822,17 @@ var modifierAddon = {
         }, false);
         tx.inputEl.addEventListener("change", () => {
           inf.toggle = tx.getValue().trim() || void 0;
+          changed();
+        });
+      });
+      sub.addText((tx) => {
+        tx.setPlaceholder(defaultAbbr(srcKey())).setValue(
+          abbrFor(view.settings, srcKey()) === defaultAbbr(srcKey()) ? "" : abbrFor(view.settings, srcKey())
+        );
+        tx.inputEl.setAttr("aria-label", t("mods.abbr"));
+        tx.inputEl.addClass("ep-abbr-input");
+        tx.onChange((v) => {
+          setAbbr(view.settings, srcKey(), v);
           changed();
         });
       });
@@ -7128,12 +6954,9 @@ function parseRoll(text) {
   }
   return { terms };
 }
-function serializeNode(n, mapRef) {
+function serializeNode(n) {
   if (n.kind === "num") return String(n.value);
-  if (n.kind === "ref") {
-    if (mapRef) return mapRef(n.name);
-    return /[^A-Za-z0-9_]/.test(n.name) ? `[${n.name}]` : n.name;
-  }
+  if (n.kind === "ref") return /[^A-Za-z0-9_]/.test(n.name) ? `[${n.name}]` : n.name;
   let s = (n.count > 1 ? n.count : "") + "d" + n.sides;
   for (const op of n.ops) {
     if (op.t === "kh" || op.t === "kl" || op.t === "dh" || op.t === "dl") s += op.t + (op.n !== 1 ? op.n : "");
@@ -7143,10 +6966,10 @@ function serializeNode(n, mapRef) {
   }
   return s;
 }
-function serializeRoll(ast, mapRef) {
+function serializeRoll(ast) {
   let out = "";
   ast.terms.forEach((term, idx) => {
-    const txt = serializeNode(term.node, mapRef);
+    const txt = serializeNode(term.node);
     if (idx === 0) out = term.neg ? "-" + txt : txt;
     else out += (term.neg ? " - " : " + ") + txt;
   });
@@ -7613,7 +7436,6 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
           })
         ).addText((tx) => {
           tx.setPlaceholder("2d6 + 3").setValue(segsToText(m.segs));
-          new RefSuggest(this.app, tx.inputEl, () => referenceSuggestions(plugin.settings, plugin.props.knownProps()));
           tx.onChange((v) => {
             const segs = textToSegs(v);
             if (!segs) {
@@ -8632,41 +8454,6 @@ var rollerKind = {
       }
     };
     exprInput.onblur = commitExpr;
-    new RefSuggest(
-      view.app,
-      exprInput,
-      () => referenceSuggestions(view.settings, view.propCandidates(true).map((c) => c.key))
-    );
-    const insertToken = (token) => {
-      var _a2, _b;
-      const s = (_a2 = exprInput.selectionStart) != null ? _a2 : exprInput.value.length;
-      const eEnd = (_b = exprInput.selectionEnd) != null ? _b : exprInput.value.length;
-      exprInput.value = exprInput.value.slice(0, s) + token + exprInput.value.slice(eEnd);
-      const pos = s + token.length;
-      exprInput.focus();
-      try {
-        exprInput.setSelectionRange(pos, pos);
-      } catch (e2) {
-      }
-    };
-    const fnBar = wrap.createDiv({ cls: "ep-roller-fns" });
-    const fnBtn = (label, title, onClick) => {
-      const b = fnBar.createEl("button", { cls: "ep-roller-fn", text: label });
-      b.setAttr("title", title);
-      b.onmousedown = (ev) => ev.preventDefault();
-      b.onclick = onClick;
-    };
-    fnBtn(
-      t("roller.fnDie"),
-      t("roller.fnDieHint"),
-      (ev) => openDiceMenu(ev, view.app, view.i18n, { get: () => void 0, set: (n) => insertToken(n || "d20") })
-    );
-    fnBtn("kh", t("roller.fnKeepHigh"), () => insertToken("kh1"));
-    fnBtn("kl", t("roller.fnKeepLow"), () => insertToken("kl1"));
-    fnBtn("!", t("roller.fnExplode"), () => insertToken("!"));
-    fnBtn("r", t("roller.fnReroll"), () => insertToken("r1"));
-    fnBtn("\u2265", t("roller.fnSuccess"), () => insertToken(">="));
-    fnBtn("+", t("roller.fnPlus"), () => insertToken(" + "));
     const inlineChipText = (chip, initial, apply) => {
       chip.empty();
       const inp = chip.createEl("input", { cls: "ep-roller-textedit", type: "text" });
@@ -9511,14 +9298,6 @@ var rollingEn = {
   "roller.removeSeg": "Remove",
   "roller.exprPlaceholder": "e.g. 2d6kh1 + 1d8 + DEX + 3",
   "roller.exprHint": "Type a roll. kh/kl/dh/dl keep or drop dice, ! explodes, rN/roN reroll \u2264 N, >=N counts successes; names like DEX read the note's property.",
-  "roller.fnDie": "die",
-  "roller.fnDieHint": "Insert a die (pick the size)",
-  "roller.fnKeepHigh": "Keep highest (advantage)",
-  "roller.fnKeepLow": "Keep lowest (disadvantage)",
-  "roller.fnExplode": "Explode on max",
-  "roller.fnReroll": "Reroll \u2264 1",
-  "roller.fnSuccess": "Count successes (\u2265 N)",
-  "roller.fnPlus": "Add a term",
   "roller.macros": "Macros",
   "roller.saveMacro": "+ save as macro",
   "roller.saveMacroPrompt": "Macro name",
@@ -9631,14 +9410,6 @@ var rollingDe = {
   "roller.removeSeg": "Entfernen",
   "roller.exprPlaceholder": "z. B. 2d6kh1 + 1d8 + DEX + 3",
   "roller.exprHint": "Wurf eingeben. kh/kl/dh/dl behalten/verwerfen W\xFCrfel, ! explodiert, rN/roN w\xFCrfeln \u2264 N neu, >=N z\xE4hlt Erfolge; Namen wie DEX lesen die Eigenschaft der Notiz.",
-  "roller.fnDie": "W\xFCrfel",
-  "roller.fnDieHint": "W\xFCrfel einf\xFCgen (Gr\xF6\xDFe w\xE4hlen)",
-  "roller.fnKeepHigh": "H\xF6chsten behalten (Vorteil)",
-  "roller.fnKeepLow": "Niedrigsten behalten (Nachteil)",
-  "roller.fnExplode": "Bei Maximum explodieren",
-  "roller.fnReroll": "Neu w\xFCrfeln \u2264 1",
-  "roller.fnSuccess": "Erfolge z\xE4hlen (\u2265 N)",
-  "roller.fnPlus": "Term hinzuf\xFCgen",
   "roller.macros": "Makros",
   "roller.saveMacro": "+ als Makro speichern",
   "roller.saveMacroPrompt": "Makroname",
@@ -10156,7 +9927,7 @@ function processInline(el, mdctx, ctx) {
   if (!(file instanceof import_obsidian28.TFile)) return;
   for (const code of codes) {
     if (code.closest("pre")) continue;
-    const m = /^(roll|prop|val)(?:\(([^)]*)\))?:\s*(.+)$/i.exec(((_a = code.textContent) != null ? _a : "").trim());
+    const m = /^(roll|prop)(?:\(([^)]*)\))?:\s*(.+)$/i.exec(((_a = code.textContent) != null ? _a : "").trim());
     if (!m) continue;
     const kind = m[1].toLowerCase();
     const opt = ((_b = m[2]) != null ? _b : "").trim();
@@ -10164,19 +9935,14 @@ function processInline(el, mdctx, ctx) {
     if (kind === "roll") {
       code.replaceWith(makeRollChip(ctx, file, body, opt));
     } else {
-      const key = kind === "val" ? resolveRefKey(ctx, file, body) : body;
       const span = createSpan();
       code.replaceWith(span);
-      mdctx.addChild(new PropInline(span, ctx, file, key));
+      mdctx.addChild(new PropInline(span, ctx, file, body));
     }
   }
 }
-function resolveRefKey(ctx, file, name) {
-  var _a;
-  return (_a = keyForShortForm(ctx.settings, name, Object.keys(ctx.facade.raw(file)))) != null ? _a : name;
-}
 function refValue(ctx, file, name) {
-  const v = ctx.facade.get(file, resolveRefKey(ctx, file, name));
+  const v = ctx.facade.get(file, name);
   if (v === void 0 || v === null || v === "") return void 0;
   const n = Number(v);
   return Number.isFinite(n) ? n : void 0;
@@ -10223,13 +9989,7 @@ function makeRollChip(ctx, file, body, opt, onEdit) {
   const chip = createSpan({ cls: "ep-inline-roll" });
   const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });
   (0, import_obsidian28.setIcon)(ic, diceIconId(primarySides(ast)));
-  chip.createSpan({
-    cls: "ep-inline-roll-lab",
-    text: ast ? serializeRoll(ast, (name) => {
-      const v = refValue(ctx, file, name);
-      return v === void 0 ? name : String(v);
-    }) : body
-  });
+  chip.createSpan({ cls: "ep-inline-roll-lab", text: body });
   const mode = /^adv/i.test(opt) ? "advantage" : /^dis/i.test(opt) ? "disadvantage" : "normal";
   if (!ast) chip.addClass("ep-expr-error");
   chip.setAttr("title", ast ? t("inline.rollHint", { expr: body }) : t("inline.rollInvalid"));
@@ -10412,7 +10172,7 @@ var import_view = require("@codemirror/view");
 var import_state = require("@codemirror/state");
 var import_language = require("@codemirror/language");
 var import_obsidian29 = require("obsidian");
-var PREFIX = /^(roll|prop|val)(?:\(([^)]*)\))?:\s*(.+)$/i;
+var PREFIX = /^(roll|prop)(?:\(([^)]*)\))?:\s*(.+)$/i;
 function backtickSpan(doc, from, to) {
   let s = from;
   while (s > 0 && doc.sliceString(s - 1, s) === "`") s--;
@@ -10439,9 +10199,8 @@ var InlineWidget = class extends import_view.WidgetType {
       view.focus();
     };
     if (this.kind === "roll") return makeRollChip(this.ctx, this.file, this.body, this.opt, reveal);
-    const key = this.kind === "val" ? resolveRefKey(this.ctx, this.file, this.body) : this.body;
     const wrap = createSpan({ cls: "ep-inline-prop" });
-    wrap.appendChild(renderPropValue(this.ctx, this.file, key));
+    wrap.appendChild(renderPropValue(this.ctx, this.file, this.body));
     wrap.oncontextmenu = (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
@@ -10576,7 +10335,6 @@ var ExtendedPropertiesPlugin = class extends import_obsidian30.Plugin {
     for (const mod of FEATURE_MODULES) {
       if (this.settings.features[mod.id] !== false && ((_a = mod.migrate) == null ? void 0 : _a.call(mod, this.settings))) migrated = true;
     }
-    if (materializeShortForms(this.settings)) migrated = true;
     this.hide = new HideService({
       settings: this.settings,
       save: () => this.saveSettings(),
