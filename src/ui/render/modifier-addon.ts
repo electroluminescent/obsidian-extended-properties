@@ -19,15 +19,17 @@ import type { ClusterAddon, ClusterNeeds, ClusterSlot } from "../../core/registr
 import type { Entry } from "../../core/model";
 import { ext } from "../../core/model";
 import {
-  abbrFor, applyDerivation, defaultAbbr, denotationText, hasNoteOverride, Influence,
-  influenceActive, influenceDisabled, influenceTerm, ModExt, modifierTotal, setAbbr,
-  setInfluenceActive, setInfluenceDisabled,
+  abbrFor, applyDerivation, assignShortForm, defaultAbbr, denotationText, ensureShortForm, hasNoteOverride,
+  Influence, influenceActive, influenceDisabled, influenceTerm, ModExt, modifierInfo, modifierTotal,
+  reassignDerived, referenceSuggestions, setInfluenceActive, setInfluenceDisabled, shortFormConflict, termDenotation,
 } from "../../core/influences";
+import { parseExpr } from "../../core/expr";
+import { ConfirmModal } from "../modals/dialogs";
 import type { ViewCtx } from "../../core/context";
 import { fmtMod } from "../../utils/misc";
 import { formatDice, parseDiceOrDefault } from "../../utils/dice";
 import { diceIconId } from "./dice-icons";
-import { PropSuggest } from "../components/suggest";
+import { PropSuggest, RefSuggest } from "../components/suggest";
 
 /** Value types the modifier system attaches to. */
 export const MODIFIABLE_TYPE_IDS = new Set(["number", "decimal", "formula", "derived"]);
@@ -71,12 +73,17 @@ export function paintDenotation(
     if (i > 0) den.createSpan({ cls: "ep-denote-op", text: neg ? "−" : "+" });
     else if (neg) den.createSpan({ cls: "ep-denote-op", text: "−" });
     const srcKey = inf.source || (entry.key as string) || "";
-    const term = den.createSpan({ cls: "ep-line-abbr ep-denote-term", text: abbrFor(view.settings, srcKey) });
-    const modeName =
-      inf.mode === "formula"
-        ? inf.formula ?? "x"
-        : view.registries.derivations.get(inf.mode ?? "value")?.name(view.i18n) ?? "";
-    let title = srcKey + (modeName ? ` · ${modeName}` : "") + (inf.toggle ? ` · ${inf.toggle}` : "");
+    const term = den.createSpan({ cls: "ep-line-abbr ep-denote-term", text: termDenotation(view.settings, entry, inf) });
+    let title: string;
+    if (inf.expr) {
+      title = inf.expr + (inf.toggle ? ` · ${inf.toggle}` : "");
+    } else {
+      const modeName =
+        inf.mode === "formula"
+          ? inf.formula ?? "x"
+          : view.registries.derivations.get(inf.mode ?? "value")?.name(view.i18n) ?? "";
+      title = srcKey + (modeName ? ` · ${modeName}` : "") + (inf.toggle ? ` · ${inf.toggle}` : "");
+    }
     if (!influenceActive(view, entry, inf)) term.addClass("ep-denote-off");
     if (file) {
       // Every modifier is click-togglable: list-backed terms flip their
@@ -118,12 +125,18 @@ export function paintDice(parent: HTMLElement, entry: Entry): void {
   tag.createSpan({ text: formatDice(spec) });
 }
 
-/** Badge: denotation + dice breakdown + computed total. */
+/** Badge: denotation + dice breakdown + computed total (or "—" on error). */
 function paintBadge(cell: HTMLElement, ref: EntryRef): void {
   cell.empty();
   if (ref.entry.showChain !== false) paintDenotation(cell, ref.view, ref.entry, ref.file);
   paintDice(cell, ref.entry);
-  cell.appendText(fmtMod(modifierTotal(ref.view, ref.entry)));
+  const info = modifierInfo(ref.view, ref.entry);
+  if (info.value === undefined) {
+    const m = cell.createSpan({ cls: "ep-expr-error", text: "—" });
+    m.setAttr("title", ref.view.i18n.t(info.error === "cycle" ? "mods.errCycle" : "mods.errExpr"));
+  } else {
+    cell.appendText(fmtMod(info.value));
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -193,9 +206,9 @@ export const modifierAddon: ClusterAddon = {
     const view = ctx.view;
     let total = 0;
     for (const inf of mods(ctx.entry)) {
-      if (inf.source) {
-        // Sourced terms (incl. chained derived sources) don't change
-        // during the drag — evaluate them normally.
+      if (inf.source || inf.expr) {
+        // Sourced and expression terms don't track the dragged value live —
+        // evaluate them normally against the current note.
         total += influenceTerm(view, ctx.entry, inf);
         continue;
       }
@@ -229,12 +242,50 @@ export const modifierAddon: ClusterAddon = {
       });
     }
 
-    list.forEach((inf, idx) => {
-      const srcKey = () => inf.source || (entry.key as string) || "";
+    // Per-property short form, used in modifier chains and inline val:/roll: refs.
+    // Short forms are unique; setting one already in use prompts to overwrite,
+    // in which case the previous owner gets a freshly derived short form.
+    if (entry.key && (entry as Record<string, unknown>)["__multi"] !== true) {
+      const key = entry.key as string;
+      if (ensureShortForm(view.settings, key)) changed();
+      new Setting(c)
+        .setName(t("mods.shortForm"))
+        .setDesc(t("mods.shortFormDesc"))
+        .addText((tx) => {
+          tx.setValue(abbrFor(view.settings, key)).setPlaceholder(defaultAbbr(key));
+          tx.inputEl.addClass("ep-abbr-input");
+          tx.inputEl.addEventListener("change", () => {
+            const desired = tx.getValue().trim().toUpperCase();
+            if (!desired) {
+              reassignDerived(view.settings, key);
+              changed();
+              tx.setValue(abbrFor(view.settings, key));
+              return;
+            }
+            if (desired === abbrFor(view.settings, key)) return;
+            const other = shortFormConflict(view.settings, key, desired);
+            if (other) {
+              tx.setValue(abbrFor(view.settings, key)); // revert until confirmed
+              new ConfirmModal(view.app, view.i18n, t("mods.shortFormConflict", { abbr: desired, other }), () => {
+                assignShortForm(view.settings, key, desired);
+                reassignDerived(view.settings, other);
+                changed();
+                redraw();
+              }).open();
+              return;
+            }
+            assignShortForm(view.settings, key, desired);
+            changed();
+          });
+        });
+    }
 
+    list.forEach((inf, idx) => {
       const head = new Setting(c).setName(t("mods.influence", { n: idx + 1 }));
       head.addText((tx) => {
         tx.setPlaceholder(t("mods.sourceSelf")).setValue(inf.source ?? "");
+        // With an expression the source is named inside it; the field is moot.
+        if (inf.expr !== undefined) tx.setDisabled(true);
         new PropSuggest(view.app, tx.inputEl, view.i18n, () => view.propCandidates(true), (k) => {
           inf.source = k || undefined;
           changed();
@@ -250,9 +301,16 @@ export const modifierAddon: ClusterAddon = {
         for (const def of view.registries.derivations.all())
           if (def.id !== "value") d.addOption(def.id, def.name(view.i18n));
         d.addOption("formula", t("mods.modeFormula"));
-        d.setValue(inf.mode ?? "value");
+        d.addOption("expr", t("mods.modeExpr"));
+        d.setValue(inf.expr !== undefined ? "expr" : inf.mode ?? "value");
         d.onChange((v) => {
-          inf.mode = v === "value" ? undefined : v;
+          if (v === "expr") {
+            inf.expr = inf.expr ?? "";
+            inf.mode = undefined;
+          } else {
+            inf.expr = undefined;
+            inf.mode = v === "value" ? undefined : v;
+          }
           changed();
           redraw();
         });
@@ -284,7 +342,27 @@ export const modifierAddon: ClusterAddon = {
         })
       );
 
-      if (inf.mode === "formula") {
+      if (inf.expr !== undefined) {
+        new Setting(c)
+          .setName(t("mods.expr"))
+          .setDesc(t("mods.exprDesc"))
+          .setClass("ep-mods-sub")
+          .addText((tx) => {
+            tx.setValue(inf.expr ?? "");
+            tx.inputEl.addClass("ep-expr-input");
+            new RefSuggest(view.app, tx.inputEl, () =>
+              referenceSuggestions(view.settings, view.propCandidates(true).map((c) => c.key))
+            );
+            const validate = (val: string) =>
+              tx.inputEl.toggleClass("ep-invalid", val.trim() !== "" && !parseExpr(val));
+            validate(inf.expr ?? "");
+            tx.onChange((val) => {
+              inf.expr = val;
+              validate(val);
+              changed();
+            });
+          });
+      } else if (inf.mode === "formula") {
         new Setting(c)
           .setName(t("mods.formula"))
           .setDesc(t("options.formulaDesc"))
@@ -317,17 +395,6 @@ export const modifierAddon: ClusterAddon = {
         }, false);
         tx.inputEl.addEventListener("change", () => {
           inf.toggle = tx.getValue().trim() || undefined;
-          changed();
-        });
-      });
-      sub.addText((tx) => {
-        tx.setPlaceholder(defaultAbbr(srcKey())).setValue(
-          abbrFor(view.settings, srcKey()) === defaultAbbr(srcKey()) ? "" : abbrFor(view.settings, srcKey())
-        );
-        tx.inputEl.setAttr("aria-label", t("mods.abbr"));
-        tx.inputEl.addClass("ep-abbr-input");
-        tx.onChange((v) => {
-          setAbbr(view.settings, srcKey(), v);
           changed();
         });
       });

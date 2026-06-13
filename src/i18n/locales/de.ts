@@ -112,6 +112,7 @@ export const coreDe: StringDict = {
   "roll.partTotal": "Gesamt",
   "roll.menu.count": "Anzahl Würfe",
   "roll.menu.go": "Würfeln",
+  "roll.menu.edit": "Quelle bearbeiten",
   "type.list": "Liste",
   "type.checkbox": "Kontrollkästchen",
   "type.color": "Farbe",
@@ -127,9 +128,20 @@ export const coreDe: StringDict = {
   "mods.sourceSelf": "(diese Eigenschaft)",
   "mods.modeFormula": "Eigene Formel…",
   "mods.formula": "Formel f(x)",
-  "mods.termOptions": "Vorzeichen · Umschalter · Kürzel",
+  "mods.modeExpr": "Ausdruck…",
+  "mods.expr": "Ausdruck",
+  "mods.exprDesc":
+    "Rechnen über Eigenschaften per Name oder Kürzel, z. B. floor((STR + DEX) / 2) + max(PB, 2). Funktionen: floor, ceil, round, min, max, clamp, abs, if; eigene Ableitungen sind ebenfalls aufrufbar.",
+  "mods.errExpr": "Dieser Wert kann nicht berechnet werden — Ausdruck prüfen (unbekannte Eigenschaft oder Syntax).",
+  "mods.errCycle": "Dieser Wert hängt von sich selbst ab (Referenzzyklus).",
+  "mods.termOptions": "Vorzeichen · Umschalter",
   "mods.termOptionsDesc":
-    "Wie dieser Term in die Summe eingeht; eine Listen-Eigenschaft, die ihn pro Notiz umschaltet (wie Übung); das Kürzel für Anzeigen; und ob die Zeile das Kontrollkästchen dieses Terms zeigt.",
+    "Wie dieser Term in die Summe eingeht, und eine Listen-Eigenschaft, die ihn pro Notiz umschaltet (wie Übung).",
+  "mods.shortForm": "Kürzel",
+  "mods.shortFormDesc":
+    "Abkürzung für Modifikator-Ketten (INT + DEX) und Inline-Referenzen val:/roll:. Muss über Eigenschaften hinweg eindeutig sein.",
+  "mods.shortFormConflict":
+    "„{abbr}“ ist bereits das Kürzel von „{other}“. Hier stattdessen verwenden? „{other}“ erhält ein neues Kürzel.",
   "mods.showToggle": "Kontrollkästchen in der Zeile anzeigen",
   "mods.clickToggle": "Klicken zum Umschalten",
   "mods.weightAdd": "+ addieren",

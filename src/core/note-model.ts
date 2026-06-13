@@ -157,3 +157,68 @@ export class NoteModel {
     }
   }
 }
+
+/**
+ * A lightweight, file-keyed read/write facade over note frontmatter — the
+ * stateless counterpart to {@link NoteModel}, used where there is no active
+ * view (inline rolls and properties in note bodies). Reads come straight from
+ * the metadata cache; writes are coalesced per file (a short debounce) and
+ * applied through `processFrontMatter`, the same safe write path the view uses.
+ */
+export class NoteFacade {
+  private timers = new Map<string, number>();
+  private pending = new Map<string, Map<string, unknown>>();
+
+  constructor(private app: App, private i18n: I18n) {}
+
+  /** Shallow copy of a file's frontmatter (empty object when none). */
+  raw(file: TFile): Record<string, unknown> {
+    const fm = this.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined;
+    return fm ? { ...fm } : {};
+  }
+
+  /** Raw value of `key` (case-insensitive), or undefined. */
+  get(file: TFile, key: string): unknown {
+    const raw = this.raw(file);
+    const k = Object.keys(raw).find((x) => x.toLowerCase() === key.toLowerCase());
+    return k === undefined ? undefined : raw[k];
+  }
+
+  num(file: TFile, key: string, def = 0): number {
+    return getNum(this.raw(file), key, def);
+  }
+  str(file: TFile, key: string): string {
+    return getStr(this.raw(file), key);
+  }
+  list(file: TFile, key: string): string[] {
+    return getList(this.raw(file), key);
+  }
+
+  /** Queue a frontmatter write (debounced per file; `undefined` removes the key). */
+  set(file: TFile, key: string, value: unknown): void {
+    let m = this.pending.get(file.path);
+    if (!m) {
+      m = new Map();
+      this.pending.set(file.path, m);
+    }
+    m.set(key, value);
+    const prev = this.timers.get(file.path);
+    if (prev) window.clearTimeout(prev);
+    this.timers.set(file.path, window.setTimeout(() => this.flush(file), 250));
+  }
+
+  private flush(file: TFile): void {
+    this.timers.delete(file.path);
+    const m = this.pending.get(file.path);
+    if (!m) return;
+    this.pending.delete(file.path);
+    this.app.fileManager
+      .processFrontMatter(file, (fm) => {
+        for (const [k, v] of m) {
+          if (v === undefined) delete fm[k];
+          else fm[k] = v;
+        }
+      })
+      .catch((err) => new Notice(this.i18n.t("notice.saveFailed", { error: String(err) })));
+  }
+}

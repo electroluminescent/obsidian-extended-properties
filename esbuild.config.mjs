@@ -6,7 +6,7 @@ esbuild
   .build({
     entryPoints: ["src/main.ts"],
     bundle: true,
-    external: ["obsidian", "electron"],
+    external: ["obsidian", "electron", "@codemirror/state", "@codemirror/view", "@codemirror/language"],
     format: "cjs",
     target: "es2018",
     outfile: "main.js",

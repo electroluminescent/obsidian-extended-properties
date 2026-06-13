@@ -13,7 +13,7 @@ import { coreEn } from "./i18n/locales/en";
 import { coreDe } from "./i18n/locales/de";
 import type { EPSettings, Layout } from "./core/model";
 import { normalizeSettings } from "./core/settings";
-import { registerDerivations } from "./core/influences";
+import { materializeShortForms, registerDerivations } from "./core/influences";
 import { FeatureModule, Registries } from "./core/registry";
 import { PropertyIndex } from "./core/property-index";
 import { HideService } from "./core/hide-service";
@@ -28,6 +28,8 @@ import { dnd5eModule } from "./features/dnd5e/index";
 import { HistoryService } from "./features/rolling/history";
 import { RollService } from "./features/rolling/roll-service";
 import { runMacro } from "./features/rolling/macros";
+import { inlineModule, registerInline } from "./features/inline/index";
+import { NoteFacade } from "./core/note-model";
 
 /**
  * All available feature modules, in registration order (later modules may
@@ -35,7 +37,7 @@ import { runMacro } from "./features/rolling/macros";
  * Adding a feature to the plugin is: create `src/features/<id>/`, export a
  * {@link FeatureModule}, list it here.
  */
-const FEATURE_MODULES: FeatureModule[] = [rollingModule, dnd5eModule];
+const FEATURE_MODULES: FeatureModule[] = [rollingModule, dnd5eModule, inlineModule];
 
 export default class ExtendedPropertiesPlugin extends Plugin {
   settings!: EPSettings;
@@ -79,6 +81,8 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     for (const mod of FEATURE_MODULES) {
       if (this.settings.features[mod.id] !== false && mod.migrate?.(this.settings)) migrated = true;
     }
+    // Give every number/derived property and influence source a unique short form.
+    if (materializeShortForms(this.settings)) migrated = true;
 
     this.hide = new HideService({
       settings: this.settings,
@@ -124,6 +128,16 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       });
     }
     this.syncMacroCommands();
+
+    // -- inline rolls & properties in note bodies (reading mode) ------------------
+    registerInline(this, {
+      app: this.app,
+      i18n: this.i18n,
+      settings: this.settings,
+      registries: this.registries,
+      facade: new NoteFacade(this.app, this.i18n),
+      roll: this.rollService(),
+    });
 
     // -- view refresh on workspace / metadata events ---------------------------
     const refresh = (file?: TFile) => {

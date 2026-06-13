@@ -205,9 +205,12 @@ export function parseRoll(text: string): RollAst | null {
 // Serializer (canonical text)
 // ---------------------------------------------------------------------------
 
-export function serializeNode(n: RollNode): string {
+export function serializeNode(n: RollNode, mapRef?: (name: string) => string): string {
   if (n.kind === "num") return String(n.value);
-  if (n.kind === "ref") return /[^A-Za-z0-9_]/.test(n.name) ? `[${n.name}]` : n.name;
+  if (n.kind === "ref") {
+    if (mapRef) return mapRef(n.name);
+    return /[^A-Za-z0-9_]/.test(n.name) ? `[${n.name}]` : n.name;
+  }
   let s = (n.count > 1 ? n.count : "") + "d" + n.sides;
   for (const op of n.ops) {
     if (op.t === "kh" || op.t === "kl" || op.t === "dh" || op.t === "dl") s += op.t + (op.n !== 1 ? op.n : "");
@@ -218,10 +221,10 @@ export function serializeNode(n: RollNode): string {
   return s;
 }
 
-export function serializeRoll(ast: RollAst): string {
+export function serializeRoll(ast: RollAst, mapRef?: (name: string) => string): string {
   let out = "";
   ast.terms.forEach((term, idx) => {
-    const txt = serializeNode(term.node);
+    const txt = serializeNode(term.node, mapRef);
     if (idx === 0) out = term.neg ? "-" + txt : txt;
     else out += (term.neg ? " - " : " + ") + txt;
   });

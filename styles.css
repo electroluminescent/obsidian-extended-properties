@@ -489,6 +489,11 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 .ep-roller-numedit { width: 4em; }
 .ep-roller-add { font-size: var(--font-ui-smaller); padding: 2px 8px; border-radius: 999px; background: transparent; border: 1px dashed var(--background-modifier-border); color: var(--text-muted); cursor: pointer; box-shadow: none; }
 .ep-roller-add:hover { color: var(--text-normal); border-color: var(--interactive-accent); }
+.ep-roller-expr { display: flex; }
+.ep-roller-exprinput { width: 100%; font-family: var(--font-monospace); }
+.ep-roller-fns { display: flex; flex-wrap: wrap; gap: 4px; }
+.ep-roller-fn { font-size: var(--font-ui-smaller); font-family: var(--font-monospace); padding: 1px 7px; border-radius: 6px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); color: var(--text-muted); cursor: pointer; box-shadow: none; }
+.ep-roller-fn:hover { color: var(--text-normal); border-color: var(--interactive-accent); }
 .ep-roller-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .ep-roller-times { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .ep-roller-times input { width: 4em; }
@@ -525,5 +530,28 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 .ep-macros-lbl { font-size: var(--font-ui-smaller); color: var(--text-muted); margin-right: 2px; }
 .ep-macro-chip { cursor: pointer; }
 .ep-macro-chip:hover { border-color: var(--interactive-accent); }
-/* invalid macro notation in settings */
+/* invalid macro/expression notation in settings */
 .ep-invalid { border-color: var(--text-error) !important; }
+/* expression engine: failed derivations (—) and the inline expression field */
+.ep-expr-error { color: var(--text-error); cursor: help; font-weight: 700; }
+.ep-expr-input { width: 100%; font-family: var(--font-monospace); }
+
+/* inline rolls & properties in note bodies (feature: inline) */
+.ep-inline-roll { display: inline-flex; align-items: center; gap: 3px; padding: 0 6px; border-radius: 999px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); cursor: pointer; font-size: var(--font-ui-smaller); vertical-align: baseline; line-height: 1.6; }
+.ep-inline-roll:hover { border-color: var(--interactive-accent); }
+.ep-inline-roll-ico { display: inline-flex; width: 0.95em; height: 0.95em; opacity: 0.8; }
+.ep-inline-roll-ico svg { width: 100%; height: 100%; }
+.ep-inline-roll-lab { font-variant-numeric: tabular-nums; }
+.ep-inline-prop { display: inline; }
+.ep-inline-editable { cursor: pointer; border-bottom: 1px dotted var(--text-faint); }
+.ep-inline-editable:hover { border-bottom-color: var(--interactive-accent); color: var(--text-normal); }
+.ep-inline-prop .ep-edit-input { width: 6em; }
+/* ep-sheet statblock projection */
+.ep-inline-sheet { display: flex; flex-direction: column; gap: 8px; padding: 8px 10px; border: 1px solid var(--background-modifier-border); border-radius: var(--ep-radius, 6px); background: var(--background-secondary); }
+.ep-inline-sheet-sec { display: flex; flex-direction: column; gap: 2px; }
+.ep-inline-sheet-title { font-weight: 700; font-size: var(--font-ui-small); color: var(--text-accent); border-bottom: 1px solid var(--background-modifier-border); padding-bottom: 2px; margin-bottom: 2px; }
+.ep-inline-sheet-row { display: flex; align-items: center; gap: 8px; }
+.ep-inline-sheet-lab { flex: 1; color: var(--text-muted); }
+.ep-inline-sheet-val { font-variant-numeric: tabular-nums; font-weight: 600; }
+.ep-inline-sheet-roll { margin-left: 4px; }
+.ep-inline-note { color: var(--text-faint); font-style: italic; font-size: var(--font-ui-smaller); }

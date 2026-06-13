@@ -24,6 +24,7 @@ import { ext } from "./model";
 import type { Registries } from "./registry";
 import type { NoteModel } from "./note-model";
 import { compileFormula } from "../utils/formula";
+import { evalExpr, ExprNode, parseExpr, serializeExpr } from "./expr";
 
 // ---------------------------------------------------------------------------
 // Persisted shapes
@@ -40,6 +41,12 @@ export interface Influence {
   mode?: string;
   /** Expression in `x` used when `mode` is "formula". */
   formula?: string;
+  /**
+   * Full expression (see `core/expr.ts`) referencing properties by name or
+   * short form — e.g. `floor((STR + DEX) / 2) + max(PB, 2)`. When set it wins
+   * over `source`/`mode`/`formula`; the term is `weight × expr`.
+   */
+  expr?: string;
   /** −1 subtracts the term from the sum; anything else adds it. */
   weight?: number;
   /**
@@ -142,21 +149,6 @@ function findDerivedEntry(env: InfluenceEnv, key: string): Entry | null {
   return null;
 }
 
-/**
- * Value of a source property: a stored note value wins; otherwise, if the
- * source is a derived entry, its chain is evaluated (depth-limited so
- * cycles terminate); otherwise 0.
- */
-function sourceValue(env: InfluenceEnv, key: string, depth: number): number {
-  const stored = numericRaw(env, key);
-  if (stored !== null) return stored;
-  if (depth > 0) {
-    const en = findDerivedEntry(env, key);
-    if (en) return totalAt(env, en, depth - 1);
-  }
-  return env.note.num(key, 0);
-}
-
 /** Token identifying one influence in the disabled-modifiers list. */
 function offToken(entry: Entry, inf: Influence): string {
   return `${(entry.key as string) ?? ""}:${inf.source || (entry.key as string) || ""}`;
@@ -229,37 +221,164 @@ export function applyDerivation(env: InfluenceEnv, inf: Influence, raw: number):
   return def ? def.apply(raw) : raw;
 }
 
-function termAt(env: InfluenceEnv, entry: Entry, inf: Influence, depth: number): number {
-  if (!influenceActive(env, entry, inf)) return 0;
-  const key = inf.source || (entry.key as string) || "";
-  const raw = sourceValue(env, key, depth);
-  const sign = inf.weight === -1 ? -1 : 1;
-  return sign * applyDerivation(env, inf, raw);
-}
-
-function totalAt(env: InfluenceEnv, entry: Entry, depth: number): number {
-  const e = ext<ModExt>(entry);
-  // Per-note override: a number stored in a derived property's own
-  // frontmatter value wins for *this note* only.
-  if (entry.dataType === "derived" && entry.key) {
-    const stored = numericRaw(env, entry.key);
-    if (stored !== null) return stored;
-  }
-  if (e.rollOverride !== undefined) return e.rollOverride;
-  return (e.mods ?? []).reduce((sum, inf) => sum + termAt(env, entry, inf, depth), 0);
-}
-
-/** One influence's contribution to the sum (0 while toggled off). */
-export function influenceTerm(env: InfluenceEnv, entry: Entry, inf: Influence): number {
-  return termAt(env, entry, inf, maxDepth(env));
+/** User derivations exposed to expressions as one-argument functions. */
+function buildFnEnv(env: InfluenceEnv): (name: string) => ((args: number[]) => number | undefined) | undefined {
+  const derivs = env.settings.derivations ?? [];
+  return (name) => {
+    const d = derivs.find((x) => x.id.toLowerCase() === name.toLowerCase());
+    if (!d) return undefined;
+    const f = compileFormula(d.formula);
+    if (!f) return undefined;
+    return (args) => f(args[0] ?? 0);
+  };
 }
 
 /**
- * The entry's effective modifier: per-note stored override (derived
- * entries), layout-wide override, or the (chain-resolved) influence sum.
+ * One evaluation pass over a note's modifiers. Values are memoized by property
+ * key and a visiting set detects reference cycles explicitly (the `modDepth`
+ * setting remains only as a backstop for very deep legacy chains). Legacy
+ * `mode`/`formula` terms evaluate exactly as before and never error; only
+ * `expr` terms can fail (parse error / unknown reference / cycle), which makes
+ * the whole entry resolve to `undefined` so the UI can show "—".
+ */
+class NoteEval {
+  private cache = new Map<string, number | undefined>();
+  private visiting = new Set<string>();
+  /** Lower-cased keys found to participate in a cycle (for the error badge). */
+  readonly cycles = new Set<string>();
+  private parsed = new Map<string, ExprNode | null>();
+  private readonly fnEnv: (name: string) => ((args: number[]) => number | undefined) | undefined;
+
+  constructor(private env: InfluenceEnv) {
+    this.fnEnv = buildFnEnv(env);
+  }
+
+  total(entry: Entry): number | undefined {
+    return this.totalAt(entry, maxDepth(this.env));
+  }
+
+  term(entry: Entry, inf: Influence): number | undefined {
+    return this.termAt(entry, inf, maxDepth(this.env));
+  }
+
+  private parseExprCached(expr: string): ExprNode | null {
+    if (!this.parsed.has(expr)) this.parsed.set(expr, parseExpr(expr));
+    return this.parsed.get(expr) ?? null;
+  }
+
+  private totalAt(entry: Entry, depth: number): number | undefined {
+    const e = ext<ModExt>(entry);
+    const key = (entry.key as string) || "";
+    const kl = key.toLowerCase();
+    // Per-note override: a number stored in a derived property's own value.
+    if (entry.dataType === "derived" && key) {
+      const stored = numericRaw(this.env, key);
+      if (stored !== null) return stored;
+    }
+    if (e.rollOverride !== undefined) return e.rollOverride;
+    if (kl) {
+      if (this.visiting.has(kl)) {
+        this.cycles.add(kl);
+        return undefined;
+      }
+      if (this.cache.has(kl)) return this.cache.get(kl);
+      this.visiting.add(kl);
+    }
+    let sum = 0;
+    let bad = false;
+    for (const inf of e.mods ?? []) {
+      const term = this.termAt(entry, inf, depth);
+      if (term === undefined) {
+        bad = true;
+        break;
+      }
+      sum += term;
+    }
+    if (kl) this.visiting.delete(kl);
+    const res = bad ? undefined : sum;
+    if (kl) this.cache.set(kl, res);
+    return res;
+  }
+
+  private termAt(entry: Entry, inf: Influence, depth: number): number | undefined {
+    if (!influenceActive(this.env, entry, inf)) return 0;
+    const sign = inf.weight === -1 ? -1 : 1;
+    if (inf.expr) {
+      const ast = this.parseExprCached(inf.expr);
+      if (!ast) return undefined;
+      const v = evalExpr(ast, { resolve: (n) => this.refValue(n, depth), fn: this.fnEnv });
+      return v === undefined ? undefined : sign * v;
+    }
+    const key = inf.source || (entry.key as string) || "";
+    return sign * applyDerivation(this.env, inf, this.sourceValue(key, depth));
+  }
+
+  /** Legacy source resolution: never errors (absent → 0). */
+  private sourceValue(key: string, depth: number): number {
+    const stored = numericRaw(this.env, key);
+    if (stored !== null) return stored;
+    if (depth > 0) {
+      const en = findDerivedEntry(this.env, key);
+      if (en) return this.totalAt(en, depth - 1) ?? 0;
+    }
+    return this.env.note.num(key, 0);
+  }
+
+  /** Expression reference: known property → value (0 if absent); unknown → undefined. */
+  private refValue(name: string, depth: number): number | undefined {
+    const key = this.keyFor(name);
+    if (key === null) return undefined;
+    const stored = numericRaw(this.env, key);
+    if (stored !== null) return stored;
+    if (depth > 0) {
+      const en = findDerivedEntry(this.env, key);
+      if (en) return this.totalAt(en, depth - 1);
+    }
+    return this.env.note.num(key, 0);
+  }
+
+  /** Map a referenced name to a known property key — exact key first, then short form. */
+  private keyFor(name: string): string | null {
+    const nl = name.trim().toLowerCase();
+    if (!nl) return null;
+    for (const k of Object.keys(this.env.note.raw)) if (k.toLowerCase() === nl) return k;
+    const layout = this.env.layout;
+    if (layout) {
+      for (const s of layout.sections)
+        for (const en of s.entries) if (en.kind === "prop" && en.key && en.key.toLowerCase() === nl) return en.key;
+      for (const s of layout.sections)
+        for (const en of s.entries)
+          if (en.kind === "prop" && en.key && abbrFor(this.env.settings, en.key).toLowerCase() === nl) return en.key;
+    }
+    return null;
+  }
+}
+
+/** One influence's contribution to the sum (0 while toggled off or on error). */
+export function influenceTerm(env: InfluenceEnv, entry: Entry, inf: Influence): number {
+  return new NoteEval(env).term(entry, inf) ?? 0;
+}
+
+/**
+ * The entry's effective modifier: per-note stored override (derived entries),
+ * layout-wide override, or the (chain-resolved) influence sum. Returns 0 when
+ * the expression fails — use {@link modifierInfo} to detect that for display.
  */
 export function modifierTotal(env: InfluenceEnv, entry: Entry): number {
-  return totalAt(env, entry, maxDepth(env));
+  return new NoteEval(env).total(entry) ?? 0;
+}
+
+/** A computed modifier plus whether (and why) it failed, for the "—" badge. */
+export interface ModifierInfo {
+  value: number | undefined;
+  error: "cycle" | "expr" | null;
+}
+
+/** Like {@link modifierTotal} but reports failure (cycle or bad expression). */
+export function modifierInfo(env: InfluenceEnv, entry: Entry): ModifierInfo {
+  const ev = new NoteEval(env);
+  const value = ev.total(entry);
+  return { value, error: value === undefined ? (ev.cycles.size > 0 ? "cycle" : "expr") : null };
 }
 
 /** Whether a derived entry's value is overridden on the current note. */
@@ -297,6 +416,161 @@ export function setAbbr(settings: EPSettings, key: string, abbr: string | undefi
   if (v && v !== defaultAbbr(key)) settings.sourceAbbrs[key] = v;
 }
 
+// ---------------------------------------------------------------------------
+// Short-form registry (unique per property)
+//
+// `settings.sourceAbbrs` is the authoritative key → short-form map. Short
+// forms are unique (case-insensitive); on a clash the loser is re-derived by
+// "moving down the string": keep the leading letters and advance the last one
+// (Dexterity → DEX, Dexterous → DET).
+// ---------------------------------------------------------------------------
+
+/** Lower-cased short forms currently in use, optionally excluding one key. */
+export function takenShortForms(settings: EPSettings, exceptKey?: string): Set<string> {
+  const out = new Set<string>();
+  const ex = (exceptKey ?? "").toLowerCase();
+  for (const k of Object.keys(settings.sourceAbbrs ?? {})) {
+    if (ex && k.toLowerCase() === ex) continue;
+    const v = settings.sourceAbbrs[k];
+    if (v) out.add(v.toLowerCase());
+  }
+  return out;
+}
+
+/** A unique short form for `name` avoiding `taken`, walking the word for the 3rd letter. */
+export function deriveShortForm(name: string, taken: Set<string>): string {
+  const letters = (name ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const has = (s: string) => taken.has(s.toLowerCase());
+  if (!letters) {
+    let n = 1;
+    while (has("X" + n)) n++;
+    return "X" + n;
+  }
+  const base = letters.slice(0, 3);
+  if (!has(base)) return base;
+  // Keep the first two letters, advance the third through the remaining word.
+  const p2 = letters.slice(0, 2);
+  for (let j = 3; j < letters.length; j++) {
+    const c = p2 + letters[j];
+    if (!has(c)) return c;
+  }
+  // Keep the first letter, walk the second and third.
+  const p1 = letters.slice(0, 1);
+  for (let a = 1; a < letters.length; a++)
+    for (let b = a + 1; b < letters.length; b++) {
+      const c = p1 + letters[a] + letters[b];
+      if (!has(c)) return c;
+    }
+  // Last resort: number the base.
+  let n = 2;
+  while (has(base + n)) n++;
+  return base + n;
+}
+
+/** The other property currently holding `abbr` (case-insensitive), or null. */
+export function shortFormConflict(settings: EPSettings, key: string, abbr: string): string | null {
+  const a = (abbr ?? "").trim().toLowerCase();
+  const kl = (key ?? "").toLowerCase();
+  if (!a) return null;
+  for (const k of Object.keys(settings.sourceAbbrs ?? {})) {
+    if (k.toLowerCase() === kl) continue;
+    if ((settings.sourceAbbrs[k] ?? "").toLowerCase() === a) return k;
+  }
+  return null;
+}
+
+/** Store a normalized (upper-case) short form for `key`, replacing any prior one. */
+export function assignShortForm(settings: EPSettings, key: string, abbr: string): void {
+  const kl = key.toLowerCase();
+  for (const k of Object.keys(settings.sourceAbbrs)) if (k.toLowerCase() === kl) delete settings.sourceAbbrs[k];
+  const v = (abbr ?? "").trim().toUpperCase();
+  if (v) settings.sourceAbbrs[key] = v;
+}
+
+/** Give `key` a freshly derived, unique short form (used for the clash loser). */
+export function reassignDerived(settings: EPSettings, key: string): string {
+  const v = deriveShortForm(key, takenShortForms(settings, key));
+  assignShortForm(settings, key, v);
+  return v;
+}
+
+/** Materialize a unique short form for `key` if it has none. Returns true if changed. */
+export function ensureShortForm(settings: EPSettings, key: string): boolean {
+  const kl = key.toLowerCase();
+  for (const k of Object.keys(settings.sourceAbbrs)) if (k.toLowerCase() === kl && settings.sourceAbbrs[k]) return false;
+  assignShortForm(settings, key, deriveShortForm(key, takenShortForms(settings, key)));
+  return true;
+}
+
+/**
+ * Ensure every number/derived property and every influence source across all
+ * layouts has a unique short form recorded. Returns true if anything changed.
+ */
+export function materializeShortForms(settings: EPSettings): boolean {
+  const keys: string[] = [];
+  const seen = new Set<string>();
+  const add = (k: string): void => {
+    const kl = k.toLowerCase();
+    if (kl && !seen.has(kl)) {
+      seen.add(kl);
+      keys.push(k);
+    }
+  };
+  for (const lk of Object.keys(settings.layouts ?? {}))
+    for (const s of settings.layouts[lk].sections ?? [])
+      for (const e of s.entries ?? []) {
+        if (e.kind !== "prop" || !e.key) continue;
+        const dt = (e as Record<string, unknown>).dataType;
+        if (dt === "number" || dt === "decimal" || dt === "derived") add(e.key as string);
+        const mods = (e as Record<string, unknown>).mods;
+        if (Array.isArray(mods)) for (const inf of mods as Influence[]) if (inf && inf.source) add(inf.source);
+      }
+  let changed = false;
+  for (const k of keys) if (ensureShortForm(settings, k)) changed = true;
+  return changed;
+}
+
+/** Autocomplete options for reference fields: each property's name and short form (interchangeable). */
+export function referenceSuggestions(settings: EPSettings, keys: string[]): { text: string; hint: string }[] {
+  const out: { text: string; hint: string }[] = [];
+  const seen = new Set<string>();
+  const add = (text: string, hint: string): void => {
+    const tl = text.toLowerCase();
+    if (text && !seen.has(tl)) {
+      seen.add(tl);
+      out.push({ text, hint });
+    }
+  };
+  for (const k of keys) {
+    const a = abbrFor(settings, k);
+    add(k, a);
+    add(a, k);
+  }
+  return out;
+}
+
+/** Resolve a short form (or a property key) to a property key among `candidateKeys`. */
+export function keyForShortForm(settings: EPSettings, abbr: string, candidateKeys: string[]): string | null {
+  const a = (abbr ?? "").trim().toLowerCase();
+  if (!a) return null;
+  for (const k of Object.keys(settings.sourceAbbrs ?? {}))
+    if ((settings.sourceAbbrs[k] ?? "").toLowerCase() === a) return k;
+  for (const k of candidateKeys) if (k.toLowerCase() === a) return k;
+  for (const k of candidateKeys) if (defaultAbbr(k).toLowerCase() === a) return k;
+  return null;
+}
+
+/** An expression rendered with its references replaced by their short forms. */
+export function exprDenotation(settings: EPSettings, expr: string): string {
+  const ast = parseExpr(expr);
+  return ast ? serializeExpr(ast, (name) => abbrFor(settings, name)) : expr;
+}
+
+/** Short form of one influence term (the source's abbr, or the expression). */
+export function termDenotation(settings: EPSettings, entry: Entry, inf: Influence): string {
+  return inf.expr ? exprDenotation(settings, inf.expr) : abbrFor(settings, inf.source || (entry.key as string) || "");
+}
+
 /** Plain-text denotation of an influence list, e.g. "INT + DEX − AGE". */
 export function denotationText(settings: EPSettings, entry: Entry, mods: Influence[]): string {
   let out = "";
@@ -304,7 +578,7 @@ export function denotationText(settings: EPSettings, entry: Entry, mods: Influen
     const neg = inf.weight === -1;
     if (i > 0) out += neg ? " − " : " + ";
     else if (neg) out += "−";
-    out += abbrFor(settings, inf.source || (entry.key as string) || "");
+    out += termDenotation(settings, entry, inf);
   });
   return out;
 }

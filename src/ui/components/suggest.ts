@@ -49,6 +49,59 @@ export class PropSuggest extends AbstractInputSuggest<PropSuggestion> {
   }
 }
 
+/** One reference autocomplete option: the text to insert plus a hint (its counterpart). */
+export interface RefOption {
+  text: string;
+  hint: string;
+}
+
+/**
+ * Token-aware autocomplete for expression/notation fields (the roller, the
+ * influence expression editor, macro notation). Suggests property names and
+ * their short forms — interchangeably — for the identifier the caret is on,
+ * and replaces just that token on selection (the rest of the expression is
+ * left intact).
+ */
+export class RefSuggest extends AbstractInputSuggest<RefOption> {
+  private static readonly TOKEN = /[A-Za-z_][A-Za-z0-9_]*$/;
+  private el: HTMLInputElement;
+
+  constructor(app: App, inputEl: HTMLInputElement, private getRefs: () => RefOption[]) {
+    super(app, inputEl);
+    this.el = inputEl;
+  }
+
+  getSuggestions(value: string): RefOption[] {
+    const m = RefSuggest.TOKEN.exec(value);
+    if (!m) return [];
+    const tl = m[0].toLowerCase();
+    return this.getRefs()
+      .filter((r) => r.text.toLowerCase().includes(tl))
+      .slice(0, 30);
+  }
+
+  renderSuggestion(r: RefOption, el: HTMLElement): void {
+    el.createSpan({ text: r.text });
+    if (r.hint) el.createSpan({ cls: "ep-sug-badge", text: r.hint });
+  }
+
+  selectSuggestion(r: RefOption): void {
+    const val = this.el.value;
+    const m = RefSuggest.TOKEN.exec(val);
+    const start = m ? val.length - m[0].length : val.length;
+    const next = val.slice(0, start) + r.text;
+    this.el.value = next;
+    this.el.dispatchEvent(new Event("input"));
+    this.el.focus();
+    try {
+      this.el.setSelectionRange(next.length, next.length);
+    } catch {
+      /* selectionRange unsupported on this input */
+    }
+    (this as unknown as { close?: () => void }).close?.();
+  }
+}
+
 /** Suggests existing values for a property (free text allowed). */
 export class ValueSuggest extends AbstractInputSuggest<string> {
   constructor(
