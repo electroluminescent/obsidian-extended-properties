@@ -9,9 +9,10 @@ import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 import type ExtendedPropertiesPlugin from "../main";
 import { COLOR_SPACES, ColorSpace } from "../utils/color";
 import type { SectionSize } from "../core/model";
-import { defaultAbbr, defaultDerivations } from "../core/influences";
+import { defaultAbbr, defaultDerivations, referenceSuggestions } from "../core/influences";
 import { compileFormula } from "../utils/formula";
 import { genId } from "../utils/misc";
+import { RefSuggest } from "./components/suggest";
 import { ConfirmModal, TextPromptModal } from "./modals/dialogs";
 import { segsToText, textToSegs } from "../features/rolling/macros";
 
@@ -155,7 +156,9 @@ export class EPSettingTab extends PluginSettingTab {
         })
         .addText((tx) => {
           tx.setPlaceholder("f(x)").setValue(dv.formula).onChange((v) => {
-            if (v.trim() && !compileFormula(v.trim())) return;
+            const invalid = !!v.trim() && !compileFormula(v.trim());
+            tx.inputEl.toggleClass("ep-invalid", invalid);
+            if (invalid) return;
             dv.formula = v.trim() || "x";
             applyDerivations();
           });
@@ -378,6 +381,7 @@ export class EPSettingTab extends PluginSettingTab {
           )
           .addText((tx) => {
             tx.setPlaceholder("2d6 + 3").setValue(segsToText(m.segs));
+            new RefSuggest(this.app, tx.inputEl, () => referenceSuggestions(plugin.settings, plugin.props.knownProps()));
             tx.onChange((v) => {
               const segs = textToSegs(v);
               if (!segs) {

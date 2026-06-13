@@ -22,7 +22,7 @@ __export(main_exports, {
   default: () => ExtendedPropertiesPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian28 = require("obsidian");
+var import_obsidian30 = require("obsidian");
 
 // src/i18n/i18n.ts
 var I18n = class {
@@ -186,6 +186,7 @@ var coreEn = {
   "roll.partTotal": "total",
   "roll.menu.count": "Number of rolls",
   "roll.menu.go": "Roll",
+  "roll.menu.edit": "Edit source",
   "type.list": "list",
   "type.checkbox": "checkbox",
   "type.color": "color",
@@ -200,8 +201,16 @@ var coreEn = {
   "mods.sourceSelf": "(this property)",
   "mods.modeFormula": "Custom formula\u2026",
   "mods.formula": "Formula f(x)",
-  "mods.termOptions": "Sign \xB7 toggle \xB7 short form",
-  "mods.termOptionsDesc": "How this term enters the sum; a list property that toggles it per note (the way proficiency works); the short form shown in denotations; and whether the row shows this term's checkbox.",
+  "mods.modeExpr": "Expression\u2026",
+  "mods.expr": "Expression",
+  "mods.exprDesc": "Math over properties by name or short form, e.g. floor((STR + DEX) / 2) + max(PB, 2). Functions: floor, ceil, round, min, max, clamp, abs, if; your derivations are callable too.",
+  "mods.errExpr": "This value can't be computed \u2014 check the expression (unknown property or syntax).",
+  "mods.errCycle": "This value depends on itself (a reference cycle).",
+  "mods.termOptions": "Sign \xB7 toggle",
+  "mods.termOptionsDesc": "How this term enters the sum, and a list property that toggles it per note (the way proficiency works).",
+  "mods.shortForm": "Short form",
+  "mods.shortFormDesc": "Abbreviation used in modifier chains (INT + DEX) and inline val:/roll: references. Must be unique across properties.",
+  "mods.shortFormConflict": "\u201C{abbr}\u201D is already the short form of \u201C{other}\u201D. Use it here instead? \u201C{other}\u201D will be given a new short form.",
   "mods.showToggle": "Show checkbox on the row",
   "mods.clickToggle": "click to toggle",
   "mods.weightAdd": "+ add",
@@ -603,6 +612,7 @@ var coreDe = {
   "roll.partTotal": "Gesamt",
   "roll.menu.count": "Anzahl W\xFCrfe",
   "roll.menu.go": "W\xFCrfeln",
+  "roll.menu.edit": "Quelle bearbeiten",
   "type.list": "Liste",
   "type.checkbox": "Kontrollk\xE4stchen",
   "type.color": "Farbe",
@@ -617,8 +627,16 @@ var coreDe = {
   "mods.sourceSelf": "(diese Eigenschaft)",
   "mods.modeFormula": "Eigene Formel\u2026",
   "mods.formula": "Formel f(x)",
-  "mods.termOptions": "Vorzeichen \xB7 Umschalter \xB7 K\xFCrzel",
-  "mods.termOptionsDesc": "Wie dieser Term in die Summe eingeht; eine Listen-Eigenschaft, die ihn pro Notiz umschaltet (wie \xDCbung); das K\xFCrzel f\xFCr Anzeigen; und ob die Zeile das Kontrollk\xE4stchen dieses Terms zeigt.",
+  "mods.modeExpr": "Ausdruck\u2026",
+  "mods.expr": "Ausdruck",
+  "mods.exprDesc": "Rechnen \xFCber Eigenschaften per Name oder K\xFCrzel, z. B. floor((STR + DEX) / 2) + max(PB, 2). Funktionen: floor, ceil, round, min, max, clamp, abs, if; eigene Ableitungen sind ebenfalls aufrufbar.",
+  "mods.errExpr": "Dieser Wert kann nicht berechnet werden \u2014 Ausdruck pr\xFCfen (unbekannte Eigenschaft oder Syntax).",
+  "mods.errCycle": "Dieser Wert h\xE4ngt von sich selbst ab (Referenzzyklus).",
+  "mods.termOptions": "Vorzeichen \xB7 Umschalter",
+  "mods.termOptionsDesc": "Wie dieser Term in die Summe eingeht, und eine Listen-Eigenschaft, die ihn pro Notiz umschaltet (wie \xDCbung).",
+  "mods.shortForm": "K\xFCrzel",
+  "mods.shortFormDesc": "Abk\xFCrzung f\xFCr Modifikator-Ketten (INT + DEX) und Inline-Referenzen val:/roll:. Muss \xFCber Eigenschaften hinweg eindeutig sein.",
+  "mods.shortFormConflict": "\u201E{abbr}\u201C ist bereits das K\xFCrzel von \u201E{other}\u201C. Hier stattdessen verwenden? \u201E{other}\u201C erh\xE4lt ein neues K\xFCrzel.",
   "mods.showToggle": "Kontrollk\xE4stchen in der Zeile anzeigen",
   "mods.clickToggle": "Klicken zum Umschalten",
   "mods.weightAdd": "+ addieren",
@@ -930,147 +948,302 @@ function sectionMode(section) {
 }
 var LAYOUT_VERSION = 4;
 
-// src/utils/formula.ts
-var UNARY = {
+// src/core/expr.ts
+var TWO = /* @__PURE__ */ new Set(["==", "!=", "<=", ">=", "&&", "||"]);
+function tokenize(s) {
+  const toks = [];
+  let i = 0;
+  while (i < s.length) {
+    const c = s[i];
+    if (/\s/.test(c)) {
+      i++;
+      continue;
+    }
+    if (/[0-9.]/.test(c)) {
+      let n = "";
+      while (i < s.length && /[0-9.]/.test(s[i])) n += s[i++];
+      if ((n.match(/\./g) || []).length > 1 || n === ".") return null;
+      const v = parseFloat(n);
+      if (!Number.isFinite(v)) return null;
+      toks.push({ t: "num", v });
+      continue;
+    }
+    if (/[A-Za-z_]/.test(c)) {
+      let id = "";
+      while (i < s.length && /[A-Za-z0-9_]/.test(s[i])) id += s[i++];
+      toks.push({ t: "name", v: id });
+      continue;
+    }
+    if (c === "[") {
+      const end = s.indexOf("]", i + 1);
+      if (end < 0) return null;
+      const name = s.slice(i + 1, end).trim();
+      if (!name) return null;
+      toks.push({ t: "name", v: name });
+      i = end + 1;
+      continue;
+    }
+    const two = s.slice(i, i + 2);
+    if (TWO.has(two)) {
+      toks.push({ t: "op", v: two });
+      i += 2;
+      continue;
+    }
+    if ("+-*/%^<>".includes(c)) {
+      toks.push({ t: "op", v: c });
+      i++;
+      continue;
+    }
+    if (c === "!") {
+      toks.push({ t: "op", v: "!" });
+      i++;
+      continue;
+    }
+    if (c === "(") {
+      toks.push({ t: "(" });
+      i++;
+      continue;
+    }
+    if (c === ")") {
+      toks.push({ t: ")" });
+      i++;
+      continue;
+    }
+    if (c === ",") {
+      toks.push({ t: "," });
+      i++;
+      continue;
+    }
+    return null;
+  }
+  toks.push({ t: "eof" });
+  return toks;
+}
+var BP = {
+  "||": 1,
+  "&&": 2,
+  "==": 3,
+  "!=": 3,
+  "<": 4,
+  "<=": 4,
+  ">": 4,
+  ">=": 4,
+  "+": 5,
+  "-": 5,
+  "*": 6,
+  "/": 6,
+  "%": 6,
+  "^": 8
+};
+var PREFIX_BP = 7;
+function parseExpr(text) {
+  const toks = tokenize(text != null ? text : "");
+  if (!toks) return null;
+  let p = 0;
+  const peek = () => toks[p];
+  const next = () => toks[p++];
+  try {
+    const ast = parseBp(0);
+    if (peek().t !== "eof") return null;
+    return ast;
+  } catch (e) {
+    return null;
+  }
+  function parseBp(minBp) {
+    let left = nud();
+    for (; ; ) {
+      const tok = peek();
+      if (tok.t !== "op" || tok.v === "!") break;
+      const lbp = BP[tok.v];
+      if (lbp === void 0 || lbp < minBp) break;
+      next();
+      const rbp = tok.v === "^" ? lbp : lbp + 1;
+      const right = parseBp(rbp);
+      left = { kind: "binary", op: tok.v, left, right };
+    }
+    return left;
+  }
+  function nud() {
+    const tok = next();
+    if (tok.t === "num") return { kind: "num", value: tok.v };
+    if (tok.t === "(") {
+      const e = parseBp(0);
+      if (next().t !== ")") throw 0;
+      return e;
+    }
+    if (tok.t === "op" && (tok.v === "-" || tok.v === "+" || tok.v === "!")) {
+      const arg = parseBp(PREFIX_BP);
+      if (tok.v === "+") return arg;
+      return { kind: "unary", op: tok.v, arg };
+    }
+    if (tok.t === "name") {
+      if (peek().t === "(") {
+        next();
+        const args = [];
+        if (peek().t !== ")") {
+          args.push(parseBp(0));
+          while (peek().t === ",") {
+            next();
+            args.push(parseBp(0));
+          }
+        }
+        if (next().t !== ")") throw 0;
+        return { kind: "call", name: tok.v, args };
+      }
+      return { kind: "ref", name: tok.v };
+    }
+    throw 0;
+  }
+}
+var ExprError = class extends Error {
+};
+var CONSTS = { pi: Math.PI, e: Math.E, true: 1, false: 0 };
+var FN1 = {
+  floor: Math.floor,
+  ceil: Math.ceil,
+  round: Math.round,
+  abs: Math.abs,
+  sign: Math.sign,
   sqrt: Math.sqrt,
   cbrt: Math.cbrt,
-  abs: Math.abs,
+  exp: Math.exp,
+  ln: Math.log,
   sin: Math.sin,
   cos: Math.cos,
   tan: Math.tan,
   asin: Math.asin,
   acos: Math.acos,
-  atan: Math.atan,
-  exp: Math.exp,
-  floor: Math.floor,
-  ceil: Math.ceil,
-  round: Math.round,
-  sign: Math.sign,
-  ln: Math.log,
-  log: (v) => Math.log10(v)
+  atan: Math.atan
 };
-function compileFormula(expr) {
-  const s = expr;
-  let i = 0;
-  const ws = () => {
-    while (i < s.length && /\s/.test(s[i])) i++;
-  };
-  const peek = () => s[i];
-  function parseExpr() {
-    let n = parseTerm();
-    ws();
-    while (peek() === "+" || peek() === "-") {
-      const op = s[i++];
-      const r = parseTerm();
-      const a = n;
-      n = op === "+" ? (x) => a(x) + r(x) : (x) => a(x) - r(x);
-      ws();
+function evalNode(node, env) {
+  switch (node.kind) {
+    case "num":
+      return node.value;
+    case "ref": {
+      const lc = node.name.toLowerCase();
+      if (lc in CONSTS) return CONSTS[lc];
+      const v = env.resolve(node.name);
+      if (v === void 0 || !Number.isFinite(v)) throw new ExprError("unresolved: " + node.name);
+      return v;
     }
-    return n;
+    case "unary": {
+      const a = evalNode(node.arg, env);
+      return node.op === "-" ? -a : a !== 0 ? 0 : 1;
+    }
+    case "binary":
+      return evalBinary(node, env);
+    case "call":
+      return evalCall(node, env);
   }
-  function parseTerm() {
-    let n = parseFactor();
-    ws();
-    while (peek() === "*" || peek() === "/") {
-      const op = s[i++];
-      const r = parseFactor();
-      const a = n;
-      n = op === "*" ? (x) => a(x) * r(x) : (x) => a(x) / r(x);
-      ws();
-    }
-    return n;
+}
+function evalBinary(node, env) {
+  const { op } = node;
+  if (op === "&&") return evalNode(node.left, env) !== 0 && evalNode(node.right, env) !== 0 ? 1 : 0;
+  if (op === "||") return evalNode(node.left, env) !== 0 || evalNode(node.right, env) !== 0 ? 1 : 0;
+  const a = evalNode(node.left, env);
+  const b = evalNode(node.right, env);
+  switch (op) {
+    case "+":
+      return a + b;
+    case "-":
+      return a - b;
+    case "*":
+      return a * b;
+    case "/":
+      return a / b;
+    case "%":
+      return a % b;
+    case "^":
+      return Math.pow(a, b);
+    case "==":
+      return a === b ? 1 : 0;
+    case "!=":
+      return a !== b ? 1 : 0;
+    case "<":
+      return a < b ? 1 : 0;
+    case "<=":
+      return a <= b ? 1 : 0;
+    case ">":
+      return a > b ? 1 : 0;
+    case ">=":
+      return a >= b ? 1 : 0;
   }
-  function parseFactor() {
-    ws();
-    if (peek() === "-") {
-      i++;
-      const f = parseFactor();
-      return (x) => -f(x);
-    }
-    if (peek() === "+") {
-      i++;
-      return parseFactor();
-    }
-    let n = parseBase();
-    ws();
-    while (peek() === "^") {
-      i++;
-      const r = parseFactor();
-      const a = n;
-      n = (x) => Math.pow(a(x), r(x));
-      ws();
-    }
-    return n;
+  throw new ExprError("op: " + op);
+}
+function evalCall(node, env) {
+  var _a;
+  const name = node.name;
+  const lc = name.toLowerCase();
+  if (lc === "if") {
+    if (node.args.length !== 3) throw new ExprError("if needs 3 args");
+    return evalNode(node.args[0], env) !== 0 ? evalNode(node.args[1], env) : evalNode(node.args[2], env);
   }
-  function parseBase() {
-    ws();
-    const c = peek();
-    if (c === "(") {
-      i++;
-      const e = parseExpr();
-      ws();
-      if (peek() === ")") i++;
-      else throw 0;
-      return e;
-    }
-    if (c !== void 0 && /[0-9.]/.test(c)) {
-      let num = "";
-      while (i < s.length && /[0-9.]/.test(s[i])) num += s[i++];
-      if ((num.match(/\./g) || []).length > 1 || num === ".") throw 0;
-      const v = parseFloat(num);
-      if (!Number.isFinite(v)) throw 0;
-      return () => v;
-    }
-    if (c !== void 0 && /[a-zA-Z_]/.test(c)) {
-      let id = "";
-      while (i < s.length && /[a-zA-Z0-9_]/.test(s[i])) id += s[i++];
-      ws();
-      if (peek() === "(") {
-        i++;
-        const args = [parseExpr()];
-        ws();
-        while (peek() === ",") {
-          i++;
-          args.push(parseExpr());
-          ws();
-        }
-        if (peek() === ")") i++;
-        else throw 0;
-        const a0 = args[0];
-        if (id === "log" && args.length === 2) {
-          const b = args[1];
-          return (x) => Math.log(a0(x)) / Math.log(b(x));
-        }
-        if (UNARY[id]) {
-          const fn = UNARY[id];
-          return (x) => fn(a0(x));
-        }
-        if (id === "pow") {
-          const b = args[1];
-          return (x) => Math.pow(a0(x), b(x));
-        }
-        if (id === "min") return (x) => Math.min(...args.map((a) => a(x)));
-        if (id === "max") return (x) => Math.max(...args.map((a) => a(x)));
-        throw 0;
-      }
-      if (id === "x") return (x) => x;
-      if (id === "pi") return () => Math.PI;
-      if (id === "e") return () => Math.E;
-      throw 0;
-    }
-    throw 0;
+  const a = node.args.map((x) => evalNode(x, env));
+  switch (lc) {
+    case "min":
+      return Math.min(...a);
+    case "max":
+      return Math.max(...a);
+    case "clamp":
+      return Math.min(Math.max(a[0], a[1]), a[2]);
+    case "pow":
+      return Math.pow(a[0], a[1]);
+    case "log":
+      return a.length >= 2 ? Math.log(a[0]) / Math.log(a[1]) : Math.log10(a[0]);
   }
+  if (lc in FN1) return FN1[lc](a[0]);
+  const uf = (_a = env.fn) == null ? void 0 : _a.call(env, name);
+  if (uf) {
+    const r = uf(a);
+    if (r === void 0 || !Number.isFinite(r)) throw new ExprError("fn: " + name);
+    return r;
+  }
+  throw new ExprError("unknown fn: " + name);
+}
+function evalExpr(ast, env) {
   try {
-    ws();
-    const fn = parseExpr();
-    ws();
-    if (i !== s.length) return null;
-    const probe = fn(1);
-    if (typeof probe !== "number" || Number.isNaN(probe)) return null;
-    return fn;
+    const v = evalNode(ast, env);
+    return Number.isFinite(v) ? v : void 0;
   } catch (e) {
-    return null;
+    return void 0;
   }
+}
+function quote(name) {
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : `[${name}]`;
+}
+function serializeExpr(ast, mapRef) {
+  const ser = (n, parentBp) => {
+    switch (n.kind) {
+      case "num":
+        return String(n.value);
+      case "ref":
+        return mapRef ? mapRef(n.name) : quote(n.name);
+      case "unary":
+        return n.op + ser(n.arg, PREFIX_BP);
+      case "call":
+        return n.name + "(" + n.args.map((a) => ser(a, 0)).join(", ") + ")";
+      case "binary": {
+        const bp = BP[n.op];
+        const rbp = n.op === "^" ? bp : bp + 1;
+        const s = `${ser(n.left, bp)} ${n.op} ${ser(n.right, rbp)}`;
+        return bp < parentBp ? `(${s})` : s;
+      }
+    }
+  };
+  return ser(ast, 0);
+}
+
+// src/utils/formula.ts
+function compileFormula(expr) {
+  const ast = parseExpr(expr);
+  if (!ast) return null;
+  const fn = (x) => {
+    const v = evalExpr(ast, { resolve: (n) => n.toLowerCase() === "x" ? x : void 0 });
+    return v === void 0 ? NaN : v;
+  };
+  const probe = fn(1);
+  if (typeof probe !== "number" || !Number.isFinite(probe)) return null;
+  return fn;
 }
 function invertFormula(f, target, min, max) {
   const N = 400;
@@ -1125,15 +1298,6 @@ function findDerivedEntry(env, key) {
       if (e.kind === "prop" && e.key && e.key.toLowerCase() === kl && e.dataType === "derived") return e;
   return null;
 }
-function sourceValue(env, key, depth) {
-  const stored = numericRaw(env, key);
-  if (stored !== null) return stored;
-  if (depth > 0) {
-    const en = findDerivedEntry(env, key);
-    if (en) return totalAt(env, en, depth - 1);
-  }
-  return env.note.num(key, 0);
-}
 function offToken(entry, inf) {
   var _a;
   return `${(_a = entry.key) != null ? _a : ""}:${inf.source || entry.key || ""}`;
@@ -1179,28 +1343,137 @@ function applyDerivation(env, inf, raw) {
   const def = env.registries.derivations.get((_b = inf.mode) != null ? _b : "value");
   return def ? def.apply(raw) : raw;
 }
-function termAt(env, entry, inf, depth) {
-  if (!influenceActive(env, entry, inf)) return 0;
-  const key = inf.source || entry.key || "";
-  const raw = sourceValue(env, key, depth);
-  const sign = inf.weight === -1 ? -1 : 1;
-  return sign * applyDerivation(env, inf, raw);
-}
-function totalAt(env, entry, depth) {
+function buildFnEnv(env) {
   var _a;
-  const e = ext(entry);
-  if (entry.dataType === "derived" && entry.key) {
-    const stored = numericRaw(env, entry.key);
-    if (stored !== null) return stored;
-  }
-  if (e.rollOverride !== void 0) return e.rollOverride;
-  return ((_a = e.mods) != null ? _a : []).reduce((sum, inf) => sum + termAt(env, entry, inf, depth), 0);
+  const derivs = (_a = env.settings.derivations) != null ? _a : [];
+  return (name) => {
+    const d = derivs.find((x) => x.id.toLowerCase() === name.toLowerCase());
+    if (!d) return void 0;
+    const f = compileFormula(d.formula);
+    if (!f) return void 0;
+    return (args) => {
+      var _a2;
+      return f((_a2 = args[0]) != null ? _a2 : 0);
+    };
+  };
 }
+var NoteEval = class {
+  constructor(env) {
+    this.env = env;
+    this.cache = /* @__PURE__ */ new Map();
+    this.visiting = /* @__PURE__ */ new Set();
+    /** Lower-cased keys found to participate in a cycle (for the error badge). */
+    this.cycles = /* @__PURE__ */ new Set();
+    this.parsed = /* @__PURE__ */ new Map();
+    this.fnEnv = buildFnEnv(env);
+  }
+  total(entry) {
+    return this.totalAt(entry, maxDepth(this.env));
+  }
+  term(entry, inf) {
+    return this.termAt(entry, inf, maxDepth(this.env));
+  }
+  parseExprCached(expr) {
+    var _a;
+    if (!this.parsed.has(expr)) this.parsed.set(expr, parseExpr(expr));
+    return (_a = this.parsed.get(expr)) != null ? _a : null;
+  }
+  totalAt(entry, depth) {
+    var _a;
+    const e = ext(entry);
+    const key = entry.key || "";
+    const kl = key.toLowerCase();
+    if (entry.dataType === "derived" && key) {
+      const stored = numericRaw(this.env, key);
+      if (stored !== null) return stored;
+    }
+    if (e.rollOverride !== void 0) return e.rollOverride;
+    if (kl) {
+      if (this.visiting.has(kl)) {
+        this.cycles.add(kl);
+        return void 0;
+      }
+      if (this.cache.has(kl)) return this.cache.get(kl);
+      this.visiting.add(kl);
+    }
+    let sum = 0;
+    let bad = false;
+    for (const inf of (_a = e.mods) != null ? _a : []) {
+      const term = this.termAt(entry, inf, depth);
+      if (term === void 0) {
+        bad = true;
+        break;
+      }
+      sum += term;
+    }
+    if (kl) this.visiting.delete(kl);
+    const res = bad ? void 0 : sum;
+    if (kl) this.cache.set(kl, res);
+    return res;
+  }
+  termAt(entry, inf, depth) {
+    if (!influenceActive(this.env, entry, inf)) return 0;
+    const sign = inf.weight === -1 ? -1 : 1;
+    if (inf.expr) {
+      const ast = this.parseExprCached(inf.expr);
+      if (!ast) return void 0;
+      const v = evalExpr(ast, { resolve: (n) => this.refValue(n, depth), fn: this.fnEnv });
+      return v === void 0 ? void 0 : sign * v;
+    }
+    const key = inf.source || entry.key || "";
+    return sign * applyDerivation(this.env, inf, this.sourceValue(key, depth));
+  }
+  /** Legacy source resolution: never errors (absent → 0). */
+  sourceValue(key, depth) {
+    var _a;
+    const stored = numericRaw(this.env, key);
+    if (stored !== null) return stored;
+    if (depth > 0) {
+      const en = findDerivedEntry(this.env, key);
+      if (en) return (_a = this.totalAt(en, depth - 1)) != null ? _a : 0;
+    }
+    return this.env.note.num(key, 0);
+  }
+  /** Expression reference: known property → value (0 if absent); unknown → undefined. */
+  refValue(name, depth) {
+    const key = this.keyFor(name);
+    if (key === null) return void 0;
+    const stored = numericRaw(this.env, key);
+    if (stored !== null) return stored;
+    if (depth > 0) {
+      const en = findDerivedEntry(this.env, key);
+      if (en) return this.totalAt(en, depth - 1);
+    }
+    return this.env.note.num(key, 0);
+  }
+  /** Map a referenced name to a known property key — exact key first, then short form. */
+  keyFor(name) {
+    const nl = name.trim().toLowerCase();
+    if (!nl) return null;
+    for (const k of Object.keys(this.env.note.raw)) if (k.toLowerCase() === nl) return k;
+    const layout = this.env.layout;
+    if (layout) {
+      for (const s of layout.sections)
+        for (const en of s.entries) if (en.kind === "prop" && en.key && en.key.toLowerCase() === nl) return en.key;
+      for (const s of layout.sections)
+        for (const en of s.entries)
+          if (en.kind === "prop" && en.key && abbrFor(this.env.settings, en.key).toLowerCase() === nl) return en.key;
+    }
+    return null;
+  }
+};
 function influenceTerm(env, entry, inf) {
-  return termAt(env, entry, inf, maxDepth(env));
+  var _a;
+  return (_a = new NoteEval(env).term(entry, inf)) != null ? _a : 0;
 }
 function modifierTotal(env, entry) {
-  return totalAt(env, entry, maxDepth(env));
+  var _a;
+  return (_a = new NoteEval(env).total(entry)) != null ? _a : 0;
+}
+function modifierInfo(env, entry) {
+  const ev = new NoteEval(env);
+  const value = ev.total(entry);
+  return { value, error: value === void 0 ? ev.cycles.size > 0 ? "cycle" : "expr" : null };
 }
 function hasNoteOverride(env, entry) {
   return entry.dataType === "derived" && !!entry.key && numericRaw(env, entry.key) !== null;
@@ -1216,12 +1489,129 @@ function abbrFor(settings, key) {
   for (const k of Object.keys(abbrs)) if (k.toLowerCase() === kl) return abbrs[k];
   return defaultAbbr(key);
 }
-function setAbbr(settings, key, abbr) {
+function takenShortForms(settings, exceptKey) {
+  var _a;
+  const out = /* @__PURE__ */ new Set();
+  const ex = (exceptKey != null ? exceptKey : "").toLowerCase();
+  for (const k of Object.keys((_a = settings.sourceAbbrs) != null ? _a : {})) {
+    if (ex && k.toLowerCase() === ex) continue;
+    const v = settings.sourceAbbrs[k];
+    if (v) out.add(v.toLowerCase());
+  }
+  return out;
+}
+function deriveShortForm(name, taken) {
+  const letters = (name != null ? name : "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const has = (s) => taken.has(s.toLowerCase());
+  if (!letters) {
+    let n2 = 1;
+    while (has("X" + n2)) n2++;
+    return "X" + n2;
+  }
+  const base = letters.slice(0, 3);
+  if (!has(base)) return base;
+  const p2 = letters.slice(0, 2);
+  for (let j = 3; j < letters.length; j++) {
+    const c = p2 + letters[j];
+    if (!has(c)) return c;
+  }
+  const p1 = letters.slice(0, 1);
+  for (let a = 1; a < letters.length; a++)
+    for (let b = a + 1; b < letters.length; b++) {
+      const c = p1 + letters[a] + letters[b];
+      if (!has(c)) return c;
+    }
+  let n = 2;
+  while (has(base + n)) n++;
+  return base + n;
+}
+function shortFormConflict(settings, key, abbr) {
+  var _a, _b;
+  const a = (abbr != null ? abbr : "").trim().toLowerCase();
   const kl = (key != null ? key : "").toLowerCase();
-  for (const k of Object.keys(settings.sourceAbbrs))
-    if (k.toLowerCase() === kl) delete settings.sourceAbbrs[k];
-  const v = (abbr != null ? abbr : "").trim();
-  if (v && v !== defaultAbbr(key)) settings.sourceAbbrs[key] = v;
+  if (!a) return null;
+  for (const k of Object.keys((_a = settings.sourceAbbrs) != null ? _a : {})) {
+    if (k.toLowerCase() === kl) continue;
+    if (((_b = settings.sourceAbbrs[k]) != null ? _b : "").toLowerCase() === a) return k;
+  }
+  return null;
+}
+function assignShortForm(settings, key, abbr) {
+  const kl = key.toLowerCase();
+  for (const k of Object.keys(settings.sourceAbbrs)) if (k.toLowerCase() === kl) delete settings.sourceAbbrs[k];
+  const v = (abbr != null ? abbr : "").trim().toUpperCase();
+  if (v) settings.sourceAbbrs[key] = v;
+}
+function reassignDerived(settings, key) {
+  const v = deriveShortForm(key, takenShortForms(settings, key));
+  assignShortForm(settings, key, v);
+  return v;
+}
+function ensureShortForm(settings, key) {
+  const kl = key.toLowerCase();
+  for (const k of Object.keys(settings.sourceAbbrs)) if (k.toLowerCase() === kl && settings.sourceAbbrs[k]) return false;
+  assignShortForm(settings, key, deriveShortForm(key, takenShortForms(settings, key)));
+  return true;
+}
+function materializeShortForms(settings) {
+  var _a, _b, _c;
+  const keys = [];
+  const seen = /* @__PURE__ */ new Set();
+  const add = (k) => {
+    const kl = k.toLowerCase();
+    if (kl && !seen.has(kl)) {
+      seen.add(kl);
+      keys.push(k);
+    }
+  };
+  for (const lk of Object.keys((_a = settings.layouts) != null ? _a : {}))
+    for (const s of (_b = settings.layouts[lk].sections) != null ? _b : [])
+      for (const e of (_c = s.entries) != null ? _c : []) {
+        if (e.kind !== "prop" || !e.key) continue;
+        const dt = e.dataType;
+        if (dt === "number" || dt === "decimal" || dt === "derived") add(e.key);
+        const mods2 = e.mods;
+        if (Array.isArray(mods2)) {
+          for (const inf of mods2) if (inf && inf.source) add(inf.source);
+        }
+      }
+  let changed = false;
+  for (const k of keys) if (ensureShortForm(settings, k)) changed = true;
+  return changed;
+}
+function referenceSuggestions(settings, keys) {
+  const out = [];
+  const seen = /* @__PURE__ */ new Set();
+  const add = (text, hint) => {
+    const tl = text.toLowerCase();
+    if (text && !seen.has(tl)) {
+      seen.add(tl);
+      out.push({ text, hint });
+    }
+  };
+  for (const k of keys) {
+    const a = abbrFor(settings, k);
+    add(k, a);
+    add(a, k);
+  }
+  return out;
+}
+function keyForShortForm(settings, abbr, candidateKeys) {
+  var _a, _b;
+  const a = (abbr != null ? abbr : "").trim().toLowerCase();
+  if (!a) return null;
+  for (const k of Object.keys((_a = settings.sourceAbbrs) != null ? _a : {}))
+    if (((_b = settings.sourceAbbrs[k]) != null ? _b : "").toLowerCase() === a) return k;
+  for (const k of candidateKeys) if (k.toLowerCase() === a) return k;
+  for (const k of candidateKeys) if (defaultAbbr(k).toLowerCase() === a) return k;
+  return null;
+}
+function exprDenotation(settings, expr) {
+  const ast = parseExpr(expr);
+  return ast ? serializeExpr(ast, (name) => abbrFor(settings, name)) : expr;
+}
+function termDenotation(settings, entry, inf) {
+  return inf.expr ? exprDenotation(settings, inf.expr) : abbrFor(settings, inf.source || entry.key || "");
 }
 function denotationText(settings, entry, mods2) {
   let out = "";
@@ -1229,7 +1619,7 @@ function denotationText(settings, entry, mods2) {
     const neg = inf.weight === -1;
     if (i > 0) out += neg ? " \u2212 " : " + ";
     else if (neg) out += "\u2212";
-    out += abbrFor(settings, inf.source || entry.key || "");
+    out += termDenotation(settings, entry, inf);
   });
   return out;
 }
@@ -1643,6 +2033,40 @@ var PropSuggest = class extends import_obsidian.AbstractInputSuggest {
     (_a = this.close) == null ? void 0 : _a.call(this);
   }
 };
+var _RefSuggest = class _RefSuggest extends import_obsidian.AbstractInputSuggest {
+  constructor(app, inputEl, getRefs) {
+    super(app, inputEl);
+    this.getRefs = getRefs;
+    this.el = inputEl;
+  }
+  getSuggestions(value) {
+    const m = _RefSuggest.TOKEN.exec(value);
+    if (!m) return [];
+    const tl = m[0].toLowerCase();
+    return this.getRefs().filter((r) => r.text.toLowerCase().includes(tl)).slice(0, 30);
+  }
+  renderSuggestion(r, el) {
+    el.createSpan({ text: r.text });
+    if (r.hint) el.createSpan({ cls: "ep-sug-badge", text: r.hint });
+  }
+  selectSuggestion(r) {
+    var _a;
+    const val = this.el.value;
+    const m = _RefSuggest.TOKEN.exec(val);
+    const start = m ? val.length - m[0].length : val.length;
+    const next = val.slice(0, start) + r.text;
+    this.el.value = next;
+    this.el.dispatchEvent(new Event("input"));
+    this.el.focus();
+    try {
+      this.el.setSelectionRange(next.length, next.length);
+    } catch (e) {
+    }
+    (_a = this.close) == null ? void 0 : _a.call(this);
+  }
+};
+_RefSuggest.TOKEN = /[A-Za-z_][A-Za-z0-9_]*$/;
+var RefSuggest = _RefSuggest;
 var ValueSuggest = class extends import_obsidian.AbstractInputSuggest {
   constructor(app, inputEl, getOptions, onChoose, clearOnSelect = true) {
     super(app, inputEl);
@@ -2302,9 +2726,14 @@ function paintDenotation(parent, view, entry, file) {
     if (i > 0) den.createSpan({ cls: "ep-denote-op", text: neg ? "\u2212" : "+" });
     else if (neg) den.createSpan({ cls: "ep-denote-op", text: "\u2212" });
     const srcKey = inf.source || entry.key || "";
-    const term = den.createSpan({ cls: "ep-line-abbr ep-denote-term", text: abbrFor(view.settings, srcKey) });
-    const modeName = inf.mode === "formula" ? (_a = inf.formula) != null ? _a : "x" : (_d = (_c = view.registries.derivations.get((_b = inf.mode) != null ? _b : "value")) == null ? void 0 : _c.name(view.i18n)) != null ? _d : "";
-    let title = srcKey + (modeName ? ` \xB7 ${modeName}` : "") + (inf.toggle ? ` \xB7 ${inf.toggle}` : "");
+    const term = den.createSpan({ cls: "ep-line-abbr ep-denote-term", text: termDenotation(view.settings, entry, inf) });
+    let title;
+    if (inf.expr) {
+      title = inf.expr + (inf.toggle ? ` \xB7 ${inf.toggle}` : "");
+    } else {
+      const modeName = inf.mode === "formula" ? (_a = inf.formula) != null ? _a : "x" : (_d = (_c = view.registries.derivations.get((_b = inf.mode) != null ? _b : "value")) == null ? void 0 : _c.name(view.i18n)) != null ? _d : "";
+      title = srcKey + (modeName ? ` \xB7 ${modeName}` : "") + (inf.toggle ? ` \xB7 ${inf.toggle}` : "");
+    }
     if (!influenceActive(view, entry, inf)) term.addClass("ep-denote-off");
     if (file) {
       term.addClass("ep-denote-tog");
@@ -2339,7 +2768,13 @@ function paintBadge(cell, ref) {
   cell.empty();
   if (ref.entry.showChain !== false) paintDenotation(cell, ref.view, ref.entry, ref.file);
   paintDice(cell, ref.entry);
-  cell.appendText(fmtMod(modifierTotal(ref.view, ref.entry)));
+  const info = modifierInfo(ref.view, ref.entry);
+  if (info.value === void 0) {
+    const m = cell.createSpan({ cls: "ep-expr-error", text: "\u2014" });
+    m.setAttr("title", ref.view.i18n.t(info.error === "cycle" ? "mods.errCycle" : "mods.errExpr"));
+  } else {
+    cell.appendText(fmtMod(info.value));
+  }
 }
 var modifierAddon = {
   id: "core.mods",
@@ -2399,7 +2834,7 @@ var modifierAddon = {
     const view = ctx.view;
     let total = 0;
     for (const inf of mods(ctx.entry)) {
-      if (inf.source) {
+      if (inf.source || inf.expr) {
         total += influenceTerm(view, ctx.entry, inf);
         continue;
       }
@@ -2430,12 +2865,43 @@ var modifierAddon = {
         })
       });
     }
+    if (entry.key && entry["__multi"] !== true) {
+      const key = entry.key;
+      if (ensureShortForm(view.settings, key)) changed();
+      new import_obsidian5.Setting(c).setName(t("mods.shortForm")).setDesc(t("mods.shortFormDesc")).addText((tx) => {
+        tx.setValue(abbrFor(view.settings, key)).setPlaceholder(defaultAbbr(key));
+        tx.inputEl.addClass("ep-abbr-input");
+        tx.inputEl.addEventListener("change", () => {
+          const desired = tx.getValue().trim().toUpperCase();
+          if (!desired) {
+            reassignDerived(view.settings, key);
+            changed();
+            tx.setValue(abbrFor(view.settings, key));
+            return;
+          }
+          if (desired === abbrFor(view.settings, key)) return;
+          const other = shortFormConflict(view.settings, key, desired);
+          if (other) {
+            tx.setValue(abbrFor(view.settings, key));
+            new ConfirmModal(view.app, view.i18n, t("mods.shortFormConflict", { abbr: desired, other }), () => {
+              assignShortForm(view.settings, key, desired);
+              reassignDerived(view.settings, other);
+              changed();
+              redraw();
+            }).open();
+            return;
+          }
+          assignShortForm(view.settings, key, desired);
+          changed();
+        });
+      });
+    }
     list.forEach((inf, idx) => {
-      const srcKey = () => inf.source || entry.key || "";
       const head = new import_obsidian5.Setting(c).setName(t("mods.influence", { n: idx + 1 }));
       head.addText((tx) => {
         var _a;
         tx.setPlaceholder(t("mods.sourceSelf")).setValue((_a = inf.source) != null ? _a : "");
+        if (inf.expr !== void 0) tx.setDisabled(true);
         new PropSuggest(view.app, tx.inputEl, view.i18n, () => view.propCandidates(true), (k) => {
           inf.source = k || void 0;
           changed();
@@ -2452,9 +2918,17 @@ var modifierAddon = {
         for (const def of view.registries.derivations.all())
           if (def.id !== "value") d.addOption(def.id, def.name(view.i18n));
         d.addOption("formula", t("mods.modeFormula"));
-        d.setValue((_c = inf.mode) != null ? _c : "value");
+        d.addOption("expr", t("mods.modeExpr"));
+        d.setValue(inf.expr !== void 0 ? "expr" : (_c = inf.mode) != null ? _c : "value");
         d.onChange((v) => {
-          inf.mode = v === "value" ? void 0 : v;
+          var _a2;
+          if (v === "expr") {
+            inf.expr = (_a2 = inf.expr) != null ? _a2 : "";
+            inf.mode = void 0;
+          } else {
+            inf.expr = void 0;
+            inf.mode = v === "value" ? void 0 : v;
+          }
           changed();
           redraw();
         });
@@ -2485,7 +2959,25 @@ var modifierAddon = {
           redraw();
         })
       );
-      if (inf.mode === "formula") {
+      if (inf.expr !== void 0) {
+        new import_obsidian5.Setting(c).setName(t("mods.expr")).setDesc(t("mods.exprDesc")).setClass("ep-mods-sub").addText((tx) => {
+          var _a, _b;
+          tx.setValue((_a = inf.expr) != null ? _a : "");
+          tx.inputEl.addClass("ep-expr-input");
+          new RefSuggest(
+            view.app,
+            tx.inputEl,
+            () => referenceSuggestions(view.settings, view.propCandidates(true).map((c2) => c2.key))
+          );
+          const validate = (val) => tx.inputEl.toggleClass("ep-invalid", val.trim() !== "" && !parseExpr(val));
+          validate((_b = inf.expr) != null ? _b : "");
+          tx.onChange((val) => {
+            inf.expr = val;
+            validate(val);
+            changed();
+          });
+        });
+      } else if (inf.mode === "formula") {
         new import_obsidian5.Setting(c).setName(t("mods.formula")).setDesc(t("options.formulaDesc")).setClass("ep-mods-sub").addText((tx) => {
           var _a;
           tx.setValue((_a = inf.formula) != null ? _a : "x").onChange((v) => {
@@ -2515,17 +3007,6 @@ var modifierAddon = {
         }, false);
         tx.inputEl.addEventListener("change", () => {
           inf.toggle = tx.getValue().trim() || void 0;
-          changed();
-        });
-      });
-      sub.addText((tx) => {
-        tx.setPlaceholder(defaultAbbr(srcKey())).setValue(
-          abbrFor(view.settings, srcKey()) === defaultAbbr(srcKey()) ? "" : abbrFor(view.settings, srcKey())
-        );
-        tx.inputEl.setAttr("aria-label", t("mods.abbr"));
-        tx.inputEl.addClass("ep-abbr-input");
-        tx.onChange((v) => {
-          setAbbr(view.settings, srcKey(), v);
           changed();
         });
       });
@@ -2627,13 +3108,27 @@ var derivedType = {
       }
     };
     for (const a of addonsFor(ctx)) Object.assign(slots, a.fillSlots(ctx, { get: compute, label }));
-    const refs = view.buildCluster(ctx.head, ctx.flags, { display: fmtMod(compute()), slots });
+    const disp = () => {
+      const r = modifierInfo(view, entry);
+      return r.value === void 0 ? "\u2014" : fmtMod(r.value);
+    };
+    const refs = view.buildCluster(ctx.head, ctx.flags, { display: disp(), slots });
     refs.val.addClass("ep-num-join");
     if (entry.valueSize) refs.val.style.fontSize = entry.valueSize + "px";
     if (entry.valueColor) refs.val.style.color = entry.valueColor;
     const sync = () => {
-      refs.val.setText(fmtMod(compute()));
-      refs.val.toggleClass("ep-overridden", hasNoteOverride(view, entry));
+      const info = modifierInfo(view, entry);
+      if (info.value === void 0) {
+        refs.val.setText("\u2014");
+        refs.val.addClass("ep-expr-error");
+        refs.val.removeClass("ep-overridden");
+        refs.val.setAttr("title", view.i18n.t(info.error === "cycle" ? "mods.errCycle" : "mods.errExpr"));
+      } else {
+        refs.val.setText(fmtMod(info.value));
+        refs.val.removeClass("ep-expr-error");
+        refs.val.removeAttribute("title");
+        refs.val.toggleClass("ep-overridden", hasNoteOverride(view, entry));
+      }
     };
     sync();
     view.bindOpen(
@@ -3488,6 +3983,59 @@ var NoteModel = class {
         });
       }
     }
+  }
+};
+var NoteFacade = class {
+  constructor(app, i18n) {
+    this.app = app;
+    this.i18n = i18n;
+    this.timers = /* @__PURE__ */ new Map();
+    this.pending = /* @__PURE__ */ new Map();
+  }
+  /** Shallow copy of a file's frontmatter (empty object when none). */
+  raw(file) {
+    var _a;
+    const fm = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter;
+    return fm ? { ...fm } : {};
+  }
+  /** Raw value of `key` (case-insensitive), or undefined. */
+  get(file, key) {
+    const raw = this.raw(file);
+    const k = Object.keys(raw).find((x) => x.toLowerCase() === key.toLowerCase());
+    return k === void 0 ? void 0 : raw[k];
+  }
+  num(file, key, def = 0) {
+    return getNum(this.raw(file), key, def);
+  }
+  str(file, key) {
+    return getStr(this.raw(file), key);
+  }
+  list(file, key) {
+    return getList(this.raw(file), key);
+  }
+  /** Queue a frontmatter write (debounced per file; `undefined` removes the key). */
+  set(file, key, value) {
+    let m = this.pending.get(file.path);
+    if (!m) {
+      m = /* @__PURE__ */ new Map();
+      this.pending.set(file.path, m);
+    }
+    m.set(key, value);
+    const prev = this.timers.get(file.path);
+    if (prev) window.clearTimeout(prev);
+    this.timers.set(file.path, window.setTimeout(() => this.flush(file), 250));
+  }
+  flush(file) {
+    this.timers.delete(file.path);
+    const m = this.pending.get(file.path);
+    if (!m) return;
+    this.pending.delete(file.path);
+    this.app.fileManager.processFrontMatter(file, (fm) => {
+      for (const [k, v] of m) {
+        if (v === void 0) delete fm[k];
+        else fm[k] = v;
+      }
+    }).catch((err) => new import_obsidian9.Notice(this.i18n.t("notice.saveFailed", { error: String(err) })));
   }
 };
 
@@ -6580,9 +7128,12 @@ function parseRoll(text) {
   }
   return { terms };
 }
-function serializeNode(n) {
+function serializeNode(n, mapRef) {
   if (n.kind === "num") return String(n.value);
-  if (n.kind === "ref") return /[^A-Za-z0-9_]/.test(n.name) ? `[${n.name}]` : n.name;
+  if (n.kind === "ref") {
+    if (mapRef) return mapRef(n.name);
+    return /[^A-Za-z0-9_]/.test(n.name) ? `[${n.name}]` : n.name;
+  }
   let s = (n.count > 1 ? n.count : "") + "d" + n.sides;
   for (const op of n.ops) {
     if (op.t === "kh" || op.t === "kl" || op.t === "dh" || op.t === "dl") s += op.t + (op.n !== 1 ? op.n : "");
@@ -6592,10 +7143,10 @@ function serializeNode(n) {
   }
   return s;
 }
-function serializeRoll(ast) {
+function serializeRoll(ast, mapRef) {
   let out = "";
   ast.terms.forEach((term, idx) => {
-    const txt = serializeNode(term.node);
+    const txt = serializeNode(term.node, mapRef);
     if (idx === 0) out = term.neg ? "-" + txt : txt;
     else out += (term.neg ? " - " : " + ") + txt;
   });
@@ -6893,7 +7444,9 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
         });
       }).addText((tx) => {
         tx.setPlaceholder("f(x)").setValue(dv.formula).onChange((v) => {
-          if (v.trim() && !compileFormula(v.trim())) return;
+          const invalid = !!v.trim() && !compileFormula(v.trim());
+          tx.inputEl.toggleClass("ep-invalid", invalid);
+          if (invalid) return;
           dv.formula = v.trim() || "x";
           applyDerivations();
         });
@@ -7060,6 +7613,7 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
           })
         ).addText((tx) => {
           tx.setPlaceholder("2d6 + 3").setValue(segsToText(m.segs));
+          new RefSuggest(this.app, tx.inputEl, () => referenceSuggestions(plugin.settings, plugin.props.knownProps()));
           tx.onChange((v) => {
             const segs = textToSegs(v);
             if (!segs) {
@@ -7960,7 +8514,7 @@ function addDiceSettings(container, i18n, binding) {
     });
   });
 }
-function openRollMenu(ev, i18n, current, run) {
+function openRollMenu(ev, i18n, current, run, opts) {
   const pop = document.body.createDiv({ cls: "ep-popup ep-rollmenu" });
   pop.style.left = ev.clientX + "px";
   pop.style.top = ev.clientY + 2 + "px";
@@ -7998,6 +8552,14 @@ function openRollMenu(ev, i18n, current, run) {
     dismiss();
     run(mode, n);
   };
+  if (opts == null ? void 0 : opts.onEdit) {
+    const edit = pop.createEl("button", { cls: "ep-mode-btn ep-rollmenu-edit", text: i18n.t("roll.menu.edit") });
+    edit.onclick = () => {
+      var _a;
+      dismiss();
+      (_a = opts.onEdit) == null ? void 0 : _a.call(opts);
+    };
+  }
   input.onkeydown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -8070,6 +8632,41 @@ var rollerKind = {
       }
     };
     exprInput.onblur = commitExpr;
+    new RefSuggest(
+      view.app,
+      exprInput,
+      () => referenceSuggestions(view.settings, view.propCandidates(true).map((c) => c.key))
+    );
+    const insertToken = (token) => {
+      var _a2, _b;
+      const s = (_a2 = exprInput.selectionStart) != null ? _a2 : exprInput.value.length;
+      const eEnd = (_b = exprInput.selectionEnd) != null ? _b : exprInput.value.length;
+      exprInput.value = exprInput.value.slice(0, s) + token + exprInput.value.slice(eEnd);
+      const pos = s + token.length;
+      exprInput.focus();
+      try {
+        exprInput.setSelectionRange(pos, pos);
+      } catch (e2) {
+      }
+    };
+    const fnBar = wrap.createDiv({ cls: "ep-roller-fns" });
+    const fnBtn = (label, title, onClick) => {
+      const b = fnBar.createEl("button", { cls: "ep-roller-fn", text: label });
+      b.setAttr("title", title);
+      b.onmousedown = (ev) => ev.preventDefault();
+      b.onclick = onClick;
+    };
+    fnBtn(
+      t("roller.fnDie"),
+      t("roller.fnDieHint"),
+      (ev) => openDiceMenu(ev, view.app, view.i18n, { get: () => void 0, set: (n) => insertToken(n || "d20") })
+    );
+    fnBtn("kh", t("roller.fnKeepHigh"), () => insertToken("kh1"));
+    fnBtn("kl", t("roller.fnKeepLow"), () => insertToken("kl1"));
+    fnBtn("!", t("roller.fnExplode"), () => insertToken("!"));
+    fnBtn("r", t("roller.fnReroll"), () => insertToken("r1"));
+    fnBtn("\u2265", t("roller.fnSuccess"), () => insertToken(">="));
+    fnBtn("+", t("roller.fnPlus"), () => insertToken(" + "));
     const inlineChipText = (chip, initial, apply) => {
       chip.empty();
       const inp = chip.createEl("input", { cls: "ep-roller-textedit", type: "text" });
@@ -8914,6 +9511,14 @@ var rollingEn = {
   "roller.removeSeg": "Remove",
   "roller.exprPlaceholder": "e.g. 2d6kh1 + 1d8 + DEX + 3",
   "roller.exprHint": "Type a roll. kh/kl/dh/dl keep or drop dice, ! explodes, rN/roN reroll \u2264 N, >=N counts successes; names like DEX read the note's property.",
+  "roller.fnDie": "die",
+  "roller.fnDieHint": "Insert a die (pick the size)",
+  "roller.fnKeepHigh": "Keep highest (advantage)",
+  "roller.fnKeepLow": "Keep lowest (disadvantage)",
+  "roller.fnExplode": "Explode on max",
+  "roller.fnReroll": "Reroll \u2264 1",
+  "roller.fnSuccess": "Count successes (\u2265 N)",
+  "roller.fnPlus": "Add a term",
   "roller.macros": "Macros",
   "roller.saveMacro": "+ save as macro",
   "roller.saveMacroPrompt": "Macro name",
@@ -9026,6 +9631,14 @@ var rollingDe = {
   "roller.removeSeg": "Entfernen",
   "roller.exprPlaceholder": "z. B. 2d6kh1 + 1d8 + DEX + 3",
   "roller.exprHint": "Wurf eingeben. kh/kl/dh/dl behalten/verwerfen W\xFCrfel, ! explodiert, rN/roN w\xFCrfeln \u2264 N neu, >=N z\xE4hlt Erfolge; Namen wie DEX lesen die Eigenschaft der Notiz.",
+  "roller.fnDie": "W\xFCrfel",
+  "roller.fnDieHint": "W\xFCrfel einf\xFCgen (Gr\xF6\xDFe w\xE4hlen)",
+  "roller.fnKeepHigh": "H\xF6chsten behalten (Vorteil)",
+  "roller.fnKeepLow": "Niedrigsten behalten (Nachteil)",
+  "roller.fnExplode": "Bei Maximum explodieren",
+  "roller.fnReroll": "Neu w\xFCrfeln \u2264 1",
+  "roller.fnSuccess": "Erfolge z\xE4hlen (\u2265 N)",
+  "roller.fnPlus": "Term hinzuf\xFCgen",
   "roller.macros": "Makros",
   "roller.saveMacro": "+ als Makro speichern",
   "roller.saveMacroPrompt": "Makroname",
@@ -9531,9 +10144,409 @@ var HistoryService = class {
   }
 };
 
+// src/features/inline/inline-render.ts
+var import_obsidian28 = require("obsidian");
+var enabled = (ctx) => ctx.settings.features["inline"] !== false;
+function processInline(el, mdctx, ctx) {
+  var _a, _b;
+  if (!enabled(ctx)) return;
+  const codes = Array.from(el.querySelectorAll("code"));
+  if (!codes.length) return;
+  const file = ctx.app.vault.getAbstractFileByPath(mdctx.sourcePath);
+  if (!(file instanceof import_obsidian28.TFile)) return;
+  for (const code of codes) {
+    if (code.closest("pre")) continue;
+    const m = /^(roll|prop|val)(?:\(([^)]*)\))?:\s*(.+)$/i.exec(((_a = code.textContent) != null ? _a : "").trim());
+    if (!m) continue;
+    const kind = m[1].toLowerCase();
+    const opt = ((_b = m[2]) != null ? _b : "").trim();
+    const body = m[3].trim();
+    if (kind === "roll") {
+      code.replaceWith(makeRollChip(ctx, file, body, opt));
+    } else {
+      const key = kind === "val" ? resolveRefKey(ctx, file, body) : body;
+      const span = createSpan();
+      code.replaceWith(span);
+      mdctx.addChild(new PropInline(span, ctx, file, key));
+    }
+  }
+}
+function resolveRefKey(ctx, file, name) {
+  var _a;
+  return (_a = keyForShortForm(ctx.settings, name, Object.keys(ctx.facade.raw(file)))) != null ? _a : name;
+}
+function refValue(ctx, file, name) {
+  const v = ctx.facade.get(file, resolveRefKey(ctx, file, name));
+  if (v === void 0 || v === null || v === "") return void 0;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : void 0;
+}
+function primarySides(ast) {
+  if (ast) {
+    for (const term of ast.terms) if (term.node.kind === "dice") return term.node.sides;
+  }
+  return 20;
+}
+function applyMode(ast, mode) {
+  if (mode === "normal") return ast;
+  const terms = ast.terms.map(
+    (tm) => tm.node.kind === "dice" ? { neg: tm.neg, node: { ...tm.node, ops: [...tm.node.ops] } } : tm
+  );
+  const first = terms.find((tm) => tm.node.kind === "dice");
+  if (first) {
+    const dn = first.node;
+    dn.count += 1;
+    dn.ops.push(mode === "advantage" ? { t: "dl", n: 1 } : { t: "dh", n: 1 });
+  }
+  return { terms };
+}
+function runInlineRoll(ctx, file, body, mode, times) {
+  const t = ctx.i18n.t.bind(ctx.i18n);
+  if (!parseRoll(body)) {
+    new import_obsidian28.Notice(t("inline.rollInvalid"));
+    return;
+  }
+  const tag = mode === "advantage" ? " " + t("roll.tagAdvantage") : mode === "disadvantage" ? " " + t("roll.tagDisadvantage") : "";
+  const n = Math.max(1, Math.min(20, times || 1));
+  for (let i = 0; i < n; i++) {
+    ctx.roll.rollAst(n > 1 ? `${body} #${i + 1}` : body, applyMode(parseRoll(body), mode), {
+      tag,
+      mode,
+      stay: n > 1,
+      resolve: (name) => refValue(ctx, file, name)
+    });
+  }
+}
+function makeRollChip(ctx, file, body, opt, onEdit) {
+  const t = ctx.i18n.t.bind(ctx.i18n);
+  const ast = parseRoll(body);
+  const chip = createSpan({ cls: "ep-inline-roll" });
+  const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });
+  (0, import_obsidian28.setIcon)(ic, diceIconId(primarySides(ast)));
+  chip.createSpan({
+    cls: "ep-inline-roll-lab",
+    text: ast ? serializeRoll(ast, (name) => {
+      const v = refValue(ctx, file, name);
+      return v === void 0 ? name : String(v);
+    }) : body
+  });
+  const mode = /^adv/i.test(opt) ? "advantage" : /^dis/i.test(opt) ? "disadvantage" : "normal";
+  if (!ast) chip.addClass("ep-expr-error");
+  chip.setAttr("title", ast ? t("inline.rollHint", { expr: body }) : t("inline.rollInvalid"));
+  chip.onclick = (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    runInlineRoll(ctx, file, body, mode, 1);
+  };
+  chip.oncontextmenu = (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    openRollMenu(ev, ctx.i18n, mode, (mo, ti) => runInlineRoll(ctx, file, body, mo, ti), onEdit ? { onEdit } : void 0);
+  };
+  return chip;
+}
+function renderPropValue(ctx, file, key) {
+  const t = ctx.i18n.t.bind(ctx.i18n);
+  const raw = ctx.facade.get(file, key);
+  const text = raw === void 0 || raw === null || raw === "" ? t("inline.empty") : Array.isArray(raw) ? raw.join(", ") : String(raw);
+  const val = createSpan({ cls: "ep-inline-val ep-inline-editable", text });
+  val.setAttr("title", t("inline.propHint", { key }));
+  val.onclick = (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const isNum = typeof raw === "number" || typeof raw === "string" && raw.trim() !== "" && Number.isFinite(Number(raw));
+    if (isNum) {
+      openNumberInput(
+        val,
+        Number(raw != null ? raw : 0),
+        (v) => {
+          ctx.facade.set(file, key, v);
+          val.setText(fmtNum(v));
+        },
+        {
+          min: -1e5,
+          max: 1e5,
+          float: true,
+          clamp: false,
+          onEmpty: () => {
+            ctx.facade.set(file, key, void 0);
+            val.setText(t("inline.empty"));
+          }
+        }
+      );
+    } else {
+      openTextInput(ctx.app, val, key, raw == null ? "" : String(raw), () => [], (v) => {
+        ctx.facade.set(file, key, v || void 0);
+        val.setText(v || t("inline.empty"));
+      });
+    }
+  };
+  return val;
+}
+var PropInline = class extends import_obsidian28.MarkdownRenderChild {
+  constructor(root, ctx, file, key) {
+    super(root);
+    this.root = root;
+    this.ctx = ctx;
+    this.file = file;
+    this.key = key;
+  }
+  onload() {
+    this.root.addClass("ep-inline-prop");
+    this.draw();
+    this.registerEvent(
+      this.ctx.app.metadataCache.on("changed", (f) => {
+        if (f.path === this.file.path) this.draw();
+      })
+    );
+  }
+  draw() {
+    this.root.empty();
+    this.root.appendChild(renderPropValue(this.ctx, this.file, this.key));
+  }
+};
+function buildEnv(ctx, file, layout) {
+  const raw = ctx.facade.raw(file);
+  const note = {
+    raw,
+    num: (k, d) => getNum(raw, k, d),
+    list: (k) => getList(raw, k)
+  };
+  return { note, registries: ctx.registries, settings: ctx.settings, layout };
+}
+function layoutForFile(ctx, file) {
+  const raw = ctx.facade.raw(file);
+  const tk = Object.keys(raw).find((k) => k.toLowerCase() === "type");
+  const tv = tk !== void 0 ? raw[tk] : void 0;
+  const types = Array.isArray(tv) ? tv.map(String) : tv === void 0 || tv === null ? [] : [String(tv)];
+  const match = ctx.settings.types.find((tp) => types.some((x) => x.toLowerCase() === tp.toLowerCase()));
+  if (!match) return null;
+  const layout = ctx.settings.layouts[match.toLowerCase()];
+  return layout && Array.isArray(layout.sections) ? layout : null;
+}
+function renderSheet(src, el, mdctx, ctx) {
+  const file = ctx.app.vault.getAbstractFileByPath(mdctx.sourcePath);
+  if (!(file instanceof import_obsidian28.TFile)) return;
+  mdctx.addChild(new SheetInline(el, ctx, file, src));
+}
+var SheetInline = class extends import_obsidian28.MarkdownRenderChild {
+  constructor(root, ctx, file, src) {
+    super(root);
+    this.root = root;
+    this.ctx = ctx;
+    this.file = file;
+    this.src = src;
+  }
+  onload() {
+    this.draw();
+    this.registerEvent(
+      this.ctx.app.metadataCache.on("changed", (f) => {
+        if (f.path === this.file.path) this.draw();
+      })
+    );
+  }
+  draw() {
+    const t = this.ctx.i18n.t.bind(this.ctx.i18n);
+    this.root.empty();
+    this.root.addClass("ep-inline-sheet");
+    if (!enabled(this.ctx)) return;
+    const layout = layoutForFile(this.ctx, this.file);
+    if (!layout) {
+      this.root.createDiv({ cls: "ep-inline-note", text: t("inline.sheetNoType") });
+      return;
+    }
+    const wanted = this.src.split("\n").map((s) => s.trim().toLowerCase()).filter(Boolean);
+    const env = buildEnv(this.ctx, this.file, layout);
+    let any = false;
+    for (const section of layout.sections) {
+      if (wanted.length && !wanted.includes((section.title || "").toLowerCase())) continue;
+      const entries = section.entries.filter((e) => e.kind === "prop" && e.key);
+      if (!entries.length) continue;
+      any = true;
+      const sec = this.root.createDiv({ cls: "ep-inline-sheet-sec" });
+      if (section.title) sec.createDiv({ cls: "ep-inline-sheet-title", text: section.title });
+      for (const entry of entries) this.row(sec, env, entry);
+    }
+    if (!any) this.root.createDiv({ cls: "ep-inline-note", text: t("inline.sheetEmpty") });
+  }
+  row(parent, env, entry) {
+    const t = this.ctx.i18n.t.bind(this.ctx.i18n);
+    const row = parent.createDiv({ cls: "ep-inline-sheet-row" });
+    row.createSpan({ cls: "ep-inline-sheet-lab", text: entry.alias || entry.key });
+    const valEl = row.createSpan({ cls: "ep-inline-sheet-val" });
+    if (entry.dataType === "derived") {
+      const info = modifierInfo(env, entry);
+      if (info.value === void 0) {
+        valEl.addClass("ep-expr-error");
+        valEl.setText(t("inline.empty"));
+        valEl.setAttr("title", t(info.error === "cycle" ? "mods.errCycle" : "mods.errExpr"));
+      } else {
+        valEl.setText(fmtMod(info.value));
+      }
+    } else {
+      const raw = this.ctx.facade.get(this.file, entry.key);
+      valEl.setText(
+        raw === void 0 || raw === null || raw === "" ? t("inline.empty") : Array.isArray(raw) ? raw.join(", ") : String(raw)
+      );
+    }
+    const e = ext(entry);
+    if (e.roll) {
+      const chip = row.createSpan({ cls: "ep-inline-roll ep-inline-sheet-roll" });
+      const spec = parseDiceOrDefault(typeof e.dice === "string" ? e.dice : void 0);
+      const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });
+      (0, import_obsidian28.setIcon)(ic, diceIconId(spec.sides));
+      chip.createSpan({ cls: "ep-inline-roll-lab", text: t("roll.roll") });
+      const label = entry.alias || entry.key || t("roll.roll");
+      chip.setAttr("title", t("inline.rollHint", { expr: label }));
+      chip.onclick = (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        this.ctx.roll.roll(label, modifierTotal(env, entry), spec, {});
+      };
+    }
+  }
+};
+
+// src/features/inline/live-preview.ts
+var import_view = require("@codemirror/view");
+var import_state = require("@codemirror/state");
+var import_language = require("@codemirror/language");
+var import_obsidian29 = require("obsidian");
+var PREFIX = /^(roll|prop|val)(?:\(([^)]*)\))?:\s*(.+)$/i;
+function backtickSpan(doc, from, to) {
+  let s = from;
+  while (s > 0 && doc.sliceString(s - 1, s) === "`") s--;
+  let e = to;
+  while (e < doc.length && doc.sliceString(e, e + 1) === "`") e++;
+  return { from: s, to: e };
+}
+var InlineWidget = class extends import_view.WidgetType {
+  constructor(ctx, file, kind, opt, body, from) {
+    super();
+    this.ctx = ctx;
+    this.file = file;
+    this.kind = kind;
+    this.opt = opt;
+    this.body = body;
+    this.from = from;
+  }
+  eq(o) {
+    return o.kind === this.kind && o.opt === this.opt && o.body === this.body && o.from === this.from && o.file.path === this.file.path;
+  }
+  toDOM(view) {
+    const reveal = () => {
+      view.dispatch({ selection: { anchor: this.from + 1 } });
+      view.focus();
+    };
+    if (this.kind === "roll") return makeRollChip(this.ctx, this.file, this.body, this.opt, reveal);
+    const key = this.kind === "val" ? resolveRefKey(this.ctx, this.file, this.body) : this.body;
+    const wrap = createSpan({ cls: "ep-inline-prop" });
+    wrap.appendChild(renderPropValue(this.ctx, this.file, key));
+    wrap.oncontextmenu = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const menu = new import_obsidian29.Menu();
+      menu.addItem((i) => i.setTitle(this.ctx.i18n.t("inline.editSource")).setIcon("pencil").onClick(reveal));
+      menu.showAtMouseEvent(ev);
+    };
+    return wrap;
+  }
+  ignoreEvent() {
+    return true;
+  }
+};
+function buildDecos(view, ctx) {
+  var _a, _b;
+  const b = new import_state.RangeSetBuilder();
+  if (ctx.settings.features["inline"] === false) return b.finish();
+  if (!view.state.field(import_obsidian29.editorLivePreviewField, false)) return b.finish();
+  const file = (_b = (_a = view.state.field(import_obsidian29.editorInfoField, false)) == null ? void 0 : _a.file) != null ? _b : ctx.app.workspace.getActiveFile();
+  if (!file) return b.finish();
+  const sel = view.state.selection;
+  const doc = view.state.doc;
+  for (const { from, to } of view.visibleRanges) {
+    (0, import_language.syntaxTree)(view.state).iterate({
+      from,
+      to,
+      enter: (node) => {
+        var _a2;
+        const name = node.type.name;
+        if (!name.includes("inline-code") || name.includes("formatting")) return;
+        const m = PREFIX.exec(doc.sliceString(node.from, node.to).trim());
+        if (!m) return;
+        const span = backtickSpan(doc, node.from, node.to);
+        if (sel.ranges.some((r) => r.from <= span.to && r.to >= span.from)) return;
+        b.add(
+          span.from,
+          span.to,
+          import_view.Decoration.replace({
+            widget: new InlineWidget(ctx, file, m[1].toLowerCase(), ((_a2 = m[2]) != null ? _a2 : "").trim(), m[3].trim(), span.from)
+          })
+        );
+      }
+    });
+  }
+  return b.finish();
+}
+function inlineLivePreview(ctx) {
+  return import_view.ViewPlugin.fromClass(
+    class {
+      constructor(view) {
+        this.decorations = buildDecos(view, ctx);
+      }
+      update(u) {
+        if (u.docChanged || u.viewportChanged || u.selectionSet || u.startState.field(import_obsidian29.editorLivePreviewField, false) !== u.state.field(import_obsidian29.editorLivePreviewField, false)) {
+          this.decorations = buildDecos(u.view, ctx);
+        }
+      }
+    },
+    { decorations: (v) => v.decorations }
+  );
+}
+
+// src/features/inline/strings.ts
+var inlineEn = {
+  "inline.featureName": "Inline rolls & properties",
+  "inline.featureDesc": "Render `roll: 2d6+DEX` as a clickable roll and `prop: Strength` as a live, editable value in note bodies (reading mode), plus an `ep-sheet` code block that projects a note-type section.",
+  "inline.rollHint": "Click to roll \xB7 {expr}",
+  "inline.rollInvalid": "Invalid roll expression.",
+  "inline.propHint": "{key} \u2014 click to edit",
+  "inline.editSource": "Edit source",
+  "inline.empty": "\u2014",
+  "inline.sheetNoType": "ep-sheet: this note has no matching type.",
+  "inline.sheetEmpty": "ep-sheet: nothing to show."
+};
+var inlineDe = {
+  "inline.featureName": "Inline-W\xFCrfe & Eigenschaften",
+  "inline.featureDesc": "Stellt `roll: 2d6+DEX` als anklickbaren Wurf und `prop: St\xE4rke` als lebenden, bearbeitbaren Wert im Notiztext dar (Lesemodus), plus einen `ep-sheet`-Codeblock, der einen Abschnitt des Notiztyps projiziert.",
+  "inline.rollHint": "Zum W\xFCrfeln klicken \xB7 {expr}",
+  "inline.rollInvalid": "Ung\xFCltiger Wurf-Ausdruck.",
+  "inline.propHint": "{key} \u2014 zum Bearbeiten klicken",
+  "inline.editSource": "Quelle bearbeiten",
+  "inline.empty": "\u2014",
+  "inline.sheetNoType": "ep-sheet: Diese Notiz hat keinen passenden Typ.",
+  "inline.sheetEmpty": "ep-sheet: Nichts anzuzeigen."
+};
+
+// src/features/inline/index.ts
+var inlineModule = {
+  id: "inline",
+  name: (i18n) => i18n.t("inline.featureName"),
+  description: (i18n) => i18n.t("inline.featureDesc"),
+  register(ctx) {
+    ctx.i18n.register("en", inlineEn);
+    ctx.i18n.register("de", inlineDe);
+  }
+};
+function registerInline(plugin, ctx) {
+  plugin.registerMarkdownPostProcessor((el, mdctx) => processInline(el, mdctx, ctx));
+  plugin.registerMarkdownCodeBlockProcessor("ep-sheet", (src, el, mdctx) => renderSheet(src, el, mdctx, ctx));
+  plugin.registerEditorExtension(inlineLivePreview(ctx));
+}
+
 // src/main.ts
-var FEATURE_MODULES = [rollingModule, dnd5eModule];
-var ExtendedPropertiesPlugin = class extends import_obsidian28.Plugin {
+var FEATURE_MODULES = [rollingModule, dnd5eModule, inlineModule];
+var ExtendedPropertiesPlugin = class extends import_obsidian30.Plugin {
   constructor() {
     super(...arguments);
     this.i18n = new I18n();
@@ -9563,6 +10576,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian28.Plugin {
     for (const mod of FEATURE_MODULES) {
       if (this.settings.features[mod.id] !== false && ((_a = mod.migrate) == null ? void 0 : _a.call(mod, this.settings))) migrated = true;
     }
+    if (materializeShortForms(this.settings)) migrated = true;
     this.hide = new HideService({
       settings: this.settings,
       save: () => this.saveSettings(),
@@ -9587,7 +10601,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian28.Plugin {
         const k = v.trim();
         if (!k) return;
         this.hide.hideKey(k);
-        new import_obsidian28.Notice(this.i18n.t("notice.hiding", { key: k }));
+        new import_obsidian30.Notice(this.i18n.t("notice.hiding", { key: k }));
       }, () => this.props.knownProps()).open()
     });
     this.addSettingTab(new EPSettingTab(this.app, this));
@@ -9599,6 +10613,14 @@ var ExtendedPropertiesPlugin = class extends import_obsidian28.Plugin {
       });
     }
     this.syncMacroCommands();
+    registerInline(this, {
+      app: this.app,
+      i18n: this.i18n,
+      settings: this.settings,
+      registries: this.registries,
+      facade: new NoteFacade(this.app, this.i18n),
+      roll: this.rollService()
+    });
     const refresh = (file) => {
       for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE)) {
         const v = leaf.view;
@@ -9652,9 +10674,9 @@ var ExtendedPropertiesPlugin = class extends import_obsidian28.Plugin {
    */
   syncMacroCommands() {
     var _a;
-    const enabled = this.settings.features["rolling"] !== false;
-    const macros = enabled && Array.isArray(this.settings.macros) ? this.settings.macros : [];
-    const sig = (enabled ? "" : "off|") + macros.map((m) => `${m.id}:${m.name}`).join("|");
+    const enabled2 = this.settings.features["rolling"] !== false;
+    const macros = enabled2 && Array.isArray(this.settings.macros) ? this.settings.macros : [];
+    const sig = (enabled2 ? "" : "off|") + macros.map((m) => `${m.id}:${m.name}`).join("|");
     if (sig === this.macroSig) return;
     this.macroSig = sig;
     const cmds = this.app.commands;
@@ -9680,9 +10702,9 @@ var ExtendedPropertiesPlugin = class extends import_obsidian28.Plugin {
     try {
       const f = await this.app.vault.create(path, md);
       await this.app.workspace.getLeaf(true).openFile(f);
-      new import_obsidian28.Notice(this.i18n.t("roll.export.done"));
+      new import_obsidian30.Notice(this.i18n.t("roll.export.done"));
     } catch (err) {
-      new import_obsidian28.Notice(this.i18n.t("roll.export.failed", { error: String(err) }));
+      new import_obsidian30.Notice(this.i18n.t("roll.export.failed", { error: String(err) }));
     }
   }
   // -- registries -------------------------------------------------------------

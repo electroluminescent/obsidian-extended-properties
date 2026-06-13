@@ -51,10 +51,11 @@ Any numeric or derived entry can carry a list of *influences* — terms summed i
 
 - **Source**: a property, referenced by name. Chains resolve through other derived properties (a derived value feeding another derived value) up to a configurable depth (default 8, set in the plugin settings).
 - **Derivation**: "value as-is", a named formula block from settings (seeded with *Ability modifier* and *Proficiency bonus* — rename, edit or delete them freely), or a custom formula in `x`.
+- **Expression**: a full expression over many properties — `floor((STR + DEX) / 2) + max(PB, 2)` — referencing them by name or short form (`[Quoted Names]` for spaces). Functions: `floor`, `ceil`, `round`, `min`, `max`, `clamp`, `abs`, `if`, comparisons and `&&`/`||`; your derivation blocks are callable too (`abilityMod(Dexterity)`). A typo degrades to "—" with a tooltip and reference cycles are detected explicitly, never breaking the sheet.
 - **Sign**: added or subtracted.
 - **Toggle**: a list property that switches the term on/off per note — the generic form of proficiency. The row gets a checkbox, and the term in the chain can be double-clicked to toggle it.
 
-Rows display the chain as short forms (`INT + DEX − AGE`), the dice breakdown (`2d20` with a die pictogram) and the total. Short forms default to the capitalized first three letters of the source property and can be overridden per property. The data-type tag, chain, dice and die icon each have their own show toggle, and whatever is enabled is shown or hidden dynamically as the sidebar is resized.
+Rows display the chain as short forms (`INT + DEX − AGE`), the dice breakdown (`2d20` with a die pictogram) and the total. **Short forms are configured per number property** (in its options), kept **unique across properties** — setting one already in use prompts to overwrite, and the previous owner is re-derived by walking the name (`Dexterity → DEX`, `Dexterous → DET`). A property's name and its short form are **interchangeable** wherever you reference it, and both autocomplete as you type (chains, expressions, the dice roller, inline `val:`/`roll:`). The data-type tag, chain, dice and die icon each have their own show toggle, and whatever is enabled is shown or hidden dynamically as the sidebar is resized.
 
 ### Dice & Rolls System
 
@@ -62,11 +63,21 @@ Enable the rolling feature (default-on; toggle in Settings → Features) for ful
 
 - **Roll buttons** on numeric and derived properties roll the configured dice plus the entry's influence sum; the row reads like the roll (`STR + PRO 2d20 +5`).
 - **Preset dice**: d2, d4, d6, d8, d10, d12, d20, d100, or custom die sizes with any quantity — with isometric die icons in the dice menus and inline before the notation (sources in `assets/dice/`).
-- **Dice notation**: Type any roll in the dice roller — `2d6kh1 + 1d8 + DEX + 3` — with keep/drop (`kh`/`kl`/`dh`/`dl`), exploding (`!`/`!N`), reroll (`rN`/`roN`), success counting (`>=N`, `>N`, `<=N`, `<N`, `=N`) and property references (names read the note's frontmatter). The chips and the text field are two views of one roll. Crit thresholds per die size and the fail-on-1 rule are configurable in Settings → Dice.
+- **Dice notation**: Type any roll in the dice roller — `2d6kh1 + 1d8 + DEX + 3` — with keep/drop (`kh`/`kl`/`dh`/`dl`), exploding (`!`/`!N`), reroll (`rN`/`roN`), success counting (`>=N`, `>N`, `<=N`, `<N`, `=N`) and property references (by name or short form). The chips and the text field are two views of one roll. A **function bar** inserts notation (die picker, keep/drop, explode, reroll, success), and references autocomplete as you type. Crit thresholds per die size and the fail-on-1 rule are configurable in Settings → Dice.
 - **Roll history panel**: A durable, plugin-wide log that survives note switches and reloads (capped, configurable in Settings → Rolls). Toggle the full chain vs. label & result, filter to the current note, clear it, and re-run any in-session roll by clicking it. *Export roll history to a note* writes it out as a Markdown table.
 - **Saved rolls (macros)**: Reusable "custom roll objects" — name a chain like `2d6 + 1d8 + 3`, then roll it from the dice roller, from the command palette (one command per macro), with optional per-type scope. Build one in the roller and *save as macro*, or manage them in Settings → Rolls.
 - **Roll modes**: Normal, advantage (roll twice, take higher), and disadvantage (roll twice, take lower)—selectable per roll.
 - **Skills value type (legacy)**: The record-based list type is kept for existing notes and offers a one-click *Convert to property entries* that turns each record into a derived property (proficiency becomes a togglable influence backed by a list property). New layouts use sections of derived properties instead.
+
+### Inline Rolls & Properties
+
+Enable the inline feature (default-on; toggle in Settings → Features) to project the sidebar's engine into note bodies (reading mode):
+
+- **Inline rolls**: `` `roll: 2d6+DEX` `` becomes a clickable roll chip — full dice notation and property references, with `` `roll(adv):` `` / `` `roll(dis):` `` for advantage/disadvantage. Rolls go through the same animation and history as the sidebar, with no view open.
+- **Inline properties**: `` `prop: Strength` `` shows the note's live value and is click-to-edit, writing back to frontmatter.
+- **Statblock block**: an `ep-sheet` code block projects the note type's sections as a compact read-only statblock (derived values computed, roll buttons included). List section titles inside the block to show only those.
+
+Values resolve against the note the code lives in, so embeds and hover previews stay correct. Chips render in both **reading mode and Live Preview**. In Live Preview, moving the caret just before, into, or just after a chip reveals its raw text for editing; on a roll chip, right-click for the usual roll menu (advantage/disadvantage, number of rolls) plus an *Edit source* action.
 
 ### Obsidian Integration
 

@@ -115,6 +115,7 @@ export const coreEn: StringDict = {
   "roll.partTotal": "total",
   "roll.menu.count": "Number of rolls",
   "roll.menu.go": "Roll",
+  "roll.menu.edit": "Edit source",
   "type.list": "list",
   "type.checkbox": "checkbox",
   "type.color": "color",
@@ -130,9 +131,20 @@ export const coreEn: StringDict = {
   "mods.sourceSelf": "(this property)",
   "mods.modeFormula": "Custom formula…",
   "mods.formula": "Formula f(x)",
-  "mods.termOptions": "Sign · toggle · short form",
+  "mods.modeExpr": "Expression…",
+  "mods.expr": "Expression",
+  "mods.exprDesc":
+    "Math over properties by name or short form, e.g. floor((STR + DEX) / 2) + max(PB, 2). Functions: floor, ceil, round, min, max, clamp, abs, if; your derivations are callable too.",
+  "mods.errExpr": "This value can't be computed — check the expression (unknown property or syntax).",
+  "mods.errCycle": "This value depends on itself (a reference cycle).",
+  "mods.termOptions": "Sign · toggle",
   "mods.termOptionsDesc":
-    "How this term enters the sum; a list property that toggles it per note (the way proficiency works); the short form shown in denotations; and whether the row shows this term's checkbox.",
+    "How this term enters the sum, and a list property that toggles it per note (the way proficiency works).",
+  "mods.shortForm": "Short form",
+  "mods.shortFormDesc":
+    "Abbreviation used in modifier chains (INT + DEX) and inline val:/roll: references. Must be unique across properties.",
+  "mods.shortFormConflict":
+    "“{abbr}” is already the short form of “{other}”. Use it here instead? “{other}” will be given a new short form.",
   "mods.showToggle": "Show checkbox on the row",
   "mods.clickToggle": "click to toggle",
   "mods.weightAdd": "+ add",

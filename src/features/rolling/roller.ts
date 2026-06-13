@@ -23,9 +23,11 @@ import type { ViewCtx } from "../../core/context";
 import { ext, type RollMacro, type RollSeg } from "../../core/model";
 import { genId } from "../../utils/misc";
 import { parseDice } from "../../utils/dice";
+import { referenceSuggestions } from "../../core/influences";
 import { ROLL_SERVICE, RollMode, RollService } from "./roll-service";
 import { openDiceMenu } from "./dice-ui";
 import { applicableMacros, runMacro, runRoll, segsToText, textToSegs } from "./macros";
+import { RefSuggest } from "../../ui/components/suggest";
 import { TextPromptModal } from "../../ui/modals/dialogs";
 
 /** One link of the user-assembled chain. */
@@ -90,6 +92,40 @@ export const rollerKind: EntryKindDef = {
       }
     };
     exprInput.onblur = commitExpr;
+    // Interchangeable name/short-form autocomplete for the identifier being typed.
+    new RefSuggest(view.app, exprInput, () =>
+      referenceSuggestions(view.settings, view.propCandidates(true).map((c) => c.key))
+    );
+
+    // -- function bar: insert dice-notation tokens at the caret ----------------
+    const insertToken = (token: string): void => {
+      const s = exprInput.selectionStart ?? exprInput.value.length;
+      const eEnd = exprInput.selectionEnd ?? exprInput.value.length;
+      exprInput.value = exprInput.value.slice(0, s) + token + exprInput.value.slice(eEnd);
+      const pos = s + token.length;
+      exprInput.focus();
+      try {
+        exprInput.setSelectionRange(pos, pos);
+      } catch {
+        /* unsupported */
+      }
+    };
+    const fnBar = wrap.createDiv({ cls: "ep-roller-fns" });
+    const fnBtn = (label: string, title: string, onClick: (ev: MouseEvent) => void): void => {
+      const b = fnBar.createEl("button", { cls: "ep-roller-fn", text: label });
+      b.setAttr("title", title);
+      b.onmousedown = (ev) => ev.preventDefault(); // keep the expression field focused
+      b.onclick = onClick;
+    };
+    fnBtn(t("roller.fnDie"), t("roller.fnDieHint"), (ev) =>
+      openDiceMenu(ev, view.app, view.i18n, { get: () => undefined, set: (n) => insertToken(n || "d20") })
+    );
+    fnBtn("kh", t("roller.fnKeepHigh"), () => insertToken("kh1"));
+    fnBtn("kl", t("roller.fnKeepLow"), () => insertToken("kl1"));
+    fnBtn("!", t("roller.fnExplode"), () => insertToken("!"));
+    fnBtn("r", t("roller.fnReroll"), () => insertToken("r1"));
+    fnBtn("≥", t("roller.fnSuccess"), () => insertToken(">="));
+    fnBtn("+", t("roller.fnPlus"), () => insertToken(" + "));
 
     /** Replace a chip with a one-field text editor; `apply(value)` decides what to keep. */
     const inlineChipText = (chip: HTMLElement, initial: string, apply: (value: string) => void): void => {
