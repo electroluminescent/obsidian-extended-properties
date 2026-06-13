@@ -21,8 +21,9 @@ import { ext } from "../../core/model";
 import type { Registries } from "../../core/registry";
 import type { NoteModel, NoteFacade } from "../../core/note-model";
 import {
-  InfluenceEnv, keyForShortForm, makeRefResolver, modifierBaseFor, modifierInfo, modifierTotal,
+  InfluenceEnv, keyForShortForm, modifierBaseFor, modifierInfo, modifierTotal,
 } from "../../core/influences";
+import { makeNoteAwareResolver, parseNoteRef } from "../../core/note-ref";
 import { DiceNode, parseRoll, RollAst, serializeRoll } from "../../utils/dice-expr";
 import { parseDiceOrDefault } from "../../utils/dice";
 import { fmtMod, fmtNum, getList, getNum } from "../../utils/misc";
@@ -82,9 +83,9 @@ export function resolveRefKey(ctx: InlineCtx, file: TFile, name: string): string
   return keyForShortForm(ctx.settings, name, Object.keys(ctx.facade.raw(file))) ?? name;
 }
 
-/** A reference resolver (names, short forms, `Xs` modifiers) against `file`'s note. */
+/** A reference resolver (names, short forms, `Xs` modifiers, `[[note]].x`) for `file`. */
 function refResolver(ctx: InlineCtx, file: TFile): (name: string) => number | undefined {
-  return makeRefResolver(envFor(ctx, file));
+  return makeNoteAwareResolver(ctx.app, ctx.settings, ctx.registries, envFor(ctx, file), file.path);
 }
 
 function primarySides(ast: RollAst | null): number {
@@ -255,9 +256,10 @@ function findInlineEntry(ctx: InlineCtx, file: TFile, key: string): Entry | null
  */
 export function makeValEl(ctx: InlineCtx, file: TFile, body: string, onEditSource?: () => void): HTMLElement {
   const t = ctx.i18n.t.bind(ctx.i18n);
+  const noteRef = parseNoteRef(body);
   const noteKeys = Object.keys(ctx.facade.raw(file));
-  const directKey = keyForShortForm(ctx.settings, body, noteKeys);
-  const base = directKey ? null : modifierBaseFor(ctx.settings, body);
+  const directKey = noteRef ? null : keyForShortForm(ctx.settings, body, noteKeys);
+  const base = directKey || noteRef ? null : modifierBaseFor(ctx.settings, body);
   const baseKey = base ? keyForShortForm(ctx.settings, base, noteKeys) : null;
 
   const chip = createSpan({ cls: "ep-inline-roll ep-inline-valchip" });
@@ -268,6 +270,9 @@ export function makeValEl(ctx: InlineCtx, file: TFile, body: string, onEditSourc
     setIcon(ic, entry.icon);
     if (entry.iconColor) ic.style.color = entry.iconColor as string;
   }
+  // The property's full name, in small text before the value.
+  const fullName = directKey ?? baseKey ?? (noteRef ? noteRef.link : null);
+  if (fullName) chip.createSpan({ cls: "ep-inline-val-name", text: fullName });
   const lab = chip.createSpan({ cls: "ep-inline-roll-lab" });
   let editValue: (() => void) | null = null;
 
@@ -296,8 +301,9 @@ export function makeValEl(ctx: InlineCtx, file: TFile, body: string, onEditSourc
     }
     chip.setAttr("title", t("inline.propHint", { key }));
   } else {
-    const v = makeRefResolver(envFor(ctx, file))(body);
-    lab.setText(v === undefined ? t("inline.empty") : fmtMod(v));
+    // Modifier (`Xs`), cross-note (`[[note]].x`), or unresolved → read-only.
+    const v = makeNoteAwareResolver(ctx.app, ctx.settings, ctx.registries, envFor(ctx, file), file.path)(body);
+    lab.setText(v === undefined ? t("inline.empty") : base ? fmtMod(v) : String(v));
     if (v === undefined) chip.addClass("ep-expr-error");
     chip.setAttr("title", body);
   }

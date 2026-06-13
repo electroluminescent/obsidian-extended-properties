@@ -547,6 +547,10 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 .ep-inline-valchip .ep-inline-editable { cursor: pointer; border-bottom: 1px dotted var(--text-faint); }
 .ep-inline-valchip .ep-inline-editable:hover { border-bottom-color: var(--interactive-accent); color: var(--text-normal); }
 .ep-inline-valchip a { cursor: pointer; }
+/* val: full property name, in small muted text before the value */
+.ep-inline-val-name { font-size: 0.82em; color: var(--text-muted); margin-right: 1px; }
+/* Live Preview fallback when a widget fails to render (never an empty chip) */
+.ep-inline-error { color: var(--text-error); cursor: pointer; font-family: var(--font-monospace); border-bottom: 1px dotted var(--text-error); }
 .ep-inline-prop { display: inline; }
 .ep-inline-editable { cursor: pointer; border-bottom: 1px dotted var(--text-faint); }
 .ep-inline-editable:hover { border-bottom-color: var(--interactive-accent); color: var(--text-normal); }

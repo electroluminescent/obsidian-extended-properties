@@ -23,7 +23,8 @@ import type { ViewCtx } from "../../core/context";
 import { ext, type RollMacro, type RollSeg } from "../../core/model";
 import { genId } from "../../utils/misc";
 import { parseDice } from "../../utils/dice";
-import { makeRefResolver, referenceSuggestions } from "../../core/influences";
+import { referenceSuggestions } from "../../core/influences";
+import { makeNoteAwareResolver } from "../../core/note-ref";
 import { ROLL_SERVICE, RollMode, RollService } from "./roll-service";
 import { openDiceMenu } from "./dice-ui";
 import { applicableMacros, runMacro, runRoll, segsToText, textToSegs } from "./macros";
@@ -269,7 +270,7 @@ export const rollerKind: EntryKindDef = {
         mode: curMode(),
         times: e.rollerTimes ?? 1,
         label,
-        resolve: makeRefResolver(view),
+        resolve: makeNoteAwareResolver(view.app, view.settings, view.registries, view, view.note.path ?? ""),
       });
     };
 
@@ -298,14 +299,14 @@ export const rollerKind: EntryKindDef = {
           chip.setAttr("title", segsToText(m.segs) || t("roller.macroRun"));
           chip.onclick = (ev) => {
             ev.stopPropagation();
-            runMacro(svc(view), view.i18n, m, makeRefResolver(view));
+            runMacro(svc(view), view.i18n, m, makeNoteAwareResolver(view.app, view.settings, view.registries, view, view.note.path ?? ""));
           };
           chip.oncontextmenu = (ev) => {
             ev.preventDefault();
             ev.stopPropagation();
             const menu = new Menu();
             menu.addItem((i) =>
-              i.setTitle(t("roller.macroRun")).setIcon("dices").onClick(() => runMacro(svc(view), view.i18n, m, makeRefResolver(view)))
+              i.setTitle(t("roller.macroRun")).setIcon("dices").onClick(() => runMacro(svc(view), view.i18n, m, makeNoteAwareResolver(view.app, view.settings, view.registries, view, view.note.path ?? "")))
             );
             menu.addItem((i) => i.setTitle(t("roller.macroLoad")).setIcon("download").onClick(() => loadMacro(m)));
             menu.addItem((i) =>

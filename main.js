@@ -979,6 +979,28 @@ function tokenize(s) {
       continue;
     }
     if (c === "[") {
+      if (s[i + 1] === "[") {
+        const close = s.indexOf("]]", i + 2);
+        if (close < 0) return null;
+        let name2 = s.slice(i, close + 2);
+        i = close + 2;
+        if (s[i] === ".") {
+          i++;
+          if (s[i] === "[") {
+            const e2 = s.indexOf("]", i + 1);
+            if (e2 < 0) return null;
+            name2 += "." + s.slice(i + 1, e2);
+            i = e2 + 1;
+          } else {
+            const am = /^[A-Za-z_][A-Za-z0-9_]*/.exec(s.slice(i));
+            if (!am) return null;
+            name2 += "." + am[0];
+            i += am[0].length;
+          }
+        }
+        toks.push({ t: "name", v: name2 });
+        continue;
+      }
       const end = s.indexOf("]", i + 1);
       if (end < 0) return null;
       const name = s.slice(i + 1, end).trim();
@@ -7105,6 +7127,27 @@ function parseRoll(text) {
   const parseRef = () => {
     ws();
     if (s[i] === "[") {
+      if (s[i + 1] === "[") {
+        const close = s.indexOf("]]", i + 2);
+        if (close < 0) return null;
+        let name2 = s.slice(i, close + 2);
+        i = close + 2;
+        if (s[i] === ".") {
+          i++;
+          if (s[i] === "[") {
+            const e2 = s.indexOf("]", i + 1);
+            if (e2 < 0) return null;
+            name2 += "." + s.slice(i + 1, e2);
+            i = e2 + 1;
+          } else {
+            const am = /^[A-Za-z_][A-Za-z0-9_]*/.exec(s.slice(i));
+            if (!am) return null;
+            name2 += "." + am[0];
+            i += am[0].length;
+          }
+        }
+        return { kind: "ref", name: name2 };
+      }
       const end = s.indexOf("]", i + 1);
       if (end < 0) return null;
       const name = s.slice(i + 1, end).trim();
@@ -7171,6 +7214,7 @@ function serializeNode(n, mapRef) {
   if (n.kind === "num") return String(n.value);
   if (n.kind === "ref") {
     if (mapRef) return mapRef(n.name);
+    if (n.name.startsWith("[[")) return n.name;
     return /[^A-Za-z0-9_]/.test(n.name) ? `[${n.name}]` : n.name;
   }
   let s = (n.count > 1 ? n.count : "") + "d" + n.sides;
@@ -8030,6 +8074,46 @@ var rollsKind = {
 // src/features/rolling/roller.ts
 var import_obsidian25 = require("obsidian");
 
+// src/core/note-ref.ts
+function parseNoteRef(name) {
+  var _a;
+  const m = /^\[\[([^\]]+)\]\](?:\s*\.\s*(.+))?$/.exec((name != null ? name : "").trim());
+  if (!m) return null;
+  return { link: m[1].trim(), accessor: ((_a = m[2]) != null ? _a : "").trim() };
+}
+function layoutFor(settings, raw) {
+  const tk = Object.keys(raw).find((k) => k.toLowerCase() === "type");
+  const tv = tk !== void 0 ? raw[tk] : void 0;
+  const types = Array.isArray(tv) ? tv.map(String) : tv === void 0 || tv === null ? [] : [String(tv)];
+  const match = settings.types.find((tp) => types.some((x) => x.toLowerCase() === tp.toLowerCase()));
+  if (!match) return void 0;
+  const l = settings.layouts[match.toLowerCase()];
+  return l && Array.isArray(l.sections) ? l : void 0;
+}
+function envForFile(app, settings, registries, file) {
+  var _a;
+  const fm = (_a = app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter;
+  const raw = fm ? { ...fm } : {};
+  const note = {
+    raw,
+    num: (k, d) => getNum(raw, k, d),
+    list: (k) => getList(raw, k)
+  };
+  return { note, registries, settings, layout: layoutFor(settings, raw) };
+}
+function makeNoteAwareResolver(app, settings, registries, localEnv, sourcePath) {
+  const local = makeRefResolver(localEnv);
+  return (name) => {
+    const nr = parseNoteRef(name);
+    if (nr && nr.accessor) {
+      const f = app.metadataCache.getFirstLinkpathDest(nr.link, sourcePath);
+      if (!f) return void 0;
+      return makeRefResolver(envForFile(app, settings, registries, f))(nr.accessor);
+    }
+    return local(name);
+  };
+}
+
 // src/features/rolling/roll-service.ts
 var import_obsidian23 = require("obsidian");
 
@@ -8845,14 +8929,14 @@ var rollerKind = {
     };
     const go = ctl.createEl("button", { cls: "ep-roll-btn ep-roller-go", text: t("roll.roll") });
     go.onclick = () => {
-      var _a2;
+      var _a2, _b;
       const label = ctx.entry.alias || t("roller.title");
       runRoll(svc(view), view.i18n, {
         segs: segs(),
         mode: curMode(),
         times: (_a2 = e.rollerTimes) != null ? _a2 : 1,
         label,
-        resolve: makeRefResolver(view)
+        resolve: makeNoteAwareResolver(view.app, view.settings, view.registries, view, (_b = view.note.path) != null ? _b : "")
       });
     };
     const macrosEl = wrap.createDiv({ cls: "ep-macros" });
@@ -8877,15 +8961,19 @@ var rollerKind = {
           chip.createSpan({ cls: "ep-roller-chiplab", text: m.name });
           chip.setAttr("title", segsToText(m.segs) || t("roller.macroRun"));
           chip.onclick = (ev) => {
+            var _a2;
             ev.stopPropagation();
-            runMacro(svc(view), view.i18n, m, makeRefResolver(view));
+            runMacro(svc(view), view.i18n, m, makeNoteAwareResolver(view.app, view.settings, view.registries, view, (_a2 = view.note.path) != null ? _a2 : ""));
           };
           chip.oncontextmenu = (ev) => {
             ev.preventDefault();
             ev.stopPropagation();
             const menu = new import_obsidian25.Menu();
             menu.addItem(
-              (i) => i.setTitle(t("roller.macroRun")).setIcon("dices").onClick(() => runMacro(svc(view), view.i18n, m, makeRefResolver(view)))
+              (i) => i.setTitle(t("roller.macroRun")).setIcon("dices").onClick(() => {
+                var _a2;
+                return runMacro(svc(view), view.i18n, m, makeNoteAwareResolver(view.app, view.settings, view.registries, view, (_a2 = view.note.path) != null ? _a2 : ""));
+              })
             );
             menu.addItem((i) => i.setTitle(t("roller.macroLoad")).setIcon("download").onClick(() => loadMacro(m)));
             menu.addItem(
@@ -10229,7 +10317,7 @@ function processInline(el, mdctx, ctx) {
   }
 }
 function refResolver(ctx, file) {
-  return makeRefResolver(envFor(ctx, file));
+  return makeNoteAwareResolver(ctx.app, ctx.settings, ctx.registries, envFor(ctx, file), file.path);
 }
 function primarySides(ast) {
   if (ast) {
@@ -10366,10 +10454,12 @@ function findInlineEntry(ctx, file, key) {
   return null;
 }
 function makeValEl(ctx, file, body, onEditSource) {
+  var _a;
   const t = ctx.i18n.t.bind(ctx.i18n);
+  const noteRef = parseNoteRef(body);
   const noteKeys = Object.keys(ctx.facade.raw(file));
-  const directKey = keyForShortForm(ctx.settings, body, noteKeys);
-  const base = directKey ? null : modifierBaseFor(ctx.settings, body);
+  const directKey = noteRef ? null : keyForShortForm(ctx.settings, body, noteKeys);
+  const base = directKey || noteRef ? null : modifierBaseFor(ctx.settings, body);
   const baseKey = base ? keyForShortForm(ctx.settings, base, noteKeys) : null;
   const chip = createSpan({ cls: "ep-inline-roll ep-inline-valchip" });
   const iconKey = directKey != null ? directKey : baseKey;
@@ -10379,6 +10469,8 @@ function makeValEl(ctx, file, body, onEditSource) {
     (0, import_obsidian28.setIcon)(ic, entry.icon);
     if (entry.iconColor) ic.style.color = entry.iconColor;
   }
+  const fullName = (_a = directKey != null ? directKey : baseKey) != null ? _a : noteRef ? noteRef.link : null;
+  if (fullName) chip.createSpan({ cls: "ep-inline-val-name", text: fullName });
   const lab = chip.createSpan({ cls: "ep-inline-roll-lab" });
   let editValue = null;
   if (directKey) {
@@ -10421,8 +10513,8 @@ function makeValEl(ctx, file, body, onEditSource) {
     }
     chip.setAttr("title", t("inline.propHint", { key }));
   } else {
-    const v = makeRefResolver(envFor(ctx, file))(body);
-    lab.setText(v === void 0 ? t("inline.empty") : fmtMod(v));
+    const v = makeNoteAwareResolver(ctx.app, ctx.settings, ctx.registries, envFor(ctx, file), file.path)(body);
+    lab.setText(v === void 0 ? t("inline.empty") : base ? fmtMod(v) : String(v));
     if (v === void 0) chip.addClass("ep-expr-error");
     chip.setAttr("title", body);
   }
@@ -10596,18 +10688,25 @@ var InlineWidget = class extends import_view.WidgetType {
       view.dispatch({ selection: { anchor: this.from + 1 } });
       view.focus();
     };
-    if (this.kind === "roll") return makeRollChip(this.ctx, this.file, this.body, this.opt, reveal);
-    if (this.kind === "val") return makeValEl(this.ctx, this.file, this.body, reveal);
-    const wrap = createSpan({ cls: "ep-inline-prop" });
-    wrap.appendChild(renderPropValue(this.ctx, this.file, this.body));
-    wrap.oncontextmenu = (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      const menu = new import_obsidian29.Menu();
-      menu.addItem((i) => i.setTitle(this.ctx.i18n.t("inline.editSource")).setIcon("pencil").onClick(reveal));
-      menu.showAtMouseEvent(ev);
-    };
-    return wrap;
+    try {
+      if (this.kind === "roll") return makeRollChip(this.ctx, this.file, this.body, this.opt, reveal);
+      if (this.kind === "val") return makeValEl(this.ctx, this.file, this.body, reveal);
+      const wrap = createSpan({ cls: "ep-inline-prop" });
+      wrap.appendChild(renderPropValue(this.ctx, this.file, this.body));
+      wrap.oncontextmenu = (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const menu = new import_obsidian29.Menu();
+        menu.addItem((i) => i.setTitle(this.ctx.i18n.t("inline.editSource")).setIcon("pencil").onClick(reveal));
+        menu.showAtMouseEvent(ev);
+      };
+      return wrap;
+    } catch (e) {
+      console.error("extended-properties: inline widget render failed", e);
+      const fallback = createSpan({ cls: "ep-inline-error", text: `${this.kind}: ${this.body}` });
+      fallback.onclick = reveal;
+      return fallback;
+    }
   }
   ignoreEvent() {
     return true;
@@ -10633,7 +10732,7 @@ function buildDecos(view, ctx) {
         const m = PREFIX.exec(doc.sliceString(node.from, node.to).trim());
         if (!m) return;
         const span = backtickSpan(doc, node.from, node.to);
-        if (sel.ranges.some((r) => r.from <= span.to && r.to >= span.from)) return;
+        if (view.hasFocus && sel.ranges.some((r) => r.from <= span.to && r.to >= span.from)) return;
         b.add(
           span.from,
           span.to,
@@ -10653,7 +10752,7 @@ function inlineLivePreview(ctx) {
         this.decorations = buildDecos(view, ctx);
       }
       update(u) {
-        if (u.docChanged || u.viewportChanged || u.selectionSet || u.startState.field(import_obsidian29.editorLivePreviewField, false) !== u.state.field(import_obsidian29.editorLivePreviewField, false)) {
+        if (u.docChanged || u.viewportChanged || u.selectionSet || u.focusChanged || u.startState.field(import_obsidian29.editorLivePreviewField, false) !== u.state.field(import_obsidian29.editorLivePreviewField, false)) {
           this.decorations = buildDecos(u.view, ctx);
         }
       }

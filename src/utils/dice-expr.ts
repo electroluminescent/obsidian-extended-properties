@@ -135,6 +135,28 @@ export function parseRoll(text: string): RollAst | null {
   const parseRef = (): RollNode | null => {
     ws();
     if (s[i] === "[") {
+      // Cross-note reference: [[Note]] optionally followed by .accessor.
+      if (s[i + 1] === "[") {
+        const close = s.indexOf("]]", i + 2);
+        if (close < 0) return null;
+        let name = s.slice(i, close + 2);
+        i = close + 2;
+        if (s[i] === ".") {
+          i++;
+          if (s[i] === "[") {
+            const e2 = s.indexOf("]", i + 1);
+            if (e2 < 0) return null;
+            name += "." + s.slice(i + 1, e2);
+            i = e2 + 1;
+          } else {
+            const am = /^[A-Za-z_][A-Za-z0-9_]*/.exec(s.slice(i));
+            if (!am) return null;
+            name += "." + am[0];
+            i += am[0].length;
+          }
+        }
+        return { kind: "ref", name };
+      }
       const end = s.indexOf("]", i + 1);
       if (end < 0) return null;
       const name = s.slice(i + 1, end).trim();
@@ -209,6 +231,7 @@ export function serializeNode(n: RollNode, mapRef?: (name: string) => string): s
   if (n.kind === "num") return String(n.value);
   if (n.kind === "ref") {
     if (mapRef) return mapRef(n.name);
+    if (n.name.startsWith("[[")) return n.name; // cross-note ref is already bracketed
     return /[^A-Za-z0-9_]/.test(n.name) ? `[${n.name}]` : n.name;
   }
   let s = (n.count > 1 ? n.count : "") + "d" + n.sides;

@@ -88,6 +88,29 @@ function tokenize(s: string): Tok[] | null {
       continue;
     }
     if (c === "[") {
+      // Cross-note reference: [[Note]] optionally followed by .accessor.
+      if (s[i + 1] === "[") {
+        const close = s.indexOf("]]", i + 2);
+        if (close < 0) return null;
+        let name = s.slice(i, close + 2);
+        i = close + 2;
+        if (s[i] === ".") {
+          i++;
+          if (s[i] === "[") {
+            const e2 = s.indexOf("]", i + 1);
+            if (e2 < 0) return null;
+            name += "." + s.slice(i + 1, e2);
+            i = e2 + 1;
+          } else {
+            const am = /^[A-Za-z_][A-Za-z0-9_]*/.exec(s.slice(i));
+            if (!am) return null;
+            name += "." + am[0];
+            i += am[0].length;
+          }
+        }
+        toks.push({ t: "name", v: name });
+        continue;
+      }
       const end = s.indexOf("]", i + 1);
       if (end < 0) return null;
       const name = s.slice(i + 1, end).trim();
