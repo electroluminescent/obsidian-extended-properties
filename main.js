@@ -435,6 +435,14 @@ var coreEn = {
   "settings.diceAnimStayDesc": "On = roll cards stay until clicked; off = they dismiss themselves. Clicking a card always toggles keeping it.",
   "settings.diceAnimBlock": "Block background while rolling",
   "settings.diceAnimBlockDesc": "Dim everything behind the roll cards and prevent clicking through until they are dismissed.",
+  "settings.failOnOne": "Fail on natural 1",
+  "settings.failOnOneDesc": "Mark a roll red when every kept die of the first group shows 1.",
+  "settings.critRangesDesc": "Crit threshold per die size \u2014 the lowest face that counts toward a crit (default = the die's maximum). E.g. set d20 to 19 for a 19\u201320 crit range.",
+  "settings.critRangeFrom": "Crit from (d{sides})",
+  "settings.critRangeDelete": "Remove",
+  "settings.critRangeAdd": "Add a crit range",
+  "settings.critRangeAddBtn": "+ Die size",
+  "settings.critRangePrompt": "Die size (e.g. 20)",
   "settings.modsOffProp": "Disabled-modifiers property",
   "settings.modsOffPropDesc": "List property storing the modifiers switched off by clicking their short form (entries as \u201CProperty:Source\u201D).",
   "settings.modDepth": "Modifier chain depth",
@@ -844,6 +852,14 @@ var coreDe = {
   "settings.diceAnimStayDesc": "An = Wurf-Karten bleiben, bis sie angeklickt werden; aus = sie schlie\xDFen sich selbst. Klick auf eine Karte schaltet das Behalten immer um.",
   "settings.diceAnimBlock": "Hintergrund beim W\xFCrfeln blockieren",
   "settings.diceAnimBlockDesc": "Dunkelt alles hinter den Wurf-Karten ab und verhindert Klicks, bis sie geschlossen sind.",
+  "settings.failOnOne": "Patzer bei nat\xFCrlicher 1",
+  "settings.failOnOneDesc": "Markiert einen Wurf rot, wenn jeder behaltene W\xFCrfel der ersten Gruppe eine 1 zeigt.",
+  "settings.critRangesDesc": "Krit-Schwelle je W\xFCrfelgr\xF6\xDFe \u2014 die niedrigste Augenzahl, die als Krit z\xE4hlt (Standard = Maximum des W\xFCrfels). Z. B. W20 auf 19 f\xFCr Krit-Bereich 19\u201320.",
+  "settings.critRangeFrom": "Krit ab (W{sides})",
+  "settings.critRangeDelete": "Entfernen",
+  "settings.critRangeAdd": "Krit-Bereich hinzuf\xFCgen",
+  "settings.critRangeAddBtn": "+ W\xFCrfelgr\xF6\xDFe",
+  "settings.critRangePrompt": "W\xFCrfelgr\xF6\xDFe (z. B. 20)",
   "settings.modsOffProp": "Eigenschaft f\xFCr deaktivierte Modifikatoren",
   "settings.modsOffPropDesc": "Listen-Eigenschaft, die per Klick auf ihr K\xFCrzel abgeschaltete Modifikatoren speichert (Eintr\xE4ge als \u201EEigenschaft:Quelle\u201C).",
   "settings.modDepth": "Modifikator-Kettentiefe",
@@ -1267,7 +1283,9 @@ function defaultSettings() {
     macros: [],
     rollHistory: [],
     rollHistoryLimit: 500,
-    rollHistoryEnabled: true
+    rollHistoryEnabled: true,
+    critRanges: {},
+    failOnOne: true
   };
 }
 function normalizeSettings(data, defaultLayout) {
@@ -1315,6 +1333,15 @@ function normalizeSettings(data, defaultLayout) {
     if (typeof data.rollHistoryLimit === "number" && data.rollHistoryLimit > 0)
       s.rollHistoryLimit = Math.min(5e3, Math.floor(data.rollHistoryLimit));
     if (data.rollHistoryEnabled === false) s.rollHistoryEnabled = false;
+    if (data.critRanges && typeof data.critRanges === "object") {
+      const out = {};
+      for (const k of Object.keys(data.critRanges)) {
+        const v = Number(data.critRanges[k]);
+        if (Number.isFinite(v) && v >= 1) out[k] = Math.floor(v);
+      }
+      s.critRanges = out;
+    }
+    if (data.failOnOne === false) s.failOnOne = false;
   }
   for (const t of s.types) {
     const k = t.toLowerCase();
@@ -6460,93 +6487,291 @@ var SidebarView = class extends import_obsidian19.ItemView {
 // src/ui/settings-tab.ts
 var import_obsidian20 = require("obsidian");
 
-// src/features/rolling/macros.ts
-function asMode(mode) {
-  return mode === "advantage" || mode === "disadvantage" ? mode : "normal";
-}
-function runRoll(svc2, i18n, o) {
-  var _a, _b, _c, _d;
-  const dice = ((_a = o.segs) != null ? _a : []).filter((s) => s.dice !== void 0);
-  const spec = parseDiceOrDefault((_b = dice[0]) == null ? void 0 : _b.dice);
-  const extra = dice.slice(1).map((s) => parseDiceOrDefault(s.dice));
-  const parts = [];
-  let modifier = 0;
-  for (const s of (_c = o.segs) != null ? _c : []) {
-    if (typeof s.add === "number" && s.add !== 0) {
-      parts.push({ label: i18n.t("roll.partMod"), value: s.add });
-      modifier += s.add;
+// src/utils/dice-expr.ts
+var MAX_DICE = 500;
+var MAX_ITERS = 200;
+function parseRoll(text) {
+  const s = (text != null ? text : "").trim();
+  if (!s) return { terms: [] };
+  let i = 0;
+  const ws = () => {
+    while (i < s.length && /\s/.test(s[i])) i++;
+  };
+  const parseOps = () => {
+    const ops = [];
+    for (; ; ) {
+      const rest = s.slice(i);
+      let m;
+      if (m = /^(kh|kl|dh|dl)(\d+)?/i.exec(rest)) {
+        ops.push({ t: m[1].toLowerCase(), n: m[2] ? parseInt(m[2]) : 1 });
+      } else if (m = /^!(\d+)?/.exec(rest)) {
+        ops.push({ t: "explode", on: m[1] ? parseInt(m[1]) : -1 });
+      } else if (m = /^(ro|r)(\d+)/i.exec(rest)) {
+        ops.push({ t: "reroll", max: parseInt(m[2]), once: m[1].toLowerCase() === "ro" });
+      } else if (m = /^(>=|<=|>|<|=)(\d+)/.exec(rest)) {
+        ops.push({ t: "success", cmp: m[1], v: parseInt(m[2]) });
+      } else break;
+      i += m[0].length;
     }
+    return ops;
+  };
+  const parseRef = () => {
+    ws();
+    if (s[i] === "[") {
+      const end = s.indexOf("]", i + 1);
+      if (end < 0) return null;
+      const name = s.slice(i + 1, end).trim();
+      i = end + 1;
+      return name ? { kind: "ref", name } : null;
+    }
+    const m = /^[A-Za-z_][A-Za-z0-9_]*/.exec(s.slice(i));
+    if (m) {
+      i += m[0].length;
+      return { kind: "ref", name: m[0] };
+    }
+    return null;
+  };
+  const parseNode = () => {
+    ws();
+    const start = i;
+    let digits = "";
+    while (i < s.length && /\d/.test(s[i])) digits += s[i++];
+    if (i < s.length && (s[i] === "d" || s[i] === "D")) {
+      i++;
+      let sides = 0;
+      if (s[i] === "%") {
+        sides = 100;
+        i++;
+      } else {
+        let sd = "";
+        while (i < s.length && /\d/.test(s[i])) sd += s[i++];
+        if (!sd) {
+          i = start;
+          return parseRef();
+        }
+        sides = parseInt(sd);
+      }
+      const count = digits ? parseInt(digits) : 1;
+      if (count < 1 || sides < 2) return null;
+      return { kind: "dice", count, sides, ops: parseOps() };
+    }
+    if (digits) return { kind: "num", value: parseInt(digits) };
+    return parseRef();
+  };
+  const terms = [];
+  ws();
+  let neg = false;
+  if (s[i] === "+" || s[i] === "-") {
+    neg = s[i] === "-";
+    i++;
   }
-  const mode = asMode(o.mode);
-  const n = Math.max(1, Math.min(20, (_d = o.times) != null ? _d : 1));
-  for (let i = 0; i < n; i++) {
-    svc2.roll(n > 1 ? `${o.label} #${i + 1}` : o.label, modifier, spec, {
-      parts,
-      extra,
-      mode,
-      stay: n > 1
-    });
-  }
-}
-function runMacro(svc2, i18n, m) {
-  var _a;
-  runRoll(svc2, i18n, {
-    segs: (_a = m.segs) != null ? _a : [],
-    mode: m.mode,
-    times: m.times,
-    label: m.name || i18n.t("roller.title")
-  });
-}
-function applicableMacros(settings, typeKey) {
-  const list = Array.isArray(settings.macros) ? settings.macros : [];
-  return list.filter((m) => !m.typeKey || !!typeKey && m.typeKey === typeKey);
-}
-function segsToText(segs) {
-  const tokens = [];
-  for (const s of segs != null ? segs : []) {
-    if (s.dice !== void 0) {
-      const d = parseDice(s.dice);
-      tokens.push(d ? formatDice(d) : s.dice);
-    } else if (typeof s.add === "number") {
-      tokens.push(String(s.add));
-    }
-  }
-  let txt = "";
-  tokens.forEach((tok, i) => {
-    if (i === 0) txt = tok;
-    else if (tok.startsWith("-")) txt += " - " + tok.slice(1);
-    else txt += " + " + tok;
-  });
-  return txt;
-}
-function textToSegs(text) {
-  const compact = (text != null ? text : "").replace(/\s+/g, "");
-  if (!compact) return [];
-  const tokens = compact.match(/[+-]?[^+-]+/g);
-  if (!tokens) return null;
-  const segs = [];
-  for (const raw of tokens) {
-    let tok = raw;
-    let sign = 1;
-    if (tok.startsWith("+")) tok = tok.slice(1);
-    else if (tok.startsWith("-")) {
-      sign = -1;
-      tok = tok.slice(1);
-    }
-    if (!tok) return null;
-    const d = parseDice(tok);
-    if (d) {
-      segs.push({ dice: formatDice(d) });
-      continue;
-    }
-    const num = Number(tok);
-    if (Number.isFinite(num)) {
-      segs.push({ add: sign * num });
+  for (; ; ) {
+    const node = parseNode();
+    if (!node) return null;
+    terms.push({ neg, node });
+    ws();
+    if (i >= s.length) break;
+    if (s[i] === "+" || s[i] === "-") {
+      neg = s[i] === "-";
+      i++;
       continue;
     }
     return null;
   }
-  return segs;
+  return { terms };
+}
+function serializeNode(n) {
+  if (n.kind === "num") return String(n.value);
+  if (n.kind === "ref") return /[^A-Za-z0-9_]/.test(n.name) ? `[${n.name}]` : n.name;
+  let s = (n.count > 1 ? n.count : "") + "d" + n.sides;
+  for (const op of n.ops) {
+    if (op.t === "kh" || op.t === "kl" || op.t === "dh" || op.t === "dl") s += op.t + (op.n !== 1 ? op.n : "");
+    else if (op.t === "explode") s += "!" + (op.on > 0 ? op.on : "");
+    else if (op.t === "reroll") s += (op.once ? "ro" : "r") + op.max;
+    else if (op.t === "success") s += op.cmp + op.v;
+  }
+  return s;
+}
+function serializeRoll(ast) {
+  let out = "";
+  ast.terms.forEach((term, idx) => {
+    const txt = serializeNode(term.node);
+    if (idx === 0) out = term.neg ? "-" + txt : txt;
+    else out += (term.neg ? " - " : " + ") + txt;
+  });
+  return out;
+}
+function cmpHit(face, cmp, v) {
+  switch (cmp) {
+    case ">=":
+      return face >= v;
+    case ">":
+      return face > v;
+    case "<=":
+      return face <= v;
+    case "<":
+      return face < v;
+    case "=":
+      return face === v;
+  }
+  return false;
+}
+function rollDice(node, env) {
+  const sides = node.sides;
+  const count = Math.min(MAX_DICE, Math.max(1, node.count));
+  const reroll = node.ops.find((o) => o.t === "reroll");
+  const explode = node.ops.find((o) => o.t === "explode");
+  const explodeOn = explode ? explode.on < 0 ? sides : explode.on : Infinity;
+  const faces = [];
+  const dropped = [];
+  const counted = [];
+  const push = (v, drop) => {
+    faces.push(v);
+    dropped.push(drop);
+    return faces.length - 1;
+  };
+  for (let d = 0; d < count; d++) {
+    let v = env.roll1(sides);
+    if (reroll) {
+      if (reroll.once) {
+        if (v <= reroll.max) {
+          push(v, true);
+          v = env.roll1(sides);
+        }
+      } else {
+        let it2 = 0;
+        while (v <= reroll.max && it2++ < MAX_ITERS) {
+          push(v, true);
+          v = env.roll1(sides);
+        }
+      }
+    }
+    counted.push(push(v, false));
+    let cur = v;
+    let it = 0;
+    while (cur >= explodeOn && faces.length < MAX_DICE && it++ < MAX_ITERS) {
+      cur = env.roll1(sides);
+      counted.push(push(cur, false));
+    }
+  }
+  let active = counted.slice();
+  for (const op of node.ops) {
+    if (op.t !== "kh" && op.t !== "kl" && op.t !== "dh" && op.t !== "dl") continue;
+    const asc = active.slice().sort((a, b) => faces[a] - faces[b]);
+    const n = Math.max(0, Math.min(asc.length, op.n));
+    let dropIdx = [];
+    if (op.t === "kh") dropIdx = asc.slice(0, asc.length - n);
+    else if (op.t === "kl") dropIdx = asc.slice(n);
+    else if (op.t === "dh") dropIdx = asc.slice(asc.length - n);
+    else if (op.t === "dl") dropIdx = asc.slice(0, n);
+    for (const di of dropIdx) dropped[di] = true;
+    active = active.filter((idx) => !dropped[idx]);
+  }
+  const keptFaces = counted.filter((idx) => !dropped[idx]).map((idx) => faces[idx]);
+  const success = node.ops.find((o) => o.t === "success");
+  const value = success ? keptFaces.filter((f) => cmpHit(f, success.cmp, success.v)).length : keptFaces.reduce((a, b) => a + b, 0);
+  return { sides, faces, dropped, value, success: !!success };
+}
+var DEFAULT_CRIT = { critFrom: (s) => s, failAt: 1 };
+function computeTone(primary, crit) {
+  if (!primary) return "normal";
+  const kept = primary.faces.filter((_, k) => !primary.dropped[k]);
+  if (kept.length === 0) return "normal";
+  const from = crit.critFrom(primary.sides);
+  if (kept.every((f) => f >= from)) return "crit";
+  if (crit.failAt != null && kept.every((f) => f === crit.failAt)) return "fail";
+  return "normal";
+}
+function evalRoll(ast, env) {
+  var _a, _b;
+  const crit = (_a = env.crit) != null ? _a : DEFAULT_CRIT;
+  const groups = [];
+  const parts = [];
+  let total = 0;
+  let primary = null;
+  for (const term of ast.terms) {
+    const sign = term.neg ? -1 : 1;
+    const node = term.node;
+    if (node.kind === "num") {
+      parts.push({ value: sign * node.value });
+      total += sign * node.value;
+    } else if (node.kind === "ref") {
+      const r = (_b = env.resolve) == null ? void 0 : _b.call(env, node.name);
+      const v = typeof r === "number" && Number.isFinite(r) ? r : 0;
+      parts.push({ ref: node.name, value: sign * v });
+      total += sign * v;
+    } else {
+      const g = rollDice(node, env);
+      groups.push(g);
+      total += sign * g.value;
+      if (!primary && !g.success) primary = g;
+    }
+  }
+  return { groups, parts, total, tone: computeTone(primary, crit) };
+}
+
+// src/features/rolling/macros.ts
+function segsToAst(segs) {
+  var _a;
+  const terms = [];
+  for (const s of segs != null ? segs : []) {
+    if (s.dice !== void 0) {
+      const parsed = parseRoll(s.dice);
+      const node = parsed && ((_a = parsed.terms[0]) == null ? void 0 : _a.node.kind) === "dice" ? parsed.terms[0].node : { kind: "dice", count: 1, sides: 20, ops: [] };
+      terms.push({ neg: !!s.neg, node });
+    } else if (typeof s.add === "number") {
+      terms.push(
+        s.add < 0 ? { neg: true, node: { kind: "num", value: -s.add } } : { neg: !!s.neg, node: { kind: "num", value: s.add } }
+      );
+    } else if (s.ref) {
+      terms.push({ neg: !!s.neg, node: { kind: "ref", name: s.ref } });
+    }
+  }
+  return { terms };
+}
+function astToSegs(ast) {
+  return ast.terms.map((t) => {
+    const n = t.node;
+    if (n.kind === "dice") return { dice: serializeNode(n), neg: t.neg || void 0 };
+    if (n.kind === "num") return { add: t.neg ? -n.value : n.value };
+    return { ref: n.name, neg: t.neg || void 0 };
+  });
+}
+function segsToText(segs) {
+  return serializeRoll(segsToAst(segs));
+}
+function textToSegs(text) {
+  const ast = parseRoll(text);
+  return ast ? astToSegs(ast) : null;
+}
+function asMode(mode) {
+  return mode === "advantage" || mode === "disadvantage" ? mode : "normal";
+}
+function runRoll(svc2, i18n, o) {
+  var _a;
+  const mode = asMode(o.mode);
+  const n = Math.max(1, Math.min(20, (_a = o.times) != null ? _a : 1));
+  const tag = mode === "advantage" ? " " + i18n.t("roll.tagAdvantage") : mode === "disadvantage" ? " " + i18n.t("roll.tagDisadvantage") : "";
+  for (let i = 0; i < n; i++) {
+    const ast = segsToAst(o.segs);
+    if (mode !== "normal") {
+      const first = ast.terms.find((t) => t.node.kind === "dice");
+      if (first) {
+        const dn = first.node;
+        dn.count += 1;
+        dn.ops = [...dn.ops, mode === "advantage" ? { t: "dl", n: 1 } : { t: "dh", n: 1 }];
+      }
+    }
+    svc2.rollAst(n > 1 ? `${o.label} #${i + 1}` : o.label, ast, { stay: n > 1, tag, mode });
+  }
+}
+function runMacro(svc2, i18n, m) {
+  var _a;
+  runRoll(svc2, i18n, { segs: (_a = m.segs) != null ? _a : [], mode: m.mode, times: m.times, label: m.name || i18n.t("roller.title") });
+}
+function applicableMacros(settings, typeKey) {
+  const list = Array.isArray(settings.macros) ? settings.macros : [];
+  return list.filter((m) => !m.typeKey || !!typeKey && m.typeKey === typeKey);
 }
 
 // src/ui/settings-tab.ts
@@ -6763,6 +6988,42 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
         save();
       });
     });
+    new import_obsidian20.Setting(c).setName(t("settings.failOnOne")).setDesc(t("settings.failOnOneDesc")).addToggle((tg) => {
+      tg.setValue(plugin.settings.failOnOne !== false).onChange((v) => {
+        plugin.settings.failOnOne = v;
+        save();
+      });
+    });
+    c.createEl("p", { cls: "setting-item-description", text: t("settings.critRangesDesc") });
+    for (const sides of Object.keys(plugin.settings.critRanges).sort((a, b) => Number(a) - Number(b))) {
+      new import_obsidian20.Setting(c).setName(t("settings.critRangeFrom", { sides })).addText((tx) => {
+        tx.setValue(String(plugin.settings.critRanges[sides])).onChange((v) => {
+          const n = parseInt(v);
+          if (Number.isFinite(n) && n >= 1) {
+            plugin.settings.critRanges[sides] = n;
+            save();
+          }
+        });
+      }).addExtraButton(
+        (b) => b.setIcon("trash").setTooltip(t("settings.critRangeDelete")).onClick(() => {
+          delete plugin.settings.critRanges[sides];
+          save();
+          this.display();
+        })
+      );
+    }
+    new import_obsidian20.Setting(c).setName(t("settings.critRangeAdd")).addButton(
+      (b) => b.setButtonText(t("settings.critRangeAddBtn")).onClick(
+        () => new TextPromptModal(this.app, i18n, t("settings.critRangePrompt"), "20", (v) => {
+          const sides = parseInt(v);
+          if (!Number.isFinite(sides) || sides < 2) return;
+          if (plugin.settings.critRanges[String(sides)] === void 0)
+            plugin.settings.critRanges[String(sides)] = sides;
+          save();
+          this.display();
+        }).open()
+      )
+    );
     if (plugin.settings.features["rolling"] !== false) {
       c.createEl("h3", { text: t("settings.rollsHeading") });
       new import_obsidian20.Setting(c).setName(t("settings.rollHistory")).setDesc(t("settings.rollHistoryDesc")).addToggle((tg) => {
@@ -7371,7 +7632,7 @@ function playRollAnimation(job, i18n, done) {
     const drops = [];
     for (const grp of job.groups) {
       grp.faces.forEach((f, i) => {
-        if (i === grp.dropIndex) drops.push(`(${i18n.t("roll.partDrop")} ${f})`);
+        if (grp.dropped[i]) drops.push(`(${i18n.t("roll.partDrop")} ${f})`);
         else kept.push(f);
       });
     }
@@ -7442,7 +7703,7 @@ function playRollAnimation(job, i18n, done) {
       return;
     }
     const { grp, idx } = flat[i];
-    const dropped = idx === grp.dropIndex;
+    const dropped = grp.dropped[idx];
     if (i < dies.length) {
       dies[i].el.removeClass("ep-rolling");
       dies[i].el.addClass("ep-settled");
@@ -7474,7 +7735,7 @@ var ROLL_SERVICE = "rolling.rolls";
 var RollService = class {
   /**
    * @param history plugin-level store every resolved roll is recorded into
-   * @param app     used to attribute each record to the active note
+   * @param app     used to attribute each record to the active note and resolve references
    */
   constructor(i18n, settings, history, app) {
     this.i18n = i18n;
@@ -7488,45 +7749,51 @@ var RollService = class {
   onFileChange() {
   }
   /**
-   * Roll `spec` + `modifier` under the current (or overridden) mode; log
-   * and toast the result once it resolves.
+   * Roll `spec` + `modifier` under the current (or overridden) mode. Builds a
+   * trivial AST: advantage/disadvantage become an extra die dropped low/high,
+   * extra pools become extra dice terms, the modifier a number term.
    * @param spec dice pool to roll (defaults to a single d20)
    */
   roll(label, modifier, spec = { ...DEFAULT_DICE }, opts = {}) {
-    var _a, _b, _c, _d, _e, _f;
+    var _a, _b;
     const mode = (_a = opts.mode) != null ? _a : this.mode;
-    const karmic = ((_b = this.settings) == null ? void 0 : _b.karmicRolls) === true;
-    const count = Math.max(1, spec.count) + (mode === "normal" ? 0 : 1);
-    const faces = [];
-    for (let i = 0; i < count; i++) faces.push(rollFace(spec.sides, karmic));
-    let dropIndex = -1;
-    if (mode !== "normal") {
-      dropIndex = 0;
-      for (let i = 1; i < faces.length; i++) {
-        if (mode === "advantage" ? faces[i] < faces[dropIndex] : faces[i] > faces[dropIndex]) dropIndex = i;
-      }
-    }
-    const kept = faces.filter((_, i) => i !== dropIndex);
-    const primTotal = kept.reduce((a, b) => a + b, 0);
-    const groups = [{ sides: spec.sides, faces, dropIndex }];
-    let extraTotal = 0;
-    let extraTxt = "";
-    for (const ex of (_c = opts.extra) != null ? _c : []) {
-      const exFaces = [];
-      for (let i = 0; i < Math.max(1, ex.count); i++) exFaces.push(rollFace(ex.sides, karmic));
-      const exTotal = exFaces.reduce((a, b) => a + b, 0);
-      groups.push({ sides: ex.sides, faces: exFaces, dropIndex: -1 });
-      extraTotal += exTotal;
-      extraTxt += ` + ${formatDice(ex)}[${exFaces.join(", ")}]`;
-    }
-    const total = primTotal + extraTotal + modifier;
-    const tag = mode === "advantage" ? " " + this.i18n.t("roll.tagAdvantage") : mode === "disadvantage" ? " " + this.i18n.t("roll.tagDisadvantage") : "";
-    const detail = dropIndex >= 0 ? `[${faces.join(", ")} | ${this.i18n.t("roll.partDrop")} ${faces[dropIndex]}] -> ${primTotal}` : spec.count > 1 ? `[${faces.join(", ")}] -> ${primTotal}` : `${primTotal}`;
-    const tone = kept.every((f) => f === spec.sides) ? "crit" : kept.every((f) => f === 1) ? "fail" : "normal";
+    const primary = {
+      kind: "dice",
+      count: Math.max(1, spec.count) + (mode === "normal" ? 0 : 1),
+      sides: spec.sides,
+      ops: mode === "advantage" ? [{ t: "dl", n: 1 }] : mode === "disadvantage" ? [{ t: "dh", n: 1 }] : []
+    };
+    const terms = [{ neg: false, node: primary }];
+    for (const ex of (_b = opts.extra) != null ? _b : [])
+      terms.push({ neg: false, node: { kind: "dice", count: Math.max(1, ex.count), sides: ex.sides, ops: [] } });
+    if (modifier) terms.push({ neg: modifier < 0, node: { kind: "num", value: Math.abs(modifier) } });
+    this.rollAst(label, { terms }, {
+      parts: opts.parts,
+      stay: opts.stay,
+      tag: this.modeTag(mode),
+      mode,
+      reroll: () => this.roll(label, modifier, spec, opts)
+    });
+  }
+  /** Evaluate and resolve a full roll AST: animate, toast, and record it. */
+  rollAst(label, ast, opts = {}) {
+    var _a, _b, _c, _d, _e, _f, _g;
+    const karmic = ((_a = this.settings) == null ? void 0 : _a.karmicRolls) === true;
+    const env = {
+      roll1: (sides) => rollFace(sides, karmic),
+      resolve: (_b = opts.resolve) != null ? _b : this.noteResolver(),
+      crit: this.critRules()
+    };
+    const res = evalRoll(ast, env);
+    const tag = (_c = opts.tag) != null ? _c : "";
+    const total = res.total;
+    const groups = res.groups.map((g) => ({ sides: g.sides, faces: g.faces, dropped: g.dropped }));
+    const parts = (_d = opts.parts) != null ? _d : res.parts.filter((p) => p.ref !== void 0 || p.value !== 0).map((p) => ({ label: p.ref ? this.refLabel(p.ref) : this.i18n.t("roll.partMod"), value: p.value }));
+    const notation = serializeRoll(ast);
     const brief = `${label}${tag}: ${total}`;
-    const redo = () => this.roll(label, modifier, spec, opts);
+    const redo = (_e = opts.reroll) != null ? _e : () => this.rollAst(label, ast, opts);
     const commit2 = () => {
-      var _a2, _b2, _c2;
+      var _a2, _b2, _c2, _d2;
       const file = (_a2 = this.app) == null ? void 0 : _a2.workspace.getActiveFile();
       const rec = {
         id: genId(),
@@ -7534,25 +7801,24 @@ var RollService = class {
         note: (_b2 = file == null ? void 0 : file.path) != null ? _b2 : null,
         noteName: file == null ? void 0 : file.basename,
         label: `${label}${tag}`,
-        text: `${brief}   (${formatDice(spec)} ${detail}${extraTxt} ${fmtMod(modifier)})`,
+        text: `${brief}   (${this.detailText(res)})`,
         brief,
         total,
-        mode,
-        tone,
-        dice: formatDice(spec)
+        mode: (_c2 = opts.mode) != null ? _c2 : "normal",
+        tone: res.tone,
+        dice: notation
       };
-      (_c2 = this.history) == null ? void 0 : _c2.append(rec, redo);
+      (_d2 = this.history) == null ? void 0 : _d2.append(rec, redo);
       new import_obsidian23.Notice(brief, 4e3);
     };
-    if ((_d = this.settings) == null ? void 0 : _d.diceAnim) {
-      const parts = (_e = opts.parts) != null ? _e : modifier !== 0 ? [{ label: this.i18n.t("roll.partMod"), value: modifier }] : [];
+    if ((_f = this.settings) == null ? void 0 : _f.diceAnim) {
       playRollAnimation(
         {
           label: `${label}${tag}`,
           groups,
           parts,
           total,
-          spins: (_f = this.settings.diceAnimRolls) != null ? _f : 10,
+          spins: (_g = this.settings.diceAnimRolls) != null ? _g : 10,
           stay: opts.stay || this.settings.diceAnimStay === true,
           block: this.settings.diceAnimBlock !== false,
           reroll: redo
@@ -7563,6 +7829,60 @@ var RollService = class {
     } else {
       commit2();
     }
+  }
+  // -- helpers ---------------------------------------------------------------
+  modeTag(mode) {
+    return mode === "advantage" ? " " + this.i18n.t("roll.tagAdvantage") : mode === "disadvantage" ? " " + this.i18n.t("roll.tagDisadvantage") : "";
+  }
+  /** Short form for a property reference shown in the chain (reuses modifier short forms). */
+  refLabel(name) {
+    return this.settings ? abbrFor(this.settings, name) : name;
+  }
+  /** Resolve a reference against the active note's frontmatter numbers (pre-A1 resolver). */
+  noteResolver() {
+    const app = this.app;
+    return (name) => {
+      var _a;
+      const file = app == null ? void 0 : app.workspace.getActiveFile();
+      if (!file || !app) return void 0;
+      const fm = (_a = app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter;
+      if (!fm) return void 0;
+      const key = Object.keys(fm).find((k) => k.toLowerCase() === name.toLowerCase());
+      if (key === void 0) return void 0;
+      const v = Number(fm[key]);
+      return Number.isFinite(v) ? v : void 0;
+    };
+  }
+  /** Crit/fail policy from settings: per-die crit thresholds plus the fail-on-1 toggle. */
+  critRules() {
+    var _a, _b, _c;
+    const ranges = (_b = (_a = this.settings) == null ? void 0 : _a.critRanges) != null ? _b : {};
+    const failOnOne = ((_c = this.settings) == null ? void 0 : _c.failOnOne) !== false;
+    return {
+      critFrom: (sides) => {
+        const r = ranges[String(sides)];
+        return typeof r === "number" && r >= 1 ? r : sides;
+      },
+      failAt: failOnOne ? 1 : null
+    };
+  }
+  /** Readable breakdown for the log: per-group faces (dropped parenthesized) plus the modifier parts. */
+  detailText(res) {
+    const segs = [];
+    for (const g of res.groups) {
+      if (g.faces.length === 1 && !g.success && !g.dropped[0]) {
+        segs.push(String(g.value));
+        continue;
+      }
+      const inner = g.faces.map((f, k) => g.dropped[k] ? `(${f})` : String(f)).join(", ");
+      segs.push(`[${inner}]${g.success ? " => " : " -> "}${g.value}`);
+    }
+    let txt = segs.join(" + ");
+    for (const p of res.parts) {
+      if (p.ref === void 0 && p.value === 0) continue;
+      txt += ` ${fmtMod(p.value)}${p.ref ? " " + this.refLabel(p.ref) : ""}`;
+    }
+    return txt;
   }
 };
 
@@ -7718,46 +8038,106 @@ var rollerKind = {
     const e = ext(ctx.entry);
     const wrap = ctx.extra.createDiv({ cls: "ep-roller" });
     const segs = () => Array.isArray(e.rollerSegs) ? e.rollerSegs : [];
+    const setSegs = (next) => {
+      e.rollerSegs = next.length ? next : void 0;
+      save();
+      drawChain();
+    };
     const save = () => view.saveLayout();
     const chainEl = wrap.createDiv({ cls: "ep-roller-chain" });
+    const exprRow = wrap.createDiv({ cls: "ep-roller-expr" });
+    const exprInput = exprRow.createEl("input", { cls: "ep-edit-input ep-roller-exprinput", type: "text" });
+    exprInput.setAttr("placeholder", t("roller.exprPlaceholder"));
+    exprInput.setAttr("title", t("roller.exprHint"));
+    const refreshExpr = () => {
+      exprInput.value = segsToText(segs());
+      exprInput.removeClass("ep-invalid");
+    };
+    const commitExpr = () => {
+      const parsed = textToSegs(exprInput.value);
+      if (!parsed) {
+        exprInput.addClass("ep-invalid");
+        return;
+      }
+      setSegs(parsed);
+    };
+    exprInput.onkeydown = (ke) => {
+      if (ke.key === "Enter") {
+        ke.preventDefault();
+        commitExpr();
+      } else if (ke.key === "Escape") {
+        refreshExpr();
+      }
+    };
+    exprInput.onblur = commitExpr;
+    const inlineChipText = (chip, initial, apply) => {
+      chip.empty();
+      const inp = chip.createEl("input", { cls: "ep-roller-textedit", type: "text" });
+      inp.value = initial;
+      inp.focus();
+      inp.select();
+      let done = false;
+      const finish = (commit2) => {
+        if (done) return;
+        done = true;
+        if (commit2) apply(inp.value);
+        else drawChain();
+      };
+      inp.onblur = () => finish(true);
+      inp.onkeydown = (ke) => {
+        if (ke.key === "Enter") {
+          ke.preventDefault();
+          finish(true);
+        } else if (ke.key === "Escape") finish(false);
+      };
+    };
     const drawChain = () => {
       chainEl.empty();
       const list = segs();
       list.forEach((seg, idx) => {
-        var _a2, _b;
-        if (idx > 0) chainEl.createSpan({ cls: "ep-roll-op", text: "+" });
+        var _a2;
+        if (idx > 0) chainEl.createSpan({ cls: "ep-roll-op", text: seg.neg ? "\u2212" : "+" });
+        else if (seg.neg) chainEl.createSpan({ cls: "ep-roll-op", text: "\u2212" });
         const chip = chainEl.createSpan({ cls: "ep-roller-chip" });
-        chip.createSpan({ cls: "ep-roller-chiplab", text: (_b = seg.dice) != null ? _b : String((_a2 = seg.add) != null ? _a2 : 0) });
+        const label = seg.dice !== void 0 ? seg.dice : seg.ref !== void 0 ? seg.ref : String((_a2 = seg.add) != null ? _a2 : 0);
+        chip.createSpan({ cls: "ep-roller-chiplab", text: label });
         chip.setAttr("title", t("roller.chipHint"));
         chip.onclick = (ev) => {
-          var _a3;
+          var _a3, _b;
           ev.stopPropagation();
           if (seg.dice !== void 0) {
-            openDiceMenu(ev, view.app, view.i18n, {
-              get: () => seg.dice,
-              set: (n) => {
-                seg.dice = n || "d20";
+            if (parseDice(seg.dice)) {
+              openDiceMenu(ev, view.app, view.i18n, {
+                get: () => seg.dice,
+                set: (n) => {
+                  seg.dice = n || "d20";
+                  save();
+                  drawChain();
+                }
+              });
+            } else {
+              inlineChipText(chip, (_a3 = seg.dice) != null ? _a3 : "", (val) => {
+                const parsed = textToSegs(val);
+                if (parsed && parsed.length === 1 && parsed[0].dice) seg.dice = parsed[0].dice;
                 save();
                 drawChain();
-              }
-            });
-          } else {
-            chip.empty();
-            const inp = chip.createEl("input", { cls: "ep-roller-numedit", type: "number" });
-            inp.value = String((_a3 = seg.add) != null ? _a3 : 0);
-            inp.focus();
-            inp.select();
-            const commit2 = () => {
-              const v = Math.round(Number(inp.value));
-              seg.add = Number.isFinite(v) ? v : 0;
+              });
+            }
+          } else if (seg.ref !== void 0) {
+            inlineChipText(chip, seg.ref, (val) => {
+              const v = val.trim();
+              if (v) seg.ref = v;
               save();
               drawChain();
-            };
-            inp.onblur = commit2;
-            inp.onkeydown = (ke) => {
-              if (ke.key === "Enter") inp.blur();
-              if (ke.key === "Escape") drawChain();
-            };
+            });
+          } else {
+            inlineChipText(chip, String((_b = seg.add) != null ? _b : 0), (val) => {
+              const v = Math.round(Number(val));
+              seg.add = Number.isFinite(v) ? v : 0;
+              seg.neg = void 0;
+              save();
+              drawChain();
+            });
           }
         };
         const x = chip.createSpan({ cls: "ep-roller-x", text: "\u2715" });
@@ -7766,26 +8146,17 @@ var rollerKind = {
           ev.stopPropagation();
           const next = segs().slice();
           next.splice(idx, 1);
-          e.rollerSegs = next.length ? next : void 0;
-          save();
-          drawChain();
+          setSegs(next);
         };
       });
       const addDie = chainEl.createEl("button", { cls: "ep-roller-add", text: t("roller.addDie") });
       addDie.onclick = (ev) => openDiceMenu(ev, view.app, view.i18n, {
         get: () => void 0,
-        set: (n) => {
-          e.rollerSegs = [...segs(), { dice: n || "d20" }];
-          save();
-          drawChain();
-        }
+        set: (n) => setSegs([...segs(), { dice: n || "d20" }])
       });
       const addNum = chainEl.createEl("button", { cls: "ep-roller-add", text: t("roller.addNum") });
-      addNum.onclick = () => {
-        e.rollerSegs = [...segs(), { add: 0 }];
-        save();
-        drawChain();
-      };
+      addNum.onclick = () => setSegs([...segs(), { add: 0 }]);
+      refreshExpr();
     };
     drawChain();
     const ctl = wrap.createDiv({ cls: "ep-roller-controls" });
@@ -8541,6 +8912,8 @@ var rollingEn = {
   "roller.times": "Rolls",
   "roller.chipHint": "Click to edit, \u2715 to remove",
   "roller.removeSeg": "Remove",
+  "roller.exprPlaceholder": "e.g. 2d6kh1 + 1d8 + DEX + 3",
+  "roller.exprHint": "Type a roll. kh/kl/dh/dl keep or drop dice, ! explodes, rN/roN reroll \u2264 N, >=N counts successes; names like DEX read the note's property.",
   "roller.macros": "Macros",
   "roller.saveMacro": "+ save as macro",
   "roller.saveMacroPrompt": "Macro name",
@@ -8651,6 +9024,8 @@ var rollingDe = {
   "roller.times": "W\xFCrfe",
   "roller.chipHint": "Klicken zum Bearbeiten, \u2715 zum Entfernen",
   "roller.removeSeg": "Entfernen",
+  "roller.exprPlaceholder": "z. B. 2d6kh1 + 1d8 + DEX + 3",
+  "roller.exprHint": "Wurf eingeben. kh/kl/dh/dl behalten/verwerfen W\xFCrfel, ! explodiert, rN/roN w\xFCrfeln \u2264 N neu, >=N z\xE4hlt Erfolge; Namen wie DEX lesen die Eigenschaft der Notiz.",
   "roller.macros": "Makros",
   "roller.saveMacro": "+ als Makro speichern",
   "roller.saveMacroPrompt": "Makroname",

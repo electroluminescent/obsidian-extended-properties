@@ -47,10 +47,10 @@ export interface RollPart {
 /** One dice pool of a roll (custom chains may carry several). */
 export interface RollAnimGroup {
   sides: number;
-  /** Final face per die — includes the extra advantage/disadvantage die. */
+  /** Every rolled face, in roll order (incl. extra/dropped/rerolled-away dice). */
   faces: number[];
-  /** Index into `faces` of the dropped (ignored) die, or −1 for none. */
-  dropIndex: number;
+  /** Parallel to `faces`: true = the die was dropped or rerolled away (dimmed, struck). */
+  dropped: boolean[];
 }
 
 export interface RollAnimJob {
@@ -273,7 +273,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     const drops: string[] = [];
     for (const grp of job.groups) {
       grp.faces.forEach((f, i) => {
-        if (i === grp.dropIndex) drops.push(`(${i18n.t("roll.partDrop")} ${f})`);
+        if (grp.dropped[i]) drops.push(`(${i18n.t("roll.partDrop")} ${f})`);
         else kept.push(f);
       });
     }
@@ -347,7 +347,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
       return;
     }
     const { grp, idx } = flat[i];
-    const dropped = idx === grp.dropIndex;
+    const dropped = grp.dropped[idx];
     if (i < dies.length) {
       dies[i].el.removeClass("ep-rolling");
       dies[i].el.addClass("ep-settled");

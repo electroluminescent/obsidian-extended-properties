@@ -54,6 +54,8 @@ export function defaultSettings(): EPSettings {
     rollHistory: [],
     rollHistoryLimit: 500,
     rollHistoryEnabled: true,
+    critRanges: {},
+    failOnOne: true,
   };
 }
 
@@ -109,6 +111,15 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
     if (typeof data.rollHistoryLimit === "number" && data.rollHistoryLimit > 0)
       s.rollHistoryLimit = Math.min(5000, Math.floor(data.rollHistoryLimit));
     if (data.rollHistoryEnabled === false) s.rollHistoryEnabled = false;
+    if (data.critRanges && typeof data.critRanges === "object") {
+      const out: Record<string, number> = {};
+      for (const k of Object.keys(data.critRanges)) {
+        const v = Number((data.critRanges as Record<string, unknown>)[k]);
+        if (Number.isFinite(v) && v >= 1) out[k] = Math.floor(v);
+      }
+      s.critRanges = out;
+    }
+    if (data.failOnOne === false) s.failOnOne = false;
   }
   for (const t of s.types) {
     const k = t.toLowerCase();

@@ -384,6 +384,15 @@ export const coreDe: StringDict = {
   "settings.diceAnimBlock": "Hintergrund beim Würfeln blockieren",
   "settings.diceAnimBlockDesc":
     "Dunkelt alles hinter den Wurf-Karten ab und verhindert Klicks, bis sie geschlossen sind.",
+  "settings.failOnOne": "Patzer bei natürlicher 1",
+  "settings.failOnOneDesc": "Markiert einen Wurf rot, wenn jeder behaltene Würfel der ersten Gruppe eine 1 zeigt.",
+  "settings.critRangesDesc":
+    "Krit-Schwelle je Würfelgröße — die niedrigste Augenzahl, die als Krit zählt (Standard = Maximum des Würfels). Z. B. W20 auf 19 für Krit-Bereich 19–20.",
+  "settings.critRangeFrom": "Krit ab (W{sides})",
+  "settings.critRangeDelete": "Entfernen",
+  "settings.critRangeAdd": "Krit-Bereich hinzufügen",
+  "settings.critRangeAddBtn": "+ Würfelgröße",
+  "settings.critRangePrompt": "Würfelgröße (z. B. 20)",
   "settings.modsOffProp": "Eigenschaft für deaktivierte Modifikatoren",
   "settings.modsOffPropDesc":
     "Listen-Eigenschaft, die per Klick auf ihr Kürzel abgeschaltete Modifikatoren speichert (Einträge als „Eigenschaft:Quelle“).",

@@ -1,17 +1,18 @@
 /**
- * "diceroller" entry kind: a freely assemblable dice interface (addable
- * like Contents, and available as a section template). The user builds a
- * chain of dice groups and flat additions, picks how many simultaneous
- * rolls to make and whether to roll with advantage or disadvantage, and
- * executes the chain through the shared {@link RollService} (animation,
- * log, notice — same as every roll button).
+ * "diceroller" entry kind: a freely assemblable dice interface (addable like
+ * Contents, and available as a section template). Build a chain of dice
+ * groups, numbers and property references — as chips or by typing a full
+ * expression (`2d6kh1 + 1d8 + DEX + 3`) — pick how many simultaneous rolls to
+ * make and advantage/disadvantage, then execute through the shared
+ * {@link RollService} (animation, history, notice — same as every roll button).
  *
- * The first dice group is the animated pool (advantage/disadvantage add
- * their extra die there); further dice groups and numbers join the roll
- * as labeled parts of the addition chain, rerolled fresh per roll.
+ * The chips and the expression field are two views of one {@link RollAst}:
+ * editing either rewrites the other. Advantage/disadvantage add their extra
+ * die to the first dice group. Saved macros ("custom roll objects") applicable
+ * to the note type live on the same screen.
  *
  * Persisted entry fields (via `ext<RollerExt>`):
- *   rollerSegs   chain segments: { dice: "2d6" } or { add: 3 }
+ *   rollerSegs   chain segments: { dice: "2d6kh1" } | { add: 3 } | { ref: "DEX" } (+ neg)
  *   rollerTimes  number of simultaneous rolls (default 1)
  *   rollerMode   "advantage" | "disadvantage" (unset = normal)
  */
@@ -19,18 +20,16 @@
 import { Menu, Notice } from "obsidian";
 import type { EntryKindDef } from "../../core/registry";
 import type { ViewCtx } from "../../core/context";
-import { ext, type RollMacro } from "../../core/model";
+import { ext, type RollMacro, type RollSeg } from "../../core/model";
 import { genId } from "../../utils/misc";
+import { parseDice } from "../../utils/dice";
 import { ROLL_SERVICE, RollMode, RollService } from "./roll-service";
 import { openDiceMenu } from "./dice-ui";
-import { applicableMacros, runMacro, runRoll, segsToText } from "./macros";
+import { applicableMacros, runMacro, runRoll, segsToText, textToSegs } from "./macros";
 import { TextPromptModal } from "../../ui/modals/dialogs";
 
-/** One link of the user-assembled chain: a dice group or a flat number. */
-export interface RollerSeg {
-  dice?: string;
-  add?: number;
-}
+/** One link of the user-assembled chain. */
+export type RollerSeg = RollSeg;
 
 /** Entry fields persisted by this kind. */
 export interface RollerExt {
@@ -56,47 +55,113 @@ export const rollerKind: EntryKindDef = {
     const wrap = ctx.extra.createDiv({ cls: "ep-roller" });
 
     const segs = (): RollerSeg[] => (Array.isArray(e.rollerSegs) ? e.rollerSegs : []);
+    const setSegs = (next: RollerSeg[]): void => {
+      e.rollerSegs = next.length ? next : undefined;
+      save();
+      drawChain();
+    };
     const save = () => view.saveLayout();
 
-    // -- chain builder -----------------------------------------------------
     const chainEl = wrap.createDiv({ cls: "ep-roller-chain" });
+
+    // -- free-text expression (round-trips with the chips) -------------------
+    const exprRow = wrap.createDiv({ cls: "ep-roller-expr" });
+    const exprInput = exprRow.createEl("input", { cls: "ep-edit-input ep-roller-exprinput", type: "text" });
+    exprInput.setAttr("placeholder", t("roller.exprPlaceholder"));
+    exprInput.setAttr("title", t("roller.exprHint"));
+    const refreshExpr = (): void => {
+      exprInput.value = segsToText(segs());
+      exprInput.removeClass("ep-invalid");
+    };
+    const commitExpr = (): void => {
+      const parsed = textToSegs(exprInput.value);
+      if (!parsed) {
+        exprInput.addClass("ep-invalid");
+        return;
+      }
+      setSegs(parsed);
+    };
+    exprInput.onkeydown = (ke) => {
+      if (ke.key === "Enter") {
+        ke.preventDefault();
+        commitExpr();
+      } else if (ke.key === "Escape") {
+        refreshExpr();
+      }
+    };
+    exprInput.onblur = commitExpr;
+
+    /** Replace a chip with a one-field text editor; `apply(value)` decides what to keep. */
+    const inlineChipText = (chip: HTMLElement, initial: string, apply: (value: string) => void): void => {
+      chip.empty();
+      const inp = chip.createEl("input", { cls: "ep-roller-textedit", type: "text" });
+      inp.value = initial;
+      inp.focus();
+      inp.select();
+      let done = false;
+      const finish = (commit: boolean): void => {
+        if (done) return;
+        done = true;
+        if (commit) apply(inp.value);
+        else drawChain();
+      };
+      inp.onblur = () => finish(true);
+      inp.onkeydown = (ke) => {
+        if (ke.key === "Enter") {
+          ke.preventDefault();
+          finish(true);
+        } else if (ke.key === "Escape") finish(false);
+      };
+    };
+
+    // -- chain builder -------------------------------------------------------
     const drawChain = (): void => {
       chainEl.empty();
       const list = segs();
       list.forEach((seg, idx) => {
-        if (idx > 0) chainEl.createSpan({ cls: "ep-roll-op", text: "+" });
+        if (idx > 0) chainEl.createSpan({ cls: "ep-roll-op", text: seg.neg ? "−" : "+" });
+        else if (seg.neg) chainEl.createSpan({ cls: "ep-roll-op", text: "−" });
         const chip = chainEl.createSpan({ cls: "ep-roller-chip" });
-        chip.createSpan({ cls: "ep-roller-chiplab", text: seg.dice ?? String(seg.add ?? 0) });
+        const label = seg.dice !== undefined ? seg.dice : seg.ref !== undefined ? seg.ref : String(seg.add ?? 0);
+        chip.createSpan({ cls: "ep-roller-chiplab", text: label });
         chip.setAttr("title", t("roller.chipHint"));
         chip.onclick = (ev) => {
           ev.stopPropagation();
           if (seg.dice !== undefined) {
-            openDiceMenu(ev, view.app, view.i18n, {
-              get: () => seg.dice,
-              set: (n) => {
-                seg.dice = n || "d20";
+            if (parseDice(seg.dice)) {
+              // Simple NdS — the preset dice menu.
+              openDiceMenu(ev, view.app, view.i18n, {
+                get: () => seg.dice,
+                set: (n) => {
+                  seg.dice = n || "d20";
+                  save();
+                  drawChain();
+                },
+              });
+            } else {
+              // Advanced notation (keep/drop, explode, …) — edit as text.
+              inlineChipText(chip, seg.dice ?? "", (val) => {
+                const parsed = textToSegs(val);
+                if (parsed && parsed.length === 1 && parsed[0].dice) seg.dice = parsed[0].dice;
                 save();
                 drawChain();
-              },
-            });
-          } else {
-            // Inline number edit.
-            chip.empty();
-            const inp = chip.createEl("input", { cls: "ep-roller-numedit", type: "number" });
-            inp.value = String(seg.add ?? 0);
-            inp.focus();
-            inp.select();
-            const commit = () => {
-              const v = Math.round(Number(inp.value));
-              seg.add = Number.isFinite(v) ? v : 0;
+              });
+            }
+          } else if (seg.ref !== undefined) {
+            inlineChipText(chip, seg.ref, (val) => {
+              const v = val.trim();
+              if (v) seg.ref = v;
               save();
               drawChain();
-            };
-            inp.onblur = commit;
-            inp.onkeydown = (ke) => {
-              if (ke.key === "Enter") inp.blur();
-              if (ke.key === "Escape") drawChain();
-            };
+            });
+          } else {
+            inlineChipText(chip, String(seg.add ?? 0), (val) => {
+              const v = Math.round(Number(val));
+              seg.add = Number.isFinite(v) ? v : 0;
+              seg.neg = undefined;
+              save();
+              drawChain();
+            });
           }
         };
         const x = chip.createSpan({ cls: "ep-roller-x", text: "✕" });
@@ -105,27 +170,18 @@ export const rollerKind: EntryKindDef = {
           ev.stopPropagation();
           const next = segs().slice();
           next.splice(idx, 1);
-          e.rollerSegs = next.length ? next : undefined;
-          save();
-          drawChain();
+          setSegs(next);
         };
       });
       const addDie = chainEl.createEl("button", { cls: "ep-roller-add", text: t("roller.addDie") });
       addDie.onclick = (ev) =>
         openDiceMenu(ev, view.app, view.i18n, {
           get: () => undefined,
-          set: (n) => {
-            e.rollerSegs = [...segs(), { dice: n || "d20" }];
-            save();
-            drawChain();
-          },
+          set: (n) => setSegs([...segs(), { dice: n || "d20" }]),
         });
       const addNum = chainEl.createEl("button", { cls: "ep-roller-add", text: t("roller.addNum") });
-      addNum.onclick = () => {
-        e.rollerSegs = [...segs(), { add: 0 }];
-        save();
-        drawChain();
-      };
+      addNum.onclick = () => setSegs([...segs(), { add: 0 }]);
+      refreshExpr();
     };
     drawChain();
 

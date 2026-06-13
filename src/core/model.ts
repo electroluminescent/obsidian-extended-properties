@@ -173,6 +173,10 @@ export interface Defaults {
 export interface RollSeg {
   dice?: string;
   add?: number;
+  /** Property reference name (e.g. "DEX") resolved at roll time. */
+  ref?: string;
+  /** This term is subtracted rather than added. */
+  neg?: boolean;
 }
 
 /**
@@ -275,4 +279,8 @@ export interface EPSettings {
   rollHistoryLimit: number;
   /** Persist roll history across sessions (false = legacy in-memory-only behavior). */
   rollHistoryEnabled: boolean;
+  /** Per-die crit thresholds: die-size (as string) → minimum face that counts as a crit. */
+  critRanges: Record<string, number>;
+  /** Treat an all-1s primary dice result as a fail (default true). */
+  failOnOne: boolean;
 }

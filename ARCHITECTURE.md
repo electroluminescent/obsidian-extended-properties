@@ -160,6 +160,16 @@ and is constructed with the history plus the `App` (to attribute each record
 to the active note). Saved roll **macros** live in `settings.macros`; one
 command is registered per macro and kept in sync on settings save.
 
+Every roll — a roll button's `NdS + modifier` and a typed
+`2d6kh1 + 1d8 + DEX + 3` alike — is one `RollAst` (`utils/dice-expr.ts`, a
+pure, Obsidian-free parser/evaluator/serializer with keep-drop, explode,
+reroll, success-counting and references). `RollService.roll` keeps the simple
+call shape by building a trivial AST and mapping advantage/disadvantage onto a
+keep/drop node; `RollService.rollAst` is the general path. The RNG, the
+reference resolver and the crit rules are injected, so the engine is
+unit-testable in isolation; the animation renders one dice row per group with a
+per-die dropped mask.
+
 ## i18n
 
 `I18n.t(key, vars)` resolves: user override → active locale → English →

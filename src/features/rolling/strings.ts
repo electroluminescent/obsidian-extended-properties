@@ -66,6 +66,9 @@ export const rollingEn: StringDict = {
   "roller.times": "Rolls",
   "roller.chipHint": "Click to edit, ✕ to remove",
   "roller.removeSeg": "Remove",
+  "roller.exprPlaceholder": "e.g. 2d6kh1 + 1d8 + DEX + 3",
+  "roller.exprHint":
+    "Type a roll. kh/kl/dh/dl keep or drop dice, ! explodes, rN/roN reroll ≤ N, >=N counts successes; names like DEX read the note's property.",
   "roller.macros": "Macros",
   "roller.saveMacro": "+ save as macro",
   "roller.saveMacroPrompt": "Macro name",
@@ -189,6 +192,9 @@ export const rollingDe: StringDict = {
   "roller.times": "Würfe",
   "roller.chipHint": "Klicken zum Bearbeiten, ✕ zum Entfernen",
   "roller.removeSeg": "Entfernen",
+  "roller.exprPlaceholder": "z. B. 2d6kh1 + 1d8 + DEX + 3",
+  "roller.exprHint":
+    "Wurf eingeben. kh/kl/dh/dl behalten/verwerfen Würfel, ! explodiert, rN/roN würfeln ≤ N neu, >=N zählt Erfolge; Namen wie DEX lesen die Eigenschaft der Notiz.",
   "roller.macros": "Makros",
   "roller.saveMacro": "+ als Makro speichern",
   "roller.saveMacroPrompt": "Makroname",

@@ -387,6 +387,15 @@ export const coreEn: StringDict = {
   "settings.diceAnimBlock": "Block background while rolling",
   "settings.diceAnimBlockDesc":
     "Dim everything behind the roll cards and prevent clicking through until they are dismissed.",
+  "settings.failOnOne": "Fail on natural 1",
+  "settings.failOnOneDesc": "Mark a roll red when every kept die of the first group shows 1.",
+  "settings.critRangesDesc":
+    "Crit threshold per die size — the lowest face that counts toward a crit (default = the die's maximum). E.g. set d20 to 19 for a 19–20 crit range.",
+  "settings.critRangeFrom": "Crit from (d{sides})",
+  "settings.critRangeDelete": "Remove",
+  "settings.critRangeAdd": "Add a crit range",
+  "settings.critRangeAddBtn": "+ Die size",
+  "settings.critRangePrompt": "Die size (e.g. 20)",
   "settings.modsOffProp": "Disabled-modifiers property",
   "settings.modsOffPropDesc":
     "List property storing the modifiers switched off by clicking their short form (entries as “Property:Source”).",

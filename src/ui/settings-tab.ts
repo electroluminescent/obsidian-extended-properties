@@ -286,6 +286,48 @@ export class EPSettingTab extends PluginSettingTab {
           save();
         });
       });
+    new Setting(c)
+      .setName(t("settings.failOnOne"))
+      .setDesc(t("settings.failOnOneDesc"))
+      .addToggle((tg) => {
+        tg.setValue(plugin.settings.failOnOne !== false).onChange((v) => {
+          plugin.settings.failOnOne = v;
+          save();
+        });
+      });
+    c.createEl("p", { cls: "setting-item-description", text: t("settings.critRangesDesc") });
+    for (const sides of Object.keys(plugin.settings.critRanges).sort((a, b) => Number(a) - Number(b))) {
+      new Setting(c)
+        .setName(t("settings.critRangeFrom", { sides }))
+        .addText((tx) => {
+          tx.setValue(String(plugin.settings.critRanges[sides])).onChange((v) => {
+            const n = parseInt(v);
+            if (Number.isFinite(n) && n >= 1) {
+              plugin.settings.critRanges[sides] = n;
+              save();
+            }
+          });
+        })
+        .addExtraButton((b) =>
+          b.setIcon("trash").setTooltip(t("settings.critRangeDelete")).onClick(() => {
+            delete plugin.settings.critRanges[sides];
+            save();
+            this.display();
+          })
+        );
+    }
+    new Setting(c).setName(t("settings.critRangeAdd")).addButton((b) =>
+      b.setButtonText(t("settings.critRangeAddBtn")).onClick(() =>
+        new TextPromptModal(this.app, i18n, t("settings.critRangePrompt"), "20", (v) => {
+          const sides = parseInt(v);
+          if (!Number.isFinite(sides) || sides < 2) return;
+          if (plugin.settings.critRanges[String(sides)] === undefined)
+            plugin.settings.critRanges[String(sides)] = sides;
+          save();
+          this.display();
+        }).open()
+      )
+    );
 
     // -- rolls: history & macros ---------------------------------------------
     if (plugin.settings.features["rolling"] !== false) {
