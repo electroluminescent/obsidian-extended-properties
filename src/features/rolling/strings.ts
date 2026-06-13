@@ -34,6 +34,11 @@ export const rollingEn: StringDict = {
   "roll.redoHint": "Click to roll this again",
   "roll.logChains": "Chains",
   "roll.logChainsHint": "Show the full roll chain (off = label and result only)",
+  "roll.rerollAll": "Reroll all",
+  "roll.rngRandom": "Random",
+  "roll.rngKarmic": "Karmic",
+  "roll.rngHint":
+    "Toggle the global roll system: pure random, or adaptive (karmic) — failures build hidden luck debt that converts some future failures into successes; streaks of bad luck fade out.",
 
   "roller.title": "Dice roller",
   "roller.addDie": "+ die",
@@ -122,6 +127,11 @@ export const rollingDe: StringDict = {
   "roll.redoHint": "Klicken, um erneut zu würfeln",
   "roll.logChains": "Ketten",
   "roll.logChainsHint": "Vollständige Wurfkette anzeigen (aus = nur Bezeichnung und Ergebnis)",
+  "roll.rerollAll": "Alle neu würfeln",
+  "roll.rngRandom": "Zufall",
+  "roll.rngKarmic": "Karmisch",
+  "roll.rngHint":
+    "Globales Wurfsystem umschalten: reiner Zufall oder adaptiv (karmisch) — Fehlschläge bauen verborgene Glücksschuld auf, die künftige Fehlschläge teils in Erfolge wandelt; Pechsträhnen klingen ab.",
 
   "roller.title": "Würfelbrett",
   "roller.addDie": "+ Würfel",

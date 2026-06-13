@@ -18,7 +18,8 @@ import type { I18n } from "../../i18n/i18n";
 import type { EPSettings } from "../../core/model";
 import type { ViewService } from "../../core/registry";
 import { fmtMod } from "../../utils/misc";
-import { DEFAULT_DICE, DiceSpec, formatDice, rollPool } from "../../utils/dice";
+import { DEFAULT_DICE, DiceSpec, formatDice } from "../../utils/dice";
+import { rollFace } from "./karma";
 import { playRollAnimation, RollAnimGroup, RollPart } from "./dice-anim";
 
 export type { RollPart } from "./dice-anim";
@@ -49,18 +50,16 @@ export interface RollEntry {
   redo?: () => void;
 }
 
-const LOG_LIMIT = 6;
-
 export class RollService implements ViewService {
   mode: RollMode = "normal";
+  /** Full session history (scrolled by the panel, never trimmed). */
   log: RollEntry[] = [];
   private listeners = new Set<() => void>();
 
   constructor(private i18n: I18n, private settings?: EPSettings) {}
 
-  /** The log is per-note; the mode survives note switches. */
+  /** The log spans the whole session — note switches keep it. */
   onFileChange(): void {
-    this.log = [];
     this.emit();
   }
 
@@ -85,11 +84,14 @@ export class RollService implements ViewService {
    */
   roll(label: string, modifier: number, spec: DiceSpec = { ...DEFAULT_DICE }, opts: RollOpts = {}): void {
     const mode = opts.mode ?? this.mode;
+    // Faces come from the globally chosen system: pure random or the
+    // adaptive ("karmic") luck-debt source.
+    const karmic = this.settings?.karmicRolls === true;
     // Advantage/disadvantage roll one extra die; advantage drops the
     // single lowest face, disadvantage the highest. All dice stay visible.
     const count = Math.max(1, spec.count) + (mode === "normal" ? 0 : 1);
     const faces: number[] = [];
-    for (let i = 0; i < count; i++) faces.push(1 + Math.floor(Math.random() * spec.sides));
+    for (let i = 0; i < count; i++) faces.push(rollFace(spec.sides, karmic));
     let dropIndex = -1;
     if (mode !== "normal") {
       dropIndex = 0;
@@ -105,10 +107,12 @@ export class RollService implements ViewService {
     let extraTotal = 0;
     let extraTxt = "";
     for (const ex of opts.extra ?? []) {
-      const pool = rollPool(ex);
-      groups.push({ sides: ex.sides, faces: pool.faces, dropIndex: -1 });
-      extraTotal += pool.total;
-      extraTxt += ` + ${formatDice(ex)}[${pool.faces.join(", ")}]`;
+      const exFaces: number[] = [];
+      for (let i = 0; i < Math.max(1, ex.count); i++) exFaces.push(rollFace(ex.sides, karmic));
+      const exTotal = exFaces.reduce((a, b) => a + b, 0);
+      groups.push({ sides: ex.sides, faces: exFaces, dropIndex: -1 });
+      extraTotal += exTotal;
+      extraTxt += ` + ${formatDice(ex)}[${exFaces.join(", ")}]`;
     }
     const total = primTotal + extraTotal + modifier;
 
@@ -141,7 +145,6 @@ export class RollService implements ViewService {
         tone,
         redo,
       });
-      if (this.log.length > LOG_LIMIT) this.log.pop();
       this.emit();
       new Notice(brief, 4000);
     };

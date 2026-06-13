@@ -86,6 +86,7 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
       s.diceAnimRolls = Math.min(60, Math.floor(data.diceAnimRolls));
     if (typeof data.diceAnimStay === "boolean") s.diceAnimStay = data.diceAnimStay;
     if (typeof data.diceAnimBlock === "boolean") s.diceAnimBlock = data.diceAnimBlock;
+    if (data.karmicRolls === true) s.karmicRolls = true;
     if (typeof data.modsOffProp === "string" && data.modsOffProp.trim())
       s.modsOffProp = data.modsOffProp.trim();
   }

@@ -1258,6 +1258,7 @@ function normalizeSettings(data, defaultLayout) {
       s.diceAnimRolls = Math.min(60, Math.floor(data.diceAnimRolls));
     if (typeof data.diceAnimStay === "boolean") s.diceAnimStay = data.diceAnimStay;
     if (typeof data.diceAnimBlock === "boolean") s.diceAnimBlock = data.diceAnimBlock;
+    if (data.karmicRolls === true) s.karmicRolls = true;
     if (typeof data.modsOffProp === "string" && data.modsOffProp.trim())
       s.modsOffProp = data.modsOffProp.trim();
   }
@@ -2158,11 +2159,6 @@ function parseDice(text) {
 function parseDiceOrDefault(text) {
   var _a;
   return (_a = parseDice(text)) != null ? _a : { ...DEFAULT_DICE };
-}
-function rollPool(spec) {
-  const faces = [];
-  for (let i = 0; i < spec.count; i++) faces.push(1 + Math.floor(Math.random() * spec.sides));
-  return { faces, total: faces.reduce((a, b) => a + b, 0) };
 }
 
 // src/ui/render/dice-icons.ts
@@ -6858,6 +6854,27 @@ function augmentPropsMenu(host) {
 // src/features/rolling/roll-service.ts
 var import_obsidian23 = require("obsidian");
 
+// src/features/rolling/karma.ts
+var INTERVENTION_RATE = 0.25;
+var INTERVENTION_SPEND = 0.5;
+var INTERVENTION_CAP = 0.9;
+var luckDebt = 0;
+function rollFace(sides, karmic) {
+  const s = Math.max(2, Math.floor(sides));
+  const uniform = () => 1 + Math.floor(Math.random() * s);
+  if (!karmic) return uniform();
+  const successFrom = Math.floor(s / 2) + 1;
+  const successCount = s - successFrom + 1;
+  const p = successCount / s;
+  if (Math.random() < Math.min(INTERVENTION_CAP, luckDebt * INTERVENTION_RATE)) {
+    luckDebt = Math.max(0, luckDebt - INTERVENTION_SPEND);
+    return successFrom + Math.floor(Math.random() * successCount);
+  }
+  const face = uniform();
+  if (face < successFrom) luckDebt += p;
+  return face;
+}
+
 // src/features/rolling/dice-anim.ts
 var import_obsidian22 = require("obsidian");
 var MAX_DICE_SHOWN = 12;
@@ -6875,9 +6892,17 @@ function closeAllRolls() {
   for (const close of [...closers]) close();
 }
 function getLayer(block) {
-  if (!layer || !layer.isConnected) layer = document.body.createDiv({ cls: "ep-roll-layer" });
+  if (!layer || !layer.isConnected) {
+    layer = document.body.createDiv({ cls: "ep-roll-layer" });
+    layer.createDiv({ cls: "ep-roll-cards" });
+  }
   if (block) layer.addClass("ep-roll-block");
   return layer;
+}
+function cardsHost(block) {
+  var _a;
+  const l = getLayer(block);
+  return (_a = l.querySelector(".ep-roll-cards")) != null ? _a : l;
 }
 function dropBox(box) {
   box.remove();
@@ -6908,6 +6933,12 @@ function updateSummary(i18n) {
   summaryEl = layer.createDiv({ cls: "ep-roll-summary" });
   const top = summaryEl.createDiv({ cls: "ep-roll-sum-top" });
   const valEl = top.createSpan({ cls: "ep-roll-sum-val" });
+  const rerollAll = top.createEl("button", { cls: "ep-roll-sum-dismiss", text: i18n.t("roll.rerollAll") });
+  rerollAll.onclick = () => {
+    const redos = [...lives.values()].map((l) => l.reroll).filter((r) => !!r);
+    closeAllRolls();
+    for (const r of redos) r();
+  };
   const dismiss = top.createEl("button", { cls: "ep-roll-sum-dismiss", text: i18n.t("roll.closeAll") });
   dismiss.onclick = closeAllRolls;
   const slider = summaryEl.createEl("input", { cls: "ep-roll-sum-slider", type: "range" });
@@ -6917,12 +6948,12 @@ function updateSummary(i18n) {
   slider.value = String(summaryIndex);
   slider.disabled = uniq.length < 2;
   const groupsRow = summaryEl.createDiv({ cls: "ep-roll-sum-groups" });
-  const geGroup = groupsRow.createDiv({ cls: "ep-roll-sum-group" });
-  const geHead = geGroup.createDiv({ cls: "ep-roll-sum-head" });
-  const geGrid = geGroup.createDiv({ cls: "ep-roll-sum-dice" });
   const ltGroup = groupsRow.createDiv({ cls: "ep-roll-sum-group" });
   const ltHead = ltGroup.createDiv({ cls: "ep-roll-sum-head" });
   const ltGrid = ltGroup.createDiv({ cls: "ep-roll-sum-dice" });
+  const geGroup = groupsRow.createDiv({ cls: "ep-roll-sum-group" });
+  const geHead = geGroup.createDiv({ cls: "ep-roll-sum-head" });
+  const geGrid = geGroup.createDiv({ cls: "ep-roll-sum-dice" });
   const els = rolls.map((r) => {
     const el = createDiv({ cls: "ep-roll-sum-die" });
     const ic = el.createDiv({ cls: "ep-roll-sum-ico" });
@@ -6979,7 +7010,7 @@ function playRollAnimation(job, i18n, done) {
   }
   pending++;
   const token = {};
-  const box = getLayer(job.block).createDiv({ cls: "ep-roll-box" });
+  const box = cardsHost(job.block).createDiv({ cls: "ep-roll-box" });
   box.createDiv({ cls: "ep-roll-label", text: job.label });
   const diceRow = box.createDiv({ cls: "ep-roll-dice" });
   const chain = box.createDiv({ cls: "ep-roll-chain" });
@@ -7077,7 +7108,7 @@ function playRollAnimation(job, i18n, done) {
     var _a2, _b2;
     resolved = true;
     pending--;
-    lives.set(token, { total: job.total, sides: (_b2 = (_a2 = job.groups[0]) == null ? void 0 : _a2.sides) != null ? _b2 : 20 });
+    lives.set(token, { total: job.total, sides: (_b2 = (_a2 = job.groups[0]) == null ? void 0 : _a2.sides) != null ? _b2 : 20, reroll: job.reroll });
     done();
     updateSummary(i18n);
     if (!pinned) later(() => {
@@ -7128,18 +7159,17 @@ function playRollAnimation(job, i18n, done) {
 
 // src/features/rolling/roll-service.ts
 var ROLL_SERVICE = "rolling.rolls";
-var LOG_LIMIT = 6;
 var RollService = class {
   constructor(i18n, settings) {
     this.i18n = i18n;
     this.settings = settings;
     this.mode = "normal";
+    /** Full session history (scrolled by the panel, never trimmed). */
     this.log = [];
     this.listeners = /* @__PURE__ */ new Set();
   }
-  /** The log is per-note; the mode survives note switches. */
+  /** The log spans the whole session — note switches keep it. */
   onFileChange() {
-    this.log = [];
     this.emit();
   }
   subscribe(fn) {
@@ -7159,11 +7189,12 @@ var RollService = class {
    * @param spec dice pool to roll (defaults to a single d20)
    */
   roll(label, modifier, spec = { ...DEFAULT_DICE }, opts = {}) {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c, _d, _e, _f;
     const mode = (_a = opts.mode) != null ? _a : this.mode;
+    const karmic = ((_b = this.settings) == null ? void 0 : _b.karmicRolls) === true;
     const count = Math.max(1, spec.count) + (mode === "normal" ? 0 : 1);
     const faces = [];
-    for (let i = 0; i < count; i++) faces.push(1 + Math.floor(Math.random() * spec.sides));
+    for (let i = 0; i < count; i++) faces.push(rollFace(spec.sides, karmic));
     let dropIndex = -1;
     if (mode !== "normal") {
       dropIndex = 0;
@@ -7176,11 +7207,13 @@ var RollService = class {
     const groups = [{ sides: spec.sides, faces, dropIndex }];
     let extraTotal = 0;
     let extraTxt = "";
-    for (const ex of (_b = opts.extra) != null ? _b : []) {
-      const pool = rollPool(ex);
-      groups.push({ sides: ex.sides, faces: pool.faces, dropIndex: -1 });
-      extraTotal += pool.total;
-      extraTxt += ` + ${formatDice(ex)}[${pool.faces.join(", ")}]`;
+    for (const ex of (_c = opts.extra) != null ? _c : []) {
+      const exFaces = [];
+      for (let i = 0; i < Math.max(1, ex.count); i++) exFaces.push(rollFace(ex.sides, karmic));
+      const exTotal = exFaces.reduce((a, b) => a + b, 0);
+      groups.push({ sides: ex.sides, faces: exFaces, dropIndex: -1 });
+      extraTotal += exTotal;
+      extraTxt += ` + ${formatDice(ex)}[${exFaces.join(", ")}]`;
     }
     const total = primTotal + extraTotal + modifier;
     const tag = mode === "advantage" ? " " + this.i18n.t("roll.tagAdvantage") : mode === "disadvantage" ? " " + this.i18n.t("roll.tagDisadvantage") : "";
@@ -7195,19 +7228,18 @@ var RollService = class {
         tone,
         redo
       });
-      if (this.log.length > LOG_LIMIT) this.log.pop();
       this.emit();
       new import_obsidian23.Notice(brief, 4e3);
     };
-    if ((_c = this.settings) == null ? void 0 : _c.diceAnim) {
-      const parts = (_d = opts.parts) != null ? _d : modifier !== 0 ? [{ label: this.i18n.t("roll.partMod"), value: modifier }] : [];
+    if ((_d = this.settings) == null ? void 0 : _d.diceAnim) {
+      const parts = (_e = opts.parts) != null ? _e : modifier !== 0 ? [{ label: this.i18n.t("roll.partMod"), value: modifier }] : [];
       playRollAnimation(
         {
           label: `${label}${tag}`,
           groups,
           parts,
           total,
-          spins: (_e = this.settings.diceAnimRolls) != null ? _e : 10,
+          spins: (_f = this.settings.diceAnimRolls) != null ? _f : 10,
           stay: opts.stay || this.settings.diceAnimStay === true,
           block: this.settings.diceAnimBlock !== false,
           reroll: redo
@@ -7236,11 +7268,20 @@ var rollsKind = {
     const service = rollService(view);
     const e = ext(ctx.entry);
     const tools = ctx.extra.createDiv({ cls: "ep-log-tools" });
+    const rngBtn = tools.createEl("button", { cls: "ep-mode-btn" });
+    rngBtn.setAttr("title", t("roll.rngHint"));
+    rngBtn.onclick = () => {
+      view.settings.karmicRolls = view.settings.karmicRolls ? void 0 : true;
+      view.saveLayout();
+      redraw();
+    };
     const chainBtn = tools.createEl("button", { cls: "ep-mode-btn", text: t("roll.logChains") });
     chainBtn.setAttr("title", t("roll.logChainsHint"));
     const logEl = ctx.extra.createDiv({ cls: "ep-log" });
     const redraw = () => {
       var _a;
+      rngBtn.setText(view.settings.karmicRolls ? t("roll.rngKarmic") : t("roll.rngRandom"));
+      rngBtn.toggleClass("is-active", view.settings.karmicRolls === true);
       chainBtn.toggleClass("is-active", !e.rollsBrief);
       logEl.empty();
       if (service.log.length === 0) {
@@ -8164,6 +8205,10 @@ var rollingEn = {
   "roll.redoHint": "Click to roll this again",
   "roll.logChains": "Chains",
   "roll.logChainsHint": "Show the full roll chain (off = label and result only)",
+  "roll.rerollAll": "Reroll all",
+  "roll.rngRandom": "Random",
+  "roll.rngKarmic": "Karmic",
+  "roll.rngHint": "Toggle the global roll system: pure random, or adaptive (karmic) \u2014 failures build hidden luck debt that converts some future failures into successes; streaks of bad luck fade out.",
   "roller.title": "Dice roller",
   "roller.addDie": "+ die",
   "roller.addNum": "+ number",
@@ -8242,6 +8287,10 @@ var rollingDe = {
   "roll.redoHint": "Klicken, um erneut zu w\xFCrfeln",
   "roll.logChains": "Ketten",
   "roll.logChainsHint": "Vollst\xE4ndige Wurfkette anzeigen (aus = nur Bezeichnung und Ergebnis)",
+  "roll.rerollAll": "Alle neu w\xFCrfeln",
+  "roll.rngRandom": "Zufall",
+  "roll.rngKarmic": "Karmisch",
+  "roll.rngHint": "Globales Wurfsystem umschalten: reiner Zufall oder adaptiv (karmisch) \u2014 Fehlschl\xE4ge bauen verborgene Gl\xFCcksschuld auf, die k\xFCnftige Fehlschl\xE4ge teils in Erfolge wandelt; Pechstr\xE4hnen klingen ab.",
   "roller.title": "W\xFCrfelbrett",
   "roller.addDie": "+ W\xFCrfel",
   "roller.addNum": "+ Zahl",

@@ -209,6 +209,8 @@ export interface EPSettings {
   diceAnimStay: boolean;
   /** Roll cards dim the background and block interaction until dismissed. */
   diceAnimBlock: boolean;
+  /** Adaptive ("karmic") rolls: failures build luck debt that converts some future failures into successes. */
+  karmicRolls?: boolean;
   /** List property storing modifiers switched off by clicking their short form. */
   modsOffProp: string;
 }

@@ -77,7 +77,7 @@ let summaryIndex = 0;
 /** Close handlers of all live cards, for dismiss-all. */
 const closers = new Set<() => void>();
 /** Resolved, still-visible rolls (feed the bottom summary window). */
-const lives = new Map<object, { total: number; sides: number }>();
+const lives = new Map<object, { total: number; sides: number; reroll?: () => void }>();
 /** Cards still tumbling — the summary waits for them. */
 let pending = 0;
 
@@ -86,9 +86,18 @@ export function closeAllRolls(): void {
 }
 
 function getLayer(block: boolean): HTMLElement {
-  if (!layer || !layer.isConnected) layer = document.body.createDiv({ cls: "ep-roll-layer" });
+  if (!layer || !layer.isConnected) {
+    layer = document.body.createDiv({ cls: "ep-roll-layer" });
+    // Cards live in a centered, vertically scrollable host.
+    layer.createDiv({ cls: "ep-roll-cards" });
+  }
   if (block) layer.addClass("ep-roll-block");
   return layer;
+}
+
+function cardsHost(block: boolean): HTMLElement {
+  const l = getLayer(block);
+  return (l.querySelector(".ep-roll-cards") as HTMLElement) ?? l;
 }
 
 function dropBox(box: HTMLElement): void {
@@ -124,6 +133,12 @@ function updateSummary(i18n: I18n): void {
   summaryEl = layer.createDiv({ cls: "ep-roll-summary" });
   const top = summaryEl.createDiv({ cls: "ep-roll-sum-top" });
   const valEl = top.createSpan({ cls: "ep-roll-sum-val" });
+  const rerollAll = top.createEl("button", { cls: "ep-roll-sum-dismiss", text: i18n.t("roll.rerollAll") });
+  rerollAll.onclick = () => {
+    const redos = [...lives.values()].map((l) => l.reroll).filter((r): r is () => void => !!r);
+    closeAllRolls();
+    for (const r of redos) r();
+  };
   const dismiss = top.createEl("button", { cls: "ep-roll-sum-dismiss", text: i18n.t("roll.closeAll") });
   dismiss.onclick = closeAllRolls;
   // The slider snaps across the distinct result values — no in-between.
@@ -133,13 +148,14 @@ function updateSummary(i18n: I18n): void {
   slider.step = "1";
   slider.value = String(summaryIndex);
   slider.disabled = uniq.length < 2;
+  // "<" sits on the left, "≥" on the right.
   const groupsRow = summaryEl.createDiv({ cls: "ep-roll-sum-groups" });
-  const geGroup = groupsRow.createDiv({ cls: "ep-roll-sum-group" });
-  const geHead = geGroup.createDiv({ cls: "ep-roll-sum-head" });
-  const geGrid = geGroup.createDiv({ cls: "ep-roll-sum-dice" });
   const ltGroup = groupsRow.createDiv({ cls: "ep-roll-sum-group" });
   const ltHead = ltGroup.createDiv({ cls: "ep-roll-sum-head" });
   const ltGrid = ltGroup.createDiv({ cls: "ep-roll-sum-dice" });
+  const geGroup = groupsRow.createDiv({ cls: "ep-roll-sum-group" });
+  const geHead = geGroup.createDiv({ cls: "ep-roll-sum-head" });
+  const geGrid = geGroup.createDiv({ cls: "ep-roll-sum-dice" });
 
   // One mini die per visible roll; it migrates between the two groups as
   // the slider moves (FLIP animation between positions).
@@ -201,7 +217,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
 
   pending++;
   const token = {};
-  const box = getLayer(job.block).createDiv({ cls: "ep-roll-box" });
+  const box = cardsHost(job.block).createDiv({ cls: "ep-roll-box" });
   box.createDiv({ cls: "ep-roll-label", text: job.label });
   const diceRow = box.createDiv({ cls: "ep-roll-dice" });
   const chain = box.createDiv({ cls: "ep-roll-chain" });
@@ -305,7 +321,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
   const resolve = () => {
     resolved = true;
     pending--;
-    lives.set(token, { total: job.total, sides: job.groups[0]?.sides ?? 20 });
+    lives.set(token, { total: job.total, sides: job.groups[0]?.sides ?? 20, reroll: job.reroll });
     done();
     updateSummary(i18n);
     // The auto-close must re-check pinning — clicking a card during this

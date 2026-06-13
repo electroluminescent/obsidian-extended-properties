@@ -28,11 +28,21 @@ export const rollsKind: EntryKindDef = {
     const e = ext<{ rollsBrief?: boolean }>(ctx.entry);
 
     const tools = ctx.extra.createDiv({ cls: "ep-log-tools" });
+    // Global RNG system: pure random vs adaptive ("karmic") luck debt.
+    const rngBtn = tools.createEl("button", { cls: "ep-mode-btn" });
+    rngBtn.setAttr("title", t("roll.rngHint"));
+    rngBtn.onclick = () => {
+      view.settings.karmicRolls = view.settings.karmicRolls ? undefined : true;
+      view.saveLayout();
+      redraw();
+    };
     const chainBtn = tools.createEl("button", { cls: "ep-mode-btn", text: t("roll.logChains") });
     chainBtn.setAttr("title", t("roll.logChainsHint"));
     const logEl = ctx.extra.createDiv({ cls: "ep-log" });
 
     const redraw = () => {
+      rngBtn.setText(view.settings.karmicRolls ? t("roll.rngKarmic") : t("roll.rngRandom"));
+      rngBtn.toggleClass("is-active", view.settings.karmicRolls === true);
       chainBtn.toggleClass("is-active", !e.rollsBrief);
       logEl.empty();
       if (service.log.length === 0) {
