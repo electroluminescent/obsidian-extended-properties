@@ -20,10 +20,14 @@ import type { Entry, EPSettings, Layout } from "../../core/model";
 import { ext } from "../../core/model";
 import type { Registries } from "../../core/registry";
 import type { NoteModel, NoteFacade } from "../../core/note-model";
+import type { PropertyIndex } from "../../core/property-index";
+import type { HideService } from "../../core/hide-service";
+import type { HistoryService } from "../rolling/history";
 import {
   InfluenceEnv, keyForShortForm, modifierBaseFor, modifierInfo, modifierTotal,
 } from "../../core/influences";
 import { makeNoteAwareResolver, parseNoteRef } from "../../core/note-ref";
+import { makeValsEl } from "./inline-view";
 import { DiceNode, parseRoll, RollAst, serializeRoll } from "../../utils/dice-expr";
 import { parseDiceOrDefault } from "../../utils/dice";
 import { fmtMod, fmtNum, getList, getNum } from "../../utils/misc";
@@ -42,6 +46,12 @@ export interface InlineCtx {
   facade: NoteFacade;
   /** Plugin-level roll service (works without a sidebar view). */
   roll: RollService;
+  /** Vault-wide property queries (value-type rendering for `vals:`). */
+  props: PropertyIndex;
+  /** Obsidian properties-panel hide service (sidebar value-type contract). */
+  hide: HideService;
+  /** Plugin-level roll history (sidebar value-type contract). */
+  history: HistoryService;
 }
 
 const enabled = (ctx: InlineCtx): boolean => ctx.settings.features["inline"] !== false;
@@ -59,7 +69,7 @@ export function processInline(el: HTMLElement, mdctx: MarkdownPostProcessorConte
   if (!(file instanceof TFile)) return;
   for (const code of codes) {
     if (code.closest("pre")) continue; // skip fenced code blocks
-    const m = /^(roll|prop|val)(?:\(([^)]*)\))?:\s*(.+)$/i.exec((code.textContent ?? "").trim());
+    const m = /^(roll|prop|vals|val)(?:\(([^)]*)\))?:\s*(.+)$/i.exec((code.textContent ?? "").trim());
     if (!m) continue;
     const kind = m[1].toLowerCase();
     const opt = (m[2] ?? "").trim();
@@ -69,7 +79,13 @@ export function processInline(el: HTMLElement, mdctx: MarkdownPostProcessorConte
     } else {
       const span = createSpan();
       code.replaceWith(span);
-      mdctx.addChild(kind === "val" ? new ValInline(span, ctx, file, body) : new PropInline(span, ctx, file, body));
+      const child =
+        kind === "val"
+          ? new ValInline(span, ctx, file, body)
+          : kind === "vals"
+            ? new ValsInline(span, ctx, file, body)
+            : new PropInline(span, ctx, file, body);
+      mdctx.addChild(child);
     }
   }
 }
@@ -270,8 +286,17 @@ export function makeValEl(ctx: InlineCtx, file: TFile, body: string, onEditSourc
     setIcon(ic, entry.icon);
     if (entry.iconColor) ic.style.color = entry.iconColor as string;
   }
-  // The property's full name, in small text before the value.
-  const fullName = directKey ?? baseKey ?? (noteRef ? noteRef.link : null);
+  // The property's full name, in small text before the value. For a cross-note
+  // reference, show "<note>/<property>" — the accessor resolved to that note's
+  // full property name where possible.
+  let crossName: string | null = null;
+  if (noteRef) {
+    let prop = noteRef.accessor;
+    const lf = ctx.app.metadataCache.getFirstLinkpathDest(noteRef.link, file.path);
+    if (lf) prop = keyForShortForm(ctx.settings, noteRef.accessor, Object.keys(ctx.facade.raw(lf))) ?? noteRef.accessor;
+    crossName = noteRef.accessor ? `${noteRef.link}/${prop}` : noteRef.link;
+  }
+  const fullName = directKey ?? baseKey ?? crossName;
   if (fullName) chip.createSpan({ cls: "ep-inline-val-name", text: fullName });
   const lab = chip.createSpan({ cls: "ep-inline-roll-lab" });
   let editValue: (() => void) | null = null;
@@ -340,6 +365,27 @@ class ValInline extends MarkdownRenderChild {
   private draw(): void {
     this.root.empty();
     this.root.appendChild(makeValEl(this.ctx, this.file, this.body));
+  }
+}
+
+/** Reading-mode `vals:` — the sidebar value-type rendering (refreshes on change). */
+class ValsInline extends MarkdownRenderChild {
+  constructor(public root: HTMLElement, private ctx: InlineCtx, private file: TFile, private body: string) {
+    super(root);
+  }
+
+  onload(): void {
+    this.draw();
+    this.registerEvent(
+      this.ctx.app.metadataCache.on("changed", (f) => {
+        if (f.path === this.file.path) this.draw();
+      })
+    );
+  }
+
+  private draw(): void {
+    this.root.empty();
+    this.root.appendChild(makeValsEl(this.ctx, this.file, this.body));
   }
 }
 

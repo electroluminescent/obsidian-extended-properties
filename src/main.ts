@@ -137,6 +137,9 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       registries: this.registries,
       facade: new NoteFacade(this.app, this.i18n),
       roll: this.rollService(),
+      props: this.props,
+      hide: this.hide,
+      history: this.history,
     });
 
     // -- view refresh on workspace / metadata events ---------------------------

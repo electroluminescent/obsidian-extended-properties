@@ -14,11 +14,12 @@
 
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
 import { RangeSetBuilder } from "@codemirror/state";
-import { syntaxTree } from "@codemirror/language";
+import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import { editorInfoField, editorLivePreviewField, Menu, TFile } from "obsidian";
 import { InlineCtx, makeRollChip, makeValEl, renderPropValue } from "./inline-render";
+import { makeValsEl } from "./inline-view";
 
-const PREFIX = /^(roll|prop|val)(?:\(([^)]*)\))?:\s*(.+)$/i;
+const PREFIX = /^(roll|prop|vals|val)(?:\(([^)]*)\))?:\s*(.+)$/i;
 
 /** Expand an inline-code content range to include its backtick fences. */
 function backtickSpan(doc: { sliceString(a: number, b: number): string; length: number }, from: number, to: number) {
@@ -59,6 +60,7 @@ class InlineWidget extends WidgetType {
     };
     try {
       if (this.kind === "roll") return makeRollChip(this.ctx, this.file, this.body, this.opt, reveal);
+      if (this.kind === "vals") return makeValsEl(this.ctx, this.file, this.body, reveal);
       if (this.kind === "val") return makeValEl(this.ctx, this.file, this.body, reveal);
       const wrap = createSpan({ cls: "ep-inline-prop" });
       wrap.appendChild(renderPropValue(this.ctx, this.file, this.body));
@@ -95,7 +97,11 @@ function buildDecos(view: EditorView, ctx: InlineCtx): DecorationSet {
   const sel = view.state.selection;
   const doc = view.state.doc;
   for (const { from, to } of view.visibleRanges) {
-    syntaxTree(view.state).iterate({
+    // Force the parser up to `to` so an edit elsewhere (e.g. deleting a
+    // backtick) can't leave a neighbouring code span un-relexed — which would
+    // make the next chip vanish until it's edited.
+    const tree = ensureSyntaxTree(view.state, to, 50) ?? syntaxTree(view.state);
+    tree.iterate({
       from,
       to,
       enter: (node) => {

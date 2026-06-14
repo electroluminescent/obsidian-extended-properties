@@ -22,7 +22,7 @@ __export(main_exports, {
   default: () => ExtendedPropertiesPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian30 = require("obsidian");
+var import_obsidian31 = require("obsidian");
 
 // src/i18n/i18n.ts
 var I18n = class {
@@ -10291,7 +10291,174 @@ var HistoryService = class {
 };
 
 // src/features/inline/inline-render.ts
+var import_obsidian29 = require("obsidian");
+
+// src/features/inline/inline-view.ts
 var import_obsidian28 = require("obsidian");
+var InlineViewCtx = class {
+  constructor(ctx, file, mount, redraw) {
+    this.redraw = redraw;
+    this.hub = new ServiceHub();
+    this.editMode = false;
+    this.layout = { version: 0, sections: [] };
+    this.activeTypeKey = null;
+    this.updaters = [];
+    this.app = ctx.app;
+    this.i18n = ctx.i18n;
+    this.settings = ctx.settings;
+    this.props = ctx.props;
+    this.hide = ctx.hide;
+    this.history = ctx.history;
+    this.containerEl = mount;
+    this.registries = Object.assign(Object.create(Registries.prototype), ctx.registries, {
+      clusterAddons: new Registry()
+    });
+    this.note = new NoteModel(this.app, this.i18n, {
+      onLightChange: () => this.refreshValues(),
+      onFullChange: () => this.redraw(),
+      captureUndo: () => false
+    });
+    this.note.load(file);
+  }
+  // -- refresh -----------------------------------------------------------------
+  refreshValues() {
+    for (const u of this.updaters) {
+      try {
+        u();
+      } catch (e) {
+      }
+    }
+  }
+  registerUpdater(fn) {
+    this.updaters.push(fn);
+  }
+  saveLayout() {
+  }
+  rerender() {
+    this.redraw();
+  }
+  // -- entry helpers -----------------------------------------------------------
+  resolveType(entry) {
+    var _a;
+    if (entry.dataType) return entry.dataType;
+    return this.deriveType((_a = entry.key) != null ? _a : "");
+  }
+  deriveType(key) {
+    const assigned = this.props.obsidianType(key);
+    if (assigned) return assigned;
+    const v = this.note.raw[key];
+    if (Array.isArray(v)) return "list";
+    if (typeof v === "number") return "number";
+    if (typeof v === "boolean") return "checkbox";
+    return this.settings.defaults.dataType;
+  }
+  defaultLabelFor(entry) {
+    const kind = this.registries.entryKinds.get(entry.kind);
+    return kind ? kind.defaultLabel(this.i18n, entry) : entry.kind;
+  }
+  renderLabel() {
+  }
+  buildCluster(head, flags, o) {
+    return buildCluster(head, flags, o, (el, open) => this.bindOpen(el, open));
+  }
+  bindOpen(el, open, markEditable = true) {
+    if (markEditable) el.addClass("ep-editable");
+    el.setAttr("title", this.i18n.t("hint.dblEdit"));
+    el.ondblclick = () => open();
+  }
+  renderLinks(el, text) {
+    renderLinkedText(this.app, el, text, this.note.path || "");
+  }
+  resolveImage(src) {
+    src = (src || "").trim();
+    const m = src.match(/!?\[\[(.*?)\]\]/);
+    const path = m ? m[1].split("|")[0].split("#")[0].trim() : src;
+    if (/^(https?:|data:|app:|file:)/.test(path)) return path;
+    const f = this.app.metadataCache.getFirstLinkpathDest(path, this.note.path || "");
+    if (f) return this.app.vault.getResourcePath(f);
+    const af = this.app.vault.getAbstractFileByPath(path);
+    if (af instanceof import_obsidian28.TFile) return this.app.vault.getResourcePath(af);
+    return path;
+  }
+  openColorPicker(initial, onPick) {
+    new ColorPickerModal(
+      {
+        app: this.app,
+        i18n: this.i18n,
+        getColorSpace: () => this.settings.defaults.colorSpace,
+        setColorSpace: (sp) => {
+          this.settings.defaults.colorSpace = sp;
+        }
+      },
+      initial,
+      onPick
+    ).open();
+  }
+  highlight() {
+  }
+  // -- structural ops (unused inline) -----------------------------------------
+  removeEntry() {
+  }
+  renameKey() {
+  }
+  openEntryOptions() {
+  }
+  openAddMenu() {
+  }
+  openListValuePicker() {
+  }
+  scrollToSection() {
+  }
+  propCandidates() {
+    return [];
+  }
+};
+function makeValsEl(ctx, file, body, onEditSource) {
+  const wrap = createSpan({ cls: "ep-inline-vals" });
+  const draw = () => {
+    var _a, _b, _c;
+    wrap.empty();
+    try {
+      const noteRef = parseNoteRef(body);
+      let target = file;
+      let ref = body;
+      if (noteRef && noteRef.accessor) {
+        const lf = ctx.app.metadataCache.getFirstLinkpathDest(noteRef.link, file.path);
+        if (!lf) throw new Error("unresolved note link");
+        target = lf;
+        ref = noteRef.accessor;
+      }
+      const view = new InlineViewCtx(ctx, target, wrap, draw);
+      const key = (_a = keyForShortForm(ctx.settings, ref, Object.keys(view.note.raw))) != null ? _a : ref;
+      const entry = { id: "ep-inline", kind: "prop", key };
+      const section = { id: "ep-inline", title: "", columns: 1, entries: [entry] };
+      const def = (_b = view.registries.valueTypes.get(view.resolveType(entry))) != null ? _b : view.registries.valueTypes.get("text");
+      if (!def) throw new Error("no value type");
+      const head = wrap.createSpan({ cls: "ep-inline-vals-head" });
+      const extra = wrap.createSpan({ cls: "ep-inline-vals-extra" });
+      const flags = emptyFlags();
+      mergeNeeds(flags, (_c = def.clusterNeeds) == null ? void 0 : _c.call(def, { view, file: target, section, entry }));
+      const ectx = { view, file: target, section, entry, head, extra, flags, wrap };
+      def.render(ectx);
+    } catch (e) {
+      wrap.empty();
+      wrap.appendChild(makeValEl(ctx, file, body, onEditSource));
+    }
+  };
+  draw();
+  if (onEditSource) {
+    wrap.oncontextmenu = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const menu = new import_obsidian28.Menu();
+      menu.addItem((i) => i.setTitle(ctx.i18n.t("inline.editSource")).setIcon("code").onClick(onEditSource));
+      menu.showAtMouseEvent(ev);
+    };
+  }
+  return wrap;
+}
+
+// src/features/inline/inline-render.ts
 var enabled = (ctx) => ctx.settings.features["inline"] !== false;
 function processInline(el, mdctx, ctx) {
   var _a, _b;
@@ -10299,10 +10466,10 @@ function processInline(el, mdctx, ctx) {
   const codes = Array.from(el.querySelectorAll("code"));
   if (!codes.length) return;
   const file = ctx.app.vault.getAbstractFileByPath(mdctx.sourcePath);
-  if (!(file instanceof import_obsidian28.TFile)) return;
+  if (!(file instanceof import_obsidian29.TFile)) return;
   for (const code of codes) {
     if (code.closest("pre")) continue;
-    const m = /^(roll|prop|val)(?:\(([^)]*)\))?:\s*(.+)$/i.exec(((_a = code.textContent) != null ? _a : "").trim());
+    const m = /^(roll|prop|vals|val)(?:\(([^)]*)\))?:\s*(.+)$/i.exec(((_a = code.textContent) != null ? _a : "").trim());
     if (!m) continue;
     const kind = m[1].toLowerCase();
     const opt = ((_b = m[2]) != null ? _b : "").trim();
@@ -10312,7 +10479,8 @@ function processInline(el, mdctx, ctx) {
     } else {
       const span = createSpan();
       code.replaceWith(span);
-      mdctx.addChild(kind === "val" ? new ValInline(span, ctx, file, body) : new PropInline(span, ctx, file, body));
+      const child = kind === "val" ? new ValInline(span, ctx, file, body) : kind === "vals" ? new ValsInline(span, ctx, file, body) : new PropInline(span, ctx, file, body);
+      mdctx.addChild(child);
     }
   }
 }
@@ -10341,7 +10509,7 @@ function applyMode(ast, mode) {
 function runInlineRoll(ctx, file, body, mode, times) {
   const t = ctx.i18n.t.bind(ctx.i18n);
   if (!parseRoll(body)) {
-    new import_obsidian28.Notice(t("inline.rollInvalid"));
+    new import_obsidian29.Notice(t("inline.rollInvalid"));
     return;
   }
   const tag = mode === "advantage" ? " " + t("roll.tagAdvantage") : mode === "disadvantage" ? " " + t("roll.tagDisadvantage") : "";
@@ -10362,7 +10530,7 @@ function makeRollChip(ctx, file, body, opt, onEdit) {
   const resolve = refResolver(ctx, file);
   const chip = createSpan({ cls: "ep-inline-roll" });
   const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });
-  (0, import_obsidian28.setIcon)(ic, diceIconId(primarySides(ast)));
+  (0, import_obsidian29.setIcon)(ic, diceIconId(primarySides(ast)));
   chip.createSpan({
     cls: "ep-inline-roll-lab",
     text: ast ? serializeRoll(ast, (name) => {
@@ -10423,7 +10591,7 @@ function renderPropValue(ctx, file, key) {
   };
   return val;
 }
-var PropInline = class extends import_obsidian28.MarkdownRenderChild {
+var PropInline = class extends import_obsidian29.MarkdownRenderChild {
   constructor(root, ctx, file, key) {
     super(root);
     this.root = root;
@@ -10454,7 +10622,7 @@ function findInlineEntry(ctx, file, key) {
   return null;
 }
 function makeValEl(ctx, file, body, onEditSource) {
-  var _a;
+  var _a, _b;
   const t = ctx.i18n.t.bind(ctx.i18n);
   const noteRef = parseNoteRef(body);
   const noteKeys = Object.keys(ctx.facade.raw(file));
@@ -10466,10 +10634,17 @@ function makeValEl(ctx, file, body, onEditSource) {
   const entry = iconKey ? findInlineEntry(ctx, file, iconKey) : null;
   if (entry == null ? void 0 : entry.icon) {
     const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });
-    (0, import_obsidian28.setIcon)(ic, entry.icon);
+    (0, import_obsidian29.setIcon)(ic, entry.icon);
     if (entry.iconColor) ic.style.color = entry.iconColor;
   }
-  const fullName = (_a = directKey != null ? directKey : baseKey) != null ? _a : noteRef ? noteRef.link : null;
+  let crossName = null;
+  if (noteRef) {
+    let prop2 = noteRef.accessor;
+    const lf = ctx.app.metadataCache.getFirstLinkpathDest(noteRef.link, file.path);
+    if (lf) prop2 = (_a = keyForShortForm(ctx.settings, noteRef.accessor, Object.keys(ctx.facade.raw(lf)))) != null ? _a : noteRef.accessor;
+    crossName = noteRef.accessor ? `${noteRef.link}/${prop2}` : noteRef.link;
+  }
+  const fullName = (_b = directKey != null ? directKey : baseKey) != null ? _b : crossName;
   if (fullName) chip.createSpan({ cls: "ep-inline-val-name", text: fullName });
   const lab = chip.createSpan({ cls: "ep-inline-roll-lab" });
   let editValue = null;
@@ -10522,7 +10697,7 @@ function makeValEl(ctx, file, body, onEditSource) {
     chip.oncontextmenu = (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
-      const menu = new import_obsidian28.Menu();
+      const menu = new import_obsidian29.Menu();
       if (editValue && directKey)
         menu.addItem((i) => i.setTitle(t("inline.editValue", { prop: directKey })).setIcon("pencil").onClick(editValue));
       if (onEditSource) menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
@@ -10531,7 +10706,7 @@ function makeValEl(ctx, file, body, onEditSource) {
   }
   return chip;
 }
-var ValInline = class extends import_obsidian28.MarkdownRenderChild {
+var ValInline = class extends import_obsidian29.MarkdownRenderChild {
   constructor(root, ctx, file, body) {
     super(root);
     this.root = root;
@@ -10550,6 +10725,27 @@ var ValInline = class extends import_obsidian28.MarkdownRenderChild {
   draw() {
     this.root.empty();
     this.root.appendChild(makeValEl(this.ctx, this.file, this.body));
+  }
+};
+var ValsInline = class extends import_obsidian29.MarkdownRenderChild {
+  constructor(root, ctx, file, body) {
+    super(root);
+    this.root = root;
+    this.ctx = ctx;
+    this.file = file;
+    this.body = body;
+  }
+  onload() {
+    this.draw();
+    this.registerEvent(
+      this.ctx.app.metadataCache.on("changed", (f) => {
+        if (f.path === this.file.path) this.draw();
+      })
+    );
+  }
+  draw() {
+    this.root.empty();
+    this.root.appendChild(makeValsEl(this.ctx, this.file, this.body));
   }
 };
 function buildEnv(ctx, file, layout) {
@@ -10576,10 +10772,10 @@ function layoutForFile(ctx, file) {
 }
 function renderSheet(src, el, mdctx, ctx) {
   const file = ctx.app.vault.getAbstractFileByPath(mdctx.sourcePath);
-  if (!(file instanceof import_obsidian28.TFile)) return;
+  if (!(file instanceof import_obsidian29.TFile)) return;
   mdctx.addChild(new SheetInline(el, ctx, file, src));
 }
-var SheetInline = class extends import_obsidian28.MarkdownRenderChild {
+var SheetInline = class extends import_obsidian29.MarkdownRenderChild {
   constructor(root, ctx, file, src) {
     super(root);
     this.root = root;
@@ -10644,7 +10840,7 @@ var SheetInline = class extends import_obsidian28.MarkdownRenderChild {
       const chip = row.createSpan({ cls: "ep-inline-roll ep-inline-sheet-roll" });
       const spec = parseDiceOrDefault(typeof e.dice === "string" ? e.dice : void 0);
       const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });
-      (0, import_obsidian28.setIcon)(ic, diceIconId(spec.sides));
+      (0, import_obsidian29.setIcon)(ic, diceIconId(spec.sides));
       chip.createSpan({ cls: "ep-inline-roll-lab", text: t("roll.roll") });
       const label = entry.alias || entry.key || t("roll.roll");
       chip.setAttr("title", t("inline.rollHint", { expr: label }));
@@ -10661,8 +10857,8 @@ var SheetInline = class extends import_obsidian28.MarkdownRenderChild {
 var import_view = require("@codemirror/view");
 var import_state = require("@codemirror/state");
 var import_language = require("@codemirror/language");
-var import_obsidian29 = require("obsidian");
-var PREFIX = /^(roll|prop|val)(?:\(([^)]*)\))?:\s*(.+)$/i;
+var import_obsidian30 = require("obsidian");
+var PREFIX = /^(roll|prop|vals|val)(?:\(([^)]*)\))?:\s*(.+)$/i;
 function backtickSpan(doc, from, to) {
   let s = from;
   while (s > 0 && doc.sliceString(s - 1, s) === "`") s--;
@@ -10690,13 +10886,14 @@ var InlineWidget = class extends import_view.WidgetType {
     };
     try {
       if (this.kind === "roll") return makeRollChip(this.ctx, this.file, this.body, this.opt, reveal);
+      if (this.kind === "vals") return makeValsEl(this.ctx, this.file, this.body, reveal);
       if (this.kind === "val") return makeValEl(this.ctx, this.file, this.body, reveal);
       const wrap = createSpan({ cls: "ep-inline-prop" });
       wrap.appendChild(renderPropValue(this.ctx, this.file, this.body));
       wrap.oncontextmenu = (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
-        const menu = new import_obsidian29.Menu();
+        const menu = new import_obsidian30.Menu();
         menu.addItem((i) => i.setTitle(this.ctx.i18n.t("inline.editSource")).setIcon("pencil").onClick(reveal));
         menu.showAtMouseEvent(ev);
       };
@@ -10713,16 +10910,17 @@ var InlineWidget = class extends import_view.WidgetType {
   }
 };
 function buildDecos(view, ctx) {
-  var _a, _b;
+  var _a, _b, _c;
   const b = new import_state.RangeSetBuilder();
   if (ctx.settings.features["inline"] === false) return b.finish();
-  if (!view.state.field(import_obsidian29.editorLivePreviewField, false)) return b.finish();
-  const file = (_b = (_a = view.state.field(import_obsidian29.editorInfoField, false)) == null ? void 0 : _a.file) != null ? _b : ctx.app.workspace.getActiveFile();
+  if (!view.state.field(import_obsidian30.editorLivePreviewField, false)) return b.finish();
+  const file = (_b = (_a = view.state.field(import_obsidian30.editorInfoField, false)) == null ? void 0 : _a.file) != null ? _b : ctx.app.workspace.getActiveFile();
   if (!file) return b.finish();
   const sel = view.state.selection;
   const doc = view.state.doc;
   for (const { from, to } of view.visibleRanges) {
-    (0, import_language.syntaxTree)(view.state).iterate({
+    const tree = (_c = (0, import_language.ensureSyntaxTree)(view.state, to, 50)) != null ? _c : (0, import_language.syntaxTree)(view.state);
+    tree.iterate({
       from,
       to,
       enter: (node) => {
@@ -10752,7 +10950,7 @@ function inlineLivePreview(ctx) {
         this.decorations = buildDecos(view, ctx);
       }
       update(u) {
-        if (u.docChanged || u.viewportChanged || u.selectionSet || u.focusChanged || u.startState.field(import_obsidian29.editorLivePreviewField, false) !== u.state.field(import_obsidian29.editorLivePreviewField, false)) {
+        if (u.docChanged || u.viewportChanged || u.selectionSet || u.focusChanged || u.startState.field(import_obsidian30.editorLivePreviewField, false) !== u.state.field(import_obsidian30.editorLivePreviewField, false)) {
           this.decorations = buildDecos(u.view, ctx);
         }
       }
@@ -10805,7 +11003,7 @@ function registerInline(plugin, ctx) {
 
 // src/main.ts
 var FEATURE_MODULES = [rollingModule, dnd5eModule, inlineModule];
-var ExtendedPropertiesPlugin = class extends import_obsidian30.Plugin {
+var ExtendedPropertiesPlugin = class extends import_obsidian31.Plugin {
   constructor() {
     super(...arguments);
     this.i18n = new I18n();
@@ -10860,7 +11058,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian30.Plugin {
         const k = v.trim();
         if (!k) return;
         this.hide.hideKey(k);
-        new import_obsidian30.Notice(this.i18n.t("notice.hiding", { key: k }));
+        new import_obsidian31.Notice(this.i18n.t("notice.hiding", { key: k }));
       }, () => this.props.knownProps()).open()
     });
     this.addSettingTab(new EPSettingTab(this.app, this));
@@ -10878,7 +11076,10 @@ var ExtendedPropertiesPlugin = class extends import_obsidian30.Plugin {
       settings: this.settings,
       registries: this.registries,
       facade: new NoteFacade(this.app, this.i18n),
-      roll: this.rollService()
+      roll: this.rollService(),
+      props: this.props,
+      hide: this.hide,
+      history: this.history
     });
     const refresh = (file) => {
       for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE)) {
@@ -10961,9 +11162,9 @@ var ExtendedPropertiesPlugin = class extends import_obsidian30.Plugin {
     try {
       const f = await this.app.vault.create(path, md);
       await this.app.workspace.getLeaf(true).openFile(f);
-      new import_obsidian30.Notice(this.i18n.t("roll.export.done"));
+      new import_obsidian31.Notice(this.i18n.t("roll.export.done"));
     } catch (err) {
-      new import_obsidian30.Notice(this.i18n.t("roll.export.failed", { error: String(err) }));
+      new import_obsidian31.Notice(this.i18n.t("roll.export.failed", { error: String(err) }));
     }
   }
   // -- registries -------------------------------------------------------------

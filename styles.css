@@ -551,6 +551,13 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 .ep-inline-val-name { font-size: 0.82em; color: var(--text-muted); margin-right: 1px; }
 /* Live Preview fallback when a widget fails to render (never an empty chip) */
 .ep-inline-error { color: var(--text-error); cursor: pointer; font-family: var(--font-monospace); border-bottom: 1px dotted var(--text-error); }
+/* vals: the full sidebar value-type UI, inline (no entry shell) */
+.ep-inline-vals { display: inline-flex; align-items: center; gap: 4px; vertical-align: baseline; }
+.ep-inline-vals-head, .ep-inline-vals-extra { display: inline-flex; align-items: center; gap: 4px; }
+.ep-inline-vals .ep-cluster { display: inline-grid; align-items: center; }
+.ep-inline-vals .ep-val-right { display: inline-flex; align-items: center; gap: 4px; }
+.ep-inline-vals .ep-slider { vertical-align: middle; max-width: 9em; }
+.ep-inline-vals .ep-list { display: inline-flex; flex-wrap: wrap; gap: 3px; }
 .ep-inline-prop { display: inline; }
 .ep-inline-editable { cursor: pointer; border-bottom: 1px dotted var(--text-faint); }
 .ep-inline-editable:hover { border-bottom-color: var(--interactive-accent); color: var(--text-normal); }
