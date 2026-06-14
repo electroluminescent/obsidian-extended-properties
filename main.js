@@ -10989,42 +10989,54 @@ function backtickSpan(doc, from, to) {
   return { from: s, to: e };
 }
 var InlineWidget = class extends import_view.WidgetType {
-  constructor(ctx, file, kind, opt, body, from) {
+  constructor(ctx, file, kind, opt, body) {
     super();
     this.ctx = ctx;
     this.file = file;
     this.kind = kind;
     this.opt = opt;
     this.body = body;
-    this.from = from;
   }
+  /**
+   * Position is deliberately NOT part of equality. An edit *above* a widget
+   * shifts its position but not its content; if `eq` included the position,
+   * CM6 would rebuild the whole widget every keystroke and re-attach its DOM —
+   * a path that drops the heavier `vals:` card. Comparing content only lets
+   * CM6 reuse and reposition the existing DOM, so cards survive edits above.
+   */
   eq(o) {
-    return o.kind === this.kind && o.opt === this.opt && o.body === this.body && o.from === this.from && o.file.path === this.file.path;
+    return o.kind === this.kind && o.opt === this.opt && o.body === this.body && o.file.path === this.file.path;
   }
   toDOM(view) {
+    let dom = null;
     const reveal = () => {
-      view.dispatch({ selection: { anchor: this.from + 1 } });
+      if (!dom) return;
+      const pos = view.posAtDOM(dom);
+      view.dispatch({ selection: { anchor: pos + 1 } });
       view.focus();
     };
     try {
-      if (this.kind === "roll") return makeRollChip(this.ctx, this.file, this.body, this.opt, reveal);
-      if (this.kind === "vals") return makeValsEl(this.ctx, this.file, this.body, reveal);
-      if (this.kind === "val") return makeValEl(this.ctx, this.file, this.body, reveal);
-      const wrap = createSpan({ cls: "ep-inline-prop" });
-      wrap.appendChild(renderPropValue(this.ctx, this.file, this.body));
-      wrap.oncontextmenu = (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        const menu = new import_obsidian30.Menu();
-        menu.addItem((i) => i.setTitle(this.ctx.i18n.t("inline.editSource")).setIcon("pencil").onClick(reveal));
-        menu.showAtMouseEvent(ev);
-      };
-      return wrap;
+      if (this.kind === "roll") dom = makeRollChip(this.ctx, this.file, this.body, this.opt, reveal);
+      else if (this.kind === "vals") dom = makeValsEl(this.ctx, this.file, this.body, reveal);
+      else if (this.kind === "val") dom = makeValEl(this.ctx, this.file, this.body, reveal);
+      else {
+        const wrap = createSpan({ cls: "ep-inline-prop" });
+        wrap.appendChild(renderPropValue(this.ctx, this.file, this.body));
+        wrap.oncontextmenu = (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const menu = new import_obsidian30.Menu();
+          menu.addItem((i) => i.setTitle(this.ctx.i18n.t("inline.editSource")).setIcon("pencil").onClick(reveal));
+          menu.showAtMouseEvent(ev);
+        };
+        dom = wrap;
+      }
+      return dom;
     } catch (e) {
       console.error("extended-properties: inline widget render failed", e);
-      const fallback = createSpan({ cls: "ep-inline-error", text: `${this.kind}: ${this.body}` });
-      fallback.onclick = reveal;
-      return fallback;
+      dom = createSpan({ cls: "ep-inline-error", text: `${this.kind}: ${this.body}` });
+      dom.onclick = reveal;
+      return dom;
     }
   }
   ignoreEvent() {
@@ -11040,6 +11052,7 @@ function buildDecos(view, ctx) {
   if (!file) return b.finish();
   const sel = view.state.selection;
   const doc = view.state.doc;
+  const items = [];
   for (const { from, to } of view.visibleRanges) {
     const tree = (_c = (0, import_language.ensureSyntaxTree)(view.state, to, 50)) != null ? _c : (0, import_language.syntaxTree)(view.state);
     tree.iterate({
@@ -11053,15 +11066,22 @@ function buildDecos(view, ctx) {
         if (!m) return;
         const span = backtickSpan(doc, node.from, node.to);
         if (view.hasFocus && sel.ranges.some((r) => r.from <= span.to && r.to >= span.from)) return;
-        b.add(
-          span.from,
-          span.to,
-          import_view.Decoration.replace({
-            widget: new InlineWidget(ctx, file, m[1].toLowerCase(), ((_a2 = m[2]) != null ? _a2 : "").trim(), m[3].trim(), span.from)
+        items.push({
+          from: span.from,
+          to: span.to,
+          deco: import_view.Decoration.replace({
+            widget: new InlineWidget(ctx, file, m[1].toLowerCase(), ((_a2 = m[2]) != null ? _a2 : "").trim(), m[3].trim())
           })
-        );
+        });
       }
     });
+  }
+  items.sort((a, z) => a.from - z.from || a.to - z.to);
+  let last = -1;
+  for (const it of items) {
+    if (it.from < last) continue;
+    b.add(it.from, it.to, it.deco);
+    last = it.to;
   }
   return b.finish();
 }
@@ -11072,11 +11092,16 @@ function inlineLivePreview(ctx) {
         this.decorations = buildDecos(view, ctx);
       }
       update(u) {
+        if (u.docChanged) this.decorations = this.decorations.map(u.changes);
         if (u.docChanged || u.viewportChanged || u.selectionSet || u.focusChanged || u.startState.field(import_obsidian30.editorLivePreviewField, false) !== u.state.field(import_obsidian30.editorLivePreviewField, false) || // Background parsing finished (after an edit above, the tree under a
         // widget may be momentarily stale): rebuild so a dropped chip/card
         // reappears on its own instead of waiting to be re-touched.
         (0, import_language.syntaxTree)(u.startState) !== (0, import_language.syntaxTree)(u.state)) {
-          this.decorations = buildDecos(u.view, ctx);
+          try {
+            this.decorations = buildDecos(u.view, ctx);
+          } catch (e) {
+            console.error("extended-properties: live-preview rebuild failed", e);
+          }
         }
       }
     },

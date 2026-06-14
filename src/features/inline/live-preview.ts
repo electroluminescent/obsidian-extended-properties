@@ -36,50 +36,57 @@ class InlineWidget extends WidgetType {
     private file: TFile,
     private kind: string,
     private opt: string,
-    private body: string,
-    private from: number
+    private body: string
   ) {
     super();
   }
 
+  /**
+   * Position is deliberately NOT part of equality. An edit *above* a widget
+   * shifts its position but not its content; if `eq` included the position,
+   * CM6 would rebuild the whole widget every keystroke and re-attach its DOM —
+   * a path that drops the heavier `vals:` card. Comparing content only lets
+   * CM6 reuse and reposition the existing DOM, so cards survive edits above.
+   */
   eq(o: InlineWidget): boolean {
-    return (
-      o.kind === this.kind &&
-      o.opt === this.opt &&
-      o.body === this.body &&
-      o.from === this.from &&
-      o.file.path === this.file.path
-    );
+    return o.kind === this.kind && o.opt === this.opt && o.body === this.body && o.file.path === this.file.path;
   }
 
   toDOM(view: EditorView): HTMLElement {
-    // Reveal the raw text by dropping the caret inside the span.
+    let dom: HTMLElement | null = null;
+    // Reveal the raw text by dropping the caret inside the span. The position
+    // is read from the live DOM (not stored), so it stays correct after edits.
     const reveal = () => {
-      view.dispatch({ selection: { anchor: this.from + 1 } });
+      if (!dom) return;
+      const pos = view.posAtDOM(dom);
+      view.dispatch({ selection: { anchor: pos + 1 } });
       view.focus();
     };
     try {
-      if (this.kind === "roll") return makeRollChip(this.ctx, this.file, this.body, this.opt, reveal);
-      if (this.kind === "vals") return makeValsEl(this.ctx, this.file, this.body, reveal);
-      if (this.kind === "val") return makeValEl(this.ctx, this.file, this.body, reveal);
-      const wrap = createSpan({ cls: "ep-inline-prop" });
-      wrap.appendChild(renderPropValue(this.ctx, this.file, this.body));
-      wrap.oncontextmenu = (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        const menu = new Menu();
-        menu.addItem((i) => i.setTitle(this.ctx.i18n.t("inline.editSource")).setIcon("pencil").onClick(reveal));
-        menu.showAtMouseEvent(ev);
-      };
-      return wrap;
+      if (this.kind === "roll") dom = makeRollChip(this.ctx, this.file, this.body, this.opt, reveal);
+      else if (this.kind === "vals") dom = makeValsEl(this.ctx, this.file, this.body, reveal);
+      else if (this.kind === "val") dom = makeValEl(this.ctx, this.file, this.body, reveal);
+      else {
+        const wrap = createSpan({ cls: "ep-inline-prop" });
+        wrap.appendChild(renderPropValue(this.ctx, this.file, this.body));
+        wrap.oncontextmenu = (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const menu = new Menu();
+          menu.addItem((i) => i.setTitle(this.ctx.i18n.t("inline.editSource")).setIcon("pencil").onClick(reveal));
+          menu.showAtMouseEvent(ev);
+        };
+        dom = wrap;
+      }
+      return dom;
     } catch (e) {
       // A throw here would leave an empty replacement widget — the raw text is
       // hidden but no chip appears. Fall back to a clickable raw-text span so
       // the source is always visible and editable.
       console.error("extended-properties: inline widget render failed", e);
-      const fallback = createSpan({ cls: "ep-inline-error", text: `${this.kind}: ${this.body}` });
-      fallback.onclick = reveal;
-      return fallback;
+      dom = createSpan({ cls: "ep-inline-error", text: `${this.kind}: ${this.body}` });
+      dom.onclick = reveal;
+      return dom;
     }
   }
 
@@ -96,10 +103,14 @@ function buildDecos(view: EditorView, ctx: InlineCtx): DecorationSet {
   if (!file) return b.finish();
   const sel = view.state.selection;
   const doc = view.state.doc;
+
+  // Collect first, then add in sorted, non-overlapping order. RangeSetBuilder
+  // requires that — and backtick-span expansion or multiple visible ranges can
+  // otherwise produce an out-of-order add, which throws and blanks every chip.
+  const items: { from: number; to: number; deco: Decoration }[] = [];
   for (const { from, to } of view.visibleRanges) {
-    // Force the parser up to `to` so an edit elsewhere (e.g. deleting a
-    // backtick) can't leave a neighbouring code span un-relexed — which would
-    // make the next chip vanish until it's edited.
+    // Force the parser up to `to` so an edit elsewhere (e.g. above the chips)
+    // can't leave their code spans un-relexed and drop them.
     const tree = ensureSyntaxTree(view.state, to, 50) ?? syntaxTree(view.state);
     tree.iterate({
       from,
@@ -115,15 +126,23 @@ function buildDecos(view: EditorView, ctx: InlineCtx): DecorationSet {
         // editor, always render the chip — otherwise clicking away would hide
         // the editable text without re-rendering the chip.
         if (view.hasFocus && sel.ranges.some((r) => r.from <= span.to && r.to >= span.from)) return;
-        b.add(
-          span.from,
-          span.to,
-          Decoration.replace({
-            widget: new InlineWidget(ctx, file, m[1].toLowerCase(), (m[2] ?? "").trim(), m[3].trim(), span.from),
-          })
-        );
+        items.push({
+          from: span.from,
+          to: span.to,
+          deco: Decoration.replace({
+            widget: new InlineWidget(ctx, file, m[1].toLowerCase(), (m[2] ?? "").trim(), m[3].trim()),
+          }),
+        });
       },
     });
+  }
+
+  items.sort((a, z) => a.from - z.from || a.to - z.to);
+  let last = -1;
+  for (const it of items) {
+    if (it.from < last) continue; // drop overlaps/duplicates to stay strictly sorted
+    b.add(it.from, it.to, it.deco);
+    last = it.to;
   }
   return b.finish();
 }
@@ -137,6 +156,10 @@ export function inlineLivePreview(ctx: InlineCtx) {
         this.decorations = buildDecos(view, ctx);
       }
       update(u: ViewUpdate): void {
+        // Remap existing decorations through the edit first, so a widget whose
+        // content is unchanged keeps its DOM (CM6 reuses it via `eq`) instead
+        // of being dropped while the rebuild runs.
+        if (u.docChanged) this.decorations = this.decorations.map(u.changes);
         if (
           u.docChanged ||
           u.viewportChanged ||
@@ -148,7 +171,13 @@ export function inlineLivePreview(ctx: InlineCtx) {
           // reappears on its own instead of waiting to be re-touched.
           syntaxTree(u.startState) !== syntaxTree(u.state)
         ) {
-          this.decorations = buildDecos(u.view, ctx);
+          try {
+            this.decorations = buildDecos(u.view, ctx);
+          } catch (e) {
+            // A failed rebuild must not blank every chip/card — keep the
+            // already-remapped decorations from this update instead.
+            console.error("extended-properties: live-preview rebuild failed", e);
+          }
         }
       }
     },
