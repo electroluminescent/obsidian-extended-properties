@@ -285,4 +285,10 @@ export interface EPSettings {
   failOnOne: boolean;
   /** Suffix that, appended to a reference, resolves to that property's modifier (default "s"). */
   modifierSuffix: string;
+  /**
+   * Per-reference entry config for inline `vals:` cards whose property is not
+   * in a note-type layout. Keyed by the reference (lower-cased key, or
+   * `link/key` for cross-note). Lets inline cards carry sliders/rolls/etc.
+   */
+  inlineEntries?: Record<string, Entry>;
 }

@@ -140,6 +140,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       props: this.props,
       hide: this.hide,
       history: this.history,
+      save: () => this.saveSettings(),
     });
 
     // -- view refresh on workspace / metadata events ---------------------------

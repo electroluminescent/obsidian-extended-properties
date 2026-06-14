@@ -4875,6 +4875,54 @@ function renderEntryOptionsBody(octx, onDone, onRemoved, opts = {}) {
   }
   new import_obsidian15.Setting(c).addButton((b) => b.setButtonText(t("common.done")).setCta().onClick(() => onDone()));
 }
+var EntryOptionsModal = class extends import_obsidian15.Modal {
+  constructor(view, section, entry, file) {
+    super(view.app);
+    this.view = view;
+    this.section = section;
+    this.entry = entry;
+    this.file = file;
+    this.snapshot = "";
+  }
+  changed() {
+    this.view.saveLayout();
+    this.view.rerender();
+  }
+  onOpen() {
+    this.snapshot = JSON.stringify(this.entry);
+    this.draw();
+  }
+  draw() {
+    const c = this.contentEl;
+    const view = this.view;
+    const t = view.i18n.t.bind(view.i18n);
+    c.empty();
+    c.addClass("ep-options");
+    c.createEl("h3", {
+      text: t("options.title", { name: this.entry.alias || view.defaultLabelFor(this.entry) })
+    });
+    const octx = {
+      view,
+      file: this.file,
+      section: this.section,
+      entry: this.entry,
+      container: c,
+      changed: () => this.changed(),
+      redraw: () => this.draw()
+    };
+    renderEntryOptionsBody(octx, () => this.close(), () => this.close());
+  }
+  onClose() {
+    this.contentEl.empty();
+    if (JSON.stringify(this.entry) !== this.snapshot) {
+      new ConfirmChangesModal(this.view.app, this.view.i18n, () => {
+      }, () => {
+        restoreFromSnapshot(this.entry, this.snapshot);
+        this.changed();
+      }).open();
+    }
+  }
+};
 
 // src/ui/modals/section-options.ts
 var SECTION_TAB = "::section";
@@ -10295,30 +10343,48 @@ var import_obsidian29 = require("obsidian");
 
 // src/features/inline/inline-view.ts
 var import_obsidian28 = require("obsidian");
+function layoutForFile(ctx, file) {
+  const raw = ctx.facade.raw(file);
+  const tk = Object.keys(raw).find((k) => k.toLowerCase() === "type");
+  const tv = tk !== void 0 ? raw[tk] : void 0;
+  const types = Array.isArray(tv) ? tv.map(String) : tv === void 0 || tv === null ? [] : [String(tv)];
+  const match = ctx.settings.types.find((tp) => types.some((x) => x.toLowerCase() === tp.toLowerCase()));
+  if (!match) return null;
+  const layout = ctx.settings.layouts[match.toLowerCase()];
+  return layout && Array.isArray(layout.sections) ? layout : null;
+}
+function findPropEntry(layout, key) {
+  const kl = key.toLowerCase();
+  for (const section of layout.sections)
+    for (const entry of section.entries)
+      if (entry.kind === "prop" && entry.key && entry.key.toLowerCase() === kl)
+        return { section, entry };
+  return null;
+}
 var InlineViewCtx = class {
-  constructor(ctx, file, mount, redraw) {
+  constructor(ctx, target, layout, mount, redraw) {
+    this.ctx = ctx;
+    this.target = target;
     this.redraw = redraw;
     this.hub = new ServiceHub();
     this.editMode = false;
-    this.layout = { version: 0, sections: [] };
     this.activeTypeKey = null;
     this.updaters = [];
     this.app = ctx.app;
     this.i18n = ctx.i18n;
     this.settings = ctx.settings;
+    this.registries = ctx.registries;
     this.props = ctx.props;
     this.hide = ctx.hide;
     this.history = ctx.history;
     this.containerEl = mount;
-    this.registries = Object.assign(Object.create(Registries.prototype), ctx.registries, {
-      clusterAddons: new Registry()
-    });
+    this.layout = layout != null ? layout : { version: 0, sections: [] };
     this.note = new NoteModel(this.app, this.i18n, {
       onLightChange: () => this.refreshValues(),
       onFullChange: () => this.redraw(),
       captureUndo: () => false
     });
-    this.note.load(file);
+    this.note.load(target);
   }
   // -- refresh -----------------------------------------------------------------
   refreshValues() {
@@ -10333,6 +10399,7 @@ var InlineViewCtx = class {
     this.updaters.push(fn);
   }
   saveLayout() {
+    this.ctx.save();
   }
   rerender() {
     this.redraw();
@@ -10356,7 +10423,18 @@ var InlineViewCtx = class {
     const kind = this.registries.entryKinds.get(entry.kind);
     return kind ? kind.defaultLabel(this.i18n, entry) : entry.kind;
   }
-  renderLabel() {
+  renderLabel(head, ctx) {
+    const { entry } = ctx;
+    if (entry.hideLabel) return;
+    const span = head.createSpan({ cls: "ep-line-name" });
+    if (entry.labelSize) span.style.fontSize = entry.labelSize + "px";
+    if (entry.labelColor) span.style.color = entry.labelColor;
+    span.setText(entry.alias || this.defaultLabelFor(entry));
+    span.addClass("ep-clickname");
+    if (entry.kind === "prop" && entry.showType !== false) {
+      const def = this.registries.valueTypes.get(this.resolveType(entry));
+      span.createSpan({ cls: "ep-type-hint", text: def ? def.name(this.i18n) : this.resolveType(entry) });
+    }
   }
   buildCluster(head, flags, o) {
     return buildCluster(head, flags, o, (el, open) => this.bindOpen(el, open));
@@ -10388,6 +10466,7 @@ var InlineViewCtx = class {
         getColorSpace: () => this.settings.defaults.colorSpace,
         setColorSpace: (sp) => {
           this.settings.defaults.colorSpace = sp;
+          this.ctx.save();
         }
       },
       initial,
@@ -10396,12 +10475,16 @@ var InlineViewCtx = class {
   }
   highlight() {
   }
-  // -- structural ops (unused inline) -----------------------------------------
+  openEntryOptions(section, entry) {
+    new EntryOptionsModal(this, section, entry, this.target).open();
+  }
+  // -- structural ops (a single inline card has no layout) --------------------
+  renameKey(entry, newKey) {
+    entry.key = newKey;
+    delete entry.dataType;
+    this.ctx.save();
+  }
   removeEntry() {
-  }
-  renameKey() {
-  }
-  openEntryOptions() {
   }
   openAddMenu() {
   }
@@ -10410,13 +10493,14 @@ var InlineViewCtx = class {
   scrollToSection() {
   }
   propCandidates() {
-    return [];
+    return Object.keys(this.note.raw).map((key) => ({ key, onNote: true }));
   }
 };
 function makeValsEl(ctx, file, body, onEditSource) {
   const wrap = createSpan({ cls: "ep-inline-vals" });
+  const t = ctx.i18n.t.bind(ctx.i18n);
   const draw = () => {
-    var _a, _b, _c;
+    var _a, _b, _c, _d, _e, _f;
     wrap.empty();
     try {
       const noteRef = parseNoteRef(body);
@@ -10428,33 +10512,71 @@ function makeValsEl(ctx, file, body, onEditSource) {
         target = lf;
         ref = noteRef.accessor;
       }
-      const view = new InlineViewCtx(ctx, target, wrap, draw);
+      const layout = layoutForFile(ctx, target);
+      const view = new InlineViewCtx(ctx, target, layout, wrap, draw);
       const key = (_a = keyForShortForm(ctx.settings, ref, Object.keys(view.note.raw))) != null ? _a : ref;
-      const entry = { id: "ep-inline", kind: "prop", key };
-      const section = { id: "ep-inline", title: "", columns: 1, entries: [entry] };
-      const def = (_b = view.registries.valueTypes.get(view.resolveType(entry))) != null ? _b : view.registries.valueTypes.get("text");
-      if (!def) throw new Error("no value type");
-      const head = wrap.createSpan({ cls: "ep-inline-vals-head" });
-      const extra = wrap.createSpan({ cls: "ep-inline-vals-extra" });
+      const inLayout = layout ? findPropEntry(layout, key) : null;
+      let section;
+      let entry;
+      if (inLayout) {
+        section = inLayout.section;
+        entry = inLayout.entry;
+      } else {
+        const id = (noteRef ? noteRef.link.toLowerCase() + "/" : "") + key.toLowerCase();
+        const store = (_c = (_b = ctx.settings).inlineEntries) != null ? _c : _b.inlineEntries = {};
+        entry = (_d = store[id]) != null ? _d : store[id] = { id: "ep-inline:" + id, kind: "prop", key };
+        if (!entry.key) entry.key = key;
+        section = { id: "ep-inline", title: "", columns: 1, layoutMode: "list", entries: [entry] };
+      }
+      const kind = view.registries.entryKinds.get(entry.kind);
+      const valueWide = entry.kind === "prop" && !!((_e = view.registries.valueTypes.get(view.resolveType(entry))) == null ? void 0 : _e.wide);
+      const wide = !!(kind == null ? void 0 : kind.wide) || valueWide;
+      const card = wrap.createDiv({ cls: wide ? "ep-entry ep-entry-block" : "ep-entry" });
+      const head = card.createDiv({ cls: "ep-entry-head" });
+      if (entry.icon) {
+        const ic = head.createSpan({ cls: "ep-picon" });
+        (0, import_obsidian28.setIcon)(ic, entry.icon);
+        if (entry.iconColor) ic.style.color = entry.iconColor;
+      }
+      const extra = card.createDiv({ cls: "ep-entry-extra" });
       const flags = emptyFlags();
-      mergeNeeds(flags, (_c = def.clusterNeeds) == null ? void 0 : _c.call(def, { view, file: target, section, entry }));
-      const ectx = { view, file: target, section, entry, head, extra, flags, wrap };
-      def.render(ectx);
+      mergeNeeds(flags, (_f = kind == null ? void 0 : kind.clusterNeeds) == null ? void 0 : _f.call(kind, { view, file: target, section, entry }));
+      const ectx = { view, file: target, section, entry, head, extra, flags, wrap: card };
+      if (kind) kind.render(ectx);
+      else view.renderLabel(head, ectx);
+      card.addEventListener("contextmenu", (ev) => {
+        var _a2, _b2;
+        ev.preventDefault();
+        ev.stopPropagation();
+        const menu = new import_obsidian28.Menu();
+        const name = entry.alias || view.defaultLabelFor(entry);
+        menu.addItem(
+          (i) => i.setTitle(t("entry.menu.configure", { name })).setIcon("settings").onClick(
+            () => view.openEntryOptions(section, entry)
+          )
+        );
+        if (entry.kind === "prop" && entry.key) {
+          const key2 = entry.key;
+          menu.addSeparator();
+          menu.addItem(
+            (i) => i.setTitle(t("entry.menu.clearValue", { key: key2 })).setIcon("eraser").onClick(
+              () => view.note.set(target, key2, void 0)
+            )
+          );
+          (_b2 = (_a2 = view.registries.valueTypes.get(view.resolveType(entry))) == null ? void 0 : _a2.menuItems) == null ? void 0 : _b2.call(_a2, menu, { view, file: target, section, entry }, { x: ev.clientX, y: ev.clientY });
+        }
+        if (onEditSource) {
+          menu.addSeparator();
+          menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
+        }
+        menu.showAtMouseEvent(ev);
+      });
     } catch (e) {
       wrap.empty();
       wrap.appendChild(makeValEl(ctx, file, body, onEditSource));
     }
   };
   draw();
-  if (onEditSource) {
-    wrap.oncontextmenu = (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      const menu = new import_obsidian28.Menu();
-      menu.addItem((i) => i.setTitle(ctx.i18n.t("inline.editSource")).setIcon("code").onClick(onEditSource));
-      menu.showAtMouseEvent(ev);
-    };
-  }
   return wrap;
 }
 
@@ -10614,7 +10736,7 @@ var PropInline = class extends import_obsidian29.MarkdownRenderChild {
   }
 };
 function findInlineEntry(ctx, file, key) {
-  const layout = layoutForFile(ctx, file);
+  const layout = layoutForFile2(ctx, file);
   if (!layout) return null;
   const kl = key.toLowerCase();
   for (const s of layout.sections)
@@ -10758,9 +10880,9 @@ function buildEnv(ctx, file, layout) {
   return { note, registries: ctx.registries, settings: ctx.settings, layout: layout != null ? layout : void 0 };
 }
 function envFor(ctx, file) {
-  return buildEnv(ctx, file, layoutForFile(ctx, file));
+  return buildEnv(ctx, file, layoutForFile2(ctx, file));
 }
-function layoutForFile(ctx, file) {
+function layoutForFile2(ctx, file) {
   const raw = ctx.facade.raw(file);
   const tk = Object.keys(raw).find((k) => k.toLowerCase() === "type");
   const tv = tk !== void 0 ? raw[tk] : void 0;
@@ -10796,7 +10918,7 @@ var SheetInline = class extends import_obsidian29.MarkdownRenderChild {
     this.root.empty();
     this.root.addClass("ep-inline-sheet");
     if (!enabled(this.ctx)) return;
-    const layout = layoutForFile(this.ctx, this.file);
+    const layout = layoutForFile2(this.ctx, this.file);
     if (!layout) {
       this.root.createDiv({ cls: "ep-inline-note", text: t("inline.sheetNoType") });
       return;
@@ -11079,7 +11201,8 @@ var ExtendedPropertiesPlugin = class extends import_obsidian31.Plugin {
       roll: this.rollService(),
       props: this.props,
       hide: this.hide,
-      history: this.history
+      history: this.history,
+      save: () => this.saveSettings()
     });
     const refresh = (file) => {
       for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE)) {

@@ -1,21 +1,23 @@
 /**
- * `vals:` — render a property inline using the *same* value-type renderers the
- * sidebar uses (sliders, color swatches, images, progress bars, lists, …),
- * without any of the sidebar's structural chrome (grips, options buttons,
- * entry context menus) or cluster addons (roll buttons, modifier badges).
+ * `vals:` — render a property inline as the *same* card the sidebar shows:
+ * label, the value-type UI (sliders, swatches, images, lists, …) and cluster
+ * addons (roll buttons, modifier badges), with a context menu that opens the
+ * standard entry-options modal (enable sliders, steppers, rolls, etc.).
  *
- * It does this by driving the real {@link ValueTypeDef.render} against a
- * minimal headless {@link ViewCtx} ({@link InlineViewCtx}) bound to the file's
- * frontmatter via a {@link NoteModel}. Anything unexpected falls back to the
- * plain `val:` chip so an inline reference never renders blank.
+ * It drives the real {@link EntryKindDef}/{@link ValueTypeDef} renderers against
+ * a minimal headless {@link ViewCtx} ({@link InlineViewCtx}) bound to the file's
+ * frontmatter via a {@link NoteModel}. The entry it renders is, in order of
+ * preference: the matching prop entry in the note-type layout (so the card and
+ * its options stay in sync with the sidebar), otherwise a persistent per-
+ * reference entry kept in `settings.inlineEntries`. Anything unexpected falls
+ * back to the plain `val:` chip so an inline reference never renders blank.
  */
 
-import { App, Menu, TFile } from "obsidian";
+import { App, Menu, setIcon, TFile } from "obsidian";
 import type { ClusterFlags, ClusterOptions, ClusterRefs, EntryRenderCtx, ViewCtx } from "../../core/context";
 import type { Entry, EPSettings, Layout, Section } from "../../core/model";
 import type { I18n } from "../../i18n/i18n";
-import { Registries, Registry } from "../../core/registry";
-import type { ClusterAddon } from "../../core/registry";
+import type { Registries } from "../../core/registry";
 import { ServiceHub } from "../../core/registry";
 import type { PropertyIndex } from "../../core/property-index";
 import type { HideService } from "../../core/hide-service";
@@ -24,15 +26,38 @@ import { NoteModel } from "../../core/note-model";
 import { buildCluster, emptyFlags, mergeNeeds } from "../../ui/render/cluster";
 import { renderLinkedText } from "../../ui/components/links";
 import { ColorPickerModal } from "../../ui/modals/color-picker";
+import { EntryOptionsModal } from "../../ui/modals/entry-options";
 import { keyForShortForm } from "../../core/influences";
 import { parseNoteRef } from "../../core/note-ref";
 import type { InlineCtx } from "./inline-render";
 import { makeValEl } from "./inline-render";
 
+/** The note-type layout for a file (or null when no configured type matches). */
+function layoutForFile(ctx: InlineCtx, file: TFile): Layout | null {
+  const raw = ctx.facade.raw(file);
+  const tk = Object.keys(raw).find((k) => k.toLowerCase() === "type");
+  const tv = tk !== undefined ? raw[tk] : undefined;
+  const types = Array.isArray(tv) ? tv.map(String) : tv === undefined || tv === null ? [] : [String(tv)];
+  const match = ctx.settings.types.find((tp) => types.some((x) => x.toLowerCase() === tp.toLowerCase()));
+  if (!match) return null;
+  const layout = ctx.settings.layouts[match.toLowerCase()];
+  return layout && Array.isArray(layout.sections) ? layout : null;
+}
+
+/** Find a prop entry (with its section) for `key` in `layout`, case-insensitive. */
+function findPropEntry(layout: Layout, key: string): { section: Section; entry: Entry } | null {
+  const kl = key.toLowerCase();
+  for (const section of layout.sections)
+    for (const entry of section.entries)
+      if (entry.kind === "prop" && entry.key && (entry.key as string).toLowerCase() === kl)
+        return { section, entry };
+  return null;
+}
+
 /**
- * A minimal {@link ViewCtx} for rendering a single property value inline.
- * Implements the rendering surface the value types use; structural operations
- * (drag, add/remove, options) are no-ops — `vals:` only displays a value.
+ * A minimal {@link ViewCtx} for rendering a single property card inline.
+ * Implements the rendering + options surface the entry/value renderers use;
+ * structural layout operations are no-ops (an inline card has no grid).
  */
 class InlineViewCtx implements ViewCtx {
   readonly app: App;
@@ -46,30 +71,33 @@ class InlineViewCtx implements ViewCtx {
   readonly hub = new ServiceHub();
   readonly history: HistoryService;
   readonly editMode = false;
-  readonly layout: Layout = { version: 0, sections: [] };
+  readonly layout: Layout;
   readonly activeTypeKey: string | null = null;
 
   private updaters: (() => void)[] = [];
 
-  constructor(ctx: InlineCtx, file: TFile, mount: HTMLElement, private redraw: () => void) {
+  constructor(
+    private ctx: InlineCtx,
+    private target: TFile,
+    layout: Layout | null,
+    mount: HTMLElement,
+    private redraw: () => void
+  ) {
     this.app = ctx.app;
     this.i18n = ctx.i18n;
     this.settings = ctx.settings;
+    this.registries = ctx.registries;
     this.props = ctx.props;
     this.hide = ctx.hide;
     this.history = ctx.history;
     this.containerEl = mount;
-    // Reuse the real value-type and entry-kind registries, but with no cluster
-    // addons — roll buttons and modifier badges are sidebar-only extras.
-    this.registries = Object.assign(Object.create(Registries.prototype), ctx.registries, {
-      clusterAddons: new Registry<ClusterAddon>(),
-    }) as Registries;
+    this.layout = layout ?? { version: 0, sections: [] };
     this.note = new NoteModel(this.app, this.i18n, {
       onLightChange: () => this.refreshValues(),
       onFullChange: () => this.redraw(),
       captureUndo: () => false,
     });
-    this.note.load(file);
+    this.note.load(target);
   }
 
   // -- refresh -----------------------------------------------------------------
@@ -79,7 +107,7 @@ class InlineViewCtx implements ViewCtx {
     }
   }
   registerUpdater(fn: () => void): void { this.updaters.push(fn); }
-  saveLayout(): void { /* no persistent layout inline */ }
+  saveLayout(): void { this.ctx.save(); }
   rerender(): void { this.redraw(); }
 
   // -- entry helpers -----------------------------------------------------------
@@ -100,7 +128,19 @@ class InlineViewCtx implements ViewCtx {
     const kind = this.registries.entryKinds.get(entry.kind);
     return kind ? kind.defaultLabel(this.i18n, entry) : entry.kind;
   }
-  renderLabel(): void { /* vals shows the value only — no label */ }
+  renderLabel(head: HTMLElement, ctx: EntryRenderCtx): void {
+    const { entry } = ctx;
+    if (entry.hideLabel) return;
+    const span = head.createSpan({ cls: "ep-line-name" });
+    if (entry.labelSize) span.style.fontSize = entry.labelSize + "px";
+    if (entry.labelColor) span.style.color = entry.labelColor as string;
+    span.setText((entry.alias as string) || this.defaultLabelFor(entry));
+    span.addClass("ep-clickname");
+    if (entry.kind === "prop" && entry.showType !== false) {
+      const def = this.registries.valueTypes.get(this.resolveType(entry));
+      span.createSpan({ cls: "ep-type-hint", text: def ? def.name(this.i18n) : this.resolveType(entry) });
+    }
+  }
   buildCluster(head: HTMLElement, flags: ClusterFlags, o: ClusterOptions): ClusterRefs {
     return buildCluster(head, flags, o, (el, open) => this.bindOpen(el, open));
   }
@@ -129,35 +169,46 @@ class InlineViewCtx implements ViewCtx {
         app: this.app,
         i18n: this.i18n,
         getColorSpace: () => this.settings.defaults.colorSpace,
-        setColorSpace: (sp) => { this.settings.defaults.colorSpace = sp; },
+        setColorSpace: (sp) => { this.settings.defaults.colorSpace = sp; this.ctx.save(); },
       },
       initial,
       onPick
     ).open();
   }
   highlight(): void { /* no sidebar to highlight into */ }
+  openEntryOptions(section: Section, entry: Entry): void {
+    new EntryOptionsModal(this, section, entry, this.target).open();
+  }
 
-  // -- structural ops (unused inline) -----------------------------------------
-  removeEntry(): void {}
-  renameKey(): void {}
-  openEntryOptions(): void {}
+  // -- structural ops (a single inline card has no layout) --------------------
+  renameKey(entry: Entry, newKey: string): void {
+    entry.key = newKey;
+    delete entry.dataType;
+    this.ctx.save();
+  }
+  removeEntry(): void { /* inline cards never delete layout entries */ }
   openAddMenu(): void {}
   openListValuePicker(): void {}
   scrollToSection(): void {}
-  propCandidates(): { key: string; onNote: boolean }[] { return []; }
+  propCandidates(): { key: string; onNote: boolean }[] {
+    return Object.keys(this.note.raw).map((key) => ({ key, onNote: true }));
+  }
 }
 
 /**
  * Build a `vals:` element: the property `body` (a key, short form, or
- * `[[note]].key`) rendered with its sidebar value-type UI. Falls back to the
- * plain `val:` chip on any error. `onEditSource` adds an "Edit source" menu
- * item (Live Preview) to reveal the raw text.
+ * `[[note]].key`) rendered as a sidebar-style card. Falls back to the plain
+ * `val:` chip on any error. `onEditSource` adds an "Edit source" menu item
+ * (Live Preview) to reveal the raw text.
  */
 export function makeValsEl(ctx: InlineCtx, file: TFile, body: string, onEditSource?: () => void): HTMLElement {
   const wrap = createSpan({ cls: "ep-inline-vals" });
+  const t = ctx.i18n.t.bind(ctx.i18n);
+
   const draw = (): void => {
     wrap.empty();
     try {
+      // Resolve the target file (cross-note) and the referenced property key.
       const noteRef = parseNoteRef(body);
       let target = file;
       let ref = body;
@@ -167,33 +218,81 @@ export function makeValsEl(ctx: InlineCtx, file: TFile, body: string, onEditSour
         target = lf;
         ref = noteRef.accessor;
       }
-      const view = new InlineViewCtx(ctx, target, wrap, draw);
+      const layout = layoutForFile(ctx, target);
+      const view = new InlineViewCtx(ctx, target, layout, wrap, draw);
       const key = keyForShortForm(ctx.settings, ref, Object.keys(view.note.raw)) ?? ref;
-      const entry: Entry = { id: "ep-inline", kind: "prop", key };
-      const section: Section = { id: "ep-inline", title: "", columns: 1, entries: [entry] };
-      const def =
-        view.registries.valueTypes.get(view.resolveType(entry)) ?? view.registries.valueTypes.get("text");
-      if (!def) throw new Error("no value type");
-      const head = wrap.createSpan({ cls: "ep-inline-vals-head" });
-      const extra = wrap.createSpan({ cls: "ep-inline-vals-extra" });
+
+      // Prefer the real layout entry (stays in sync with the sidebar); else a
+      // persistent per-reference entry so the card can carry sliders/rolls.
+      const inLayout = layout ? findPropEntry(layout, key) : null;
+      let section: Section;
+      let entry: Entry;
+      if (inLayout) {
+        section = inLayout.section;
+        entry = inLayout.entry;
+      } else {
+        const id = (noteRef ? noteRef.link.toLowerCase() + "/" : "") + key.toLowerCase();
+        const store = (ctx.settings.inlineEntries ??= {});
+        entry = store[id] ?? (store[id] = { id: "ep-inline:" + id, kind: "prop", key });
+        if (!entry.key) entry.key = key;
+        section = { id: "ep-inline", title: "", columns: 1, layoutMode: "list", entries: [entry] };
+      }
+
+      // Render the entry card (the editMode === false path of the sidebar's
+      // entry renderer: shell + icon + label + value, no grips/options button).
+      const kind = view.registries.entryKinds.get(entry.kind);
+      const valueWide = entry.kind === "prop" && !!view.registries.valueTypes.get(view.resolveType(entry))?.wide;
+      const wide = !!kind?.wide || valueWide;
+      const card = wrap.createDiv({ cls: wide ? "ep-entry ep-entry-block" : "ep-entry" });
+      const head = card.createDiv({ cls: "ep-entry-head" });
+      if (entry.icon) {
+        const ic = head.createSpan({ cls: "ep-picon" });
+        setIcon(ic, entry.icon as string);
+        if (entry.iconColor) ic.style.color = entry.iconColor as string;
+      }
+      const extra = card.createDiv({ cls: "ep-entry-extra" });
       const flags = emptyFlags();
-      mergeNeeds(flags, def.clusterNeeds?.({ view, file: target, section, entry }));
-      const ectx: EntryRenderCtx = { view, file: target, section, entry, head, extra, flags, wrap };
-      def.render(ectx);
+      mergeNeeds(flags, kind?.clusterNeeds?.({ view, file: target, section, entry }));
+      const ectx: EntryRenderCtx = { view, file: target, section, entry, head, extra, flags, wrap: card };
+      if (kind) kind.render(ectx);
+      else view.renderLabel(head, ectx);
+
+      // Context menu: configure (options modal), clear value, value-type items,
+      // and Edit source — but none of the sidebar's structural (grid) actions.
+      card.addEventListener("contextmenu", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const menu = new Menu();
+        const name = (entry.alias as string) || view.defaultLabelFor(entry);
+        menu.addItem((i) =>
+          i.setTitle(t("entry.menu.configure", { name })).setIcon("settings").onClick(() =>
+            view.openEntryOptions(section, entry)
+          )
+        );
+        if (entry.kind === "prop" && entry.key) {
+          const key2 = entry.key as string;
+          menu.addSeparator();
+          menu.addItem((i) =>
+            i.setTitle(t("entry.menu.clearValue", { key: key2 })).setIcon("eraser").onClick(() =>
+              view.note.set(target, key2, undefined)
+            )
+          );
+          view.registries.valueTypes
+            .get(view.resolveType(entry))
+            ?.menuItems?.(menu, { view, file: target, section, entry }, { x: ev.clientX, y: ev.clientY });
+        }
+        if (onEditSource) {
+          menu.addSeparator();
+          menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
+        }
+        menu.showAtMouseEvent(ev);
+      });
     } catch {
       wrap.empty();
       wrap.appendChild(makeValEl(ctx, file, body, onEditSource));
     }
   };
+
   draw();
-  if (onEditSource) {
-    wrap.oncontextmenu = (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      const menu = new Menu();
-      menu.addItem((i) => i.setTitle(ctx.i18n.t("inline.editSource")).setIcon("code").onClick(onEditSource));
-      menu.showAtMouseEvent(ev);
-    };
-  }
   return wrap;
 }

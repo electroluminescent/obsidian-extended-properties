@@ -52,6 +52,8 @@ export interface InlineCtx {
   hide: HideService;
   /** Plugin-level roll history (sidebar value-type contract). */
   history: HistoryService;
+  /** Persist settings (e.g. after editing an inline `vals:` card's options). */
+  save: () => void;
 }
 
 const enabled = (ctx: InlineCtx): boolean => ctx.settings.features["inline"] !== false;
