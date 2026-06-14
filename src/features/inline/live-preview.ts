@@ -142,7 +142,11 @@ export function inlineLivePreview(ctx: InlineCtx) {
           u.viewportChanged ||
           u.selectionSet ||
           u.focusChanged ||
-          u.startState.field(editorLivePreviewField, false) !== u.state.field(editorLivePreviewField, false)
+          u.startState.field(editorLivePreviewField, false) !== u.state.field(editorLivePreviewField, false) ||
+          // Background parsing finished (after an edit above, the tree under a
+          // widget may be momentarily stale): rebuild so a dropped chip/card
+          // reappears on its own instead of waiting to be re-touched.
+          syntaxTree(u.startState) !== syntaxTree(u.state)
         ) {
           this.decorations = buildDecos(u.view, ctx);
         }

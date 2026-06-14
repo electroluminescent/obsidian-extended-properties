@@ -11072,7 +11072,10 @@ function inlineLivePreview(ctx) {
         this.decorations = buildDecos(view, ctx);
       }
       update(u) {
-        if (u.docChanged || u.viewportChanged || u.selectionSet || u.focusChanged || u.startState.field(import_obsidian30.editorLivePreviewField, false) !== u.state.field(import_obsidian30.editorLivePreviewField, false)) {
+        if (u.docChanged || u.viewportChanged || u.selectionSet || u.focusChanged || u.startState.field(import_obsidian30.editorLivePreviewField, false) !== u.state.field(import_obsidian30.editorLivePreviewField, false) || // Background parsing finished (after an edit above, the tree under a
+        // widget may be momentarily stale): rebuild so a dropped chip/card
+        // reappears on its own instead of waiting to be re-touched.
+        (0, import_language.syntaxTree)(u.startState) !== (0, import_language.syntaxTree)(u.state)) {
           this.decorations = buildDecos(u.view, ctx);
         }
       }
