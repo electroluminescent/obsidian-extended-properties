@@ -1,0 +1,50 @@
+name: Release
+
+# Push a tag that exactly matches manifest.json's version, e.g.
+#   git tag 2.28.0 && git push origin 2.28.0
+# to build, verify, and publish a draft GitHub Release with the BRAT/community
+# assets attached.
+on:
+  push:
+    tags:
+      - "*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # obsidian pins @codemirror/state, so peer resolution needs the legacy flag
+      - run: npm install --legacy-peer-deps --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+      - name: Verify the tag matches manifest.json
+        run: |
+          MAN="$(node -p "require('./manifest.json').version")"
+          if [ "${GITHUB_REF_NAME}" != "$MAN" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match manifest version $MAN"
+            exit 1
+          fi
+
+      - name: Package the full project zip
+        run: zip -r "obsidian-extended-properties-${GITHUB_REF_NAME}.zip" . -x '.git/*' 'node_modules/*'
+
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --draft \
+            --generate-notes \
+            main.js manifest.json styles.css \
+            "obsidian-extended-properties-${GITHUB_REF_NAME}.zip"

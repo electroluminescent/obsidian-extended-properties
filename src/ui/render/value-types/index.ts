@@ -11,6 +11,7 @@ import { numberType, decimalType, formulaType } from "./numeric";
 import { derivedType } from "./derived";
 import { checkboxType, listType, colorType } from "./basic";
 import { imageType, iframeType } from "./media";
+import { ratingType, linkType, unitType, datetimeType } from "./richer";
 import { modifierAddon } from "../modifier-addon";
 import { propKind, blankKind, tocKind } from "../entry-kinds/core-kinds";
 
@@ -28,6 +29,10 @@ export function registerCore(ctx: FeatureContext): void {
   r.valueTypes.add(formulaType);
   r.valueTypes.add(imageType);
   r.valueTypes.add(iframeType);
+  r.valueTypes.add(ratingType);
+  r.valueTypes.add(linkType);
+  r.valueTypes.add(unitType);
+  r.valueTypes.add(datetimeType);
   // Entry kinds.
   r.entryKinds.add(propKind);
   r.entryKinds.add(blankKind);

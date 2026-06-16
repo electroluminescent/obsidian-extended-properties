@@ -136,7 +136,21 @@ function numericRaw(env: InfluenceEnv, key: string): number | null {
   const v = env.note.raw[key];
   if (v === null || v === undefined || v === "") return null;
   const n = Number(v);
-  return Number.isFinite(n) ? n : null;
+  if (Number.isFinite(n)) return n;
+  if (typeof v === "string") {
+    const s = v.trim();
+    // ISO date → whole-day number, so dates can be used in expressions
+    // (e.g. `Due - today()`); checked before the leading-number fallback so
+    // "2024-01-15" doesn't read as 2024.
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+      const ms = Date.parse(s);
+      if (Number.isFinite(ms)) return Math.floor(ms / 86400000);
+    }
+    // Leading number of a unit value ("10 lb", "30 ft") — unit-stripping.
+    const m = /^-?\d+(?:\.\d+)?/.exec(s);
+    if (m) return Number(m[0]);
+  }
+  return null;
 }
 
 /** The derived prop entry showing `key` in the active layout, if any. */
@@ -566,11 +580,18 @@ export function modifierSuffix(settings: EPSettings): string {
   return settings.modifierSuffix ?? "s";
 }
 
-/** If `name` ends with the modifier suffix, the base reference (without it); else null. */
+/**
+ * If `name` is a dotted modifier reference (`INT.s`, `intelligence.s`), the
+ * base reference without the `.<suffix>` tail; else null. The dot separator
+ * disambiguates the modifier form from property names that merely end in the
+ * suffix letter, and lets cross-note refs read `[[Note]].intelligence.s`.
+ */
 export function modifierBaseFor(settings: EPSettings, name: string): string | null {
   const suf = modifierSuffix(settings);
-  if (!suf || name.length <= suf.length) return null;
-  return name.toLowerCase().endsWith(suf.toLowerCase()) ? name.slice(0, name.length - suf.length) : null;
+  if (!suf) return null;
+  const tail = "." + suf;
+  if (name.length <= tail.length) return null;
+  return name.toLowerCase().endsWith(tail.toLowerCase()) ? name.slice(0, name.length - tail.length) : null;
 }
 
 /** Autocomplete options for reference fields: each property's name and short form (interchangeable). */

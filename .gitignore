@@ -1,0 +1,12 @@
+node_modules/
+*.js.map
+.DS_Store
+Thumbs.db
+
+# Vault-local plugin runtime data — not part of the plugin source.
+data.json
+
+# The built bundle is attached to GitHub Releases by the release workflow and
+# is committed here for manual / BRAT installs. Uncomment to keep it out of
+# source control instead.
+# main.js

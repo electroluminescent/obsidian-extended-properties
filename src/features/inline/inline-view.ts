@@ -202,15 +202,27 @@ class InlineViewCtx implements ViewCtx {
  * (Live Preview) to reveal the raw text.
  */
 export function makeValsEl(ctx: InlineCtx, file: TFile, body: string, onEditSource?: () => void): HTMLElement {
-  const wrap = createSpan({ cls: "ep-inline-vals" });
+  // The root is the card itself — a single inline-block element. Nesting a
+  // block <div> inside an inline <span> widget collapses to zero size in the
+  // mobile editor (chips are span-only, which is why they survived); a div
+  // with an explicit inline-block display renders inline on both platforms.
+  const wrap = createDiv({ cls: "ep-inline-vals" });
+  wrap.style.display = "inline-block";
+  wrap.style.verticalAlign = "middle";
   const t = ctx.i18n.t.bind(ctx.i18n);
 
   const draw = (): void => {
     wrap.empty();
+
+    // Resolve the target file (cross-note), property key, entry and section.
+    // Only this stage failing falls back to the plain `val:` chip.
+    let view: InlineViewCtx;
+    let target: TFile;
+    let entry: Entry;
+    let section: Section;
     try {
-      // Resolve the target file (cross-note) and the referenced property key.
       const noteRef = parseNoteRef(body);
-      let target = file;
+      target = file;
       let ref = body;
       if (noteRef && noteRef.accessor) {
         const lf = ctx.app.metadataCache.getFirstLinkpathDest(noteRef.link, file.path);
@@ -219,14 +231,11 @@ export function makeValsEl(ctx: InlineCtx, file: TFile, body: string, onEditSour
         ref = noteRef.accessor;
       }
       const layout = layoutForFile(ctx, target);
-      const view = new InlineViewCtx(ctx, target, layout, wrap, draw);
+      view = new InlineViewCtx(ctx, target, layout, wrap, draw);
       const key = keyForShortForm(ctx.settings, ref, Object.keys(view.note.raw)) ?? ref;
-
       // Prefer the real layout entry (stays in sync with the sidebar); else a
       // persistent per-reference entry so the card can carry sliders/rolls.
       const inLayout = layout ? findPropEntry(layout, key) : null;
-      let section: Section;
-      let entry: Entry;
       if (inLayout) {
         section = inLayout.section;
         entry = inLayout.entry;
@@ -237,60 +246,72 @@ export function makeValsEl(ctx: InlineCtx, file: TFile, body: string, onEditSour
         if (!entry.key) entry.key = key;
         section = { id: "ep-inline", title: "", columns: 1, layoutMode: "list", entries: [entry] };
       }
+    } catch {
+      wrap.appendChild(makeValEl(ctx, file, body, onEditSource));
+      return;
+    }
 
-      // Render the entry card (the editMode === false path of the sidebar's
-      // entry renderer: shell + icon + label + value, no grips/options button).
-      const kind = view.registries.entryKinds.get(entry.kind);
-      const valueWide = entry.kind === "prop" && !!view.registries.valueTypes.get(view.resolveType(entry))?.wide;
-      const wide = !!kind?.wide || valueWide;
-      const card = wrap.createDiv({ cls: wide ? "ep-entry ep-entry-block" : "ep-entry" });
-      const head = card.createDiv({ cls: "ep-entry-head" });
-      if (entry.icon) {
-        const ic = head.createSpan({ cls: "ep-picon" });
-        setIcon(ic, entry.icon as string);
-        if (entry.iconColor) ic.style.color = entry.iconColor as string;
-      }
-      const extra = card.createDiv({ cls: "ep-entry-extra" });
-      const flags = emptyFlags();
-      mergeNeeds(flags, kind?.clusterNeeds?.({ view, file: target, section, entry }));
-      const ectx: EntryRenderCtx = { view, file: target, section, entry, head, extra, flags, wrap: card };
-      if (kind) kind.render(ectx);
-      else view.renderLabel(head, ectx);
+    // Card shell + icon. The card class lives on the root so there is no extra
+    // block wrapper between the inline-block root and its content.
+    const def = view.registries.valueTypes.get(view.resolveType(entry)) ?? view.registries.valueTypes.get("text");
+    const wide = entry.kind === "prop" && !!def?.wide;
+    wrap.addClass("ep-entry");
+    wrap.toggleClass("ep-entry-block", wide);
+    const head = wrap.createDiv({ cls: "ep-entry-head" });
+    if (entry.icon) {
+      const ic = head.createSpan({ cls: "ep-picon" });
+      setIcon(ic, entry.icon as string);
+      if (entry.iconColor) ic.style.color = entry.iconColor as string;
+    }
+    const extra = wrap.createDiv({ cls: "ep-entry-extra" });
 
-      // Context menu: configure (options modal), clear value, value-type items,
-      // and Edit source — but none of the sidebar's structural (grid) actions.
-      card.addEventListener("contextmenu", (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        const menu = new Menu();
-        const name = (entry.alias as string) || view.defaultLabelFor(entry);
+    // Label always renders (outside the value try) so the card appears even if
+    // a value type or addon throws on a given platform; the value UI is its own
+    // try, degrading to the plain stored value rather than dropping the card.
+    const flags = emptyFlags();
+    mergeNeeds(flags, def?.clusterNeeds?.({ view, file: target, section, entry }));
+    const ectx: EntryRenderCtx = { view, file: target, section, entry, head, extra, flags, wrap };
+    view.renderLabel(head, ectx);
+    try {
+      def?.render(ectx);
+    } catch (e) {
+      console.error("extended-properties: vals value render failed", e);
+      const v = ctx.facade.get(target, entry.key as string);
+      head
+        .createDiv({ cls: "ep-val-right" })
+        .setText(v === undefined || v === null || v === "" ? "—" : Array.isArray(v) ? v.join(", ") : String(v));
+    }
+
+    // Context menu: configure (options modal), clear value, value-type items,
+    // and Edit source — but none of the sidebar's structural (grid) actions.
+    wrap.addEventListener("contextmenu", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const menu = new Menu();
+      const name = (entry.alias as string) || view.defaultLabelFor(entry);
+      menu.addItem((i) =>
+        i.setTitle(t("entry.menu.configure", { name })).setIcon("settings").onClick(() =>
+          view.openEntryOptions(section, entry)
+        )
+      );
+      if (entry.kind === "prop" && entry.key) {
+        const key2 = entry.key as string;
+        menu.addSeparator();
         menu.addItem((i) =>
-          i.setTitle(t("entry.menu.configure", { name })).setIcon("settings").onClick(() =>
-            view.openEntryOptions(section, entry)
+          i.setTitle(t("entry.menu.clearValue", { key: key2 })).setIcon("eraser").onClick(() =>
+            view.note.set(target, key2, undefined)
           )
         );
-        if (entry.kind === "prop" && entry.key) {
-          const key2 = entry.key as string;
-          menu.addSeparator();
-          menu.addItem((i) =>
-            i.setTitle(t("entry.menu.clearValue", { key: key2 })).setIcon("eraser").onClick(() =>
-              view.note.set(target, key2, undefined)
-            )
-          );
-          view.registries.valueTypes
-            .get(view.resolveType(entry))
-            ?.menuItems?.(menu, { view, file: target, section, entry }, { x: ev.clientX, y: ev.clientY });
-        }
-        if (onEditSource) {
-          menu.addSeparator();
-          menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
-        }
-        menu.showAtMouseEvent(ev);
-      });
-    } catch {
-      wrap.empty();
-      wrap.appendChild(makeValEl(ctx, file, body, onEditSource));
-    }
+        view.registries.valueTypes
+          .get(view.resolveType(entry))
+          ?.menuItems?.(menu, { view, file: target, section, entry }, { x: ev.clientX, y: ev.clientY });
+      }
+      if (onEditSource) {
+        menu.addSeparator();
+        menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
+      }
+      menu.showAtMouseEvent(ev);
+    });
   };
 
   draw();

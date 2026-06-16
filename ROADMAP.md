@@ -1,8 +1,51 @@
 # Extended Properties — feature roadmap and forward architecture
 
-State assessment as of v2.10.4. Each feature below is structured as: **What** (the feature), **Considerations** (design decisions and why), **Challenges** (what will bite), **Touchpoints** (files/modules to modify or create), and **Steps** (a discrete implementation path). A suggested milestone sequencing closes the document.
+Original assessment as of v2.10.4; **status updated as of v2.28.0** (see the Status section immediately below). Each feature below is structured as: **What** (the feature), **Considerations** (design decisions and why), **Challenges** (what will bite), **Touchpoints** (files/modules to modify or create), and **Steps** (a discrete implementation path). A suggested milestone sequencing closes the document.
 
 The codebase's assets to protect throughout: the registry system (`src/core/registry.ts`) that decouples value types, entry kinds, cluster addons, derivations, templates and presets from the shell; the generic influence engine (`src/core/influences.ts`); feature modules that self-register and self-migrate; and the pure-function split (`src/utils/*`, most of `src/core/*`) that keeps Obsidian out of the math.
+
+---
+
+## Status (v2.28.0)
+
+Legend: ✅ done · ◑ partial · ○ planned.
+
+### Completed
+
+- ✅ **A1 — Expression engine.** Derivations, the `formula` type and influences evaluate through `core/expr.ts`; references by name/short form, a function library, explicit cycle detection.
+- ✅ **A2 — Full dice notation + roll AST** (`utils/dice-expr.ts`): keep/drop, explode, reroll, success counting and property references; one AST behind both the roller chips and free-text.
+- ✅ **A3 — Saved roll macros.** Settings-stored, listed on the roll menu and registered as commands.
+- ✅ **A4 — Persistent roll history.** Plugin-level `HistoryService`, tail panel, current-note filter, Markdown export.
+- ✅ **B1 — Inline rolls & properties.** `roll:` / `prop:` / `val:` / `vals:` and the `ep-sheet` block, in **both reading mode and Live Preview**. (`val:` is a chip; `vals:` renders the full sidebar value-type card with a right-click *Configure* menu.)
+- ✅ **C3 — Richer value types.** `rating`, `link`, `unit`, `datetime`, plus `today()`/`days()` expression functions and unit/date stripping for references.
+- ✅ **F1 — Test harness.** Vitest over the pure modules + a golden settings-migration fixture.
+
+### In progress
+
+- ◑ **B2 — Cross-note references.** `[[Note]].Prop` and the modifier form `[[Note]].prop.s` resolve in rolls, expressions and inline cards. *Remaining:* aggregate functions (`sum`/`avg`/`count` over a type), `this.Prop` / `prop("…")` forms, and an indexed, invalidating `property-index`.
+- ◑ **E2 — Mobile refinements.** Inline cards now render on mobile. *Remaining:* long-press menus, bottom-sheet modals, font-relative squeeze slack.
+- ◑ **F3 — CI, repo & release.** CI (typecheck → test → build), a tag-triggered draft-release workflow, `LICENSE`, `.gitignore` and an install/README pass are in place; the innerHTML/console audit is clean. *Remaining:* the BRAT beta round and the community-plugin submission PR (both need a public GitHub repo + the author's repo URL in `manifest.json`).
+
+### Planned
+
+- ○ **C1** Validation & constraints · ○ **C2** Conditional visibility
+- ○ **B3** Type table view
+- ○ **D1** Export/import · ○ **D2** Layouts as vault files · ○ **D3** Versioned migration table + backups · ○ **D4** Write batching & conflict handling
+- ○ **E1** Keyboard & screen-reader support · ○ **E3** Theming surface
+- ○ **F2** Performance hardening · ○ **F4** i18n as data · ○ **F5** Public module API + legacy deprecation
+
+### Shipped beyond the original plan
+
+Per-property unique short forms with name↔short-form interchangeability and autocomplete; the dotted modifier suffix (`INT.s`, `[[Note]].intelligence.s`, configurable); and the inline `vals:` card that reuses the sidebar value-type renderers with a per-reference options store.
+
+### Milestone sequencing — progress
+
+- **Milestone 1 — Foundations:** ◑ (F1 ✅; D3, D4 ○)
+- **Milestone 2 — Expressions:** ◑ (A1 ✅; C1, C2 ○)
+- **Milestone 3 — Rolling depth:** ✅ (A2, A3, A4)
+- **Milestone 4 — Notes integration:** ◑ (B1 incl. Live Preview ✅; E2 long-press ○)
+- **Milestone 5 — Scale:** ○ (B2 ◑; B3, F2 ○)
+- **Milestone 6 — Ecosystem:** ◑ (C3 ✅, F3 ◑; D1, D2, E3, F4, F5 ○)
 
 ---
 

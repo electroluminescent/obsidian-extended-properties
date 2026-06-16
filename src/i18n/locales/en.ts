@@ -122,6 +122,22 @@ export const coreEn: StringDict = {
   "type.formula": "formula",
   "type.image": "image",
   "type.iframe": "iframe",
+  "type.rating": "rating",
+  "type.link": "link",
+  "type.unit": "unit",
+  "type.datetime": "date",
+  "options.ratingMax": "Maximum",
+  "options.ratingIcon": "Icon",
+  "options.ratingIconDesc": "A Lucide icon name (e.g. star, heart, circle).",
+  "options.unitLabel": "Unit",
+  "options.unitLabelDesc": "Suffix shown after the value (e.g. lb, ft, gp).",
+  "options.unitFactor": "Display factor",
+  "options.unitFactorDesc": "Stored value is multiplied by this for display (and divided back on edit). Blank = 1.",
+  "link.prompt": "Note to link (name or [[wikilink]])",
+  "link.edit": "Edit link",
+  "date.today": "today",
+  "date.inDays": "in {n} days",
+  "date.daysAgo": "{n} days ago",
 
   // -- modifiers (influence engine) ----------------------------------------------
   "derive.value": "Value as-is",
@@ -416,7 +432,7 @@ export const coreEn: StringDict = {
     "How many property→property hops are resolved when derived values influence other derived values.",
   "settings.modSuffix": "Modifier suffix",
   "settings.modSuffixDesc":
-    "Append this to a reference to use a property's modifier instead of its value (e.g. INTs in a roll or expression). Any length; blank disables it.",
+    "Append this after a dot to use a property's modifier instead of its value (e.g. INT.s or intelligence.s in a roll or expression; cross-note [[Note]].INT.s). Any length; blank disables it.",
   "settings.abbrHeading": "Short forms",
   "settings.abbrDesc":
     "Short forms used in modifier denotations (INT + DEX − AGE). The default is the capitalized first three letters of the property name; overrides apply everywhere the property is shown as a source.",

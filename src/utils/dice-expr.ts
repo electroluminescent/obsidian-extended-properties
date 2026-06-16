@@ -149,7 +149,7 @@ export function parseRoll(text: string): RollAst | null {
             name += "." + s.slice(i + 1, e2);
             i = e2 + 1;
           } else {
-            const am = /^[A-Za-z_][A-Za-z0-9_]*/.exec(s.slice(i));
+            const am = /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*/.exec(s.slice(i));
             if (!am) return null;
             name += "." + am[0];
             i += am[0].length;
@@ -163,7 +163,7 @@ export function parseRoll(text: string): RollAst | null {
       i = end + 1;
       return name ? { kind: "ref", name } : null;
     }
-    const m = /^[A-Za-z_][A-Za-z0-9_]*/.exec(s.slice(i));
+    const m = /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*/.exec(s.slice(i));
     if (m) {
       i += m[0].length;
       return { kind: "ref", name: m[0] };

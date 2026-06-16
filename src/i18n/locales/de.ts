@@ -119,6 +119,22 @@ export const coreDe: StringDict = {
   "type.formula": "Formel",
   "type.image": "Bild",
   "type.iframe": "Iframe",
+  "type.rating": "Bewertung",
+  "type.link": "Link",
+  "type.unit": "Einheit",
+  "type.datetime": "Datum",
+  "options.ratingMax": "Maximum",
+  "options.ratingIcon": "Symbol",
+  "options.ratingIconDesc": "Ein Lucide-Symbolname (z. B. star, heart, circle).",
+  "options.unitLabel": "Einheit",
+  "options.unitLabelDesc": "Suffix hinter dem Wert (z. B. kg, m, GM).",
+  "options.unitFactor": "Anzeigefaktor",
+  "options.unitFactorDesc": "Gespeicherter Wert wird zur Anzeige damit multipliziert (und beim Bearbeiten zurückgeteilt). Leer = 1.",
+  "link.prompt": "Zu verlinkende Notiz (Name oder [[Wikilink]])",
+  "link.edit": "Link bearbeiten",
+  "date.today": "heute",
+  "date.inDays": "in {n} Tagen",
+  "date.daysAgo": "vor {n} Tagen",
 
   // -- modifiers (influence engine) ----------------------------------------------
   "derive.value": "Wert unverändert",
@@ -413,7 +429,7 @@ export const coreDe: StringDict = {
     "Wie viele Eigenschaft→Eigenschaft-Schritte aufgelöst werden, wenn abgeleitete Werte andere abgeleitete Werte beeinflussen.",
   "settings.modSuffix": "Modifikator-Suffix",
   "settings.modSuffixDesc":
-    "An eine Referenz angehängt, um den Modifikator einer Eigenschaft statt ihres Werts zu verwenden (z. B. INTs in einem Wurf oder Ausdruck). Beliebige Länge; leer deaktiviert.",
+    "Nach einem Punkt angehängt, um den Modifikator einer Eigenschaft statt ihres Werts zu verwenden (z. B. INT.s oder intelligence.s in einem Wurf oder Ausdruck; notenübergreifend [[Note]].INT.s). Beliebige Länge; leer deaktiviert.",
   "settings.abbrHeading": "Kürzel",
   "settings.abbrDesc":
     "Kürzel für Modifikator-Anzeigen (INT + DEX − ALT). Standard sind die ersten drei Großbuchstaben des Eigenschaftsnamens; Überschreibungen gelten überall, wo die Eigenschaft als Quelle erscheint.",

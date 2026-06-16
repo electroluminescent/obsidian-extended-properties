@@ -22,7 +22,7 @@ __export(main_exports, {
   default: () => ExtendedPropertiesPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian31 = require("obsidian");
+var import_obsidian32 = require("obsidian");
 
 // src/i18n/i18n.ts
 var I18n = class {
@@ -193,6 +193,22 @@ var coreEn = {
   "type.formula": "formula",
   "type.image": "image",
   "type.iframe": "iframe",
+  "type.rating": "rating",
+  "type.link": "link",
+  "type.unit": "unit",
+  "type.datetime": "date",
+  "options.ratingMax": "Maximum",
+  "options.ratingIcon": "Icon",
+  "options.ratingIconDesc": "A Lucide icon name (e.g. star, heart, circle).",
+  "options.unitLabel": "Unit",
+  "options.unitLabelDesc": "Suffix shown after the value (e.g. lb, ft, gp).",
+  "options.unitFactor": "Display factor",
+  "options.unitFactorDesc": "Stored value is multiplied by this for display (and divided back on edit). Blank = 1.",
+  "link.prompt": "Note to link (name or [[wikilink]])",
+  "link.edit": "Edit link",
+  "date.today": "today",
+  "date.inDays": "in {n} days",
+  "date.daysAgo": "{n} days ago",
   // -- modifiers (influence engine) ----------------------------------------------
   "derive.value": "Value as-is",
   "mods.heading": "Modifier",
@@ -457,7 +473,7 @@ var coreEn = {
   "settings.modDepth": "Modifier chain depth",
   "settings.modDepthDesc": "How many property\u2192property hops are resolved when derived values influence other derived values.",
   "settings.modSuffix": "Modifier suffix",
-  "settings.modSuffixDesc": "Append this to a reference to use a property's modifier instead of its value (e.g. INTs in a roll or expression). Any length; blank disables it.",
+  "settings.modSuffixDesc": "Append this after a dot to use a property's modifier instead of its value (e.g. INT.s or intelligence.s in a roll or expression; cross-note [[Note]].INT.s). Any length; blank disables it.",
   "settings.abbrHeading": "Short forms",
   "settings.abbrDesc": "Short forms used in modifier denotations (INT + DEX \u2212 AGE). The default is the capitalized first three letters of the property name; overrides apply everywhere the property is shown as a source.",
   "settings.abbrDefault": "Default: {abbr}",
@@ -621,6 +637,22 @@ var coreDe = {
   "type.formula": "Formel",
   "type.image": "Bild",
   "type.iframe": "Iframe",
+  "type.rating": "Bewertung",
+  "type.link": "Link",
+  "type.unit": "Einheit",
+  "type.datetime": "Datum",
+  "options.ratingMax": "Maximum",
+  "options.ratingIcon": "Symbol",
+  "options.ratingIconDesc": "Ein Lucide-Symbolname (z. B. star, heart, circle).",
+  "options.unitLabel": "Einheit",
+  "options.unitLabelDesc": "Suffix hinter dem Wert (z. B. kg, m, GM).",
+  "options.unitFactor": "Anzeigefaktor",
+  "options.unitFactorDesc": "Gespeicherter Wert wird zur Anzeige damit multipliziert (und beim Bearbeiten zur\xFCckgeteilt). Leer = 1.",
+  "link.prompt": "Zu verlinkende Notiz (Name oder [[Wikilink]])",
+  "link.edit": "Link bearbeiten",
+  "date.today": "heute",
+  "date.inDays": "in {n} Tagen",
+  "date.daysAgo": "vor {n} Tagen",
   // -- modifiers (influence engine) ----------------------------------------------
   "derive.value": "Wert unver\xE4ndert",
   "mods.heading": "Modifikator",
@@ -885,7 +917,7 @@ var coreDe = {
   "settings.modDepth": "Modifikator-Kettentiefe",
   "settings.modDepthDesc": "Wie viele Eigenschaft\u2192Eigenschaft-Schritte aufgel\xF6st werden, wenn abgeleitete Werte andere abgeleitete Werte beeinflussen.",
   "settings.modSuffix": "Modifikator-Suffix",
-  "settings.modSuffixDesc": "An eine Referenz angeh\xE4ngt, um den Modifikator einer Eigenschaft statt ihres Werts zu verwenden (z. B. INTs in einem Wurf oder Ausdruck). Beliebige L\xE4nge; leer deaktiviert.",
+  "settings.modSuffixDesc": "Nach einem Punkt angeh\xE4ngt, um den Modifikator einer Eigenschaft statt ihres Werts zu verwenden (z. B. INT.s oder intelligence.s in einem Wurf oder Ausdruck; noten\xFCbergreifend [[Note]].INT.s). Beliebige L\xE4nge; leer deaktiviert.",
   "settings.abbrHeading": "K\xFCrzel",
   "settings.abbrDesc": "K\xFCrzel f\xFCr Modifikator-Anzeigen (INT + DEX \u2212 ALT). Standard sind die ersten drei Gro\xDFbuchstaben des Eigenschaftsnamens; \xDCberschreibungen gelten \xFCberall, wo die Eigenschaft als Quelle erscheint.",
   "settings.abbrDefault": "Standard: {abbr}",
@@ -955,6 +987,7 @@ var LAYOUT_VERSION = 4;
 // src/core/expr.ts
 var TWO = /* @__PURE__ */ new Set(["==", "!=", "<=", ">=", "&&", "||"]);
 function tokenize(s) {
+  var _a;
   const toks = [];
   let i = 0;
   while (i < s.length) {
@@ -975,6 +1008,10 @@ function tokenize(s) {
     if (/[A-Za-z_]/.test(c)) {
       let id = "";
       while (i < s.length && /[A-Za-z0-9_]/.test(s[i])) id += s[i++];
+      while (s[i] === "." && /[A-Za-z_]/.test((_a = s[i + 1]) != null ? _a : "")) {
+        id += s[i++];
+        while (i < s.length && /[A-Za-z0-9_]/.test(s[i])) id += s[i++];
+      }
       toks.push({ t: "name", v: id });
       continue;
     }
@@ -992,7 +1029,7 @@ function tokenize(s) {
             name2 += "." + s.slice(i + 1, e2);
             i = e2 + 1;
           } else {
-            const am = /^[A-Za-z_][A-Za-z0-9_]*/.exec(s.slice(i));
+            const am = /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*/.exec(s.slice(i));
             if (!am) return null;
             name2 += "." + am[0];
             i += am[0].length;
@@ -1197,7 +1234,7 @@ function evalBinary(node, env) {
   throw new ExprError("op: " + op);
 }
 function evalCall(node, env) {
-  var _a;
+  var _a, _b, _c;
   const name = node.name;
   const lc = name.toLowerCase();
   if (lc === "if") {
@@ -1216,9 +1253,13 @@ function evalCall(node, env) {
       return Math.pow(a[0], a[1]);
     case "log":
       return a.length >= 2 ? Math.log(a[0]) / Math.log(a[1]) : Math.log10(a[0]);
+    case "today":
+      return Math.floor(Date.now() / 864e5);
+    case "days":
+      return ((_a = a[1]) != null ? _a : 0) - ((_b = a[0]) != null ? _b : 0);
   }
   if (lc in FN1) return FN1[lc](a[0]);
-  const uf = (_a = env.fn) == null ? void 0 : _a.call(env, name);
+  const uf = (_c = env.fn) == null ? void 0 : _c.call(env, name);
   if (uf) {
     const r = uf(a);
     if (r === void 0 || !Number.isFinite(r)) throw new ExprError("fn: " + name);
@@ -1314,7 +1355,17 @@ function numericRaw(env, key) {
   const v = env.note.raw[key];
   if (v === null || v === void 0 || v === "") return null;
   const n = Number(v);
-  return Number.isFinite(n) ? n : null;
+  if (Number.isFinite(n)) return n;
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+      const ms = Date.parse(s);
+      if (Number.isFinite(ms)) return Math.floor(ms / 864e5);
+    }
+    const m = /^-?\d+(?:\.\d+)?/.exec(s);
+    if (m) return Number(m[0]);
+  }
+  return null;
 }
 function findDerivedEntry(env, key) {
   if (!env.layout || !key) return null;
@@ -1635,8 +1686,10 @@ function modifierSuffix(settings) {
 }
 function modifierBaseFor(settings, name) {
   const suf = modifierSuffix(settings);
-  if (!suf || name.length <= suf.length) return null;
-  return name.toLowerCase().endsWith(suf.toLowerCase()) ? name.slice(0, name.length - suf.length) : null;
+  if (!suf) return null;
+  const tail = "." + suf;
+  if (name.length <= tail.length) return null;
+  return name.toLowerCase().endsWith(tail.toLowerCase()) ? name.slice(0, name.length - tail.length) : null;
 }
 function referenceSuggestions(settings, keys) {
   const out = [];
@@ -3663,8 +3716,216 @@ var iframeType = {
   }
 };
 
-// src/ui/render/entry-kinds/core-kinds.ts
+// src/ui/render/value-types/richer.ts
 var import_obsidian8 = require("obsidian");
+var ratingType = {
+  id: "rating",
+  name: (i18n) => i18n.t("type.rating"),
+  render(ctx) {
+    const { view, file, entry } = ctx;
+    const key = entry.key;
+    const max = Math.max(1, Math.min(20, Math.round(Number(entry.ratingMax) || 5)));
+    const icon = entry.ratingIcon || "star";
+    const v = ctx.head.createDiv({ cls: "ep-val-right ep-rating" });
+    if (entry.valueColor) v.style.color = entry.valueColor;
+    const draw = () => {
+      v.empty();
+      const cur = Math.round(view.note.num(key, 0));
+      for (let i = 1; i <= max; i++) {
+        const pip = v.createSpan({ cls: "ep-rating-pip" + (i <= cur ? " is-on" : "") });
+        (0, import_obsidian8.setIcon)(pip, icon);
+        pip.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          view.note.set(file, key, i === cur ? i - 1 : i);
+        };
+      }
+    };
+    draw();
+    view.registerUpdater(draw);
+  },
+  renderOptions(octx) {
+    const { view, entry, container: c, changed } = octx;
+    const t = view.i18n.t.bind(view.i18n);
+    c.createEl("h4", { text: t("type.rating") });
+    new import_obsidian8.Setting(c).setName(t("options.ratingMax")).addSlider(
+      (sl) => sl.setLimits(1, 10, 1).setValue(Math.round(Number(entry.ratingMax) || 5)).setDynamicTooltip().onChange((val) => {
+        entry.ratingMax = val;
+        changed();
+      })
+    );
+    new import_obsidian8.Setting(c).setName(t("options.ratingIcon")).setDesc(t("options.ratingIconDesc")).addText(
+      (tx) => tx.setPlaceholder("star").setValue(entry.ratingIcon || "").onChange((val) => {
+        entry.ratingIcon = val.trim() || void 0;
+        changed();
+      })
+    );
+  },
+  menuItems(menu, ref) {
+    const { view, file, entry } = ref;
+    const key = entry.key;
+    menu.addItem(
+      (i) => i.setTitle(view.i18n.t("entry.menu.clearValue", { key })).setIcon("eraser").onClick(
+        () => view.note.set(file, key, void 0)
+      )
+    );
+  }
+};
+function linkTarget(raw) {
+  const m = /\[\[([^\]|#]+)/.exec(raw);
+  return (m ? m[1] : raw).trim();
+}
+function promptLink(view, set, key) {
+  new TextPromptModal(view.app, view.i18n, view.i18n.t("link.prompt"), view.note.str(key), (val) => {
+    const s = val.trim();
+    set(s === "" ? void 0 : s);
+  }).open();
+}
+var linkType = {
+  id: "link",
+  name: (i18n) => i18n.t("type.link"),
+  render(ctx) {
+    const { view, file, entry } = ctx;
+    const key = entry.key;
+    const v = ctx.head.createDiv({ cls: "ep-val-right ep-linkval" });
+    if (entry.valueColor) v.style.color = entry.valueColor;
+    const draw = () => {
+      v.empty();
+      v.removeClass("ep-link-unresolved");
+      const raw = view.note.str(key);
+      if (!raw) {
+        v.createSpan({ cls: "ep-placeholder", text: "\u2014" });
+        return;
+      }
+      view.renderLinks(v, /\[\[.+?\]\]|\]\([^)]+\)/.test(raw) ? raw : `[[${raw}]]`);
+      const dest = view.app.metadataCache.getFirstLinkpathDest(linkTarget(raw), view.note.path || "");
+      if (!dest) v.addClass("ep-link-unresolved");
+    };
+    draw();
+    view.bindOpen(v, () => promptLink(view, (val) => view.note.set(file, key, val), key), false);
+    view.registerUpdater(draw);
+  },
+  menuItems(menu, ref) {
+    const { view, file, entry } = ref;
+    const key = entry.key;
+    menu.addItem(
+      (i) => i.setTitle(view.i18n.t("link.edit")).setIcon("link").onClick(
+        () => promptLink(view, (val) => view.note.set(file, key, val), key)
+      )
+    );
+  }
+};
+var unitType = {
+  id: "unit",
+  name: (i18n) => i18n.t("type.unit"),
+  render(ctx) {
+    const { view, file, entry } = ctx;
+    const key = entry.key;
+    const unit = entry.unit || "";
+    const factor = Number(entry.unitFactor) > 0 ? Number(entry.unitFactor) : 1;
+    const cell = ctx.head.createDiv({ cls: "ep-val-right ep-unitval" });
+    if (entry.valueColor) cell.style.color = entry.valueColor;
+    const num = cell.createSpan({ cls: "ep-num ep-editable" });
+    if (unit) cell.createSpan({ cls: "ep-unit-suffix", text: " " + unit });
+    const draw = () => num.setText(fmtNum(view.note.num(key, 0) * factor));
+    draw();
+    view.bindOpen(
+      num,
+      () => openNumberInput(num, view.note.num(key, 0) * factor, (disp) => view.note.set(file, key, disp / factor), {
+        min: -1e12,
+        max: 1e12,
+        float: true,
+        clamp: false,
+        onEmpty: () => view.note.set(file, key, void 0)
+      })
+    );
+    view.registerUpdater(draw);
+  },
+  renderOptions(octx) {
+    const { view, entry, container: c, changed } = octx;
+    const t = view.i18n.t.bind(view.i18n);
+    c.createEl("h4", { text: t("type.unit") });
+    new import_obsidian8.Setting(c).setName(t("options.unitLabel")).setDesc(t("options.unitLabelDesc")).addText(
+      (tx) => tx.setValue(entry.unit || "").onChange((val) => {
+        entry.unit = val.trim() || void 0;
+        changed();
+      })
+    );
+    new import_obsidian8.Setting(c).setName(t("options.unitFactor")).setDesc(t("options.unitFactorDesc")).addText(
+      (tx) => tx.setPlaceholder("1").setValue(entry.unitFactor !== void 0 ? String(entry.unitFactor) : "").onChange((val) => {
+        const n = Number(val);
+        entry.unitFactor = val.trim() === "" || !Number.isFinite(n) || n <= 0 ? void 0 : n;
+        changed();
+      })
+    );
+  }
+};
+function relativeDays(i18n, d) {
+  const days = Math.round((d.getTime() - Date.now()) / 864e5);
+  if (days === 0) return i18n.t("date.today");
+  return days > 0 ? i18n.t("date.inDays", { n: days }) : i18n.t("date.daysAgo", { n: -days });
+}
+var datetimeType = {
+  id: "datetime",
+  name: (i18n) => i18n.t("type.datetime"),
+  render(ctx) {
+    const { view, file, entry } = ctx;
+    const key = entry.key;
+    const cell = ctx.head.createDiv({ cls: "ep-val-right ep-dateval" });
+    if (entry.valueColor) cell.style.color = entry.valueColor;
+    const txt = cell.createSpan({ cls: "ep-editable" });
+    const rel = cell.createSpan({ cls: "ep-date-rel" });
+    const draw = () => {
+      const raw = view.note.str(key);
+      const d = raw ? new Date(raw) : null;
+      if (!raw || !d || isNaN(d.getTime())) {
+        txt.setText(raw || "\u2014");
+        txt.toggleClass("ep-placeholder", !raw);
+        rel.setText("");
+        return;
+      }
+      txt.removeClass("ep-placeholder");
+      txt.setText(d.toLocaleDateString());
+      rel.setText(relativeDays(view.i18n, d));
+    };
+    draw();
+    const edit = () => {
+      const cur = view.note.str(key);
+      const inp = cell.createEl("input", { cls: "ep-edit-input ep-date-input" });
+      inp.type = "date";
+      if (/^\d{4}-\d{2}-\d{2}/.test(cur)) inp.value = cur.slice(0, 10);
+      txt.hide();
+      rel.hide();
+      inp.focus();
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        const val = inp.value;
+        inp.remove();
+        txt.show();
+        rel.show();
+        view.note.set(file, key, val || void 0);
+      };
+      inp.onblur = finish;
+      inp.onchange = finish;
+    };
+    view.bindOpen(txt, edit, false);
+    view.registerUpdater(draw);
+  },
+  menuItems(menu, ref) {
+    const { view, file, entry } = ref;
+    const key = entry.key;
+    menu.addItem(
+      (i) => i.setTitle(view.i18n.t("entry.menu.clearValue", { key })).setIcon("eraser").onClick(
+        () => view.note.set(file, key, void 0)
+      )
+    );
+  }
+};
+
+// src/ui/render/entry-kinds/core-kinds.ts
+var import_obsidian9 = require("obsidian");
 
 // src/core/layout-ops.ts
 function blankEntry() {
@@ -3840,7 +4101,7 @@ var blankKind = {
     const openMenu = (ce) => {
       ce.preventDefault();
       ce.stopPropagation();
-      const m = new import_obsidian8.Menu();
+      const m = new import_obsidian9.Menu();
       m.addItem(
         (i) => i.setTitle(t("blank.addHere")).setIcon("plus").onClick(
           () => view.openAddMenu(wrap, section, { replaceId: entry.id })
@@ -3889,7 +4150,7 @@ var tocKind = {
       const row = list.createDiv({ cls: "ep-toc-row" });
       if (s.icon) {
         const ic = row.createSpan({ cls: "ep-picon" });
-        (0, import_obsidian8.setIcon)(ic, s.icon);
+        (0, import_obsidian9.setIcon)(ic, s.icon);
       }
       row.createSpan({ text: s.title || view.i18n.t("section.untitled") });
       row.onclick = () => view.scrollToSection(s.id);
@@ -3910,6 +4171,10 @@ function registerCore(ctx) {
   r.valueTypes.add(formulaType);
   r.valueTypes.add(imageType);
   r.valueTypes.add(iframeType);
+  r.valueTypes.add(ratingType);
+  r.valueTypes.add(linkType);
+  r.valueTypes.add(unitType);
+  r.valueTypes.add(datetimeType);
   r.entryKinds.add(propKind);
   r.entryKinds.add(blankKind);
   r.entryKinds.add(tocKind);
@@ -3923,10 +4188,10 @@ function registerCore(ctx) {
 }
 
 // src/ui/view.ts
-var import_obsidian19 = require("obsidian");
+var import_obsidian20 = require("obsidian");
 
 // src/core/note-model.ts
-var import_obsidian9 = require("obsidian");
+var import_obsidian10 = require("obsidian");
 var ECHO_WINDOW_MS = 600;
 var NoteModel = class {
   constructor(app, i18n, host) {
@@ -4000,7 +4265,7 @@ var NoteModel = class {
     this.stampWrite(file);
     this.app.fileManager.processFrontMatter(file, (fm) => {
       for (const k of Object.keys(entries)) fm[k] = this.raw[k];
-    }).then(() => this.lastWriteTime = Date.now()).catch((err) => new import_obsidian9.Notice(this.i18n.t("notice.saveFailed", { error: String(err) })));
+    }).then(() => this.lastWriteTime = Date.now()).catch((err) => new import_obsidian10.Notice(this.i18n.t("notice.saveFailed", { error: String(err) })));
   }
   persist(file, key) {
     this.stampWrite(file);
@@ -4008,7 +4273,7 @@ var NoteModel = class {
       const cur = this.raw[key];
       if (cur === void 0) delete fm[key];
       else fm[key] = cur;
-    }).then(() => this.lastWriteTime = Date.now()).catch((err) => new import_obsidian9.Notice(this.i18n.t("notice.saveFailed", { error: String(err) })));
+    }).then(() => this.lastWriteTime = Date.now()).catch((err) => new import_obsidian10.Notice(this.i18n.t("notice.saveFailed", { error: String(err) })));
   }
   stampWrite(file) {
     this.lastWritePath = file.path;
@@ -4035,7 +4300,7 @@ var NoteModel = class {
     }
     for (const [path, changes] of byFile) {
       const f = this.app.vault.getAbstractFileByPath(path);
-      if (f instanceof import_obsidian9.TFile) {
+      if (f instanceof import_obsidian10.TFile) {
         this.app.fileManager.processFrontMatter(f, (fm) => {
           for (const { key, old } of changes) {
             if (old === void 0) delete fm[key];
@@ -4096,22 +4361,22 @@ var NoteFacade = class {
         if (v === void 0) delete fm[k];
         else fm[k] = v;
       }
-    }).catch((err) => new import_obsidian9.Notice(this.i18n.t("notice.saveFailed", { error: String(err) })));
+    }).catch((err) => new import_obsidian10.Notice(this.i18n.t("notice.saveFailed", { error: String(err) })));
   }
 };
 
 // src/ui/render/section-renderer.ts
-var import_obsidian18 = require("obsidian");
+var import_obsidian19 = require("obsidian");
 
 // src/ui/render/entry-renderer.ts
-var import_obsidian11 = require("obsidian");
+var import_obsidian12 = require("obsidian");
 
 // src/ui/menus/entry-menu.ts
-var import_obsidian10 = require("obsidian");
+var import_obsidian11 = require("obsidian");
 function openEntryMenu(e, view, file, section, entry) {
   var _a, _b;
   const t = view.i18n.t.bind(view.i18n);
-  const menu = new import_obsidian10.Menu();
+  const menu = new import_obsidian11.Menu();
   const cfgName = entry.alias || view.defaultLabelFor(entry);
   menu.addItem(
     (i) => i.setTitle(
@@ -4202,7 +4467,7 @@ function renderEntry(grid, view, file, section, entry, flags, drag) {
   }
   if (entry.icon) {
     const ic = head.createSpan({ cls: "ep-picon" });
-    (0, import_obsidian11.setIcon)(ic, entry.icon);
+    (0, import_obsidian12.setIcon)(ic, entry.icon);
     if (entry.iconColor) ic.style.color = entry.iconColor;
   }
   const extra = wrap.createDiv({ cls: "ep-entry-extra" });
@@ -4230,16 +4495,16 @@ function renderEntry(grid, view, file, section, entry, flags, drag) {
 }
 
 // src/ui/menus/section-menu.ts
-var import_obsidian17 = require("obsidian");
+var import_obsidian18 = require("obsidian");
 
 // src/ui/modals/section-options.ts
-var import_obsidian16 = require("obsidian");
+var import_obsidian17 = require("obsidian");
 
 // src/ui/components/setting-helpers.ts
-var import_obsidian14 = require("obsidian");
+var import_obsidian15 = require("obsidian");
 
 // src/ui/modals/color-picker.ts
-var import_obsidian12 = require("obsidian");
+var import_obsidian13 = require("obsidian");
 var CHANNEL_NAMES = {
   R: "colorPicker.red",
   G: "colorPicker.green",
@@ -4251,7 +4516,7 @@ var CHANNEL_NAMES = {
   a: "colorPicker.labA",
   b: "colorPicker.labB"
 };
-var ColorPickerModal = class extends import_obsidian12.Modal {
+var ColorPickerModal = class extends import_obsidian13.Modal {
   constructor(host, initial, onSubmit) {
     var _a;
     super(host.app);
@@ -4281,7 +4546,7 @@ var ColorPickerModal = class extends import_obsidian12.Modal {
     this.preview = bar.createDiv({ cls: "ep-cp-preview" });
     if (window.EyeDropper) {
       const ed = bar.createEl("button", { cls: "ep-icon-btn" });
-      (0, import_obsidian12.setIcon)(ed, "pipette");
+      (0, import_obsidian13.setIcon)(ed, "pipette");
       ed.setAttr("title", t("colorPicker.eyedropper"));
       ed.onclick = async () => {
         try {
@@ -4310,7 +4575,7 @@ var ColorPickerModal = class extends import_obsidian12.Modal {
     this.body = contentEl.createDiv({ cls: "ep-cp-body" });
     this.updatePreviewHex();
     this.renderContent();
-    new import_obsidian12.Setting(contentEl).addButton((b) => b.setButtonText(t("common.cancel")).onClick(() => this.close())).addButton(
+    new import_obsidian13.Setting(contentEl).addButton((b) => b.setButtonText(t("common.cancel")).onClick(() => this.close())).addButton(
       (b) => b.setButtonText(t("common.save")).setCta().onClick(() => {
         this.onSubmit(rgbToHex(this.rgb.r, this.rgb.g, this.rgb.b));
         this.close();
@@ -4642,8 +4907,8 @@ var ColorPickerModal = class extends import_obsidian12.Modal {
 };
 
 // src/ui/modals/icon-picker.ts
-var import_obsidian13 = require("obsidian");
-var IconPickerModal = class extends import_obsidian13.Modal {
+var import_obsidian14 = require("obsidian");
+var IconPickerModal = class extends import_obsidian14.Modal {
   constructor(app, i18n, current, onPick) {
     super(app);
     this.i18n = i18n;
@@ -4662,7 +4927,7 @@ var IconPickerModal = class extends import_obsidian13.Modal {
     const grid = c.createDiv({ cls: "ep-iconpick-grid" });
     let all = [];
     try {
-      all = (0, import_obsidian13.getIconIds)();
+      all = (0, import_obsidian14.getIconIds)();
     } catch (e) {
       all = [];
     }
@@ -4673,7 +4938,7 @@ var IconPickerModal = class extends import_obsidian13.Modal {
       for (const id of items) {
         const cell = grid.createDiv({ cls: "ep-iconpick-item" });
         if (id === this.current) cell.addClass("is-active");
-        (0, import_obsidian13.setIcon)(cell, id);
+        (0, import_obsidian14.setIcon)(cell, id);
         cell.setAttr("title", id);
         cell.onclick = () => {
           this.onPick(id);
@@ -4693,7 +4958,7 @@ var IconPickerModal = class extends import_obsidian13.Modal {
 
 // src/ui/components/setting-helpers.ts
 function addColorSetting(host, container, name, desc, get, set) {
-  const setting = new import_obsidian14.Setting(container).setName(name);
+  const setting = new import_obsidian15.Setting(container).setName(name);
   if (desc) setting.setDesc(desc);
   const sw = setting.controlEl.createSpan({ cls: "ep-swatch" });
   const update = () => {
@@ -4716,12 +4981,12 @@ function addColorSetting(host, container, name, desc, get, set) {
   return setting;
 }
 function addIconSetting(app, i18n, container, name, get, set) {
-  const setting = new import_obsidian14.Setting(container).setName(name).setDesc(i18n.t("options.iconDesc"));
+  const setting = new import_obsidian15.Setting(container).setName(name).setDesc(i18n.t("options.iconDesc"));
   const prev = setting.controlEl.createSpan({ cls: "ep-icon-prev" });
   const update = () => {
     prev.empty();
     const ic = get();
-    if (ic) (0, import_obsidian14.setIcon)(prev, ic);
+    if (ic) (0, import_obsidian15.setIcon)(prev, ic);
     else prev.setText("\u2014");
   };
   update();
@@ -4743,7 +5008,7 @@ function addIconSetting(app, i18n, container, name, get, set) {
 }
 
 // src/ui/modals/entry-options.ts
-var import_obsidian15 = require("obsidian");
+var import_obsidian16 = require("obsidian");
 function viewColorHost(view) {
   return {
     app: view.app,
@@ -4763,7 +5028,7 @@ function renderEntryOptionsBody(octx, onDone, onRemoved, opts = {}) {
   if (!opts.multi) {
     c.createEl("h4", { text: isProp ? t("options.propertyHeading") : t("options.objectHeading") });
     if (isProp) {
-      new import_obsidian15.Setting(c).setName(t("options.property")).setDesc(t("options.propertyDesc")).addText((tx) => {
+      new import_obsidian16.Setting(c).setName(t("options.property")).setDesc(t("options.propertyDesc")).addText((tx) => {
         var _a2;
         tx.setValue((_a2 = e.key) != null ? _a2 : "");
         new PropSuggest(view.app, tx.inputEl, view.i18n, () => view.propCandidates(true), (k) => {
@@ -4779,7 +5044,7 @@ function renderEntryOptionsBody(octx, onDone, onRemoved, opts = {}) {
         });
       });
     }
-    new import_obsidian15.Setting(c).setName(t("options.label")).setDesc(t("options.labelDesc", { default: view.defaultLabelFor(e) })).addText((tx) => {
+    new import_obsidian16.Setting(c).setName(t("options.label")).setDesc(t("options.labelDesc", { default: view.defaultLabelFor(e) })).addText((tx) => {
       var _a2;
       tx.setPlaceholder(view.defaultLabelFor(e)).setValue((_a2 = e.alias) != null ? _a2 : "").onChange((v) => {
         e.alias = v.trim() || void 0;
@@ -4790,7 +5055,7 @@ function renderEntryOptionsBody(octx, onDone, onRemoved, opts = {}) {
   if (isProp) {
     c.createEl("h4", { text: t("options.typeHeading") });
     const cur = view.resolveType(e);
-    new import_obsidian15.Setting(c).setName(t("options.dataType")).setDesc(t("options.dataTypeDesc")).addDropdown((d) => {
+    new import_obsidian16.Setting(c).setName(t("options.dataType")).setDesc(t("options.dataTypeDesc")).addDropdown((d) => {
       for (const def of view.registries.valueTypes.all()) d.addOption(def.id, def.name(view.i18n));
       d.setValue(cur);
       d.onChange((v) => {
@@ -4813,34 +5078,34 @@ function renderEntryOptionsBody(octx, onDone, onRemoved, opts = {}) {
     e.iconColor = v;
     changed();
   });
-  new import_obsidian15.Setting(c).setName(t("options.showLabel")).setDesc(t("options.showLabelDesc")).addToggle((tg) => {
+  new import_obsidian16.Setting(c).setName(t("options.showLabel")).setDesc(t("options.showLabelDesc")).addToggle((tg) => {
     tg.setValue(!e.hideLabel).onChange((v) => {
       e.hideLabel = v ? void 0 : true;
       changed();
     });
   });
   if (isProp) {
-    new import_obsidian15.Setting(c).setName(t("options.showType")).setDesc(t("options.showTypeDesc")).addToggle((tg) => {
+    new import_obsidian16.Setting(c).setName(t("options.showType")).setDesc(t("options.showTypeDesc")).addToggle((tg) => {
       tg.setValue(e.showType !== false).onChange((v) => {
         e.showType = v ? void 0 : false;
         changed();
       });
     });
   }
-  new import_obsidian15.Setting(c).setName(t("options.showWhenEmpty")).setDesc(t("options.showWhenEmptyDesc")).addToggle((tg) => {
+  new import_obsidian16.Setting(c).setName(t("options.showWhenEmpty")).setDesc(t("options.showWhenEmptyDesc")).addToggle((tg) => {
     tg.setValue(e.hideIfEmpty === false).onChange((v) => {
       e.hideIfEmpty = v ? false : void 0;
       changed();
     });
   });
-  new import_obsidian15.Setting(c).setName(t("options.labelSize")).setDesc(t("options.sizeDesc")).addSlider((sl) => {
+  new import_obsidian16.Setting(c).setName(t("options.labelSize")).setDesc(t("options.sizeDesc")).addSlider((sl) => {
     var _a2;
     sl.setLimits(0, 40, 1).setValue((_a2 = e.labelSize) != null ? _a2 : 0).setDynamicTooltip().onChange((v) => {
       e.labelSize = v || void 0;
       changed();
     });
   });
-  new import_obsidian15.Setting(c).setName(t("options.valueSize")).setDesc(t("options.sizeDesc")).addSlider((sl) => {
+  new import_obsidian16.Setting(c).setName(t("options.valueSize")).setDesc(t("options.sizeDesc")).addSlider((sl) => {
     var _a2;
     sl.setLimits(0, 40, 1).setValue((_a2 = e.valueSize) != null ? _a2 : 0).setDynamicTooltip().onChange((v) => {
       e.valueSize = v || void 0;
@@ -4857,7 +5122,7 @@ function renderEntryOptionsBody(octx, onDone, onRemoved, opts = {}) {
   });
   if (isProp) {
     c.createEl("h4", { text: t("options.obsidianHeading") });
-    new import_obsidian15.Setting(c).setName(t("options.showInObsidian")).setDesc(t("options.showInObsidianDesc")).addToggle((tg) => {
+    new import_obsidian16.Setting(c).setName(t("options.showInObsidian")).setDesc(t("options.showInObsidianDesc")).addToggle((tg) => {
       tg.setValue(!!e.showInObsidian).onChange((v) => {
         e.showInObsidian = v || void 0;
         changed();
@@ -4866,16 +5131,16 @@ function renderEntryOptionsBody(octx, onDone, onRemoved, opts = {}) {
   }
   if (!opts.multi) {
     c.createEl("h4", { text: t("options.placementHeading") });
-    new import_obsidian15.Setting(c).addButton(
+    new import_obsidian16.Setting(c).addButton(
       (b) => b.setButtonText(t("entry.menu.remove")).setWarning().onClick(() => {
         view.removeEntry(section, e);
         onRemoved();
       })
     );
   }
-  new import_obsidian15.Setting(c).addButton((b) => b.setButtonText(t("common.done")).setCta().onClick(() => onDone()));
+  new import_obsidian16.Setting(c).addButton((b) => b.setButtonText(t("common.done")).setCta().onClick(() => onDone()));
 }
-var EntryOptionsModal = class extends import_obsidian15.Modal {
+var EntryOptionsModal = class extends import_obsidian16.Modal {
   constructor(view, section, entry, file) {
     super(view.app);
     this.view = view;
@@ -4928,7 +5193,7 @@ var EntryOptionsModal = class extends import_obsidian15.Modal {
 var SECTION_TAB = "::section";
 var NUMERIC_SET = /* @__PURE__ */ new Set(["number", "decimal"]);
 var MODIFIABLE_SET = /* @__PURE__ */ new Set(["number", "decimal", "formula", "derived"]);
-var SectionOptionsModal = class extends import_obsidian16.Modal {
+var SectionOptionsModal = class extends import_obsidian17.Modal {
   /** @param initialTab entry id whose tab opens pre-selected. */
   constructor(view, section, initialTab) {
     super(view.app);
@@ -5229,13 +5494,13 @@ var SectionOptionsModal = class extends import_obsidian16.Modal {
     );
     {
       const s = read((x) => !x["hideLabel"]);
-      new import_obsidian16.Setting(c).setName(t("options.showLabel")).setDesc(mixedDesc(s.mixed)).addToggle((tg) => {
+      new import_obsidian17.Setting(c).setName(t("options.showLabel")).setDesc(mixedDesc(s.mixed)).addToggle((tg) => {
         tg.setValue(s.v).onChange((v) => apply((x) => x["hideLabel"] = v ? void 0 : true));
       });
     }
     {
       const s = read((x) => x["hideIfEmpty"] === false);
-      new import_obsidian16.Setting(c).setName(t("options.showWhenEmpty")).setDesc(mixedDesc(s.mixed)).addToggle((tg) => {
+      new import_obsidian17.Setting(c).setName(t("options.showWhenEmpty")).setDesc(mixedDesc(s.mixed)).addToggle((tg) => {
         tg.setValue(s.v).onChange((v) => apply((x) => x["hideIfEmpty"] = v ? false : void 0));
       });
     }
@@ -5245,7 +5510,7 @@ var SectionOptionsModal = class extends import_obsidian16.Modal {
           var _a;
           return (_a = x[field]) != null ? _a : 0;
         });
-        new import_obsidian16.Setting(c).setName(t(nameKey)).setDesc(s.mixed ? t("options.mixed") : t("options.sizeDesc")).addSlider((sl) => {
+        new import_obsidian17.Setting(c).setName(t(nameKey)).setDesc(s.mixed ? t("options.mixed") : t("options.sizeDesc")).addSlider((sl) => {
           sl.setLimits(0, 40, 1).setValue(s.v).setDynamicTooltip().onChange((v) => apply((x) => x[field] = v || void 0));
         });
       };
@@ -5270,12 +5535,12 @@ var SectionOptionsModal = class extends import_obsidian16.Modal {
       const allProps = ents.every((e) => e.kind === "prop");
       if (allProps) {
         const s = read((x) => !!x["showInObsidian"]);
-        new import_obsidian16.Setting(c).setName(t("options.showInObsidian")).setDesc(mixedDesc(s.mixed)).addToggle((tg) => {
+        new import_obsidian17.Setting(c).setName(t("options.showInObsidian")).setDesc(mixedDesc(s.mixed)).addToggle((tg) => {
           tg.setValue(s.v).onChange((v) => apply((x) => x["showInObsidian"] = v || void 0));
         });
         {
           const ty = read((x) => x["showType"] !== false);
-          new import_obsidian16.Setting(c).setName(t("options.showType")).setDesc(mixedDesc(ty.mixed)).addToggle((tg) => {
+          new import_obsidian17.Setting(c).setName(t("options.showType")).setDesc(mixedDesc(ty.mixed)).addToggle((tg) => {
             tg.setValue(ty.v).onChange((v) => apply((x) => x["showType"] = v ? void 0 : false));
           });
         }
@@ -5283,15 +5548,15 @@ var SectionOptionsModal = class extends import_obsidian16.Modal {
         if (types.every((ty) => NUMERIC_SET.has(ty))) {
           c.createEl("h4", { text: t("options.numberHeading") });
           const sl = read((x) => !!x["slider"]);
-          new import_obsidian16.Setting(c).setName(t("options.showSlider")).setDesc(mixedDesc(sl.mixed)).addToggle((tg) => {
+          new import_obsidian17.Setting(c).setName(t("options.showSlider")).setDesc(mixedDesc(sl.mixed)).addToggle((tg) => {
             tg.setValue(sl.v).onChange((v) => apply((x) => x["slider"] = v || void 0));
           });
           const st = read((x) => x["steppers"] !== false);
-          new import_obsidian16.Setting(c).setName(t("options.showSteppers")).setDesc(mixedDesc(st.mixed)).addToggle((tg) => {
+          new import_obsidian17.Setting(c).setName(t("options.showSteppers")).setDesc(mixedDesc(st.mixed)).addToggle((tg) => {
             tg.setValue(st.v).onChange((v) => apply((x) => x["steppers"] = v ? void 0 : false));
           });
           const cu = read((x) => x["sliderCurve"] || "linear");
-          new import_obsidian16.Setting(c).setName(t("options.sliderCurve")).setDesc(mixedDesc(cu.mixed)).addDropdown((d) => {
+          new import_obsidian17.Setting(c).setName(t("options.sliderCurve")).setDesc(mixedDesc(cu.mixed)).addDropdown((d) => {
             d.addOption("linear", t("options.curveLinear"));
             d.addOption("root", t("options.curveRoot"));
             d.addOption("exp", t("options.curveExp"));
@@ -5300,7 +5565,7 @@ var SectionOptionsModal = class extends import_obsidian16.Modal {
           });
           const numRow = (nameKey, field) => {
             const s2 = read((x) => x[field]);
-            new import_obsidian16.Setting(c).setName(t(nameKey)).setDesc(s2.mixed ? t("options.mixed") : t("options.rangeAuto")).addText((tx) => {
+            new import_obsidian17.Setting(c).setName(t(nameKey)).setDesc(s2.mixed ? t("options.mixed") : t("options.rangeAuto")).addText((tx) => {
               tx.setValue(s2.mixed || s2.v === void 0 ? "" : String(s2.v)).onChange((v) => {
                 const n = Number(v);
                 const val = v.trim() === "" || !Number.isFinite(n) ? void 0 : n;
@@ -5311,27 +5576,27 @@ var SectionOptionsModal = class extends import_obsidian16.Modal {
           numRow("options.minimum", "min");
           numRow("options.maximum", "max");
           const cl = read((x) => !!x["clamp"]);
-          new import_obsidian16.Setting(c).setName(t("options.clamp")).setDesc(mixedDesc(cl.mixed)).addToggle((tg) => {
+          new import_obsidian17.Setting(c).setName(t("options.clamp")).setDesc(mixedDesc(cl.mixed)).addToggle((tg) => {
             tg.setValue(cl.v).onChange((v) => apply((x) => x["clamp"] = v || void 0));
           });
         }
         if (types.every((ty) => MODIFIABLE_SET.has(ty))) {
           const ro = read((x) => !!x["roll"]);
-          new import_obsidian16.Setting(c).setName(t("roll.options.rollButton")).setDesc(mixedDesc(ro.mixed)).addToggle((tg) => {
+          new import_obsidian17.Setting(c).setName(t("roll.options.rollButton")).setDesc(mixedDesc(ro.mixed)).addToggle((tg) => {
             tg.setValue(ro.v).onChange((v) => apply((x) => x["roll"] = v || void 0));
           });
           const ch = read((x) => x["showChain"] !== false);
-          new import_obsidian16.Setting(c).setName(t("mods.showChain")).setDesc(mixedDesc(ch.mixed)).addToggle((tg) => {
+          new import_obsidian17.Setting(c).setName(t("mods.showChain")).setDesc(mixedDesc(ch.mixed)).addToggle((tg) => {
             tg.setValue(ch.v).onChange((v) => apply((x) => x["showChain"] = v ? void 0 : false));
           });
           const di = read((x) => x["showDice"] !== false);
-          new import_obsidian16.Setting(c).setName(t("mods.showDice")).setDesc(mixedDesc(di.mixed)).addToggle((tg) => {
+          new import_obsidian17.Setting(c).setName(t("mods.showDice")).setDesc(mixedDesc(di.mixed)).addToggle((tg) => {
             tg.setValue(di.v).onChange((v) => apply((x) => x["showDice"] = v ? void 0 : false));
           });
         }
       }
     }
-    new import_obsidian16.Setting(c).addButton((b) => b.setButtonText(t("common.done")).setCta().onClick(() => this.close()));
+    new import_obsidian17.Setting(c).addButton((b) => b.setButtonText(t("common.done")).setCta().onClick(() => this.close()));
   }
   // -- the section's own tab ---------------------------------------------------
   drawSectionBody(c) {
@@ -5339,7 +5604,7 @@ var SectionOptionsModal = class extends import_obsidian16.Modal {
     const t = this.view.i18n.t.bind(this.view.i18n);
     const host = viewColorHost(this.view);
     c.createEl("h4", { text: t("sectionOptions.sectionHeading") });
-    new import_obsidian16.Setting(c).setName(t("sectionOptions.name")).setDesc(t("sectionOptions.nameDesc")).addText((tx) => {
+    new import_obsidian17.Setting(c).setName(t("sectionOptions.name")).setDesc(t("sectionOptions.nameDesc")).addText((tx) => {
       tx.setPlaceholder(t("section.namePlaceholder")).setValue(s.title).onChange((v) => {
         s.title = v.trim() || t("section.namePlaceholder");
         this.changed();
@@ -5353,32 +5618,32 @@ var SectionOptionsModal = class extends import_obsidian16.Modal {
       s.iconColor = v;
       this.changed();
     });
-    new import_obsidian16.Setting(c).setName(t("options.showLabel")).addToggle((tg) => {
+    new import_obsidian17.Setting(c).setName(t("options.showLabel")).addToggle((tg) => {
       tg.setValue(!s.hideLabel).onChange((v) => {
         s.hideLabel = v ? void 0 : true;
         this.changed();
       });
     });
-    new import_obsidian16.Setting(c).setName(t("sectionOptions.collapsible")).addToggle((tg) => {
+    new import_obsidian17.Setting(c).setName(t("sectionOptions.collapsible")).addToggle((tg) => {
       tg.setValue(s.collapsible !== false).onChange((v) => {
         s.collapsible = v;
         if (!v) s.collapsed = false;
         this.changed();
       });
     });
-    new import_obsidian16.Setting(c).setName(t("sectionOptions.dividers")).addToggle((tg) => {
+    new import_obsidian17.Setting(c).setName(t("sectionOptions.dividers")).addToggle((tg) => {
       tg.setValue(!!s.dividers).onChange((v) => {
         s.dividers = v || void 0;
         this.changed();
       });
     });
-    new import_obsidian16.Setting(c).setName(t("sectionOptions.vdividers")).addToggle((tg) => {
+    new import_obsidian17.Setting(c).setName(t("sectionOptions.vdividers")).addToggle((tg) => {
       tg.setValue(!!s.vdividers).onChange((v) => {
         s.vdividers = v || void 0;
         this.changed();
       });
     });
-    new import_obsidian16.Setting(c).setName(t("options.showWhenEmpty")).setDesc(t("sectionOptions.showWhenEmptyDesc")).addToggle((tg) => {
+    new import_obsidian17.Setting(c).setName(t("options.showWhenEmpty")).setDesc(t("sectionOptions.showWhenEmptyDesc")).addToggle((tg) => {
       tg.setValue(s.hideIfEmpty === false).onChange((v) => {
         s.hideIfEmpty = v ? false : void 0;
         this.changed();
@@ -5386,7 +5651,7 @@ var SectionOptionsModal = class extends import_obsidian16.Modal {
     });
     c.createEl("h4", { text: t("sectionOptions.layoutHeading") });
     const mode = sectionMode(s);
-    new import_obsidian16.Setting(c).setName(t("sectionOptions.layout")).setDesc(t("sectionOptions.layoutDesc")).addDropdown((d) => {
+    new import_obsidian17.Setting(c).setName(t("sectionOptions.layout")).setDesc(t("sectionOptions.layoutDesc")).addDropdown((d) => {
       d.addOption("list", t("layout.list"));
       d.addOption("columns", t("layout.columns"));
       d.addOption("grid", t("layout.grid"));
@@ -5397,7 +5662,7 @@ var SectionOptionsModal = class extends import_obsidian16.Modal {
         this.draw();
       });
     });
-    const colSet = new import_obsidian16.Setting(c).setName(t("sectionOptions.columns"));
+    const colSet = new import_obsidian17.Setting(c).setName(t("sectionOptions.columns"));
     colSet.addText((tx) => {
       tx.setDisabled(mode === "list");
       tx.setValue(String(s.columns || 2)).onChange((v) => {
@@ -5409,7 +5674,7 @@ var SectionOptionsModal = class extends import_obsidian16.Modal {
       });
     });
     if (mode === "list") colSet.settingEl.addClass("ep-disabled");
-    const rowSet = new import_obsidian16.Setting(c).setName(t("sectionOptions.rows")).setDesc(t("sectionOptions.rowsDesc"));
+    const rowSet = new import_obsidian17.Setting(c).setName(t("sectionOptions.rows")).setDesc(t("sectionOptions.rowsDesc"));
     rowSet.addText((tx) => {
       tx.setDisabled(mode !== "grid");
       tx.setValue(String(s.rows || 0)).onChange((v) => {
@@ -5419,19 +5684,19 @@ var SectionOptionsModal = class extends import_obsidian16.Modal {
       });
     });
     if (mode !== "grid") rowSet.settingEl.addClass("ep-disabled");
-    new import_obsidian16.Setting(c).setName(t("sectionOptions.transparent")).addToggle((tg) => {
+    new import_obsidian17.Setting(c).setName(t("sectionOptions.transparent")).addToggle((tg) => {
       tg.setValue(!!s.transparent).onChange((v) => {
         s.transparent = v || void 0;
         this.changed();
       });
     });
-    new import_obsidian16.Setting(c).setName(t("sectionOptions.sticky")).addToggle((tg) => {
+    new import_obsidian17.Setting(c).setName(t("sectionOptions.sticky")).addToggle((tg) => {
       tg.setValue(!!s.sticky).onChange((v) => {
         s.sticky = v || void 0;
         this.changed();
       });
     });
-    new import_obsidian16.Setting(c).setName(t("sectionOptions.height")).setDesc(t("sectionOptions.heightDesc")).addDropdown((d) => {
+    new import_obsidian17.Setting(c).setName(t("sectionOptions.height")).setDesc(t("sectionOptions.heightDesc")).addDropdown((d) => {
       d.addOption("unlimited", t("size.unlimited"));
       d.addOption("s", t("size.smallRows"));
       d.addOption("m", t("size.mediumRows"));
@@ -5456,14 +5721,14 @@ var SectionOptionsModal = class extends import_obsidian16.Modal {
       this.changed();
     });
     c.createEl("h4", { text: t("sectionOptions.titleHeading") });
-    new import_obsidian16.Setting(c).setName(t("sectionOptions.titleSize")).setDesc(t("options.sizeDesc")).addSlider((sl) => {
+    new import_obsidian17.Setting(c).setName(t("sectionOptions.titleSize")).setDesc(t("options.sizeDesc")).addSlider((sl) => {
       var _a;
       sl.setLimits(0, 48, 1).setValue((_a = s.titleSize) != null ? _a : 0).setDynamicTooltip().onChange((v) => {
         s.titleSize = v || void 0;
         this.changed();
       });
     });
-    new import_obsidian16.Setting(c).addButton((b) => b.setButtonText(t("common.done")).setCta().onClick(() => this.close()));
+    new import_obsidian17.Setting(c).addButton((b) => b.setButtonText(t("common.done")).setCta().onClick(() => this.close()));
   }
   onClose() {
     this.contentEl.empty();
@@ -5712,7 +5977,7 @@ var DragController = class {
 // src/ui/menus/section-menu.ts
 function openSectionMenu(e, view, section) {
   const t = view.i18n.t.bind(view.i18n);
-  const menu = new import_obsidian17.Menu();
+  const menu = new import_obsidian18.Menu();
   menu.addItem(
     (i) => i.setTitle(t("section.menu.configure", { name: section.title })).setIcon("settings").onClick(() => new SectionOptionsModal(view, section).open())
   );
@@ -5743,7 +6008,7 @@ function openSectionMenu(e, view, section) {
   if (addable.length) {
     menu.addItem(
       (i) => i.setTitle(t("section.menu.addObject")).setIcon("plus-circle").onClick(() => {
-        const m2 = new import_obsidian17.Menu();
+        const m2 = new import_obsidian18.Menu();
         for (const kind of addable) {
           m2.addItem(
             (x) => x.setTitle(kind.defaultLabel(view.i18n, { id: "", kind: kind.id })).onClick(() => {
@@ -5846,7 +6111,7 @@ function renderSection(parent, view, file, section, drag, host) {
   const sum = det.createDiv({ cls: "ep-section-title" });
   if (collapsible) {
     const chev = sum.createSpan({ cls: "ep-chev" });
-    (0, import_obsidian18.setIcon)(chev, "chevron-right");
+    (0, import_obsidian19.setIcon)(chev, "chevron-right");
     chev.toggleClass("ep-open", !section.collapsed);
   }
   if (view.editMode) {
@@ -5856,7 +6121,7 @@ function renderSection(parent, view, file, section, drag, host) {
   }
   if (section.icon) {
     const ic = sum.createSpan({ cls: "ep-ticon" });
-    (0, import_obsidian18.setIcon)(ic, section.icon);
+    (0, import_obsidian19.setIcon)(ic, section.icon);
     if (section.iconColor) ic.style.color = section.iconColor;
   }
   const showLabel = view.editMode || !section.hideLabel;
@@ -5879,7 +6144,7 @@ function renderSection(parent, view, file, section, drag, host) {
   if (view.editMode) {
     const cmode = sectionMode(section);
     const modeBtn = sum.createSpan({ cls: "ep-icon-btn" });
-    (0, import_obsidian18.setIcon)(modeBtn, cmode === "grid" ? "layout-grid" : cmode === "columns" ? "columns" : "list");
+    (0, import_obsidian19.setIcon)(modeBtn, cmode === "grid" ? "layout-grid" : cmode === "columns" ? "columns" : "list");
     modeBtn.setAttr("title", t("section.layoutHint", { mode: t("layout." + cmode) }));
     modeBtn.onclick = (e) => {
       e.preventDefault();
@@ -5890,7 +6155,7 @@ function renderSection(parent, view, file, section, drag, host) {
       view.rerender();
     };
     const pinBtn = sum.createSpan({ cls: "ep-icon-btn" });
-    (0, import_obsidian18.setIcon)(pinBtn, "pin");
+    (0, import_obsidian19.setIcon)(pinBtn, "pin");
     pinBtn.setAttr("title", section.sticky ? t("section.unpinHint") : t("section.pinHint"));
     if (section.sticky) pinBtn.addClass("is-active");
     pinBtn.onclick = (e) => {
@@ -5967,7 +6232,7 @@ function renderSection(parent, view, file, section, drag, host) {
         cell.onclick = () => view.openAddMenu(cell, section, { index: section.entries.length });
         cell.addEventListener("contextmenu", (ce) => {
           ce.preventDefault();
-          const m = new import_obsidian18.Menu();
+          const m = new import_obsidian19.Menu();
           m.addItem(
             (i) => i.setTitle(t("blank.addHere")).setIcon("plus").onClick(
               () => view.openAddMenu(cell, section, { index: section.entries.length })
@@ -6051,7 +6316,7 @@ function renderRails(view, section, grid, colRail, rowRail) {
     const mkBtn = (rail, cls, icon, title, onClick) => {
       const el = rail.createDiv({ cls });
       const sp = el.createSpan();
-      (0, import_obsidian18.setIcon)(sp, icon);
+      (0, import_obsidian19.setIcon)(sp, icon);
       el.setAttr("title", title);
       el.onclick = onClick;
       return el;
@@ -6474,7 +6739,7 @@ function renderLinkedText(app, el, text, sourcePath) {
 
 // src/ui/view.ts
 var VIEW_TYPE = "extended-properties-character";
-var SidebarView = class extends import_obsidian19.ItemView {
+var SidebarView = class extends import_obsidian20.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.hub = new ServiceHub();
@@ -6588,7 +6853,7 @@ var SidebarView = class extends import_obsidian19.ItemView {
     const f = this.app.metadataCache.getFirstLinkpathDest(path, this.note.path || "");
     if (f) return this.app.vault.getResourcePath(f);
     const af = this.app.vault.getAbstractFileByPath(path);
-    if (af instanceof import_obsidian19.TFile) return this.app.vault.getResourcePath(af);
+    if (af instanceof import_obsidian20.TFile) return this.app.vault.getResourcePath(af);
     return path;
   }
   openColorPicker(initial, onPick) {
@@ -7142,7 +7407,7 @@ var SidebarView = class extends import_obsidian19.ItemView {
 };
 
 // src/ui/settings-tab.ts
-var import_obsidian20 = require("obsidian");
+var import_obsidian21 = require("obsidian");
 
 // src/utils/dice-expr.ts
 var MAX_DICE = 500;
@@ -7188,7 +7453,7 @@ function parseRoll(text) {
             name2 += "." + s.slice(i + 1, e2);
             i = e2 + 1;
           } else {
-            const am = /^[A-Za-z_][A-Za-z0-9_]*/.exec(s.slice(i));
+            const am = /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*/.exec(s.slice(i));
             if (!am) return null;
             name2 += "." + am[0];
             i += am[0].length;
@@ -7202,7 +7467,7 @@ function parseRoll(text) {
       i = end + 1;
       return name ? { kind: "ref", name } : null;
     }
-    const m = /^[A-Za-z_][A-Za-z0-9_]*/.exec(s.slice(i));
+    const m = /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*/.exec(s.slice(i));
     if (m) {
       i += m[0].length;
       return { kind: "ref", name: m[0] };
@@ -7464,7 +7729,7 @@ function applicableMacros(settings, typeKey) {
 
 // src/ui/settings-tab.ts
 var OVERRIDE_ROW_LIMIT = 25;
-var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
+var EPSettingTab = class extends import_obsidian21.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -7484,7 +7749,7 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
     c.createEl("h3", { text: t("settings.typesHeading") });
     c.createEl("p", { cls: "setting-item-description", text: t("settings.typesDesc") });
     for (const type of plugin.settings.types) {
-      new import_obsidian20.Setting(c).setName(type).addButton(
+      new import_obsidian21.Setting(c).setName(type).addButton(
         (b) => b.setButtonText(t("settings.resetLayout")).onClick(
           () => new ConfirmModal(
             this.app,
@@ -7502,13 +7767,13 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
         })
       );
     }
-    new import_obsidian20.Setting(c).setName(t("settings.addType")).addButton(
+    new import_obsidian21.Setting(c).setName(t("settings.addType")).addButton(
       (b) => b.setButtonText(t("settings.addTypeBtn")).setCta().onClick(
         () => new TextPromptModal(this.app, i18n, t("settings.newTypePrompt"), "", (v) => {
           const name = v.trim();
           if (!name) return;
           if (plugin.settings.types.some((x) => x.toLowerCase() === name.toLowerCase())) {
-            new import_obsidian20.Notice(t("settings.typeExists"));
+            new import_obsidian21.Notice(t("settings.typeExists"));
             return;
           }
           plugin.settings.types.push(name);
@@ -7520,7 +7785,7 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
     );
     const d = plugin.settings.defaults;
     c.createEl("h3", { text: t("settings.defaultsHeading") });
-    new import_obsidian20.Setting(c).setName(t("settings.defaultDataType")).setDesc(t("settings.defaultDataTypeDesc")).addDropdown((dd) => {
+    new import_obsidian21.Setting(c).setName(t("settings.defaultDataType")).setDesc(t("settings.defaultDataTypeDesc")).addDropdown((dd) => {
       for (const def of plugin.registries.valueTypes.all()) dd.addOption(def.id, def.name(i18n));
       dd.setValue(d.dataType);
       dd.onChange((v) => {
@@ -7528,7 +7793,7 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
         save();
       });
     });
-    new import_obsidian20.Setting(c).setName(t("settings.defaultColorSpace")).addDropdown((dd) => {
+    new import_obsidian21.Setting(c).setName(t("settings.defaultColorSpace")).addDropdown((dd) => {
       for (const sp of COLOR_SPACES) dd.addOption(sp, sp);
       dd.setValue(d.colorSpace);
       dd.onChange((v) => {
@@ -7537,7 +7802,7 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
       });
     });
     c.createEl("h3", { text: t("settings.newSectionHeading") });
-    new import_obsidian20.Setting(c).setName(t("sectionOptions.columns")).addDropdown((dd) => {
+    new import_obsidian21.Setting(c).setName(t("sectionOptions.columns")).addDropdown((dd) => {
       dd.addOption("1", "1");
       dd.addOption("2", "2");
       dd.setValue(String(d.sectionColumns));
@@ -7546,7 +7811,7 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
         save();
       });
     });
-    const toggleRow = (name, get, set) => new import_obsidian20.Setting(c).setName(name).addToggle((tg) => {
+    const toggleRow = (name, get, set) => new import_obsidian21.Setting(c).setName(name).addToggle((tg) => {
       tg.setValue(get()).onChange((v) => {
         set(v);
         save();
@@ -7556,7 +7821,7 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
     toggleRow(t("sectionOptions.sticky"), () => d.sectionSticky, (v) => d.sectionSticky = v);
     toggleRow(t("sectionOptions.collapsible"), () => d.sectionCollapsible, (v) => d.sectionCollapsible = v);
     toggleRow(t("settings.entryDividers"), () => d.sectionDividers, (v) => d.sectionDividers = v);
-    new import_obsidian20.Setting(c).setName(t("sectionOptions.height")).addDropdown((dd) => {
+    new import_obsidian21.Setting(c).setName(t("sectionOptions.height")).addDropdown((dd) => {
       dd.addOption("unlimited", t("size.unlimited"));
       dd.addOption("s", t("size.small"));
       dd.addOption("m", t("size.medium"));
@@ -7574,7 +7839,7 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
       save();
     };
     for (const dv of [...plugin.settings.derivations]) {
-      new import_obsidian20.Setting(c).setName(dv.name || dv.id).addText((tx) => {
+      new import_obsidian21.Setting(c).setName(dv.name || dv.id).addText((tx) => {
         tx.setPlaceholder(t("settings.derivationName")).setValue(dv.name).onChange((v) => {
           dv.name = v.trim() || dv.id;
           applyDerivations();
@@ -7595,20 +7860,20 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
         })
       );
     }
-    new import_obsidian20.Setting(c).setName(t("settings.modDepth")).setDesc(t("settings.modDepthDesc")).addSlider((sl) => {
+    new import_obsidian21.Setting(c).setName(t("settings.modDepth")).setDesc(t("settings.modDepthDesc")).addSlider((sl) => {
       var _a;
       sl.setLimits(0, 16, 1).setValue((_a = plugin.settings.modDepth) != null ? _a : 8).setDynamicTooltip().onChange((v) => {
         plugin.settings.modDepth = v;
         save();
       });
     });
-    new import_obsidian20.Setting(c).setName(t("settings.modsOffProp")).setDesc(t("settings.modsOffPropDesc")).addText((tx) => {
+    new import_obsidian21.Setting(c).setName(t("settings.modsOffProp")).setDesc(t("settings.modsOffPropDesc")).addText((tx) => {
       tx.setValue(plugin.settings.modsOffProp).onChange((v) => {
         plugin.settings.modsOffProp = v.trim() || "Modifiers Off";
         save();
       });
     });
-    new import_obsidian20.Setting(c).setName(t("settings.derivationAdd")).addButton(
+    new import_obsidian21.Setting(c).setName(t("settings.derivationAdd")).addButton(
       (b) => b.setButtonText(t("settings.derivationAddBtn")).onClick(() => {
         plugin.settings.derivations.push({ id: genId(), name: t("settings.newDerivation"), formula: "x" });
         applyDerivations();
@@ -7624,7 +7889,7 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
     );
     c.createEl("h3", { text: t("settings.abbrHeading") });
     c.createEl("p", { cls: "setting-item-description", text: t("settings.abbrDesc") });
-    new import_obsidian20.Setting(c).setName(t("settings.modSuffix")).setDesc(t("settings.modSuffixDesc")).addText((tx) => {
+    new import_obsidian21.Setting(c).setName(t("settings.modSuffix")).setDesc(t("settings.modSuffixDesc")).addText((tx) => {
       var _a;
       tx.setPlaceholder("s").setValue((_a = plugin.settings.modifierSuffix) != null ? _a : "s").onChange((v) => {
         plugin.settings.modifierSuffix = v;
@@ -7632,7 +7897,7 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
       });
     });
     for (const key of Object.keys(plugin.settings.sourceAbbrs).sort((a, b) => a.localeCompare(b))) {
-      new import_obsidian20.Setting(c).setName(key).setDesc(t("settings.abbrDefault", { abbr: defaultAbbr(key) })).addText((tx) => {
+      new import_obsidian21.Setting(c).setName(key).setDesc(t("settings.abbrDefault", { abbr: defaultAbbr(key) })).addText((tx) => {
         tx.setPlaceholder(defaultAbbr(key)).setValue(plugin.settings.sourceAbbrs[key]).onChange((v) => {
           const a = v.trim();
           if (a && a !== defaultAbbr(key)) plugin.settings.sourceAbbrs[key] = a;
@@ -7647,7 +7912,7 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
         })
       );
     }
-    new import_obsidian20.Setting(c).setName(t("settings.abbrAdd")).addButton(
+    new import_obsidian21.Setting(c).setName(t("settings.abbrAdd")).addButton(
       (b) => b.setButtonText(t("settings.abbrAddBtn")).onClick(
         () => new TextPromptModal(this.app, i18n, t("settings.abbrPrompt"), "", (v) => {
           const k = v.trim();
@@ -7660,32 +7925,32 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
       )
     );
     c.createEl("h3", { text: t("settings.diceHeading") });
-    new import_obsidian20.Setting(c).setName(t("settings.diceAnim")).setDesc(t("settings.diceAnimDesc")).addToggle((tg) => {
+    new import_obsidian21.Setting(c).setName(t("settings.diceAnim")).setDesc(t("settings.diceAnimDesc")).addToggle((tg) => {
       tg.setValue(plugin.settings.diceAnim).onChange((v) => {
         plugin.settings.diceAnim = v;
         save();
       });
     });
-    new import_obsidian20.Setting(c).setName(t("settings.diceAnimRolls")).setDesc(t("settings.diceAnimRollsDesc")).addSlider((sl) => {
+    new import_obsidian21.Setting(c).setName(t("settings.diceAnimRolls")).setDesc(t("settings.diceAnimRollsDesc")).addSlider((sl) => {
       var _a;
       sl.setLimits(1, 30, 1).setValue((_a = plugin.settings.diceAnimRolls) != null ? _a : 10).setDynamicTooltip().onChange((v) => {
         plugin.settings.diceAnimRolls = v;
         save();
       });
     });
-    new import_obsidian20.Setting(c).setName(t("settings.diceAnimStay")).setDesc(t("settings.diceAnimStayDesc")).addToggle((tg) => {
+    new import_obsidian21.Setting(c).setName(t("settings.diceAnimStay")).setDesc(t("settings.diceAnimStayDesc")).addToggle((tg) => {
       tg.setValue(plugin.settings.diceAnimStay).onChange((v) => {
         plugin.settings.diceAnimStay = v;
         save();
       });
     });
-    new import_obsidian20.Setting(c).setName(t("settings.diceAnimBlock")).setDesc(t("settings.diceAnimBlockDesc")).addToggle((tg) => {
+    new import_obsidian21.Setting(c).setName(t("settings.diceAnimBlock")).setDesc(t("settings.diceAnimBlockDesc")).addToggle((tg) => {
       tg.setValue(plugin.settings.diceAnimBlock !== false).onChange((v) => {
         plugin.settings.diceAnimBlock = v;
         save();
       });
     });
-    new import_obsidian20.Setting(c).setName(t("settings.failOnOne")).setDesc(t("settings.failOnOneDesc")).addToggle((tg) => {
+    new import_obsidian21.Setting(c).setName(t("settings.failOnOne")).setDesc(t("settings.failOnOneDesc")).addToggle((tg) => {
       tg.setValue(plugin.settings.failOnOne !== false).onChange((v) => {
         plugin.settings.failOnOne = v;
         save();
@@ -7693,7 +7958,7 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
     });
     c.createEl("p", { cls: "setting-item-description", text: t("settings.critRangesDesc") });
     for (const sides of Object.keys(plugin.settings.critRanges).sort((a, b) => Number(a) - Number(b))) {
-      new import_obsidian20.Setting(c).setName(t("settings.critRangeFrom", { sides })).addText((tx) => {
+      new import_obsidian21.Setting(c).setName(t("settings.critRangeFrom", { sides })).addText((tx) => {
         tx.setValue(String(plugin.settings.critRanges[sides])).onChange((v) => {
           const n = parseInt(v);
           if (Number.isFinite(n) && n >= 1) {
@@ -7709,7 +7974,7 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
         })
       );
     }
-    new import_obsidian20.Setting(c).setName(t("settings.critRangeAdd")).addButton(
+    new import_obsidian21.Setting(c).setName(t("settings.critRangeAdd")).addButton(
       (b) => b.setButtonText(t("settings.critRangeAddBtn")).onClick(
         () => new TextPromptModal(this.app, i18n, t("settings.critRangePrompt"), "20", (v) => {
           const sides = parseInt(v);
@@ -7723,14 +7988,14 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
     );
     if (plugin.settings.features["rolling"] !== false) {
       c.createEl("h3", { text: t("settings.rollsHeading") });
-      new import_obsidian20.Setting(c).setName(t("settings.rollHistory")).setDesc(t("settings.rollHistoryDesc")).addToggle((tg) => {
+      new import_obsidian21.Setting(c).setName(t("settings.rollHistory")).setDesc(t("settings.rollHistoryDesc")).addToggle((tg) => {
         tg.setValue(plugin.settings.rollHistoryEnabled !== false).onChange((v) => {
           plugin.settings.rollHistoryEnabled = v;
           plugin.history.setEnabled(v);
           save();
         });
       });
-      new import_obsidian20.Setting(c).setName(t("settings.rollHistoryLimit")).setDesc(t("settings.rollHistoryLimitDesc")).addSlider((sl) => {
+      new import_obsidian21.Setting(c).setName(t("settings.rollHistoryLimit")).setDesc(t("settings.rollHistoryLimitDesc")).addSlider((sl) => {
         var _a;
         sl.setLimits(50, 2e3, 50).setValue((_a = plugin.settings.rollHistoryLimit) != null ? _a : 500).setDynamicTooltip().onChange((v) => {
           plugin.settings.rollHistoryLimit = v;
@@ -7738,11 +8003,11 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
           save();
         });
       });
-      new import_obsidian20.Setting(c).setName(t("settings.rollHistoryClear")).addButton(
+      new import_obsidian21.Setting(c).setName(t("settings.rollHistoryClear")).addButton(
         (b) => b.setButtonText(t("settings.rollHistoryClearBtn")).setWarning().onClick(
           () => new ConfirmModal(this.app, i18n, t("settings.rollHistoryClearConfirm"), () => {
             plugin.history.clear();
-            new import_obsidian20.Notice(t("settings.rollHistoryCleared"));
+            new import_obsidian21.Notice(t("settings.rollHistoryCleared"));
           }).open()
         )
       );
@@ -7750,7 +8015,7 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
       c.createEl("p", { cls: "setting-item-description", text: t("settings.macrosDesc") });
       const macros = plugin.settings.macros;
       for (const m of [...macros]) {
-        new import_obsidian20.Setting(c).addText(
+        new import_obsidian21.Setting(c).addText(
           (tx) => tx.setPlaceholder(t("settings.macroName")).setValue(m.name).onChange((v) => {
             m.name = v.trim() || m.name;
             save();
@@ -7794,7 +8059,7 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
           })
         );
       }
-      new import_obsidian20.Setting(c).setName(t("settings.macroAdd")).addButton(
+      new import_obsidian21.Setting(c).setName(t("settings.macroAdd")).addButton(
         (b) => b.setButtonText(t("settings.macroAddBtn")).onClick(() => {
           macros.push({ id: genId(), name: t("settings.macroNewName"), segs: [{ dice: "d20" }] });
           save();
@@ -7804,13 +8069,13 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
     }
     c.createEl("h3", { text: t("settings.typographyHeading") });
     c.createEl("p", { cls: "setting-item-description", text: t("settings.typographyDesc") });
-    new import_obsidian20.Setting(c).setName(t("settings.fontFamily")).addText((tx) => {
+    new import_obsidian21.Setting(c).setName(t("settings.fontFamily")).addText((tx) => {
       tx.setPlaceholder(t("settings.fontPlaceholder")).setValue(d.fontFamily).onChange((v) => {
         d.fontFamily = v.trim();
         save();
       });
     });
-    const sizeRow = (name, get, set) => new import_obsidian20.Setting(c).setName(name).addSlider((sl) => {
+    const sizeRow = (name, get, set) => new import_obsidian21.Setting(c).setName(name).addSlider((sl) => {
       sl.setLimits(0, 32, 1).setValue(get()).setDynamicTooltip().onChange((v) => {
         set(v);
         save();
@@ -7822,7 +8087,7 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
     sizeRow(t("sectionOptions.titleSize"), () => d.titleSize, (n) => d.titleSize = n);
     sizeRow(t("settings.listSize"), () => d.listSize, (n) => d.listSize = n);
     c.createEl("h3", { text: t("settings.languageHeading") });
-    new import_obsidian20.Setting(c).setName(t("settings.language")).setDesc(t("settings.languageDesc")).addDropdown((dd) => {
+    new import_obsidian21.Setting(c).setName(t("settings.language")).setDesc(t("settings.languageDesc")).addDropdown((dd) => {
       for (const loc of i18n.availableLocales()) dd.addOption(loc.code, loc.name);
       dd.setValue(plugin.settings.language);
       dd.onChange((v) => {
@@ -7834,13 +8099,13 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
     });
     this.renderOverrideEditor(c);
     c.createEl("h3", { text: t("settings.obsidianHeading") });
-    new import_obsidian20.Setting(c).setName(t("settings.hideShown")).setDesc(t("settings.hideShownDesc")).addToggle((tg) => {
+    new import_obsidian21.Setting(c).setName(t("settings.hideShown")).setDesc(t("settings.hideShownDesc")).addToggle((tg) => {
       tg.setValue(plugin.settings.hideShown).onChange((v) => {
         plugin.settings.hideShown = v;
         save();
       });
     });
-    new import_obsidian20.Setting(c).setName(t("settings.propMenu")).setDesc(t("settings.propMenuDesc")).addToggle((tg) => {
+    new import_obsidian21.Setting(c).setName(t("settings.propMenu")).setDesc(t("settings.propMenuDesc")).addToggle((tg) => {
       tg.setValue(plugin.settings.propMenu).onChange((v) => {
         plugin.settings.propMenu = v;
         save();
@@ -7849,7 +8114,7 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
     c.createEl("h3", { text: t("settings.hiddenHeading") });
     c.createEl("p", { cls: "setting-item-description", text: t("settings.hiddenDesc") });
     for (const k of plugin.settings.manualHide) {
-      new import_obsidian20.Setting(c).setName(k).addButton(
+      new import_obsidian21.Setting(c).setName(k).addButton(
         (b) => b.setButtonText(t("settings.unhide")).onClick(() => {
           plugin.settings.manualHide = plugin.settings.manualHide.filter((x) => x !== k);
           save();
@@ -7857,7 +8122,7 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
         })
       );
     }
-    new import_obsidian20.Setting(c).setName(t("settings.hideProperty")).addButton(
+    new import_obsidian21.Setting(c).setName(t("settings.hideProperty")).addButton(
       (b) => b.setButtonText(t("settings.hidePropertyBtn")).onClick(
         () => new TextPromptModal(this.app, i18n, t("settings.hidePromptTitle"), "", (v) => {
           const k = v.trim();
@@ -7871,7 +8136,7 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
     c.createEl("h3", { text: t("settings.featuresHeading") });
     c.createEl("p", { cls: "setting-item-description", text: t("settings.featuresDesc") });
     for (const mod of plugin.featureModules) {
-      new import_obsidian20.Setting(c).setName(mod.name(i18n)).setDesc(mod.description(i18n)).addToggle((tg) => {
+      new import_obsidian21.Setting(c).setName(mod.name(i18n)).setDesc(mod.description(i18n)).addToggle((tg) => {
         tg.setValue(plugin.settings.features[mod.id] !== false).onChange((v) => {
           plugin.settings.features[mod.id] = v;
           plugin.rebuildRegistries();
@@ -7889,7 +8154,7 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
     const plugin = this.plugin;
     const i18n = plugin.i18n;
     const t = i18n.t.bind(i18n);
-    new import_obsidian20.Setting(c).setName(t("settings.overrides")).setDesc(t("settings.overridesDesc")).addButton(
+    new import_obsidian21.Setting(c).setName(t("settings.overrides")).setDesc(t("settings.overridesDesc")).addButton(
       (b) => b.setButtonText(t("settings.overridesReset")).onClick(() => {
         plugin.settings.stringOverrides = {};
         i18n.setOverrides({});
@@ -7915,7 +8180,7 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
       if (!q && !shown.length)
         listEl.createDiv({ cls: "setting-item-description", text: t("settings.overridesHint") });
       for (const key of shown) {
-        new import_obsidian20.Setting(listEl).setName(key).setDesc(t("settings.overrideDefault", { text: i18n.baseText(key) })).addText((tx) => {
+        new import_obsidian21.Setting(listEl).setName(key).setDesc(t("settings.overrideDefault", { text: i18n.baseText(key) })).addText((tx) => {
           var _a;
           tx.setPlaceholder(i18n.baseText(key)).setValue((_a = plugin.settings.stringOverrides[key]) != null ? _a : "").onChange((v) => {
             if (v) plugin.settings.stringOverrides[key] = v;
@@ -7938,12 +8203,12 @@ var EPSettingTab = class extends import_obsidian20.PluginSettingTab {
 };
 
 // src/ui/menus/prop-panel-menu.ts
-var import_obsidian21 = require("obsidian");
+var import_obsidian22 = require("obsidian");
 function showPropMenu(host, e, key) {
   var _a, _b, _c;
   const { app, i18n, settings, hide } = host;
   const t = i18n.t.bind(i18n);
-  const menu = new import_obsidian21.Menu();
+  const menu = new import_obsidian22.Menu();
   const hidden = hide.isHidden(key);
   menu.addItem(
     (i) => i.setTitle(hidden ? t("propPanel.showEverywhere", { key }) : t("propPanel.hideEverywhere", { key })).setIcon(hidden ? "eye" : "eye-off").onClick(() => hide.toggle(key))
@@ -8019,7 +8284,7 @@ function augmentPropsMenu(host) {
   for (const h of hidden) {
     const it = menu.createDiv({ cls: "menu-item ep-injected" });
     const ic = it.createDiv({ cls: "menu-item-icon" });
-    (0, import_obsidian21.setIcon)(ic, "eye");
+    (0, import_obsidian22.setIcon)(ic, "eye");
     it.createDiv({ cls: "menu-item-title", text: h.manual ? h.key : t("propPanel.sidebarSuffix", { key: h.key }) });
     it.addEventListener("click", () => {
       hide.unhideKey(h.key);
@@ -8029,7 +8294,7 @@ function augmentPropsMenu(host) {
   if (hidden.length > 1) {
     const all = menu.createDiv({ cls: "menu-item ep-injected" });
     const ic = all.createDiv({ cls: "menu-item-icon" });
-    (0, import_obsidian21.setIcon)(ic, "eye");
+    (0, import_obsidian22.setIcon)(ic, "eye");
     all.createDiv({ cls: "menu-item-title", text: t("propPanel.showAll") });
     all.addEventListener("click", () => {
       for (const h of hidden) hide.unhideKey(h.key);
@@ -8120,7 +8385,7 @@ var rollsKind = {
 };
 
 // src/features/rolling/roller.ts
-var import_obsidian25 = require("obsidian");
+var import_obsidian26 = require("obsidian");
 
 // src/core/note-ref.ts
 function parseNoteRef(name) {
@@ -8163,7 +8428,7 @@ function makeNoteAwareResolver(app, settings, registries, localEnv, sourcePath) 
 }
 
 // src/features/rolling/roll-service.ts
-var import_obsidian23 = require("obsidian");
+var import_obsidian24 = require("obsidian");
 
 // src/features/rolling/karma.ts
 var INTERVENTION_RATE = 0.25;
@@ -8187,7 +8452,7 @@ function rollFace(sides, karmic) {
 }
 
 // src/features/rolling/dice-anim.ts
-var import_obsidian22 = require("obsidian");
+var import_obsidian23 = require("obsidian");
 var MAX_DICE_SHOWN = 12;
 var TICK_MS = 80;
 var SETTLE_MS = 240;
@@ -8268,7 +8533,7 @@ function updateSummary(i18n) {
   const els = rolls.map((r) => {
     const el = createDiv({ cls: "ep-roll-sum-die" });
     const ic = el.createDiv({ cls: "ep-roll-sum-ico" });
-    (0, import_obsidian22.setIcon)(ic, diceIconId(r.sides));
+    (0, import_obsidian23.setIcon)(ic, diceIconId(r.sides));
     el.createDiv({ cls: "ep-roll-sum-num", text: String(r.total) });
     return { total: r.total, el };
   });
@@ -8332,7 +8597,7 @@ function playRollAnimation(job, i18n, done) {
   for (let i = 0; i < shown; i++) {
     const el = diceRow.createDiv({ cls: "ep-roll-die ep-rolling" });
     const ic = el.createDiv({ cls: "ep-roll-die-ico" });
-    (0, import_obsidian22.setIcon)(ic, diceIconId(flat[i].grp.sides));
+    (0, import_obsidian23.setIcon)(ic, diceIconId(flat[i].grp.sides));
     const num = el.createDiv({ cls: "ep-roll-die-num" });
     dies.push({ el, num, sides: flat[i].grp.sides });
   }
@@ -8382,7 +8647,7 @@ function playRollAnimation(job, i18n, done) {
   box.oncontextmenu = (ev) => {
     ev.preventDefault();
     ev.stopPropagation();
-    const menu = new import_obsidian22.Menu();
+    const menu = new import_obsidian23.Menu();
     menu.addItem(
       (mi) => mi.setTitle(i18n.t("roll.card.copyValue")).setIcon("copy").onClick(() => {
         var _a2;
@@ -8547,7 +8812,7 @@ var RollService = class {
         dice: notation
       };
       (_d2 = this.history) == null ? void 0 : _d2.append(rec, redo);
-      new import_obsidian23.Notice(brief, 4e3);
+      new import_obsidian24.Notice(brief, 4e3);
     };
     if ((_f = this.settings) == null ? void 0 : _f.diceAnim) {
       playRollAnimation(
@@ -8625,13 +8890,13 @@ var RollService = class {
 };
 
 // src/features/rolling/dice-ui.ts
-var import_obsidian24 = require("obsidian");
+var import_obsidian25 = require("obsidian");
 function commit(binding, spec) {
   binding.set(isDefaultDice(spec) ? void 0 : formatDice(spec));
 }
 function openDiceMenu(e, app, i18n, binding) {
   const cur = parseDiceOrDefault(binding.get());
-  const menu = new import_obsidian24.Menu();
+  const menu = new import_obsidian25.Menu();
   for (const sides of DICE_PRESETS) {
     menu.addItem(
       (i) => i.setTitle(formatDice({ count: cur.count, sides })).setIcon(diceIconId(sides)).setChecked(cur.sides === sides).onClick(() => commit(binding, { count: cur.count, sides }))
@@ -8665,7 +8930,7 @@ function addDiceSettings(container, i18n, binding) {
     sizeBox.setDisabled(!on);
     sizeBox.inputEl.toggleClass("ep-disabled", !on);
   };
-  new import_obsidian24.Setting(container).setName(i18n.t("dice.die")).setDesc(i18n.t("dice.dieDesc")).addDropdown((d) => {
+  new import_obsidian25.Setting(container).setName(i18n.t("dice.die")).setDesc(i18n.t("dice.dieDesc")).addDropdown((d) => {
     for (const sides of DICE_PRESETS) d.addOption(String(sides), "d" + sides);
     d.addOption("custom", i18n.t("dice.custom"));
     const c = cur();
@@ -8691,7 +8956,7 @@ function addDiceSettings(container, i18n, binding) {
       if (Number.isFinite(n) && n >= 2) commit(binding, { count: cur().count, sides: n });
     });
   });
-  new import_obsidian24.Setting(container).setName(i18n.t("dice.countLabel")).addText((t) => {
+  new import_obsidian25.Setting(container).setName(i18n.t("dice.countLabel")).addText((t) => {
     t.setValue(String(cur().count)).onChange((v) => {
       const n = parseInt(v);
       if (Number.isFinite(n) && n >= 1) commit(binding, { count: n, sides: cur().sides });
@@ -9016,7 +9281,7 @@ var rollerKind = {
           chip.oncontextmenu = (ev) => {
             ev.preventDefault();
             ev.stopPropagation();
-            const menu = new import_obsidian25.Menu();
+            const menu = new import_obsidian26.Menu();
             menu.addItem(
               (i) => i.setTitle(t("roller.macroRun")).setIcon("dices").onClick(() => {
                 var _a2;
@@ -9050,7 +9315,7 @@ var rollerKind = {
       const saveBtn = macrosEl.createEl("button", { cls: "ep-roller-add", text: t("roller.saveMacro") });
       saveBtn.onclick = () => {
         if (!segs().some((s) => s.dice !== void 0)) {
-          new import_obsidian25.Notice(t("roller.saveMacroEmpty"));
+          new import_obsidian26.Notice(t("roller.saveMacroEmpty"));
           return;
         }
         new TextPromptModal(view.app, view.i18n, t("roller.saveMacroPrompt"), "", (v) => {
@@ -9067,7 +9332,7 @@ var rollerKind = {
           view.settings.macros = [...(_a2 = view.settings.macros) != null ? _a2 : [], macro];
           save();
           drawMacros();
-          new import_obsidian25.Notice(t("roller.macroSaved", { name: nm }));
+          new import_obsidian26.Notice(t("roller.macroSaved", { name: nm }));
         }).open();
       };
     };
@@ -9076,7 +9341,7 @@ var rollerKind = {
 };
 
 // src/features/rolling/numeric-addon.ts
-var import_obsidian26 = require("obsidian");
+var import_obsidian27 = require("obsidian");
 var rollAddon = {
   id: "rolling.roll",
   appliesTo(ref) {
@@ -9129,7 +9394,7 @@ var rollAddon = {
     const t = view.i18n.t.bind(view.i18n);
     const e = ext(entry);
     c.createEl("h4", { text: t("roll.options.heading") });
-    new import_obsidian26.Setting(c).setName(t("roll.options.rollButton")).setDesc(t("roll.options.rollButtonDesc")).addToggle((tg) => {
+    new import_obsidian27.Setting(c).setName(t("roll.options.rollButton")).setDesc(t("roll.options.rollButtonDesc")).addToggle((tg) => {
       tg.setValue(!!e.roll).onChange((v) => {
         var _a;
         e.roll = v || void 0;
@@ -9147,13 +9412,13 @@ var rollAddon = {
           changed();
         }
       });
-      new import_obsidian26.Setting(c).setName(t("mods.showDice")).setDesc(t("mods.showDiceDesc")).addToggle((tg) => {
+      new import_obsidian27.Setting(c).setName(t("mods.showDice")).setDesc(t("mods.showDiceDesc")).addToggle((tg) => {
         tg.setValue(entry.showDice !== false).onChange((v) => {
           entry.showDice = v ? void 0 : false;
           changed();
         });
       });
-      new import_obsidian26.Setting(c).setName(t("mods.showDiceIcon")).setDesc(t("mods.showDiceIconDesc")).addToggle((tg) => {
+      new import_obsidian27.Setting(c).setName(t("mods.showDiceIcon")).setDesc(t("mods.showDiceIconDesc")).addToggle((tg) => {
         tg.setValue(entry.showDiceIcon !== false).onChange((v) => {
           entry.showDiceIcon = v ? void 0 : false;
           changed();
@@ -9164,7 +9429,7 @@ var rollAddon = {
 };
 
 // src/features/rolling/skills-type.ts
-var import_obsidian27 = require("obsidian");
+var import_obsidian28 = require("obsidian");
 
 // src/features/rolling/modifiers.ts
 function abilityMod(score) {
@@ -9241,7 +9506,7 @@ function convertToProperties(ref) {
   const preset = view.registries.skillPresets.get(e.skillsPreset);
   if (!records.length && preset) records = preset.records();
   if (!records.length) {
-    new import_obsidian27.Notice(t("skills.convertEmpty"));
+    new import_obsidian28.Notice(t("skills.convertEmpty"));
     return;
   }
   const useProf = e.profMode === "level" || e.profMode === "fixed";
@@ -9300,7 +9565,7 @@ function convertToProperties(ref) {
   ensurePropEntries(view.layout, section, [...new Set(records.map((r) => r.source).filter((x) => !!x))]);
   view.saveLayout();
   view.rerender();
-  new import_obsidian27.Notice(t("skills.convertDone", { n: fresh.length }));
+  new import_obsidian28.Notice(t("skills.convertDone", { n: fresh.length }));
 }
 function confirmConvert(ref) {
   new ConfirmModal(
@@ -9336,7 +9601,7 @@ function addBlankSkill(view, file, key) {
   }).open();
 }
 function openAddSkillsMenu(e, view, file, key) {
-  const menu = new import_obsidian27.Menu();
+  const menu = new import_obsidian28.Menu();
   for (const preset of view.registries.skillPresets.all()) {
     menu.addItem(
       (i) => i.setTitle(view.i18n.t("skills.menu.addPreset", { name: preset.name(view.i18n) })).setIcon("list-plus").onClick(() => populateFromPreset(view, file, key, preset))
@@ -9494,7 +9759,7 @@ function renderRow(ctx, list, records, index) {
   row.addEventListener("contextmenu", (ev) => {
     ev.preventDefault();
     ev.stopPropagation();
-    const menu = new import_obsidian27.Menu();
+    const menu = new import_obsidian28.Menu();
     menu.addItem(
       (i) => i.setTitle(t("skills.menu.setSource")).setIcon("link").onClick(() => inlineSource(ctx, abbrSpan, index))
     );
@@ -9584,10 +9849,10 @@ var skillsType = {
     const e = ext(entry);
     c.createEl("h4", { text: t("skills.options.heading") });
     c.createEl("p", { cls: "setting-item-description", text: t("skills.options.editHint") });
-    new import_obsidian27.Setting(c).setName(t("skills.convert")).setDesc(t("skills.convertDesc")).addButton(
+    new import_obsidian28.Setting(c).setName(t("skills.convert")).setDesc(t("skills.convertDesc")).addButton(
       (b) => b.setButtonText(t("skills.convertBtn")).onClick(() => confirmConvert(octx))
     );
-    new import_obsidian27.Setting(c).setName(t("skills.options.sourceMode")).addDropdown((d) => {
+    new import_obsidian28.Setting(c).setName(t("skills.options.sourceMode")).addDropdown((d) => {
       var _a;
       d.addOption("value", t("skills.options.modeValue"));
       d.addOption("abilityMod", t("skills.options.modeAbilityMod"));
@@ -9597,7 +9862,7 @@ var skillsType = {
         changed();
       });
     });
-    new import_obsidian27.Setting(c).setName(t("skills.options.profMode")).addDropdown((d) => {
+    new import_obsidian28.Setting(c).setName(t("skills.options.profMode")).addDropdown((d) => {
       var _a;
       d.addOption("none", t("skills.options.profNone"));
       d.addOption("level", t("skills.options.profLevel"));
@@ -9610,7 +9875,7 @@ var skillsType = {
       });
     });
     if (e.profMode === "level") {
-      new import_obsidian27.Setting(c).setName(t("skills.options.profSource")).addText((tx) => {
+      new import_obsidian28.Setting(c).setName(t("skills.options.profSource")).addText((tx) => {
         var _a;
         tx.setPlaceholder("Level").setValue((_a = e.profSource) != null ? _a : "").onChange((v) => {
           e.profSource = v.trim() || void 0;
@@ -9619,7 +9884,7 @@ var skillsType = {
       });
     }
     if (e.profMode === "fixed") {
-      new import_obsidian27.Setting(c).setName(t("skills.options.profFixedValue")).addText((tx) => {
+      new import_obsidian28.Setting(c).setName(t("skills.options.profFixedValue")).addText((tx) => {
         tx.setValue(e.profFixed !== void 0 ? String(e.profFixed) : "").onChange((v) => {
           const n = Number(v);
           e.profFixed = v.trim() === "" || !Number.isFinite(n) ? void 0 : n;
@@ -9638,7 +9903,7 @@ var skillsType = {
     if (presets.length) {
       c.createEl("h4", { text: t("skills.options.presets") });
       for (const preset of presets) {
-        new import_obsidian27.Setting(c).setName(preset.name(view.i18n)).addButton(
+        new import_obsidian28.Setting(c).setName(preset.name(view.i18n)).addButton(
           (b) => b.setButtonText(t("skills.options.addPreset")).onClick(() => {
             populateFromPreset(view, octx.file, entry.key, preset);
             changed();
@@ -10339,10 +10604,10 @@ var HistoryService = class {
 };
 
 // src/features/inline/inline-render.ts
-var import_obsidian29 = require("obsidian");
+var import_obsidian30 = require("obsidian");
 
 // src/features/inline/inline-view.ts
-var import_obsidian28 = require("obsidian");
+var import_obsidian29 = require("obsidian");
 function layoutForFile(ctx, file) {
   const raw = ctx.facade.raw(file);
   const tk = Object.keys(raw).find((k) => k.toLowerCase() === "type");
@@ -10455,7 +10720,7 @@ var InlineViewCtx = class {
     const f = this.app.metadataCache.getFirstLinkpathDest(path, this.note.path || "");
     if (f) return this.app.vault.getResourcePath(f);
     const af = this.app.vault.getAbstractFileByPath(path);
-    if (af instanceof import_obsidian28.TFile) return this.app.vault.getResourcePath(af);
+    if (af instanceof import_obsidian29.TFile) return this.app.vault.getResourcePath(af);
     return path;
   }
   openColorPicker(initial, onPick) {
@@ -10497,14 +10762,20 @@ var InlineViewCtx = class {
   }
 };
 function makeValsEl(ctx, file, body, onEditSource) {
-  const wrap = createSpan({ cls: "ep-inline-vals" });
+  const wrap = createDiv({ cls: "ep-inline-vals" });
+  wrap.style.display = "inline-block";
+  wrap.style.verticalAlign = "middle";
   const t = ctx.i18n.t.bind(ctx.i18n);
   const draw = () => {
     var _a, _b, _c, _d, _e, _f;
     wrap.empty();
+    let view;
+    let target;
+    let entry;
+    let section;
     try {
       const noteRef = parseNoteRef(body);
-      let target = file;
+      target = file;
       let ref = body;
       if (noteRef && noteRef.accessor) {
         const lf = ctx.app.metadataCache.getFirstLinkpathDest(noteRef.link, file.path);
@@ -10513,11 +10784,9 @@ function makeValsEl(ctx, file, body, onEditSource) {
         ref = noteRef.accessor;
       }
       const layout = layoutForFile(ctx, target);
-      const view = new InlineViewCtx(ctx, target, layout, wrap, draw);
+      view = new InlineViewCtx(ctx, target, layout, wrap, draw);
       const key = (_a = keyForShortForm(ctx.settings, ref, Object.keys(view.note.raw))) != null ? _a : ref;
       const inLayout = layout ? findPropEntry(layout, key) : null;
-      let section;
-      let entry;
       if (inLayout) {
         section = inLayout.section;
         entry = inLayout.entry;
@@ -10528,53 +10797,59 @@ function makeValsEl(ctx, file, body, onEditSource) {
         if (!entry.key) entry.key = key;
         section = { id: "ep-inline", title: "", columns: 1, layoutMode: "list", entries: [entry] };
       }
-      const kind = view.registries.entryKinds.get(entry.kind);
-      const valueWide = entry.kind === "prop" && !!((_e = view.registries.valueTypes.get(view.resolveType(entry))) == null ? void 0 : _e.wide);
-      const wide = !!(kind == null ? void 0 : kind.wide) || valueWide;
-      const card = wrap.createDiv({ cls: wide ? "ep-entry ep-entry-block" : "ep-entry" });
-      const head = card.createDiv({ cls: "ep-entry-head" });
-      if (entry.icon) {
-        const ic = head.createSpan({ cls: "ep-picon" });
-        (0, import_obsidian28.setIcon)(ic, entry.icon);
-        if (entry.iconColor) ic.style.color = entry.iconColor;
-      }
-      const extra = card.createDiv({ cls: "ep-entry-extra" });
-      const flags = emptyFlags();
-      mergeNeeds(flags, (_f = kind == null ? void 0 : kind.clusterNeeds) == null ? void 0 : _f.call(kind, { view, file: target, section, entry }));
-      const ectx = { view, file: target, section, entry, head, extra, flags, wrap: card };
-      if (kind) kind.render(ectx);
-      else view.renderLabel(head, ectx);
-      card.addEventListener("contextmenu", (ev) => {
-        var _a2, _b2;
-        ev.preventDefault();
-        ev.stopPropagation();
-        const menu = new import_obsidian28.Menu();
-        const name = entry.alias || view.defaultLabelFor(entry);
+    } catch (e) {
+      wrap.appendChild(makeValEl(ctx, file, body, onEditSource));
+      return;
+    }
+    const def = (_e = view.registries.valueTypes.get(view.resolveType(entry))) != null ? _e : view.registries.valueTypes.get("text");
+    const wide = entry.kind === "prop" && !!(def == null ? void 0 : def.wide);
+    wrap.addClass("ep-entry");
+    wrap.toggleClass("ep-entry-block", wide);
+    const head = wrap.createDiv({ cls: "ep-entry-head" });
+    if (entry.icon) {
+      const ic = head.createSpan({ cls: "ep-picon" });
+      (0, import_obsidian29.setIcon)(ic, entry.icon);
+      if (entry.iconColor) ic.style.color = entry.iconColor;
+    }
+    const extra = wrap.createDiv({ cls: "ep-entry-extra" });
+    const flags = emptyFlags();
+    mergeNeeds(flags, (_f = def == null ? void 0 : def.clusterNeeds) == null ? void 0 : _f.call(def, { view, file: target, section, entry }));
+    const ectx = { view, file: target, section, entry, head, extra, flags, wrap };
+    view.renderLabel(head, ectx);
+    try {
+      def == null ? void 0 : def.render(ectx);
+    } catch (e) {
+      console.error("extended-properties: vals value render failed", e);
+      const v = ctx.facade.get(target, entry.key);
+      head.createDiv({ cls: "ep-val-right" }).setText(v === void 0 || v === null || v === "" ? "\u2014" : Array.isArray(v) ? v.join(", ") : String(v));
+    }
+    wrap.addEventListener("contextmenu", (ev) => {
+      var _a2, _b2;
+      ev.preventDefault();
+      ev.stopPropagation();
+      const menu = new import_obsidian29.Menu();
+      const name = entry.alias || view.defaultLabelFor(entry);
+      menu.addItem(
+        (i) => i.setTitle(t("entry.menu.configure", { name })).setIcon("settings").onClick(
+          () => view.openEntryOptions(section, entry)
+        )
+      );
+      if (entry.kind === "prop" && entry.key) {
+        const key2 = entry.key;
+        menu.addSeparator();
         menu.addItem(
-          (i) => i.setTitle(t("entry.menu.configure", { name })).setIcon("settings").onClick(
-            () => view.openEntryOptions(section, entry)
+          (i) => i.setTitle(t("entry.menu.clearValue", { key: key2 })).setIcon("eraser").onClick(
+            () => view.note.set(target, key2, void 0)
           )
         );
-        if (entry.kind === "prop" && entry.key) {
-          const key2 = entry.key;
-          menu.addSeparator();
-          menu.addItem(
-            (i) => i.setTitle(t("entry.menu.clearValue", { key: key2 })).setIcon("eraser").onClick(
-              () => view.note.set(target, key2, void 0)
-            )
-          );
-          (_b2 = (_a2 = view.registries.valueTypes.get(view.resolveType(entry))) == null ? void 0 : _a2.menuItems) == null ? void 0 : _b2.call(_a2, menu, { view, file: target, section, entry }, { x: ev.clientX, y: ev.clientY });
-        }
-        if (onEditSource) {
-          menu.addSeparator();
-          menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
-        }
-        menu.showAtMouseEvent(ev);
-      });
-    } catch (e) {
-      wrap.empty();
-      wrap.appendChild(makeValEl(ctx, file, body, onEditSource));
-    }
+        (_b2 = (_a2 = view.registries.valueTypes.get(view.resolveType(entry))) == null ? void 0 : _a2.menuItems) == null ? void 0 : _b2.call(_a2, menu, { view, file: target, section, entry }, { x: ev.clientX, y: ev.clientY });
+      }
+      if (onEditSource) {
+        menu.addSeparator();
+        menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
+      }
+      menu.showAtMouseEvent(ev);
+    });
   };
   draw();
   return wrap;
@@ -10588,7 +10863,7 @@ function processInline(el, mdctx, ctx) {
   const codes = Array.from(el.querySelectorAll("code"));
   if (!codes.length) return;
   const file = ctx.app.vault.getAbstractFileByPath(mdctx.sourcePath);
-  if (!(file instanceof import_obsidian29.TFile)) return;
+  if (!(file instanceof import_obsidian30.TFile)) return;
   for (const code of codes) {
     if (code.closest("pre")) continue;
     const m = /^(roll|prop|vals|val)(?:\(([^)]*)\))?:\s*(.+)$/i.exec(((_a = code.textContent) != null ? _a : "").trim());
@@ -10631,7 +10906,7 @@ function applyMode(ast, mode) {
 function runInlineRoll(ctx, file, body, mode, times) {
   const t = ctx.i18n.t.bind(ctx.i18n);
   if (!parseRoll(body)) {
-    new import_obsidian29.Notice(t("inline.rollInvalid"));
+    new import_obsidian30.Notice(t("inline.rollInvalid"));
     return;
   }
   const tag = mode === "advantage" ? " " + t("roll.tagAdvantage") : mode === "disadvantage" ? " " + t("roll.tagDisadvantage") : "";
@@ -10652,7 +10927,7 @@ function makeRollChip(ctx, file, body, opt, onEdit) {
   const resolve = refResolver(ctx, file);
   const chip = createSpan({ cls: "ep-inline-roll" });
   const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });
-  (0, import_obsidian29.setIcon)(ic, diceIconId(primarySides(ast)));
+  (0, import_obsidian30.setIcon)(ic, diceIconId(primarySides(ast)));
   chip.createSpan({
     cls: "ep-inline-roll-lab",
     text: ast ? serializeRoll(ast, (name) => {
@@ -10713,7 +10988,7 @@ function renderPropValue(ctx, file, key) {
   };
   return val;
 }
-var PropInline = class extends import_obsidian29.MarkdownRenderChild {
+var PropInline = class extends import_obsidian30.MarkdownRenderChild {
   constructor(root, ctx, file, key) {
     super(root);
     this.root = root;
@@ -10756,7 +11031,7 @@ function makeValEl(ctx, file, body, onEditSource) {
   const entry = iconKey ? findInlineEntry(ctx, file, iconKey) : null;
   if (entry == null ? void 0 : entry.icon) {
     const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });
-    (0, import_obsidian29.setIcon)(ic, entry.icon);
+    (0, import_obsidian30.setIcon)(ic, entry.icon);
     if (entry.iconColor) ic.style.color = entry.iconColor;
   }
   let crossName = null;
@@ -10819,7 +11094,7 @@ function makeValEl(ctx, file, body, onEditSource) {
     chip.oncontextmenu = (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
-      const menu = new import_obsidian29.Menu();
+      const menu = new import_obsidian30.Menu();
       if (editValue && directKey)
         menu.addItem((i) => i.setTitle(t("inline.editValue", { prop: directKey })).setIcon("pencil").onClick(editValue));
       if (onEditSource) menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
@@ -10828,7 +11103,7 @@ function makeValEl(ctx, file, body, onEditSource) {
   }
   return chip;
 }
-var ValInline = class extends import_obsidian29.MarkdownRenderChild {
+var ValInline = class extends import_obsidian30.MarkdownRenderChild {
   constructor(root, ctx, file, body) {
     super(root);
     this.root = root;
@@ -10849,7 +11124,7 @@ var ValInline = class extends import_obsidian29.MarkdownRenderChild {
     this.root.appendChild(makeValEl(this.ctx, this.file, this.body));
   }
 };
-var ValsInline = class extends import_obsidian29.MarkdownRenderChild {
+var ValsInline = class extends import_obsidian30.MarkdownRenderChild {
   constructor(root, ctx, file, body) {
     super(root);
     this.root = root;
@@ -10894,10 +11169,10 @@ function layoutForFile2(ctx, file) {
 }
 function renderSheet(src, el, mdctx, ctx) {
   const file = ctx.app.vault.getAbstractFileByPath(mdctx.sourcePath);
-  if (!(file instanceof import_obsidian29.TFile)) return;
+  if (!(file instanceof import_obsidian30.TFile)) return;
   mdctx.addChild(new SheetInline(el, ctx, file, src));
 }
-var SheetInline = class extends import_obsidian29.MarkdownRenderChild {
+var SheetInline = class extends import_obsidian30.MarkdownRenderChild {
   constructor(root, ctx, file, src) {
     super(root);
     this.root = root;
@@ -10962,7 +11237,7 @@ var SheetInline = class extends import_obsidian29.MarkdownRenderChild {
       const chip = row.createSpan({ cls: "ep-inline-roll ep-inline-sheet-roll" });
       const spec = parseDiceOrDefault(typeof e.dice === "string" ? e.dice : void 0);
       const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });
-      (0, import_obsidian29.setIcon)(ic, diceIconId(spec.sides));
+      (0, import_obsidian30.setIcon)(ic, diceIconId(spec.sides));
       chip.createSpan({ cls: "ep-inline-roll-lab", text: t("roll.roll") });
       const label = entry.alias || entry.key || t("roll.roll");
       chip.setAttr("title", t("inline.rollHint", { expr: label }));
@@ -10979,7 +11254,7 @@ var SheetInline = class extends import_obsidian29.MarkdownRenderChild {
 var import_view = require("@codemirror/view");
 var import_state = require("@codemirror/state");
 var import_language = require("@codemirror/language");
-var import_obsidian30 = require("obsidian");
+var import_obsidian31 = require("obsidian");
 var PREFIX = /^(roll|prop|vals|val)(?:\(([^)]*)\))?:\s*(.+)$/i;
 function backtickSpan(doc, from, to) {
   let s = from;
@@ -11025,7 +11300,7 @@ var InlineWidget = class extends import_view.WidgetType {
         wrap.oncontextmenu = (ev) => {
           ev.preventDefault();
           ev.stopPropagation();
-          const menu = new import_obsidian30.Menu();
+          const menu = new import_obsidian31.Menu();
           menu.addItem((i) => i.setTitle(this.ctx.i18n.t("inline.editSource")).setIcon("pencil").onClick(reveal));
           menu.showAtMouseEvent(ev);
         };
@@ -11047,8 +11322,8 @@ function buildDecos(view, ctx) {
   var _a, _b, _c;
   const b = new import_state.RangeSetBuilder();
   if (ctx.settings.features["inline"] === false) return b.finish();
-  if (!view.state.field(import_obsidian30.editorLivePreviewField, false)) return b.finish();
-  const file = (_b = (_a = view.state.field(import_obsidian30.editorInfoField, false)) == null ? void 0 : _a.file) != null ? _b : ctx.app.workspace.getActiveFile();
+  if (!view.state.field(import_obsidian31.editorLivePreviewField, false)) return b.finish();
+  const file = (_b = (_a = view.state.field(import_obsidian31.editorInfoField, false)) == null ? void 0 : _a.file) != null ? _b : ctx.app.workspace.getActiveFile();
   if (!file) return b.finish();
   const sel = view.state.selection;
   const doc = view.state.doc;
@@ -11093,7 +11368,7 @@ function inlineLivePreview(ctx) {
       }
       update(u) {
         if (u.docChanged) this.decorations = this.decorations.map(u.changes);
-        if (u.docChanged || u.viewportChanged || u.selectionSet || u.focusChanged || u.startState.field(import_obsidian30.editorLivePreviewField, false) !== u.state.field(import_obsidian30.editorLivePreviewField, false) || // Background parsing finished (after an edit above, the tree under a
+        if (u.docChanged || u.viewportChanged || u.selectionSet || u.focusChanged || u.startState.field(import_obsidian31.editorLivePreviewField, false) !== u.state.field(import_obsidian31.editorLivePreviewField, false) || // Background parsing finished (after an edit above, the tree under a
         // widget may be momentarily stale): rebuild so a dropped chip/card
         // reappears on its own instead of waiting to be re-touched.
         (0, import_language.syntaxTree)(u.startState) !== (0, import_language.syntaxTree)(u.state)) {
@@ -11153,7 +11428,7 @@ function registerInline(plugin, ctx) {
 
 // src/main.ts
 var FEATURE_MODULES = [rollingModule, dnd5eModule, inlineModule];
-var ExtendedPropertiesPlugin = class extends import_obsidian31.Plugin {
+var ExtendedPropertiesPlugin = class extends import_obsidian32.Plugin {
   constructor() {
     super(...arguments);
     this.i18n = new I18n();
@@ -11208,7 +11483,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian31.Plugin {
         const k = v.trim();
         if (!k) return;
         this.hide.hideKey(k);
-        new import_obsidian31.Notice(this.i18n.t("notice.hiding", { key: k }));
+        new import_obsidian32.Notice(this.i18n.t("notice.hiding", { key: k }));
       }, () => this.props.knownProps()).open()
     });
     this.addSettingTab(new EPSettingTab(this.app, this));
@@ -11313,9 +11588,9 @@ var ExtendedPropertiesPlugin = class extends import_obsidian31.Plugin {
     try {
       const f = await this.app.vault.create(path, md);
       await this.app.workspace.getLeaf(true).openFile(f);
-      new import_obsidian31.Notice(this.i18n.t("roll.export.done"));
+      new import_obsidian32.Notice(this.i18n.t("roll.export.done"));
     } catch (err) {
-      new import_obsidian31.Notice(this.i18n.t("roll.export.failed", { error: String(err) }));
+      new import_obsidian32.Notice(this.i18n.t("roll.export.failed", { error: String(err) }));
     }
   }
   // -- registries -------------------------------------------------------------

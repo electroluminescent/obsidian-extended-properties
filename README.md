@@ -4,6 +4,14 @@ A data-driven, fully arrangeable property sidebar that transforms how you organi
 
 The core is domain-agnostic: it renders sections of property entries with rich value types and extensible features. Domain-specific capabilities—like the bundled **D&D 5e character sheet** module—plug into the core through registries and can be toggled in settings. See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design and extension guide.
 
+## Installation
+
+**Community plugins** (once published): in Obsidian, open *Settings → Community plugins → Browse*, search for "Extended Properties", install, and enable.
+
+**BRAT (beta):** install the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin, then *Add beta plugin* with this repository's URL. BRAT tracks the latest GitHub release.
+
+**Manual:** download `main.js`, `manifest.json`, and `styles.css` from the [latest release](../../releases/latest) and copy them into `<your vault>/.obsidian/plugins/extended-properties/`, then enable the plugin in *Settings → Community plugins*.
+
 ## Features
 
 ### Core Sidebar UI
@@ -160,28 +168,22 @@ A complete D&D 5e character sheet built entirely as a feature module on top of t
 - Feature modules extend entries using open-ended field storage; disabling a module preserves its data (displayed as "Unavailable" stubs until the module is re-enabled).
 - Migrations are applied automatically for schema updates.
 
-## Install
-
-### Manual Install
-1. Download `manifest.json`, `main.js`, and `styles.css`
-2. Create the folder `<vault>/.obsidian/plugins/extended-properties/`
-3. Copy the three files into that folder
-4. Reload Obsidian (or restart the app)
-5. Go to Settings → Community plugins and enable "Extended Properties"
-
 ## Development
 
 ### Setup
 ```bash
-npm install
+npm install --legacy-peer-deps   # obsidian pins @codemirror/state
 ```
 
-### Build
+### Build & test
 ```bash
 npm run build      # esbuild: src/main.ts → main.js
-npm run dev        # Continuous rebuild on file changes
-npx tsc --noEmit   # Type checking (strict mode)
+npm run dev        # continuous rebuild on file changes
+npm run typecheck  # tsc --noEmit (strict)
+npm test           # vitest over the pure modules (utils/*, core/*)
 ```
+
+Tests live in `tests/` and cover the pure, Obsidian-free modules: dice math, the dice and expression engines, the influence/short-form rules, cross-note references, and a golden settings-migration fixture. CI (`.github/workflows/`) runs typecheck → test → build on every push; pushing a `MAJOR.MINOR.PATCH` tag that matches `manifest.json` publishes a draft release with `main.js`, `manifest.json`, and `styles.css` attached.
 
 ### Project Structure
 

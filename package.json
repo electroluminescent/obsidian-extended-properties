@@ -1,12 +1,15 @@
 {
   "name": "obsidian-extended-properties",
-  "version": "2.25.0",
+  "version": "2.28.0",
   "description": "Obsidian plugin: a configurable properties sidebar with derived numbers, dice rolling and per-type layouts.",
   "main": "main.js",
   "author": "electroluminescent",
   "scripts": {
     "dev": "node esbuild.config.mjs",
-    "build": "node esbuild.config.mjs production"
+    "build": "node esbuild.config.mjs production",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": ["obsidian", "dnd", "ttrpg"],
   "license": "MIT",
@@ -16,6 +19,7 @@
     "@codemirror/view": "^6.0.0",
     "esbuild": "^0.21.5",
     "obsidian": "latest",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.1"
   }
 }

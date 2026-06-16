@@ -84,6 +84,11 @@ function tokenize(s: string): Tok[] | null {
     if (/[A-Za-z_]/.test(c)) {
       let id = "";
       while (i < s.length && /[A-Za-z0-9_]/.test(s[i])) id += s[i++];
+      // Dotted continuation for modifier references: INT.s, intelligence.s
+      while (s[i] === "." && /[A-Za-z_]/.test(s[i + 1] ?? "")) {
+        id += s[i++];
+        while (i < s.length && /[A-Za-z0-9_]/.test(s[i])) id += s[i++];
+      }
       toks.push({ t: "name", v: id });
       continue;
     }
@@ -102,7 +107,7 @@ function tokenize(s: string): Tok[] | null {
             name += "." + s.slice(i + 1, e2);
             i = e2 + 1;
           } else {
-            const am = /^[A-Za-z_][A-Za-z0-9_]*/.exec(s.slice(i));
+            const am = /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*/.exec(s.slice(i));
             if (!am) return null;
             name += "." + am[0];
             i += am[0].length;
@@ -293,6 +298,8 @@ function evalCall(node: Extract<ExprNode, { kind: "call" }>, env: ExprEnv): numb
     case "clamp": return Math.min(Math.max(a[0], a[1]), a[2]);
     case "pow": return Math.pow(a[0], a[1]);
     case "log": return a.length >= 2 ? Math.log(a[0]) / Math.log(a[1]) : Math.log10(a[0]);
+    case "today": return Math.floor(Date.now() / 86400000); // whole days since epoch
+    case "days": return (a[1] ?? 0) - (a[0] ?? 0); // days from a to b (day-numbers)
   }
   if (lc in FN1) return FN1[lc](a[0]);
   const uf = env.fn?.(name);

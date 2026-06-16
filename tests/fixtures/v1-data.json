@@ -1,0 +1,17 @@
+{
+  "layout": {
+    "version": 1,
+    "sections": [
+      {
+        "id": "s1",
+        "title": "Stats",
+        "columns": 1,
+        "entries": [{ "id": "e1", "kind": "prop", "key": "Strength", "dataType": "number" }]
+      }
+    ]
+  },
+  "hideShown": false,
+  "modDepth": 99,
+  "modifierSuffix": "mod",
+  "macros": [{ "id": "m1", "name": "Sneak", "segs": [] }, { "bad": true }]
+}
