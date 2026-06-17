@@ -15,6 +15,7 @@ import {
 } from "../../utils/color";
 import { clamp } from "../../utils/misc";
 import type { ColorHost } from "../components/setting-helpers";
+import { asMobileSheet } from "../components/long-press";
 
 /** Long channel names for slider tooltips, keyed by i18n suffix. */
 const CHANNEL_NAMES: Record<string, string> = {
@@ -39,6 +40,7 @@ export class ColorPickerModal extends Modal {
   }
 
   onOpen(): void {
+    asMobileSheet(this);
     const { contentEl } = this;
     const t = this.host.i18n.t.bind(this.host.i18n);
     contentEl.addClass("ep-colorpicker");

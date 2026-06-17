@@ -30,6 +30,7 @@
 
 export type ExprNode =
   | { kind: "num"; value: number }
+  | { kind: "str"; value: string }
   | { kind: "ref"; name: string }
   | { kind: "unary"; op: "-" | "!"; arg: ExprNode }
   | { kind: "binary"; op: BinOp; left: ExprNode; right: ExprNode }
@@ -46,6 +47,10 @@ export interface ExprEnv {
   resolve(name: string): number | undefined;
   /** Resolve a non-builtin function name (e.g. a user derivation). */
   fn?(name: string): ((args: number[]) => number | undefined) | undefined;
+  /** Aggregate `sum`/`avg`/`count`/`min`/`max` of `key` over all notes of `type`. */
+  agg?(fn: string, type: string, key: string): number | undefined;
+  /** The value of `key` on the note linked in this note's `linkProp` property. */
+  lookup?(linkProp: string, key: string): number | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -54,6 +59,7 @@ export interface ExprEnv {
 
 type Tok =
   | { t: "num"; v: number }
+  | { t: "str"; v: string }
   | { t: "name"; v: string }
   | { t: "op"; v: BinOp | "!" }
   | { t: "("; v?: undefined }
@@ -70,6 +76,16 @@ function tokenize(s: string): Tok[] | null {
     const c = s[i];
     if (/\s/.test(c)) {
       i++;
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      const q = c;
+      i++;
+      let str = "";
+      while (i < s.length && s[i] !== q) str += s[i++];
+      if (s[i] !== q) return null; // unterminated string literal
+      i++;
+      toks.push({ t: "str", v: str });
       continue;
     }
     if (/[0-9.]/.test(c)) {
@@ -195,6 +211,7 @@ export function parseExpr(text: string): ExprNode | null {
   function nud(): ExprNode {
     const tok = next();
     if (tok.t === "num") return { kind: "num", value: tok.v };
+    if (tok.t === "str") return { kind: "str", value: tok.v };
     if (tok.t === "(") {
       const e = parseBp(0);
       if (next().t !== ")") throw 0;
@@ -239,10 +256,15 @@ const FN1: Record<string, (n: number) => number> = {
   sin: Math.sin, cos: Math.cos, tan: Math.tan, asin: Math.asin, acos: Math.acos, atan: Math.atan,
 };
 
+const AGG = new Set(["sum", "avg", "count", "min", "max"]);
+const strArg = (n: ExprNode | undefined): string => (n && n.kind === "str" ? n.value : "");
+
 function evalNode(node: ExprNode, env: ExprEnv): number {
   switch (node.kind) {
     case "num":
       return node.value;
+    case "str":
+      throw new ExprError("string is not a number");
     case "ref": {
       const lc = node.name.toLowerCase();
       if (lc in CONSTS) return CONSTS[lc];
@@ -290,6 +312,19 @@ function evalCall(node: Extract<ExprNode, { kind: "call" }>, env: ExprEnv): numb
   if (lc === "if") {
     if (node.args.length !== 3) throw new ExprError("if needs 3 args");
     return evalNode(node.args[0], env) !== 0 ? evalNode(node.args[1], env) : evalNode(node.args[2], env);
+  }
+  // Cross-note aggregates: sum/avg/count/min/max("Type", "Key"). Detected by a
+  // string first argument so numeric min/max(...) keep working.
+  if (AGG.has(lc) && node.args[0]?.kind === "str") {
+    const r = env.agg?.(lc, strArg(node.args[0]), strArg(node.args[1]));
+    if (r === undefined || !Number.isFinite(r)) throw new ExprError("agg: " + name);
+    return r;
+  }
+  // prop("LinkProp", "Key"): the note linked in this note's LinkProp, its Key.
+  if ((lc === "prop" || lc === "lookup") && node.args[0]?.kind === "str") {
+    const r = env.lookup?.(strArg(node.args[0]), strArg(node.args[1]));
+    if (r === undefined || !Number.isFinite(r)) throw new ExprError("lookup: " + name);
+    return r;
   }
   const a = node.args.map((x) => evalNode(x, env));
   switch (lc) {
@@ -354,6 +389,8 @@ export function serializeExpr(ast: ExprNode, mapRef?: (name: string) => string):
     switch (n.kind) {
       case "num":
         return String(n.value);
+      case "str":
+        return JSON.stringify(n.value);
       case "ref":
         return mapRef ? mapRef(n.name) : quote(n.name);
       case "unary":

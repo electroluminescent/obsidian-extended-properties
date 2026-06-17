@@ -6,10 +6,54 @@
  * the Obsidian-assigned type of a property mapped onto our value-type ids.
  */
 
-import { App } from "obsidian";
+import { App, TFile } from "obsidian";
+import { getCI, parseNumeric } from "../utils/misc";
+
+/** The bare link target of a `[[Target|alias]]` / `[[Target#h]]` value. */
+function linkTarget(raw: string): string {
+  const m = /\[\[([^\]|#]+)/.exec(raw);
+  return (m ? m[1] : raw).trim();
+}
 
 export class PropertyIndex {
   constructor(private app: App) {}
+
+  /** Numeric values of `key` across every note whose `Type` includes `typeKey`. */
+  valuesByType(typeKey: string, key: string): number[] {
+    const want = typeKey.trim().toLowerCase();
+    const out: number[] = [];
+    for (const f of this.app.vault.getMarkdownFiles()) {
+      const fm = this.app.metadataCache.getFileCache(f)?.frontmatter as Record<string, unknown> | undefined;
+      if (!fm) continue;
+      const tv = getCI(fm, "Type");
+      const types = Array.isArray(tv)
+        ? tv.map((x) => String(x).toLowerCase())
+        : tv === undefined || tv === null
+          ? []
+          : [String(tv).toLowerCase()];
+      if (!types.includes(want)) continue;
+      const n = parseNumeric(getCI(fm, key));
+      if (n !== null) out.push(n);
+    }
+    return out;
+  }
+
+  /** Value of `key` on the note linked in `sourcePath`'s `linkProp` property. */
+  linkedValue(sourcePath: string, linkProp: string, key: string): number | undefined {
+    const src = this.app.vault.getAbstractFileByPath(sourcePath);
+    const sfm = src instanceof TFile
+      ? (this.app.metadataCache.getFileCache(src)?.frontmatter as Record<string, unknown> | undefined)
+      : undefined;
+    if (!sfm) return undefined;
+    const raw = getCI(sfm, linkProp);
+    if (raw === undefined || raw === null || raw === "") return undefined;
+    const target = linkTarget(String(Array.isArray(raw) ? raw[0] : raw));
+    if (!target) return undefined;
+    const dest = this.app.metadataCache.getFirstLinkpathDest(target, sourcePath);
+    if (!dest) return undefined;
+    const dfm = this.app.metadataCache.getFileCache(dest)?.frontmatter as Record<string, unknown> | undefined;
+    return dfm ? parseNumeric(getCI(dfm, key)) ?? undefined : undefined;
+  }
 
   /**
    * All property names known to the vault. Prefers the metadata managers;

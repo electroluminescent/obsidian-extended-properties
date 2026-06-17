@@ -25,10 +25,11 @@ import type { HistoryService } from "../rolling/history";
 import { NoteModel } from "../../core/note-model";
 import { buildCluster, emptyFlags, mergeNeeds } from "../../ui/render/cluster";
 import { renderLinkedText } from "../../ui/components/links";
+import { guardScrollTaps, longPressContextMenu } from "../../ui/components/long-press";
 import { ColorPickerModal } from "../../ui/modals/color-picker";
 import { EntryOptionsModal } from "../../ui/modals/entry-options";
-import { keyForShortForm } from "../../core/influences";
-import { parseNoteRef } from "../../core/note-ref";
+import { keyForShortForm, VaultAccess } from "../../core/influences";
+import { makeVaultAccess, parseNoteRef } from "../../core/note-ref";
 import type { InlineCtx } from "./inline-render";
 import { makeValEl } from "./inline-render";
 
@@ -109,6 +110,8 @@ class InlineViewCtx implements ViewCtx {
   registerUpdater(fn: () => void): void { this.updaters.push(fn); }
   saveLayout(): void { this.ctx.save(); }
   rerender(): void { this.redraw(); }
+  /** Vault reads for cross-note aggregates / `prop()` in a card's derived value. */
+  get vault(): VaultAccess { return makeVaultAccess(this.ctx.props, () => this.target.path); }
 
   // -- entry helpers -----------------------------------------------------------
   resolveType(entry: Entry): string {
@@ -312,6 +315,8 @@ export function makeValsEl(ctx: InlineCtx, file: TFile, body: string, onEditSour
       }
       menu.showAtMouseEvent(ev);
     });
+    longPressContextMenu(wrap); // touch parity for the configure menu
+    guardScrollTaps(wrap); // don't edit/roll when a scroll ends on the card
   };
 
   draw();

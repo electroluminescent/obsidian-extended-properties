@@ -430,6 +430,9 @@ export const coreDe: StringDict = {
   "settings.modSuffix": "Modifikator-Suffix",
   "settings.modSuffixDesc":
     "Nach einem Punkt angehängt, um den Modifikator einer Eigenschaft statt ihres Werts zu verwenden (z. B. INT.s oder intelligence.s in einem Wurf oder Ausdruck; notenübergreifend [[Note]].INT.s). Beliebige Länge; leer deaktiviert.",
+  "settings.crossNote": "Notenübergreifende Referenzen",
+  "settings.crossNoteDesc":
+    "Erlaubt [[Notiz]].Eig-Referenzen, Aggregate (sum/avg/count/min/max(\"Typ\", \"Eig\")) und prop(\"LinkEig\", \"Eig\") in Würfen und Ausdrücken. Ausschalten, um alle vaultweiten Zugriffe zu deaktivieren.",
   "settings.abbrHeading": "Kürzel",
   "settings.abbrDesc":
     "Kürzel für Modifikator-Anzeigen (INT + DEX − ALT). Standard sind die ersten drei Großbuchstaben des Eigenschaftsnamens; Überschreibungen gelten überall, wo die Eigenschaft als Quelle erscheint.",

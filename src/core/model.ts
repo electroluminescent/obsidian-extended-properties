@@ -285,6 +285,8 @@ export interface EPSettings {
   failOnOne: boolean;
   /** Suffix that, appended to a reference, resolves to that property's modifier (default "s"). */
   modifierSuffix: string;
+  /** Master switch for cross-note references and aggregates (default on). */
+  crossNote?: boolean;
   /**
    * Per-reference entry config for inline `vals:` cards whose property is not
    * in a note-type layout. Keyed by the reference (lower-cased key, or

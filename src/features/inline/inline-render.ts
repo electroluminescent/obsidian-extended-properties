@@ -26,8 +26,9 @@ import type { HistoryService } from "../rolling/history";
 import {
   InfluenceEnv, keyForShortForm, modifierBaseFor, modifierInfo, modifierTotal,
 } from "../../core/influences";
-import { makeNoteAwareResolver, parseNoteRef } from "../../core/note-ref";
+import { makeNoteAwareResolver, makeVaultAccess, parseNoteRef } from "../../core/note-ref";
 import { makeValsEl } from "./inline-view";
+import { guardScrollTaps, longPressContextMenu } from "../../ui/components/long-press";
 import { DiceNode, parseRoll, RollAst, serializeRoll } from "../../utils/dice-expr";
 import { parseDiceOrDefault } from "../../utils/dice";
 import { fmtMod, fmtNum, getList, getNum } from "../../utils/misc";
@@ -187,6 +188,8 @@ export function makeRollChip(ctx: InlineCtx, file: TFile, body: string, opt: str
     ev.stopPropagation();
     openRollMenu(ev, ctx.i18n, mode, (mo, ti) => runInlineRoll(ctx, file, body, mo, ti), onEdit ? { onEdit } : undefined);
   };
+  longPressContextMenu(chip); // touch parity for the roll menu
+  guardScrollTaps(chip); // don't roll when a scroll ends on the chip
   return chip;
 }
 
@@ -345,7 +348,9 @@ export function makeValEl(ctx: InlineCtx, file: TFile, body: string, onEditSourc
       if (onEditSource) menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
       menu.showAtMouseEvent(ev);
     };
+    longPressContextMenu(chip); // touch parity
   }
+  guardScrollTaps(chip); // don't edit/navigate when a scroll ends on the chip
   return chip;
 }
 
@@ -403,7 +408,13 @@ function buildEnv(ctx: InlineCtx, file: TFile, layout: Layout | null): Influence
     num: (k: string, d: number) => getNum(raw, k, d),
     list: (k: string) => getList(raw, k),
   } as unknown as NoteModel;
-  return { note, registries: ctx.registries, settings: ctx.settings, layout: layout ?? undefined };
+  return {
+    note,
+    registries: ctx.registries,
+    settings: ctx.settings,
+    layout: layout ?? undefined,
+    vault: makeVaultAccess(ctx.props, () => file.path),
+  };
 }
 
 /** Influence environment for the file's own type layout (or none). */

@@ -21,6 +21,7 @@ import type { Entry, Section } from "../../core/model";
 import { restoreFromSnapshot } from "../../utils/misc";
 import { addColorSetting, addIconSetting, ColorHost } from "../components/setting-helpers";
 import { PropSuggest } from "../components/suggest";
+import { asMobileSheet } from "../components/long-press";
 import { ConfirmChangesModal } from "./dialogs";
 
 /** Color host bound to the plugin-wide default color space. */
@@ -223,6 +224,7 @@ export class EntryOptionsModal extends Modal {
   }
 
   onOpen(): void {
+    asMobileSheet(this);
     this.snapshot = JSON.stringify(this.entry);
     this.draw();
   }

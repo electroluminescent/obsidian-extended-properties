@@ -6,7 +6,7 @@ The codebase's assets to protect throughout: the registry system (`src/core/regi
 
 ---
 
-## Status (v2.28.0)
+## Status (v2.29.0)
 
 Legend: ✅ done · ◑ partial · ○ planned.
 
@@ -19,11 +19,11 @@ Legend: ✅ done · ◑ partial · ○ planned.
 - ✅ **B1 — Inline rolls & properties.** `roll:` / `prop:` / `val:` / `vals:` and the `ep-sheet` block, in **both reading mode and Live Preview**. (`val:` is a chip; `vals:` renders the full sidebar value-type card with a right-click *Configure* menu.)
 - ✅ **C3 — Richer value types.** `rating`, `link`, `unit`, `datetime`, plus `today()`/`days()` expression functions and unit/date stripping for references.
 - ✅ **F1 — Test harness.** Vitest over the pure modules + a golden settings-migration fixture.
+- ✅ **B2 — Cross-note references & aggregation.** `[[Note]].Prop` / `[[Note]].prop.s`, `this.Prop`, `prop("LinkProp", "Key")`, and `sum`/`avg`/`count`/`min`/`max("Type", "Key")` aggregates in expressions — via a `PropertyIndex`-backed vault accessor threaded into the engine, with a settings kill-switch. (Aggregates are an expression feature; dice notation still takes single references. Cross-note reads use raw values, so no cross-note cycles; lazy index invalidation remains a future perf optimisation.)
+- ✅ **E2 — Mobile refinements.** Long-press → context menu on chips, `vals:` cards, entry rows and roll buttons; bottom-sheet option/colour modals on mobile; font-relative squeeze slack.
 
 ### In progress
 
-- ◑ **B2 — Cross-note references.** `[[Note]].Prop` and the modifier form `[[Note]].prop.s` resolve in rolls, expressions and inline cards. *Remaining:* aggregate functions (`sum`/`avg`/`count` over a type), `this.Prop` / `prop("…")` forms, and an indexed, invalidating `property-index`.
-- ◑ **E2 — Mobile refinements.** Inline cards now render on mobile. *Remaining:* long-press menus, bottom-sheet modals, font-relative squeeze slack.
 - ◑ **F3 — CI, repo & release.** CI (typecheck → test → build), a tag-triggered draft-release workflow, `LICENSE`, `.gitignore` and an install/README pass are in place; the innerHTML/console audit is clean. *Remaining:* the BRAT beta round and the community-plugin submission PR (both need a public GitHub repo + the author's repo URL in `manifest.json`).
 
 ### Planned
@@ -43,8 +43,8 @@ Per-property unique short forms with name↔short-form interchangeability and au
 - **Milestone 1 — Foundations:** ◑ (F1 ✅; D3, D4 ○)
 - **Milestone 2 — Expressions:** ◑ (A1 ✅; C1, C2 ○)
 - **Milestone 3 — Rolling depth:** ✅ (A2, A3, A4)
-- **Milestone 4 — Notes integration:** ◑ (B1 incl. Live Preview ✅; E2 long-press ○)
-- **Milestone 5 — Scale:** ○ (B2 ◑; B3, F2 ○)
+- **Milestone 4 — Notes integration:** ✅ (B1 incl. Live Preview, E2)
+- **Milestone 5 — Scale:** ◑ (B2 ✅; B3, F2 ○)
 - **Milestone 6 — Ecosystem:** ◑ (C3 ✅, F3 ◑; D1, D2, E3, F4, F5 ○)
 
 ---

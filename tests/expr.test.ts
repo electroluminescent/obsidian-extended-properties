@@ -57,9 +57,46 @@ describe("references", () => {
   });
 });
 
+describe("cross-note aggregates & prop() (B2)", () => {
+  const env = {
+    resolve: () => undefined,
+    fn: () => undefined,
+    agg: (fn: string, type: string, key: string) =>
+      type === "Party member" && key === "HP"
+        ? { sum: 30, avg: 10, count: 3, min: 4, max: 16 }[fn]
+        : undefined,
+    lookup: (linkProp: string, key: string) => (linkProp === "Mount" && key === "Speed" ? 40 : undefined),
+  };
+  const run = (src: string) => evalExpr(parseExpr(src)!, env);
+
+  it("parses string-literal arguments", () => {
+    expect(parseExpr('sum("Party member", "HP")')).not.toBeNull();
+  });
+  it("dispatches sum/avg/count to env.agg", () => {
+    expect(run('sum("Party member", "HP")')).toBe(30);
+    expect(run('avg("Party member", "HP")')).toBe(10);
+    expect(run('count("Party member", "HP")')).toBe(3);
+  });
+  it("keeps numeric min/max but routes the string form to the aggregate", () => {
+    expect(run("min(3, 1, 2)")).toBe(1); // numeric
+    expect(run('min("Party member", "HP")')).toBe(4); // aggregate
+    expect(run('max("Party member", "HP")')).toBe(16);
+  });
+  it("prop(linkProp, key) resolves through env.lookup", () => {
+    expect(run('prop("Mount", "Speed")')).toBe(40);
+    expect(run('prop("Mount", "HP")')).toBeUndefined();
+  });
+  it("aggregates are undefined when no vault env is provided", () => {
+    expect(evalExpr(parseExpr('sum("Party member", "HP")')!, { resolve: () => undefined })).toBeUndefined();
+  });
+  it("a bare string is not a number", () => {
+    expect(evalExpr(parseExpr('"hi" + 1')!, { resolve: () => undefined })).toBeUndefined();
+  });
+});
+
 describe("serialize round-trip", () => {
   it("re-parses to the same canonical text", () => {
-    for (const src of ["floor((STR + DEX) / 2)", "max(PB, 2) + 1", "INT.s + 3"]) {
+    for (const src of ["floor((STR + DEX) / 2)", "max(PB, 2) + 1", "INT.s + 3", 'sum("Party member", "HP")']) {
       const s1 = serializeExpr(parseExpr(src)!);
       const s2 = serializeExpr(parseExpr(s1)!);
       expect(s2, src).toBe(s1);

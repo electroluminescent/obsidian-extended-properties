@@ -17,7 +17,9 @@ import type { ClusterFlags, ClusterOptions, ClusterRefs, EntryRenderCtx, ViewCtx
 import { Entry, Layout, Section } from "../core/model";
 import { ServiceHub, SectionTemplateDef } from "../core/registry";
 import { NoteModel } from "../core/note-model";
-import { influenceSources } from "../core/influences";
+import { influenceSources, VaultAccess } from "../core/influences";
+import { makeVaultAccess } from "../core/note-ref";
+import { guardScrollTaps } from "./components/long-press";
 import * as ops from "../core/layout-ops";
 import { genId } from "../utils/misc";
 import { buildCluster } from "./render/cluster";
@@ -77,6 +79,8 @@ export class SidebarView extends ItemView implements ViewCtx {
   get hide() { return this.plugin.hide; }
   get history() { return this.plugin.history; }
   get layout(): Layout { return this.plugin.ensureLayout(this.activeTypeKey || "character"); }
+  /** Vault reads for cross-note aggregates / `prop()` in expressions. */
+  get vault(): VaultAccess { return makeVaultAccess(this.plugin.props, () => this.note.path ?? ""); }
 
   saveLayout(): void { this.plugin.saveSettings(); }
   rerender(): void { this.render(); }
@@ -294,6 +298,8 @@ export class SidebarView extends ItemView implements ViewCtx {
       window.clearTimeout(this.scrollTimer);
       this.scrollTimer = window.setTimeout(() => this.content.removeClass("ep-scrolling"), 800);
     });
+    // Don't let a scroll/drag that ends on a control fire its tap (mobile).
+    this.register(guardScrollTaps(this.content));
     this.render();
   }
 
@@ -457,8 +463,10 @@ export class SidebarView extends ItemView implements ViewCtx {
    * Re-run on every render and on container resize.
    */
   private responsivePass(): void {
-    // Decorations need this much spare room before they may stay.
-    const SLACK = 24;
+    // Decorations need this much spare room before they may stay — derived from
+    // the view's font size (~1.5em) so it scales with the user's text size and
+    // gives larger touch targets on mobile.
+    const SLACK = 1.5 * (parseFloat(getComputedStyle(this.content).fontSize) || 16);
     // Hide order = reverse priority. Label, value and roll button rank
     // highest and are never hidden; then (descending importance) the
     // modifier total, toggle checkboxes, modifier chain, dice, data type —

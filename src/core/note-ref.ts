@@ -12,8 +12,17 @@ import type { App, TFile } from "obsidian";
 import type { EPSettings, Layout } from "./model";
 import type { Registries } from "./registry";
 import type { NoteModel } from "./note-model";
+import type { PropertyIndex } from "./property-index";
 import { getList, getNum } from "../utils/misc";
-import { InfluenceEnv, makeRefResolver } from "./influences";
+import { InfluenceEnv, makeRefResolver, VaultAccess } from "./influences";
+
+/** Bind a {@link PropertyIndex} + the active note's path to the {@link VaultAccess} the engine consumes. */
+export function makeVaultAccess(props: PropertyIndex, getSourcePath: () => string): VaultAccess {
+  return {
+    valuesByType: (type, key) => props.valuesByType(type, key),
+    linkedValue: (linkProp, key) => props.linkedValue(getSourcePath(), linkProp, key),
+  };
+}
 
 /** Split a `[[link]].accessor` reference; null when it isn't one. */
 export function parseNoteRef(name: string): { link: string; accessor: string } | null {
@@ -60,6 +69,7 @@ export function makeNoteAwareResolver(
   return (name) => {
     const nr = parseNoteRef(name);
     if (nr && nr.accessor) {
+      if (settings.crossNote === false) return undefined; // kill-switch
       const f = app.metadataCache.getFirstLinkpathDest(nr.link, sourcePath);
       if (!f) return undefined;
       return makeRefResolver(envForFile(app, settings, registries, f))(nr.accessor);

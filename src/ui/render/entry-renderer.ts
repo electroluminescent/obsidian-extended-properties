@@ -9,6 +9,7 @@ import type { TFile } from "obsidian";
 import type { ClusterFlags, EntryRenderCtx, ViewCtx } from "../../core/context";
 import type { Entry, Section } from "../../core/model";
 import { openEntryMenu } from "../menus/entry-menu";
+import { longPressContextMenu } from "../components/long-press";
 import type { DragController } from "../drag";
 
 /** True when the entry should be hidden outside edit mode (empty prop). */
@@ -83,6 +84,7 @@ export function renderEntry(
     e.preventDefault();
     openEntryMenu(e, view, file, section, entry);
   });
+  longPressContextMenu(wrap); // touch parity for the entry menu
   if (view.editMode) {
     const menuBtn = head.createSpan({ cls: "ep-menu-btn", text: "⋯" });
     menuBtn.onclick = (e) => {

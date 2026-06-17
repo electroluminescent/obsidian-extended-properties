@@ -18,6 +18,7 @@ import type { OptionsCtx, ViewCtx } from "../../core/context";
 import { Entry, LayoutMode, Section, SectionSize, sectionMode } from "../../core/model";
 import { restoreFromSnapshot } from "../../utils/misc";
 import { addColorSetting, addIconSetting } from "../components/setting-helpers";
+import { asMobileSheet } from "../components/long-press";
 import { ConfirmChangesModal } from "./dialogs";
 import { renderEntryOptionsBody, viewColorHost } from "./entry-options";
 
@@ -50,6 +51,7 @@ export class SectionOptionsModal extends Modal {
   }
 
   onOpen(): void {
+    asMobileSheet(this);
     this.snapshot = JSON.stringify(this.section);
     this.file = this.view.app.workspace.getActiveFile();
     this.draw();

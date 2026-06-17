@@ -57,6 +57,7 @@ export function defaultSettings(): EPSettings {
     critRanges: {},
     failOnOne: true,
     modifierSuffix: "s",
+    crossNote: true,
   };
 }
 
@@ -122,6 +123,7 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
     }
     if (data.failOnOne === false) s.failOnOne = false;
     if (typeof data.modifierSuffix === "string") s.modifierSuffix = data.modifierSuffix;
+    if (data.crossNote === false) s.crossNote = false;
   }
   for (const t of s.types) {
     const k = t.toLowerCase();

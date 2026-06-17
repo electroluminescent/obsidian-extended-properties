@@ -433,6 +433,9 @@ export const coreEn: StringDict = {
   "settings.modSuffix": "Modifier suffix",
   "settings.modSuffixDesc":
     "Append this after a dot to use a property's modifier instead of its value (e.g. INT.s or intelligence.s in a roll or expression; cross-note [[Note]].INT.s). Any length; blank disables it.",
+  "settings.crossNote": "Cross-note references",
+  "settings.crossNoteDesc":
+    "Allow [[Note]].Prop references and aggregates (sum/avg/count/min/max(\"Type\", \"Key\")) and prop(\"LinkProp\", \"Key\") in rolls and expressions. Turn off to disable all vault-wide reads.",
   "settings.abbrHeading": "Short forms",
   "settings.abbrDesc":
     "Short forms used in modifier denotations (INT + DEX − AGE). The default is the capitalized first three letters of the property name; overrides apply everywhere the property is shown as a source.",

@@ -21,6 +21,7 @@ import { MODIFIABLE_TYPE_IDS } from "../../ui/render/modifier-addon";
 import { parseDiceOrDefault } from "../../utils/dice";
 import { ROLL_SERVICE, RollPart, RollService } from "./roll-service";
 import { addDiceSettings, openRollMenu } from "./dice-ui";
+import { longPressContextMenu } from "../../ui/components/long-press";
 
 /** Entry fields persisted by this addon. */
 export interface RollExt {
@@ -82,6 +83,7 @@ export const rollAddon: ClusterAddon = {
             );
         });
       });
+      longPressContextMenu(btn); // touch parity for the roll-mode menu
     };
     return slots;
   },

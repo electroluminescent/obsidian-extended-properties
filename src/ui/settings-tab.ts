@@ -224,6 +224,15 @@ export class EPSettingTab extends PluginSettingTab {
             save();
           });
       });
+    new Setting(c)
+      .setName(t("settings.crossNote"))
+      .setDesc(t("settings.crossNoteDesc"))
+      .addToggle((tg) => {
+        tg.setValue(plugin.settings.crossNote !== false).onChange((v) => {
+          plugin.settings.crossNote = v ? undefined : false;
+          save();
+        });
+      });
     for (const key of Object.keys(plugin.settings.sourceAbbrs).sort((a, b) => a.localeCompare(b))) {
       new Setting(c)
         .setName(key)

@@ -24,7 +24,21 @@ import { ext } from "./model";
 import type { Registries } from "./registry";
 import type { NoteModel } from "./note-model";
 import { compileFormula } from "../utils/formula";
+import { parseNumeric } from "../utils/misc";
 import { evalExpr, ExprNode, parseExpr, serializeExpr } from "./expr";
+
+/**
+ * Vault-wide reads for cross-note expressions (aggregates and `prop()`),
+ * injected so the influence engine itself stays Obsidian-free. Implemented by
+ * {@link PropertyIndex}; absent in unit tests, where cross-note refs resolve to
+ * undefined.
+ */
+export interface VaultAccess {
+  /** Numeric values of `key` across every note whose `Type` includes `typeKey`. */
+  valuesByType(typeKey: string, key: string): number[];
+  /** The numeric value of `key` on the note linked in this note's `linkProp`. */
+  linkedValue(linkProp: string, key: string): number | undefined;
+}
 
 // ---------------------------------------------------------------------------
 // Persisted shapes
@@ -123,6 +137,8 @@ export interface InfluenceEnv {
    * recursively (up to `settings.modDepth` hops, default 8).
    */
   layout?: Layout;
+  /** Vault reads for cross-note aggregates / `prop()` (omitted = disabled). */
+  vault?: VaultAccess;
 }
 
 /** Max influence chain depth (configurable in the plugin settings). */
@@ -133,24 +149,7 @@ function maxDepth(env: InfluenceEnv): number {
 
 /** Numeric value stored on the note for `key`, or null when absent. */
 function numericRaw(env: InfluenceEnv, key: string): number | null {
-  const v = env.note.raw[key];
-  if (v === null || v === undefined || v === "") return null;
-  const n = Number(v);
-  if (Number.isFinite(n)) return n;
-  if (typeof v === "string") {
-    const s = v.trim();
-    // ISO date → whole-day number, so dates can be used in expressions
-    // (e.g. `Due - today()`); checked before the leading-number fallback so
-    // "2024-01-15" doesn't read as 2024.
-    if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
-      const ms = Date.parse(s);
-      if (Number.isFinite(ms)) return Math.floor(ms / 86400000);
-    }
-    // Leading number of a unit value ("10 lb", "30 ft") — unit-stripping.
-    const m = /^-?\d+(?:\.\d+)?/.exec(s);
-    if (m) return Number(m[0]);
-  }
-  return null;
+  return parseNumeric(env.note.raw[key]);
 }
 
 /** The derived prop entry showing `key` in the active layout, if any. */
@@ -267,6 +266,26 @@ class NoteEval {
     this.fnEnv = buildFnEnv(env);
   }
 
+  /** Cross-note aggregate, gated by the kill-switch and vault availability. */
+  private aggFn = (fn: string, type: string, key: string): number | undefined => {
+    if (this.env.settings.crossNote === false || !this.env.vault) return undefined;
+    const vals = this.env.vault.valuesByType(type, key);
+    if (fn === "count") return vals.length;
+    if (vals.length === 0) return fn === "sum" ? 0 : undefined;
+    const sum = vals.reduce((a, b) => a + b, 0);
+    if (fn === "sum") return sum;
+    if (fn === "avg") return sum / vals.length;
+    if (fn === "min") return Math.min(...vals);
+    if (fn === "max") return Math.max(...vals);
+    return undefined;
+  };
+
+  /** `prop("LinkProp", "Key")`: value of `key` on the linked note. */
+  private lookupFn = (linkProp: string, key: string): number | undefined => {
+    if (this.env.settings.crossNote === false || !this.env.vault) return undefined;
+    return this.env.vault.linkedValue(linkProp, key);
+  };
+
   total(entry: Entry): number | undefined {
     return this.totalAt(entry, maxDepth(this.env));
   }
@@ -320,7 +339,12 @@ class NoteEval {
     if (inf.expr) {
       const ast = this.parseExprCached(inf.expr);
       if (!ast) return undefined;
-      const v = evalExpr(ast, { resolve: (n) => this.refValue(n, depth), fn: this.fnEnv });
+      const v = evalExpr(ast, {
+        resolve: (n) => this.refValue(n, depth),
+        fn: this.fnEnv,
+        agg: this.aggFn,
+        lookup: this.lookupFn,
+      });
       return v === undefined ? undefined : sign * v;
     }
     const key = inf.source || (entry.key as string) || "";
@@ -349,6 +373,8 @@ class NoteEval {
    * *modifier* — its override-aware {@link totalAt} — instead of its value.
    */
   private refValue(name: string, depth: number): number | undefined {
+    // `this.Prop` is an explicit local reference (symmetry with `[[Note]].Prop`).
+    if (name.length > 5 && name.slice(0, 5).toLowerCase() === "this.") name = name.slice(5);
     const key = this.keyFor(name);
     if (key !== null) {
       const stored = numericRaw(this.env, key);

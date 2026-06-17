@@ -28,6 +28,36 @@ export function getNum(raw: Record<string, unknown>, key: string, def: number): 
   return Number.isFinite(n) ? n : def;
 }
 
+/**
+ * Coerce a frontmatter value to a number, or null when it isn't one:
+ * plain numbers as-is; ISO dates (`YYYY-MM-DD`) as whole-day numbers; and the
+ * leading number of a unit value (`"10 lb"` → 10). Shared by the influence
+ * engine and the vault index so references behave the same everywhere.
+ */
+export function parseNumeric(v: unknown): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  if (Number.isFinite(n)) return n;
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+      const ms = Date.parse(s);
+      if (Number.isFinite(ms)) return Math.floor(ms / 86400000);
+    }
+    const m = /^-?\d+(?:\.\d+)?/.exec(s);
+    if (m) return Number(m[0]);
+  }
+  return null;
+}
+
+/** Case-insensitive own-key lookup on a raw record. */
+export function getCI(raw: Record<string, unknown>, key: string): unknown {
+  if (key in raw) return raw[key];
+  const kl = key.toLowerCase();
+  for (const k of Object.keys(raw)) if (k.toLowerCase() === kl) return raw[k];
+  return undefined;
+}
+
 /** Read a string value from a raw record ("" when missing). */
 export function getStr(raw: Record<string, unknown>, key: string): string {
   const v = raw?.[key];
