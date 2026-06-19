@@ -127,33 +127,42 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
     slider.max = String(max);
     slider.step = kind === "number" && !curve ? "1" : "any";
     slider.value = String(toPosition(get()));
-    // Scroll guard (mobile): if the browser hands the gesture off to native
-    // scrolling (pointercancel), restore the slider and ignore the stray
-    // input/change so a vertical scroll never nudges the value.
+    // Scroll guard (mobile): decide the gesture axis from its first few pixels.
+    // A vertical-dominant drag is a page scroll — the value is pinned (reset on
+    // every native `input`, so the thumb can't follow the finger) and never
+    // committed. Only a horizontal-dominant drag adjusts the slider.
     let dragValue = slider.value;
-    let scrollCancel = false;
-    const restore = () => {
-      scrollCancel = true;
-      if (slider) slider.value = dragValue;
-      refs.val.setText(fmtNum(get()));
-    };
-    slider.addEventListener("pointerdown", () => {
+    let sx = 0;
+    let sy = 0;
+    let axis: "" | "v" | "h" = "";
+    const begin = (x: number, y: number): void => {
       dragValue = slider!.value;
-      scrollCancel = false;
-    });
-    slider.addEventListener("pointercancel", restore);
+      sx = x;
+      sy = y;
+      axis = "";
+    };
+    const decide = (x: number, y: number): void => {
+      if (axis) return;
+      const dx = Math.abs(x - sx);
+      const dy = Math.abs(y - sy);
+      if (dx < 6 && dy < 6) return; // not enough movement to tell yet
+      axis = dy > dx ? "v" : "h";
+      if (axis === "v" && slider) slider.value = dragValue; // pin immediately
+    };
+    slider.addEventListener("pointerdown", (e) => begin(e.clientX, e.clientY));
+    slider.addEventListener("pointermove", (e) => decide(e.clientX, e.clientY));
+    slider.addEventListener("touchstart", (e) => { const t = e.touches[0]; if (t) begin(t.clientX, t.clientY); }, { passive: true });
+    slider.addEventListener("touchmove", (e) => { const t = e.touches[0]; if (t) decide(t.clientX, t.clientY); }, { passive: true });
+    slider.addEventListener("pointercancel", () => { axis = "v"; if (slider) slider.value = dragValue; });
     slider.addEventListener("input", () => {
-      if (scrollCancel) return;
+      if (axis === "v") { if (slider) slider.value = dragValue; return; } // pinned while scrolling
       const out = toValue(Number(slider!.value));
       refs.val.setText(fmtNum(isDecimal || isFormula ? out : Math.round(out)));
       for (const a of addons) a.onPreview?.(ctx, refs.cells, out);
     });
     slider.addEventListener("change", () => {
-      if (scrollCancel) {
-        scrollCancel = false;
-        if (slider) slider.value = dragValue;
-        return;
-      }
+      if (axis === "v") { axis = ""; if (slider) slider.value = dragValue; return; }
+      axis = "";
       let out = toValue(Number(slider!.value));
       if (!isFormula && entry.clamp) out = clamp(out, min, max);
       view.note.set(file, key, isDecimal || isFormula ? out : Math.round(out));
