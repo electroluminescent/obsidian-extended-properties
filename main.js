@@ -2730,72 +2730,85 @@ function render(kind, ctx) {
     if (span <= 0) return v;
     return min + span * curveInvert(curve, (v - min) / span);
   };
-  let slider = null;
+  let syncKnob = null;
   if (entry.slider || isFormula) {
-    slider = ctx.extra.createEl("input", { cls: "ep-slider" });
-    slider.type = "range";
-    slider.min = String(min);
-    slider.max = String(max);
-    slider.step = kind === "number" && !curve ? "1" : "any";
-    slider.value = String(toPosition(get()));
-    let dragValue = slider.value;
-    let sx = 0;
-    let sy = 0;
-    let axis = "";
-    const begin = (x, y) => {
-      dragValue = slider.value;
-      sx = x;
-      sy = y;
-      axis = "";
+    const slider = ctx.extra.createDiv({ cls: "ep-slider2" });
+    slider.createDiv({ cls: "ep-slider2-track" });
+    const knob = slider.createDiv({ cls: "ep-slider2-knob" });
+    knob.tabIndex = 0;
+    knob.setAttr("role", "slider");
+    knob.setAttr("aria-valuemin", String(min));
+    knob.setAttr("aria-valuemax", String(max));
+    const fmt = (v) => isDecimal || isFormula ? v : Math.round(v);
+    const pctForValue = (v) => span <= 0 ? 0 : clamp((toPosition(v) - min) / span, 0, 1) * 100;
+    const place = (v) => {
+      slider.style.setProperty("--ep-knob", pctForValue(v) + "%");
+      knob.setAttr("aria-valuenow", String(fmt(v)));
     };
-    const decide = (x, y) => {
-      if (axis) return;
-      const dx = Math.abs(x - sx);
-      const dy = Math.abs(y - sy);
-      if (dx < 6 && dy < 6) return;
-      axis = dy > dx ? "v" : "h";
-      if (axis === "v" && slider) slider.value = dragValue;
-    };
-    slider.addEventListener("pointerdown", (e) => begin(e.clientX, e.clientY));
-    slider.addEventListener("pointermove", (e) => decide(e.clientX, e.clientY));
-    slider.addEventListener("touchstart", (e) => {
-      const t = e.touches[0];
-      if (t) begin(t.clientX, t.clientY);
-    }, { passive: true });
-    slider.addEventListener("touchmove", (e) => {
-      const t = e.touches[0];
-      if (t) decide(t.clientX, t.clientY);
-    }, { passive: true });
-    slider.addEventListener("pointercancel", () => {
-      axis = "v";
-      if (slider) slider.value = dragValue;
-    });
-    slider.addEventListener("input", () => {
+    syncKnob = () => place(get());
+    syncKnob();
+    let active = false;
+    let pending2 = get();
+    const drag = (clientX) => {
       var _a2;
-      if (axis === "v") {
-        if (slider) slider.value = dragValue;
-        return;
-      }
-      const out = toValue(Number(slider.value));
-      refs.val.setText(fmtNum(isDecimal || isFormula ? out : Math.round(out)));
-      for (const a of addons) (_a2 = a.onPreview) == null ? void 0 : _a2.call(a, ctx, refs.cells, out);
-    });
-    slider.addEventListener("change", () => {
-      if (axis === "v") {
-        axis = "";
-        if (slider) slider.value = dragValue;
-        return;
-      }
-      axis = "";
-      let out = toValue(Number(slider.value));
+      const r = slider.getBoundingClientRect();
+      const t = r.width <= 0 ? 0 : clamp((clientX - r.left) / r.width, 0, 1);
+      let out = toValue(min + t * span);
       if (!isFormula && entry.clamp) out = clamp(out, min, max);
-      view.note.set(file, key, isDecimal || isFormula ? out : Math.round(out));
+      pending2 = fmt(out);
+      place(pending2);
+      refs.val.setText(fmtNum(pending2));
+      for (const a of addons) (_a2 = a.onPreview) == null ? void 0 : _a2.call(a, ctx, refs.cells, pending2);
+    };
+    knob.addEventListener("pointerdown", (e) => {
+      active = true;
+      pending2 = get();
+      slider.addClass("is-active");
+      try {
+        knob.setPointerCapture(e.pointerId);
+      } catch (e2) {
+      }
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    knob.addEventListener("pointermove", (e) => {
+      if (!active) return;
+      drag(e.clientX);
+      e.preventDefault();
+    });
+    const finish = (e) => {
+      if (!active) return;
+      active = false;
+      slider.removeClass("is-active");
+      try {
+        knob.releasePointerCapture(e.pointerId);
+      } catch (e2) {
+      }
+      view.note.set(file, key, pending2);
+      syncKnob == null ? void 0 : syncKnob();
+    };
+    knob.addEventListener("pointerup", finish);
+    knob.addEventListener("pointercancel", () => {
+      if (!active) return;
+      active = false;
+      slider.removeClass("is-active");
+      syncKnob == null ? void 0 : syncKnob();
+    });
+    knob.addEventListener("keydown", (e) => {
+      const step = kind === "number" && !curve ? 1 : span / 100 || 1;
+      let v = get();
+      if (e.key === "ArrowLeft" || e.key === "ArrowDown") v -= step;
+      else if (e.key === "ArrowRight" || e.key === "ArrowUp") v += step;
+      else return;
+      e.preventDefault();
+      if (entry.clamp) v = clamp(v, min, max);
+      view.note.set(file, key, fmt(v));
     });
   }
   view.registerUpdater(() => {
     const v = view.note.num(key, 0);
     refs.val.setText(fmtNum(v));
-    if (slider) slider.value = String(toPosition(v));
+    syncKnob == null ? void 0 : syncKnob();
   });
 }
 function renderOptions(kind, octx) {
@@ -11186,6 +11199,10 @@ function primarySides(ast) {
   }
   return 20;
 }
+function withDefaultDie(ast) {
+  if (ast.terms.some((tm) => tm.node.kind === "dice")) return ast;
+  return { terms: [{ neg: false, node: { kind: "dice", count: 1, sides: 20, ops: [] } }, ...ast.terms] };
+}
 function applyMode(ast, mode) {
   if (mode === "normal") return ast;
   const terms = ast.terms.map(
@@ -11209,7 +11226,7 @@ function runInlineRoll(ctx, file, body, mode, times) {
   const n = Math.max(1, Math.min(20, times || 1));
   const resolve = refResolver(ctx, file);
   for (let i = 0; i < n; i++) {
-    ctx.roll.rollAst(n > 1 ? `${body} #${i + 1}` : body, applyMode(parseRoll(body), mode), {
+    ctx.roll.rollAst(n > 1 ? `${body} #${i + 1}` : body, applyMode(withDefaultDie(parseRoll(body)), mode), {
       tag,
       mode,
       stay: n > 1,
@@ -11219,7 +11236,8 @@ function runInlineRoll(ctx, file, body, mode, times) {
 }
 function makeRollChip(ctx, file, body, opt, onEdit) {
   const t = ctx.i18n.t.bind(ctx.i18n);
-  const ast = parseRoll(body);
+  const parsed = parseRoll(body);
+  const ast = parsed ? withDefaultDie(parsed) : null;
   const resolve = refResolver(ctx, file);
   const chip = createSpan({ cls: "ep-inline-roll" });
   const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });

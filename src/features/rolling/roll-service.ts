@@ -157,6 +157,7 @@ export class RollService implements ViewService {
           parts,
           total,
           spins: this.settings.diceAnimRolls ?? 10,
+          durationMs: this.settings.diceAnimMs ?? 1500,
           stay: opts.stay || this.settings.diceAnimStay === true,
           block: this.settings.diceAnimBlock !== false,
           reroll: redo,

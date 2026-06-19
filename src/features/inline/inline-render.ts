@@ -112,6 +112,12 @@ function primarySides(ast: RollAst | null): number {
   return 20;
 }
 
+/** A `roll:` with no dice term implies a single d20 (e.g. `roll: DEX + 3`). */
+function withDefaultDie(ast: RollAst): RollAst {
+  if (ast.terms.some((tm) => tm.node.kind === "dice")) return ast;
+  return { terms: [{ neg: false, node: { kind: "dice", count: 1, sides: 20, ops: [] } }, ...ast.terms] };
+}
+
 /** Advantage/disadvantage as +1 die dropped low/high on the first dice group. */
 function applyMode(ast: RollAst, mode: RollMode): RollAst {
   if (mode === "normal") return ast;
@@ -143,7 +149,7 @@ export function runInlineRoll(ctx: InlineCtx, file: TFile, body: string, mode: R
   const n = Math.max(1, Math.min(20, times || 1));
   const resolve = refResolver(ctx, file);
   for (let i = 0; i < n; i++) {
-    ctx.roll.rollAst(n > 1 ? `${body} #${i + 1}` : body, applyMode(parseRoll(body)!, mode), {
+    ctx.roll.rollAst(n > 1 ? `${body} #${i + 1}` : body, applyMode(withDefaultDie(parseRoll(body)!), mode), {
       tag,
       mode,
       stay: n > 1,
@@ -159,7 +165,8 @@ export function runInlineRoll(ctx: InlineCtx, file: TFile, body: string, mode: R
  */
 export function makeRollChip(ctx: InlineCtx, file: TFile, body: string, opt: string, onEdit?: () => void): HTMLElement {
   const t = ctx.i18n.t.bind(ctx.i18n);
-  const ast = parseRoll(body);
+  const parsed = parseRoll(body);
+  const ast = parsed ? withDefaultDie(parsed) : null;
   const resolve = refResolver(ctx, file);
   const chip = createSpan({ cls: "ep-inline-roll" });
   const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });

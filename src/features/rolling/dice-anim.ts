@@ -33,10 +33,6 @@ import { fmtMod } from "../../utils/misc";
 const MAX_DICE_SHOWN = 12;
 /** Milliseconds between face cycles while tumbling. */
 const TICK_MS = 80;
-/** Stagger between one die settling and the next. */
-const SETTLE_MS = 240;
-/** Stagger between modifier parts joining the chain. */
-const PART_MS = 280;
 
 /** One labeled summand of a roll (a modifier term, the override, …). */
 export interface RollPart {
@@ -60,8 +56,10 @@ export interface RollAnimJob {
   /** Labeled modifier parts (their values sum to the total modifier). */
   parts: RollPart[];
   total: number;
-  /** How many times the faces cycle before settling. */
-  spins: number;
+  /** How many times the faces cycle before settling (legacy; unused by the timeline). */
+  spins?: number;
+  /** Total animation budget in ms — dice and modifiers stagger to finish within it. */
+  durationMs?: number;
   /** Keep the card on screen after resolving (clicking always toggles). */
   stay: boolean;
   /** Dim the background and block interaction while cards are up. */
@@ -331,21 +329,14 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     }, 1400);
   };
 
-  /** Dice settle one after another; then the parts; then the total. */
+  // Fixed-budget timeline. Each die and each modifier part is scheduled at an
+  // evenly-staggered offset within `budget`, so they appear to start one after
+  // another (overlapping — not waiting for the previous to finish) and the roll
+  // resolves at ~budget no matter how many dice or parts there are.
+  const settled: boolean[] = [];
   let keptShown = 0;
-  const settleFrom = (i: number): void => {
-    if (i >= flat.length) {
-      let delay = PART_MS;
-      for (const part of job.parts) {
-        later(() => addCell("+", fmtMod(part.value), part.label), delay);
-        delay += PART_MS;
-      }
-      later(() => {
-        addCell("=", String(job.total), i18n.t("roll.partTotal"), "ep-roll-totalcell");
-        resolve();
-      }, delay);
-      return;
-    }
+  const settleDie = (i: number): void => {
+    settled[i] = true;
     const { grp, idx } = flat[i];
     const dropped = grp.dropped[idx];
     if (i < dies.length) {
@@ -360,17 +351,28 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
       addCell(keptShown > 0 ? "+" : null, String(grp.faces[idx]), formatDice({ count: 1, sides: grp.sides }));
       keptShown++;
     }
-    later(() => settleFrom(i + 1), SETTLE_MS);
   };
 
-  let spin = 0;
-  const spins = Math.max(1, Math.floor(job.spins) || 1);
+  const budget = Math.max(300, Math.min(10000, job.durationMs || 1500));
+  const count = flat.length + job.parts.length; // staggered items before the total
+  const step = budget / (count + 1);
+  flat.forEach((_, i) => later(() => settleDie(i), Math.round((i + 1) * step)));
+  job.parts.forEach((part, p) =>
+    later(() => addCell("+", fmtMod(part.value), part.label), Math.round((flat.length + p + 1) * step))
+  );
+  later(() => {
+    addCell("=", String(job.total), i18n.t("roll.partTotal"), "ep-roll-totalcell");
+    resolve();
+  }, budget);
+
+  // Keep the not-yet-settled visible dice tumbling; stop once all have landed.
   interval = window.setInterval(() => {
-    for (const d of dies) d.num.setText(String(1 + Math.floor(Math.random() * d.sides)));
-    spin++;
-    if (spin >= spins) {
-      window.clearInterval(interval);
-      settleFrom(0);
+    let rolling = false;
+    for (let i = 0; i < dies.length; i++) {
+      if (settled[i]) continue;
+      rolling = true;
+      dies[i].num.setText(String(1 + Math.floor(Math.random() * dies[i].sides)));
     }
+    if (!rolling) window.clearInterval(interval);
   }, TICK_MS);
 }

@@ -119,60 +119,85 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
     if (span <= 0) return v;
     return min + span * curveInvert(curve, (v - min) / span);
   };
-  let slider: HTMLInputElement | null = null;
+  // Custom, scroll-safe slider. When idle the track collapses to a small pill
+  // around the knob and ONLY the knob is interactive, so a touch anywhere else
+  // on the row scrolls the page. Pressing the knob expands the track to full
+  // width for dragging; releasing collapses it back around the new position.
+  let syncKnob: (() => void) | null = null;
   if (entry.slider || isFormula) {
-    slider = ctx.extra.createEl("input", { cls: "ep-slider" });
-    slider.type = "range";
-    slider.min = String(min);
-    slider.max = String(max);
-    slider.step = kind === "number" && !curve ? "1" : "any";
-    slider.value = String(toPosition(get()));
-    // Scroll guard (mobile): decide the gesture axis from its first few pixels.
-    // A vertical-dominant drag is a page scroll — the value is pinned (reset on
-    // every native `input`, so the thumb can't follow the finger) and never
-    // committed. Only a horizontal-dominant drag adjusts the slider.
-    let dragValue = slider.value;
-    let sx = 0;
-    let sy = 0;
-    let axis: "" | "v" | "h" = "";
-    const begin = (x: number, y: number): void => {
-      dragValue = slider!.value;
-      sx = x;
-      sy = y;
-      axis = "";
+    const slider = ctx.extra.createDiv({ cls: "ep-slider2" });
+    slider.createDiv({ cls: "ep-slider2-track" });
+    const knob = slider.createDiv({ cls: "ep-slider2-knob" });
+    knob.tabIndex = 0;
+    knob.setAttr("role", "slider");
+    knob.setAttr("aria-valuemin", String(min));
+    knob.setAttr("aria-valuemax", String(max));
+
+    const fmt = (v: number): number => (isDecimal || isFormula ? v : Math.round(v));
+    const pctForValue = (v: number): number => (span <= 0 ? 0 : clamp((toPosition(v) - min) / span, 0, 1) * 100);
+    const place = (v: number): void => {
+      slider.style.setProperty("--ep-knob", pctForValue(v) + "%");
+      knob.setAttr("aria-valuenow", String(fmt(v)));
     };
-    const decide = (x: number, y: number): void => {
-      if (axis) return;
-      const dx = Math.abs(x - sx);
-      const dy = Math.abs(y - sy);
-      if (dx < 6 && dy < 6) return; // not enough movement to tell yet
-      axis = dy > dx ? "v" : "h";
-      if (axis === "v" && slider) slider.value = dragValue; // pin immediately
-    };
-    slider.addEventListener("pointerdown", (e) => begin(e.clientX, e.clientY));
-    slider.addEventListener("pointermove", (e) => decide(e.clientX, e.clientY));
-    slider.addEventListener("touchstart", (e) => { const t = e.touches[0]; if (t) begin(t.clientX, t.clientY); }, { passive: true });
-    slider.addEventListener("touchmove", (e) => { const t = e.touches[0]; if (t) decide(t.clientX, t.clientY); }, { passive: true });
-    slider.addEventListener("pointercancel", () => { axis = "v"; if (slider) slider.value = dragValue; });
-    slider.addEventListener("input", () => {
-      if (axis === "v") { if (slider) slider.value = dragValue; return; } // pinned while scrolling
-      const out = toValue(Number(slider!.value));
-      refs.val.setText(fmtNum(isDecimal || isFormula ? out : Math.round(out)));
-      for (const a of addons) a.onPreview?.(ctx, refs.cells, out);
-    });
-    slider.addEventListener("change", () => {
-      if (axis === "v") { axis = ""; if (slider) slider.value = dragValue; return; }
-      axis = "";
-      let out = toValue(Number(slider!.value));
+    syncKnob = () => place(get());
+    syncKnob();
+
+    let active = false;
+    let pending = get();
+    const drag = (clientX: number): void => {
+      const r = slider.getBoundingClientRect();
+      const t = r.width <= 0 ? 0 : clamp((clientX - r.left) / r.width, 0, 1);
+      let out = toValue(min + t * span);
       if (!isFormula && entry.clamp) out = clamp(out, min, max);
-      view.note.set(file, key, isDecimal || isFormula ? out : Math.round(out));
+      pending = fmt(out);
+      place(pending); // knob snaps to the (rounded) value's position
+      refs.val.setText(fmtNum(pending));
+      for (const a of addons) a.onPreview?.(ctx, refs.cells, pending);
+    };
+    knob.addEventListener("pointerdown", (e) => {
+      active = true;
+      pending = get();
+      slider.addClass("is-active");
+      try { knob.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    knob.addEventListener("pointermove", (e) => {
+      if (!active) return;
+      drag(e.clientX);
+      e.preventDefault();
+    });
+    const finish = (e: PointerEvent): void => {
+      if (!active) return;
+      active = false;
+      slider.removeClass("is-active");
+      try { knob.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+      view.note.set(file, key, pending);
+      syncKnob?.();
+    };
+    knob.addEventListener("pointerup", finish);
+    knob.addEventListener("pointercancel", () => {
+      if (!active) return;
+      active = false;
+      slider.removeClass("is-active");
+      syncKnob?.(); // discard the in-progress drag
+    });
+    knob.addEventListener("keydown", (e) => {
+      const step = kind === "number" && !curve ? 1 : span / 100 || 1;
+      let v = get();
+      if (e.key === "ArrowLeft" || e.key === "ArrowDown") v -= step;
+      else if (e.key === "ArrowRight" || e.key === "ArrowUp") v += step;
+      else return;
+      e.preventDefault();
+      if (entry.clamp) v = clamp(v, min, max);
+      view.note.set(file, key, fmt(v));
     });
   }
 
   view.registerUpdater(() => {
     const v = view.note.num(key, 0);
     refs.val.setText(fmtNum(v));
-    if (slider) slider.value = String(toPosition(v));
+    syncKnob?.();
   });
 }
 
