@@ -280,14 +280,14 @@ export class EPSettingTab extends PluginSettingTab {
         });
       });
     new Setting(c)
-      .setName(t("settings.diceAnimRolls"))
-      .setDesc(t("settings.diceAnimRollsDesc"))
+      .setName(t("settings.diceAnimMs"))
+      .setDesc(t("settings.diceAnimMsDesc"))
       .addSlider((sl) => {
-        sl.setLimits(1, 30, 1)
-          .setValue(plugin.settings.diceAnimRolls ?? 10)
+        sl.setLimits(0.3, 5, 0.1)
+          .setValue((plugin.settings.diceAnimMs ?? 1500) / 1000)
           .setDynamicTooltip()
           .onChange((v) => {
-            plugin.settings.diceAnimRolls = v;
+            plugin.settings.diceAnimMs = Math.round(v * 1000);
             save();
           });
       });

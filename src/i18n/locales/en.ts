@@ -409,6 +409,8 @@ export const coreEn: StringDict = {
     "Tumble the rolled dice in 3D before settling; the modifier and total animate in afterwards, and the notice/log appear only once the roll resolves. Click the overlay to skip a roll.",
   "settings.diceAnimRolls": "Rolls before settling",
   "settings.diceAnimRollsDesc": "How many times the dice faces cycle before the result settles.",
+  "settings.diceAnimMs": "Animation duration (seconds)",
+  "settings.diceAnimMsDesc": "How long a roll takes to fully resolve. Dice and modifiers stagger to start one after another and finish within this time.",
   "settings.diceAnimStay": "Keep results on screen",
   "settings.diceAnimStayDesc":
     "On = roll cards stay until clicked; off = they dismiss themselves. Clicking a card always toggles keeping it.",

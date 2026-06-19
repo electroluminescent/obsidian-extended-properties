@@ -456,6 +456,8 @@ var coreEn = {
   "settings.diceAnimDesc": "Tumble the rolled dice in 3D before settling; the modifier and total animate in afterwards, and the notice/log appear only once the roll resolves. Click the overlay to skip a roll.",
   "settings.diceAnimRolls": "Rolls before settling",
   "settings.diceAnimRollsDesc": "How many times the dice faces cycle before the result settles.",
+  "settings.diceAnimMs": "Animation duration (seconds)",
+  "settings.diceAnimMsDesc": "How long a roll takes to fully resolve. Dice and modifiers stagger to start one after another and finish within this time.",
   "settings.diceAnimStay": "Keep results on screen",
   "settings.diceAnimStayDesc": "On = roll cards stay until clicked; off = they dismiss themselves. Clicking a card always toggles keeping it.",
   "settings.diceAnimBlock": "Block background while rolling",
@@ -902,6 +904,8 @@ var coreDe = {
   "settings.diceAnimDesc": "Die geworfenen W\xFCrfel taumeln in 3D, bevor sie liegen bleiben; Modifikator und Gesamtwert werden danach eingeblendet, und Hinweis/Protokoll erscheinen erst, wenn der Wurf abgeschlossen ist. Klick auf die \xDCberlagerung \xFCberspringt einen Wurf.",
   "settings.diceAnimRolls": "W\xFCrfe bis zum Ergebnis",
   "settings.diceAnimRollsDesc": "Wie oft die W\xFCrfelseiten durchwechseln, bevor das Ergebnis liegen bleibt.",
+  "settings.diceAnimMs": "Animationsdauer (Sekunden)",
+  "settings.diceAnimMsDesc": "Wie lange ein Wurf bis zur vollst\xE4ndigen Aufl\xF6sung dauert. W\xFCrfel und Modifikatoren erscheinen gestaffelt nacheinander und enden innerhalb dieser Zeit.",
   "settings.diceAnimStay": "Ergebnisse anzeigen lassen",
   "settings.diceAnimStayDesc": "An = Wurf-Karten bleiben, bis sie angeklickt werden; aus = sie schlie\xDFen sich selbst. Klick auf eine Karte schaltet das Behalten immer um.",
   "settings.diceAnimBlock": "Hintergrund beim W\xFCrfeln blockieren",
@@ -1875,6 +1879,7 @@ function defaultSettings() {
     modDepth: 8,
     diceAnim: true,
     diceAnimRolls: 10,
+    diceAnimMs: 1500,
     diceAnimStay: false,
     diceAnimBlock: true,
     modsOffProp: "Modifiers Off",
@@ -1914,6 +1919,8 @@ function normalizeSettings(data, defaultLayout) {
     if (typeof data.diceAnim === "boolean") s.diceAnim = data.diceAnim;
     if (typeof data.diceAnimRolls === "number" && data.diceAnimRolls >= 1)
       s.diceAnimRolls = Math.min(60, Math.floor(data.diceAnimRolls));
+    if (typeof data.diceAnimMs === "number" && data.diceAnimMs >= 300)
+      s.diceAnimMs = Math.min(1e4, Math.floor(data.diceAnimMs));
     if (typeof data.diceAnimStay === "boolean") s.diceAnimStay = data.diceAnimStay;
     if (typeof data.diceAnimBlock === "boolean") s.diceAnimBlock = data.diceAnimBlock;
     if (data.karmicRolls === true) s.karmicRolls = true;
@@ -8273,10 +8280,10 @@ var EPSettingTab = class extends import_obsidian23.PluginSettingTab {
         save();
       });
     });
-    new import_obsidian23.Setting(c).setName(t("settings.diceAnimRolls")).setDesc(t("settings.diceAnimRollsDesc")).addSlider((sl) => {
+    new import_obsidian23.Setting(c).setName(t("settings.diceAnimMs")).setDesc(t("settings.diceAnimMsDesc")).addSlider((sl) => {
       var _a;
-      sl.setLimits(1, 30, 1).setValue((_a = plugin.settings.diceAnimRolls) != null ? _a : 10).setDynamicTooltip().onChange((v) => {
-        plugin.settings.diceAnimRolls = v;
+      sl.setLimits(0.3, 5, 0.1).setValue(((_a = plugin.settings.diceAnimMs) != null ? _a : 1500) / 1e3).setDynamicTooltip().onChange((v) => {
+        plugin.settings.diceAnimMs = Math.round(v * 1e3);
         save();
       });
     });
@@ -8757,8 +8764,6 @@ function rollFace(sides, karmic) {
 var import_obsidian25 = require("obsidian");
 var MAX_DICE_SHOWN = 12;
 var TICK_MS = 80;
-var SETTLE_MS = 240;
-var PART_MS = 280;
 var layer = null;
 var summaryEl = null;
 var summarySig = "";
@@ -8993,20 +8998,10 @@ function playRollAnimation(job, i18n, done) {
       if (!pinned) close();
     }, 1400);
   };
+  const settled = [];
   let keptShown = 0;
-  const settleFrom = (i) => {
-    if (i >= flat.length) {
-      let delay = PART_MS;
-      for (const part of job.parts) {
-        later(() => addCell("+", fmtMod(part.value), part.label), delay);
-        delay += PART_MS;
-      }
-      later(() => {
-        addCell("=", String(job.total), i18n.t("roll.partTotal"), "ep-roll-totalcell");
-        resolve();
-      }, delay);
-      return;
-    }
+  const settleDie = (i) => {
+    settled[i] = true;
     const { grp, idx } = flat[i];
     const dropped = grp.dropped[idx];
     if (i < dies.length) {
@@ -9021,17 +9016,26 @@ function playRollAnimation(job, i18n, done) {
       addCell(keptShown > 0 ? "+" : null, String(grp.faces[idx]), formatDice({ count: 1, sides: grp.sides }));
       keptShown++;
     }
-    later(() => settleFrom(i + 1), SETTLE_MS);
   };
-  let spin = 0;
-  const spins = Math.max(1, Math.floor(job.spins) || 1);
+  const budget = Math.max(300, Math.min(1e4, job.durationMs || 1500));
+  const count = flat.length + job.parts.length;
+  const step = budget / (count + 1);
+  flat.forEach((_, i) => later(() => settleDie(i), Math.round((i + 1) * step)));
+  job.parts.forEach(
+    (part, p) => later(() => addCell("+", fmtMod(part.value), part.label), Math.round((flat.length + p + 1) * step))
+  );
+  later(() => {
+    addCell("=", String(job.total), i18n.t("roll.partTotal"), "ep-roll-totalcell");
+    resolve();
+  }, budget);
   interval = window.setInterval(() => {
-    for (const d of dies) d.num.setText(String(1 + Math.floor(Math.random() * d.sides)));
-    spin++;
-    if (spin >= spins) {
-      window.clearInterval(interval);
-      settleFrom(0);
+    let rolling = false;
+    for (let i = 0; i < dies.length; i++) {
+      if (settled[i]) continue;
+      rolling = true;
+      dies[i].num.setText(String(1 + Math.floor(Math.random() * dies[i].sides)));
     }
+    if (!rolling) window.clearInterval(interval);
   }, TICK_MS);
 }
 
@@ -9082,7 +9086,7 @@ var RollService = class {
   }
   /** Evaluate and resolve a full roll AST: animate, toast, and record it. */
   rollAst(label, ast, opts = {}) {
-    var _a, _b, _c, _d, _e, _f, _g;
+    var _a, _b, _c, _d, _e, _f, _g, _h;
     const karmic = ((_a = this.settings) == null ? void 0 : _a.karmicRolls) === true;
     const env = {
       roll1: (sides) => rollFace(sides, karmic),
@@ -9124,6 +9128,7 @@ var RollService = class {
           parts,
           total,
           spins: (_g = this.settings.diceAnimRolls) != null ? _g : 10,
+          durationMs: (_h = this.settings.diceAnimMs) != null ? _h : 1500,
           stay: opts.stay || this.settings.diceAnimStay === true,
           block: this.settings.diceAnimBlock !== false,
           reroll: redo

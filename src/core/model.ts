@@ -263,6 +263,8 @@ export interface EPSettings {
   diceAnim: boolean;
   /** How many times the dice faces cycle before settling. */
   diceAnimRolls: number;
+  /** Total roll-animation duration in ms (dice + modifiers stagger within it). */
+  diceAnimMs?: number;
   /** Keep roll cards on screen by default (clicking always toggles). */
   diceAnimStay: boolean;
   /** Roll cards dim the background and block interaction until dismissed. */

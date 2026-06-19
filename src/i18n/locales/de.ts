@@ -406,6 +406,8 @@ export const coreDe: StringDict = {
     "Die geworfenen Würfel taumeln in 3D, bevor sie liegen bleiben; Modifikator und Gesamtwert werden danach eingeblendet, und Hinweis/Protokoll erscheinen erst, wenn der Wurf abgeschlossen ist. Klick auf die Überlagerung überspringt einen Wurf.",
   "settings.diceAnimRolls": "Würfe bis zum Ergebnis",
   "settings.diceAnimRollsDesc": "Wie oft die Würfelseiten durchwechseln, bevor das Ergebnis liegen bleibt.",
+  "settings.diceAnimMs": "Animationsdauer (Sekunden)",
+  "settings.diceAnimMsDesc": "Wie lange ein Wurf bis zur vollständigen Auflösung dauert. Würfel und Modifikatoren erscheinen gestaffelt nacheinander und enden innerhalb dieser Zeit.",
   "settings.diceAnimStay": "Ergebnisse anzeigen lassen",
   "settings.diceAnimStayDesc":
     "An = Wurf-Karten bleiben, bis sie angeklickt werden; aus = sie schließen sich selbst. Klick auf eine Karte schaltet das Behalten immer um.",
