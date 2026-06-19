@@ -74,7 +74,9 @@
 .ep-mod-badge { color: var(--text-muted); font-variant-numeric: tabular-nums; font-size: var(--font-ui-smaller); }
 .ep-step-btn { width: 20px; height: 22px; padding: 0; font-size: 15px; line-height: 1; cursor: pointer; background: var(--ep-control); transition: background-color .2s ease; }
 .ep-num { min-width: 2em; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; font-size: var(--ep-size-value, inherit); }
-.ep-slider { width: 100%; cursor: pointer; }
+/* touch-action: pan-y lets a vertical scroll pass through the slider to the
+   page on mobile; only horizontal drags adjust the value. */
+.ep-slider { width: 100%; cursor: pointer; touch-action: pan-y; }
 .ep-prof { cursor: pointer; }
 
 .ep-swatch { width: 18px; height: 18px; border-radius: 4px; border: 1px solid var(--background-modifier-border); display: inline-block; cursor: pointer; vertical-align: middle; }

@@ -2738,13 +2738,31 @@ function render(kind, ctx) {
     slider.max = String(max);
     slider.step = kind === "number" && !curve ? "1" : "any";
     slider.value = String(toPosition(get()));
+    let dragValue = slider.value;
+    let scrollCancel = false;
+    const restore = () => {
+      scrollCancel = true;
+      if (slider) slider.value = dragValue;
+      refs.val.setText(fmtNum(get()));
+    };
+    slider.addEventListener("pointerdown", () => {
+      dragValue = slider.value;
+      scrollCancel = false;
+    });
+    slider.addEventListener("pointercancel", restore);
     slider.addEventListener("input", () => {
       var _a2;
+      if (scrollCancel) return;
       const out = toValue(Number(slider.value));
       refs.val.setText(fmtNum(isDecimal || isFormula ? out : Math.round(out)));
       for (const a of addons) (_a2 = a.onPreview) == null ? void 0 : _a2.call(a, ctx, refs.cells, out);
     });
     slider.addEventListener("change", () => {
+      if (scrollCancel) {
+        scrollCancel = false;
+        if (slider) slider.value = dragValue;
+        return;
+      }
       let out = toValue(Number(slider.value));
       if (!isFormula && entry.clamp) out = clamp(out, min, max);
       view.note.set(file, key, isDecimal || isFormula ? out : Math.round(out));
