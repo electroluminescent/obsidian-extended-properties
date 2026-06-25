@@ -45,6 +45,8 @@ export type BinOp =
 export interface ExprEnv {
   /** Resolve a referenced name to a number, or undefined when unknown. */
   resolve(name: string): number | undefined;
+  /** Resolve a referenced name to a string value (conditional visibility). */
+  resolveStr?(name: string): string | undefined;
   /** Resolve a non-builtin function name (e.g. a user derivation). */
   fn?(name: string): ((args: number[]) => number | undefined) | undefined;
   /** Aggregate `sum`/`avg`/`count`/`min`/`max` of `key` over all notes of `type`. */
@@ -248,6 +250,27 @@ export function parseExpr(text: string): ExprNode | null {
 
 class ExprError extends Error {}
 
+/** A runtime value: numbers for math, strings for equality in conditions. */
+type Val = number | string;
+
+/** Truthiness for boolean operators: non-zero numbers, non-empty strings. */
+const truthy = (v: Val): boolean => (typeof v === "number" ? v !== 0 : v.trim().length > 0);
+
+/** Coerce to a finite number or throw (a non-numeric string fails the term). */
+function toNum(v: Val): number {
+  if (typeof v === "number") return v;
+  const n = parseFloat(v.trim());
+  if (!Number.isFinite(n)) throw new ExprError("not numeric: " + v);
+  return n;
+}
+
+/** Equality — case-insensitive, trimmed string compare when either side is a string. */
+function eqVal(a: Val, b: Val): boolean {
+  if (typeof a === "string" || typeof b === "string")
+    return String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+  return a === b;
+}
+
 const CONSTS: Record<string, number> = { pi: Math.PI, e: Math.E, true: 1, false: 0 };
 
 const FN1: Record<string, (n: number) => number> = {
@@ -259,23 +282,24 @@ const FN1: Record<string, (n: number) => number> = {
 const AGG = new Set(["sum", "avg", "count", "min", "max"]);
 const strArg = (n: ExprNode | undefined): string => (n && n.kind === "str" ? n.value : "");
 
-function evalNode(node: ExprNode, env: ExprEnv): number {
+function evalNode(node: ExprNode, env: ExprEnv): Val {
   switch (node.kind) {
     case "num":
       return node.value;
     case "str":
-      throw new ExprError("string is not a number");
+      return node.value;
     case "ref": {
       const lc = node.name.toLowerCase();
       if (lc in CONSTS) return CONSTS[lc];
       const v = env.resolve(node.name);
-      if (v === undefined || !Number.isFinite(v)) throw new ExprError("unresolved: " + node.name);
-      return v;
+      if (v !== undefined && Number.isFinite(v)) return v;
+      const sv = env.resolveStr?.(node.name);
+      if (sv !== undefined) return sv;
+      throw new ExprError("unresolved: " + node.name);
     }
-    case "unary": {
-      const a = evalNode(node.arg, env);
-      return node.op === "-" ? -a : a !== 0 ? 0 : 1;
-    }
+    case "unary":
+      if (node.op === "!") return truthy(evalNode(node.arg, env)) ? 0 : 1;
+      return -toNum(evalNode(node.arg, env));
     case "binary":
       return evalBinary(node, env);
     case "call":
@@ -283,35 +307,40 @@ function evalNode(node: ExprNode, env: ExprEnv): number {
   }
 }
 
-function evalBinary(node: Extract<ExprNode, { kind: "binary" }>, env: ExprEnv): number {
+function evalBinary(node: Extract<ExprNode, { kind: "binary" }>, env: ExprEnv): Val {
   const { op } = node;
-  if (op === "&&") return evalNode(node.left, env) !== 0 && evalNode(node.right, env) !== 0 ? 1 : 0;
-  if (op === "||") return evalNode(node.left, env) !== 0 || evalNode(node.right, env) !== 0 ? 1 : 0;
+  // Boolean operators short-circuit on truthiness (numbers and strings).
+  if (op === "&&") return truthy(evalNode(node.left, env)) && truthy(evalNode(node.right, env)) ? 1 : 0;
+  if (op === "||") return truthy(evalNode(node.left, env)) || truthy(evalNode(node.right, env)) ? 1 : 0;
   const a = evalNode(node.left, env);
   const b = evalNode(node.right, env);
+  // Equality is string-aware (case-insensitive) when either operand is a
+  // string — e.g. `Class == "Wizard"`; everything else coerces to number.
+  if (op === "==") return eqVal(a, b) ? 1 : 0;
+  if (op === "!=") return eqVal(a, b) ? 0 : 1;
+  const x = toNum(a);
+  const y = toNum(b);
   switch (op) {
-    case "+": return a + b;
-    case "-": return a - b;
-    case "*": return a * b;
-    case "/": return a / b;
-    case "%": return a % b;
-    case "^": return Math.pow(a, b);
-    case "==": return a === b ? 1 : 0;
-    case "!=": return a !== b ? 1 : 0;
-    case "<": return a < b ? 1 : 0;
-    case "<=": return a <= b ? 1 : 0;
-    case ">": return a > b ? 1 : 0;
-    case ">=": return a >= b ? 1 : 0;
+    case "+": return x + y;
+    case "-": return x - y;
+    case "*": return x * y;
+    case "/": return x / y;
+    case "%": return x % y;
+    case "^": return Math.pow(x, y);
+    case "<": return x < y ? 1 : 0;
+    case "<=": return x <= y ? 1 : 0;
+    case ">": return x > y ? 1 : 0;
+    case ">=": return x >= y ? 1 : 0;
   }
   throw new ExprError("op: " + op);
 }
 
-function evalCall(node: Extract<ExprNode, { kind: "call" }>, env: ExprEnv): number {
+function evalCall(node: Extract<ExprNode, { kind: "call" }>, env: ExprEnv): Val {
   const name = node.name;
   const lc = name.toLowerCase();
   if (lc === "if") {
     if (node.args.length !== 3) throw new ExprError("if needs 3 args");
-    return evalNode(node.args[0], env) !== 0 ? evalNode(node.args[1], env) : evalNode(node.args[2], env);
+    return truthy(evalNode(node.args[0], env)) ? evalNode(node.args[1], env) : evalNode(node.args[2], env);
   }
   // Cross-note aggregates: sum/avg/count/min/max("Type", "Key"). Detected by a
   // string first argument so numeric min/max(...) keep working.
@@ -326,7 +355,7 @@ function evalCall(node: Extract<ExprNode, { kind: "call" }>, env: ExprEnv): numb
     if (r === undefined || !Number.isFinite(r)) throw new ExprError("lookup: " + name);
     return r;
   }
-  const a = node.args.map((x) => evalNode(x, env));
+  const a = node.args.map((x) => toNum(evalNode(x, env)));
   switch (lc) {
     case "min": return Math.min(...a);
     case "max": return Math.max(...a);
@@ -350,7 +379,22 @@ function evalCall(node: Extract<ExprNode, { kind: "call" }>, env: ExprEnv): numb
 export function evalExpr(ast: ExprNode, env: ExprEnv): number | undefined {
   try {
     const v = evalNode(ast, env);
-    return Number.isFinite(v) ? v : undefined;
+    const n = typeof v === "number" ? v : NaN; // a string result is "not a number" here
+    return Number.isFinite(n) ? n : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Evaluate `ast` as a boolean condition (conditional visibility). Numbers are
+ * truthy when non-zero, strings when non-empty. Returns undefined when the
+ * condition cannot be evaluated (unresolved reference or type error) so callers
+ * can default such entries to *visible* rather than hiding them.
+ */
+export function evalCondition(ast: ExprNode, env: ExprEnv): boolean | undefined {
+  try {
+    return truthy(evalNode(ast, env));
   } catch {
     return undefined;
   }

@@ -131,6 +131,10 @@ class InlineViewCtx implements ViewCtx {
     const kind = this.registries.entryKinds.get(entry.kind);
     return kind ? kind.defaultLabel(this.i18n, entry) : entry.kind;
   }
+  /** Inline cards reference a single value and never hide by condition. */
+  condVisible(): boolean {
+    return true;
+  }
   renderLabel(head: HTMLElement, ctx: EntryRenderCtx): void {
     const { entry } = ctx;
     if (entry.hideLabel) return;

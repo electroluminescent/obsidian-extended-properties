@@ -18,6 +18,8 @@ import { Entry, Layout, Section } from "../core/model";
 import { ServiceHub, SectionTemplateDef } from "../core/registry";
 import { NoteModel } from "../core/note-model";
 import { influenceSources, VaultAccess } from "../core/influences";
+import { parseExpr, evalCondition } from "../core/expr";
+import type { ExprEnv, ExprNode } from "../core/expr";
 import { makeVaultAccess } from "../core/note-ref";
 import { guardScrollTaps } from "./components/long-press";
 import * as ops from "../core/layout-ops";
@@ -53,6 +55,8 @@ export class SidebarView extends ItemView implements ViewCtx {
   private flowEl: HTMLElement | null = null;
   private resizeObs: ResizeObserver | null = null;
   private lastEmptySig = "";
+  /** Parsed `showWhen` ASTs, keyed by expression text (null = unparseable). */
+  private condCache = new Map<string, ExprNode | null>();
   private hlTimer = 0;
   private scrollTimer = 0;
   /** Animate the next render (entering/leaving edit mode). */
@@ -111,6 +115,48 @@ export class SidebarView extends ItemView implements ViewCtx {
     if (typeof v === "number") return "number";
     if (typeof v === "boolean") return "checkbox";
     return this.settings.defaults.dataType;
+  }
+
+  /** @see ViewCtx.condVisible */
+  condVisible(showWhen?: string): boolean {
+    const expr = (showWhen ?? "").trim();
+    if (!expr) return true;
+    let ast = this.condCache.get(expr);
+    if (ast === undefined) {
+      ast = parseExpr(expr);
+      this.condCache.set(expr, ast);
+    }
+    if (!ast) return true; // unparseable conditions never hide (non-blocking)
+    const r = evalCondition(ast, this.condEnv());
+    return r === undefined ? true : r; // unresolved reference → visible
+  }
+
+  /** Expression env resolving names against the active note's frontmatter. */
+  private condEnv(): ExprEnv {
+    const raw = this.note.raw;
+    const find = (name: string): unknown => {
+      if (name in raw) return raw[name];
+      const lc = name.toLowerCase();
+      for (const k in raw) if (k.toLowerCase() === lc) return raw[k];
+      return undefined;
+    };
+    return {
+      resolve: (name) => {
+        const v = find(name);
+        if (typeof v === "number") return v;
+        if (typeof v === "boolean") return v ? 1 : 0;
+        if (typeof v === "string") {
+          const f = parseFloat(v);
+          return Number.isFinite(f) ? f : undefined;
+        }
+        return undefined;
+      },
+      resolveStr: (name) => {
+        const v = find(name);
+        if (v === undefined || v === null) return undefined;
+        return Array.isArray(v) ? v.map(String).join(", ") : String(v);
+      },
+    };
   }
 
   defaultLabelFor(entry: Entry): string {
@@ -344,8 +390,13 @@ export class SidebarView extends ItemView implements ViewCtx {
   /** Signature of which prop entries are empty — visibility changes need a re-render. */
   private emptySig(): string {
     let sig = "";
-    for (const s of this.layout.sections)
-      for (const e of s.entries) if (e.kind === "prop" && e.key) sig += this.note.isEmpty(e.key) ? "0" : "1";
+    for (const s of this.layout.sections) {
+      if (s.showWhen) sig += this.condVisible(s.showWhen) ? "S" : "s";
+      for (const e of s.entries) {
+        if (e.kind === "prop" && e.key) sig += this.note.isEmpty(e.key) ? "0" : "1";
+        if (e.showWhen) sig += this.condVisible(e.showWhen) ? "V" : "v";
+      }
+    }
     return sig;
   }
 

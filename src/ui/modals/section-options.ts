@@ -21,6 +21,7 @@ import { addColorSetting, addIconSetting } from "../components/setting-helpers";
 import { asMobileSheet } from "../components/long-press";
 import { ConfirmChangesModal } from "./dialogs";
 import { renderEntryOptionsBody, viewColorHost } from "./entry-options";
+import { parseExpr } from "../../core/expr";
 
 const SECTION_TAB = "::section";
 
@@ -373,6 +374,26 @@ export class SectionOptionsModal extends Modal {
       new Setting(c).setName(t("options.showWhenEmpty")).setDesc(mixedDesc(s.mixed)).addToggle((tg) => {
         tg.setValue(s.v).onChange((v) => apply((x) => (x["hideIfEmpty"] = v ? false : undefined)));
       });
+    }
+    if (withSection) {
+      // Section-level conditional visibility (writes only to the section).
+      const sec = this.section;
+      new Setting(c)
+        .setName(t("options.showWhen"))
+        .setDesc(t("sectionOptions.showWhenDesc"))
+        .addText((tx) => {
+          const mark = () => {
+            const v = tx.getValue().trim();
+            tx.inputEl.toggleClass("ep-invalid", !!v && !parseExpr(v));
+          };
+          tx.setPlaceholder('Class == "Wizard"').setValue(sec.showWhen ?? "");
+          mark();
+          tx.onChange((v) => {
+            sec.showWhen = v.trim() || undefined;
+            mark();
+            this.changed();
+          });
+        });
     }
 
     if (!withSection) {

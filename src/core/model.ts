@@ -77,6 +77,14 @@ export interface EntryBase {
 
   /** Optional validation constraints (range, regex, allowed values, required). */
   constraints?: Constraints;
+
+  /**
+   * Conditional visibility: a boolean expression over the note's values, e.g.
+   * `Class == "Wizard"` or `Level >= 5`. Empty = always shown. Outside edit
+   * mode the entry is hidden when this evaluates false; edit mode shows it
+   * dimmed so the condition stays reachable. Unparseable/unresolved = shown.
+   */
+  showWhen?: string;
 }
 
 /**
@@ -131,6 +139,8 @@ export interface Section {
   vdividers?: boolean;
   /** Hide the whole section outside edit mode when no entry is visible (default true). */
   hideIfEmpty?: boolean;
+  /** Conditional visibility for the whole section (see EntryBase.showWhen). */
+  showWhen?: string;
   /** How the options modal groups this section's property tabs. */
   tabGroup?: "column" | "row" | "type";
 }
@@ -228,6 +238,14 @@ export interface RollRecord {
 }
 
 /** Root settings object persisted to `data.json`. */
+/** A persisted table view (roadmap B3): chosen columns + sort, per type. */
+export interface TableLayout {
+  /** Frontmatter property keys shown as columns, in order. */
+  columns: string[];
+  /** Active sort: property key (empty = by note name) and direction. */
+  sort?: { key: string; dir: "asc" | "desc" };
+}
+
 export interface EPSettings {
   /** Note `Type` values that activate the sidebar; each has a layout. */
   types: string[];
@@ -273,6 +291,10 @@ export interface EPSettings {
   sound?: boolean;
   /** Sound-effect volume, 0–1 (default 0.3). */
   soundVolume?: number;
+  /** Persisted type-table views (roadmap B3), keyed by lower-cased type. */
+  tableLayouts?: Record<string, TableLayout>;
+  /** Last type opened in the table view (restored on reopen). */
+  tableLastType?: string;
   /** Keep roll cards on screen by default (clicking always toggles). */
   diceAnimStay: boolean;
   /** Roll cards dim the background and block interaction until dismissed. */

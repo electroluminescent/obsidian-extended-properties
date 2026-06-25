@@ -14,7 +14,10 @@ import type { DragController } from "../drag";
 
 /** True when the entry should be hidden outside edit mode (empty prop). */
 export function isHiddenEntry(view: ViewCtx, entry: Entry): boolean {
-  if (entry.kind !== "prop" || view.editMode) return false;
+  if (view.editMode) return false;
+  // Conditional visibility applies to entries of any kind.
+  if (entry.showWhen && !view.condVisible(entry.showWhen)) return true;
+  if (entry.kind !== "prop") return false;
   // Derived values are computed, not stored — they are never "empty".
   if (view.resolveType(entry) === "derived") return false;
   return entry.hideIfEmpty !== false && view.note.isEmpty(entry.key);
@@ -38,11 +41,14 @@ export function renderEntry(
 ): void {
   if (isHiddenEntry(view, entry)) return;
   const kind = view.registries.entryKinds.get(entry.kind);
+  // Edit mode shows conditionally-hidden entries dimmed (so they stay reachable).
+  const condOff = view.editMode && !!entry.showWhen && !view.condVisible(entry.showWhen);
 
   // Bare kinds (blank cells) own their entire chrome.
   if (kind?.bare) {
     const wrap = grid.createDiv({ cls: "ep-entry ep-blank" });
     wrap.setAttr("data-ep-id", "e:" + entry.id);
+    if (condOff) wrap.addClass("ep-cond-off");
     const ctx: EntryRenderCtx = { view, file, section, entry, head: wrap, extra: wrap, flags, wrap };
     kind.render(ctx);
     if (view.editMode) {
@@ -55,6 +61,10 @@ export function renderEntry(
   const wide = isWide(view, entry);
   const wrap = grid.createDiv({ cls: wide ? "ep-entry ep-entry-block" : "ep-entry" });
   wrap.setAttr("data-ep-id", "e:" + entry.id);
+  if (condOff) {
+    wrap.addClass("ep-cond-off");
+    wrap.setAttr("title", view.i18n.t("options.showWhenActive", { expr: entry.showWhen as string }));
+  }
   if (wide) wrap.style.gridColumn = "1 / -1";
 
   const head = wrap.createDiv({ cls: "ep-entry-head" });

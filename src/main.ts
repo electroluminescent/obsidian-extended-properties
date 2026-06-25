@@ -10,7 +10,6 @@
 import { Notice, Plugin, TFile } from "obsidian";
 import { I18n } from "./i18n/i18n";
 import { coreEn } from "./i18n/locales/en";
-import { coreDe } from "./i18n/locales/de";
 import type { EPSettings, Layout } from "./core/model";
 import { normalizeSettings } from "./core/settings";
 import { materializeShortForms, registerDerivations } from "./core/influences";
@@ -20,6 +19,7 @@ import { HideService } from "./core/hide-service";
 import { registerCore } from "./ui/render/value-types/index";
 import { registerDiceIcons } from "./ui/render/dice-icons";
 import { SidebarView, VIEW_TYPE } from "./ui/view";
+import { TableView, VIEW_TYPE_TABLE } from "./ui/table-view";
 import { EPSettingTab } from "./ui/settings-tab";
 import { TextPromptModal } from "./ui/modals/dialogs";
 import { augmentPropsMenu, showPropMenu } from "./ui/menus/prop-panel-menu";
@@ -68,9 +68,8 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     // The default layout depends on registries, so bootstrap in two steps:
     // build registries assuming defaults, then normalize settings with them.
     this.i18n.register("en", coreEn, "English");
-    // German is deprecated (frozen at its current coverage; new strings ship in
-    // English only and fall back automatically). See ROADMAP "Deprecations".
-    this.i18n.register("de", coreDe, "Deutsch (deprecated)");
+    // German was removed in v2.41.0 (English-only; see ROADMAP "Deprecations").
+    // The locale mechanism stays intact so a data-driven locale can return (F4).
     const data = await this.loadData();
     this.settings = normalizeSettings(data, () => ({ version: 4, sections: [] }));
     this.rebuildRegistries();
@@ -109,6 +108,13 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       id: "open-character-sidebar",
       name: this.i18n.t("command.openSidebar"),
       callback: () => this.activateView(),
+    });
+    this.registerView(VIEW_TYPE_TABLE, (leaf) => new TableView(leaf, this));
+    this.addRibbonIcon("table", this.i18n.t("command.openTable"), () => this.activateTableView());
+    this.addCommand({
+      id: "open-type-table",
+      name: this.i18n.t("command.openTable"),
+      callback: () => this.activateTableView(),
     });
     this.addCommand({
       id: "hide-property-from-obsidian",
@@ -152,6 +158,10 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE)) {
         const v = leaf.view;
         if (v instanceof SidebarView) v.maybeRefresh(file);
+      }
+      for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_TABLE)) {
+        const v = leaf.view;
+        if (v instanceof TableView) v.refresh();
       }
     };
     this.registerEvent(this.app.workspace.on("active-leaf-change", () => refresh()));
@@ -301,5 +311,13 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       await leaf.setViewState({ type: VIEW_TYPE, active: true });
     }
     workspace.revealLeaf(leaf);
+  }
+
+  /** Open (or focus) the type table view in a main tab. */
+  async activateTableView(): Promise<void> {
+    const existing = this.app.workspace.getLeavesOfType(VIEW_TYPE_TABLE)[0];
+    const leaf = existing ?? this.app.workspace.getLeaf(true);
+    if (!existing) await leaf.setViewState({ type: VIEW_TYPE_TABLE, active: true });
+    this.app.workspace.revealLeaf(leaf);
   }
 }

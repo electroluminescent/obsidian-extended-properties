@@ -6,7 +6,7 @@ The codebase's assets to protect throughout: the registry system (`src/core/regi
 
 ---
 
-## Status (v2.40.0)
+## Status (v2.41.0)
 
 Legend: ✅ done · ◑ partial · ○ planned.
 
@@ -24,21 +24,20 @@ Legend: ✅ done · ◑ partial · ○ planned.
 - ✅ **C1 — Validation & constraints.** Pure `core/validate.ts` (required, numeric range, regex pattern, allowed values; list element-wise) with tests; per-entry constraint editors in entry options; non-blocking invalid styling on values; optional clamp-on-commit for numbers.
 - ✅ **D1 — Export / import of types & sections.** Pure `core/transfer.ts` — a versioned snippet (`schema` + plugin stamp) carrying the layout/section plus a dependency manifest of only the derivation blocks it references, with id-remap on import and a reference audit — round-trip tested. *Export* on each type (settings) and *Export section…* on the section menu copy a shareable JSON snippet to the clipboard; an import dialog pastes (or auto-reads the clipboard), lists missing derivation building blocks, offers to create them, and appends the section(s) to a chosen type with freshly-generated ids (collision-free).
 - ✅ **F3 — CI, repo & release.** CI (typecheck → test → build), a tag-triggered draft-release workflow, one-command versioning (`npm version` → `version-bump.mjs` syncs manifest/versions), `LICENSE`, `.gitignore`, README/install pass, a clean innerHTML/console audit, and a `RELEASING.md` runbook with the ready-to-paste `community-plugins.json` entry + review checklist. The repo URL is set (`electroluminescent/obsidian-extended-properties`) in `manifest.json` `authorUrl` and the submission entry. *Operational remainder (run by the maintainer, scripted in `RELEASING.md`):* push the repo public, run a BRAT beta round, open the `obsidian-releases` PR.
+- ✅ **C2 — Conditional visibility.** `showWhen` on entries and sections — a boolean expression over the note's values (`Class == "Wizard"`, `Level >= 5`, with `&&`/`||`/`!`). The shared expression engine is now string-aware (case-insensitive equality, string/number truthiness) with a tested `evalCondition` entry point; entries/sections are hidden outside edit mode and shown dimmed inside it (so the condition stays reachable), and the view's empty-signature now folds in condition outcomes so a value that flips a condition re-renders precisely. Condition inputs with live parse feedback live in the entry and section options.
 
 Also shipped: subtle Web Audio sound effects (clicks, dice rolls, crit/fail), with a settings toggle + volume; a configurable roll-animation duration with staggered dice/modifiers; a custom scroll-safe slider; and a default d20 for `roll:` with no dice term.
 
+### In progress
+
+- ◑ **B3 — Type table view.** A workspace view (`src/ui/table-view.ts`, "Open type table" command + ribbon) listing every note of a chosen type as rows with chosen frontmatter properties as columns: a type picker, a column pick-list (menu), a text filter, click-to-sort headers (asc → desc → none), row click-through to the note, and double-click inline cell editing written via `processFrontMatter`. Column sets and sort persist per type in `settings.tableLayouts`. *Remaining B3 steps:* full value-type cell renderers (a "compact" flag) and in-cell roll buttons, column-width drag, and row virtualization — cells currently render a compact text projection and the list caps at 500 rows.
+
 ### Deprecations
 
-- **German locale (`de`).** As of v2.40.0 the plugin is English-first: German is **frozen** at its current coverage and shown as *“Deutsch (deprecated)”* in the language picker. New strings ship in English only; German users see them in English automatically — resolution order is override → active locale → **English** → humanized key, so missing `de` keys never break the UI. Planned phase-out:
-  1. **v2.40.0 — Freeze + signal (done).** Stop adding `de` keys; label the locale deprecated in the picker; document the plan here.
-  2. **Next minor — Soft notice.** A one-line deprecation hint under the Language setting when `de` is the active locale, pointing at per-string overrides as the path for anyone who still wants German wording.
-  3. **Following minor — Remove the dictionary.** Delete `src/i18n/locales/de.ts` and its registration in `main.ts`; `de` then resolves entirely through the English fallback. The locale *mechanism* (the `register` API and the override editor) stays intact so a community-maintained dictionary can be slotted back in under F4 (“i18n as data”).
-  - *Rationale:* a single maintainer can't keep a second hand-written dictionary in sync with a fast-moving English reference; the override system already lets any user retranslate any individual string, and F4 will make locales loadable as data rather than compiled-in code.
+- **German locale (`de`) — removed in v2.41.0.** The plugin is now English-only. The German dictionary (`src/i18n/locales/de.ts`) and its registration in `main.ts` are gone; any vault still set to `language: "de"` resolves entirely through the English fallback (override → active locale → **English** → humanized key), so nothing breaks. The locale *mechanism* — the `register` API and the per-string override editor — is deliberately kept intact, so a community-maintained dictionary can be slotted back in under F4 (“i18n as data”). *Rationale:* a single maintainer can't keep a second hand-written dictionary in sync with a fast-moving English reference; the override system already lets any user retranslate any individual string. Phases delivered: freeze + picker label (v2.40.0) → dictionary removed (v2.41.0).
 
 ### Planned
 
-- ○ **C2** Conditional visibility
-- ○ **B3** Type table view
 - ○ **D2** Layouts as vault files · ○ **D3** Versioned migration table + backups · ○ **D4** Write batching & conflict handling
 - ○ **E1** Keyboard & screen-reader support · ○ **E3** Theming surface
 - ○ **F2** Performance hardening · ○ **F4** i18n as data · ○ **F5** Public module API + legacy deprecation
@@ -50,11 +49,11 @@ Per-property unique short forms with name↔short-form interchangeability and au
 ### Milestone sequencing — progress
 
 - **Milestone 1 — Foundations:** ◑ (F1 ✅; D3, D4 ○)
-- **Milestone 2 — Expressions:** ◑ (A1, C1 ✅; C2 ○)
+- **Milestone 2 — Expressions:** ✅ (A1, C1, C2 ✅)
 - **Milestone 3 — Rolling depth:** ✅ (A2, A3, A4)
 - **Milestone 4 — Notes integration:** ✅ (B1 incl. Live Preview, E2)
-- **Milestone 5 — Scale:** ◑ (B2 ✅; B3, F2 ○)
-- **Milestone 6 — Ecosystem:** ◑ (C3, D1, F3 ✅; D2, E3, F4, F5 ○) · German locale deprecated (see Deprecations)
+- **Milestone 5 — Scale:** ◑ (B2 ✅, B3 ◑; F2 ○)
+- **Milestone 6 — Ecosystem:** ◑ (C3, D1, F3 ✅; D2, E3, F4, F5 ○) · German locale removed (English-only; see Deprecations)
 
 ---
 

@@ -620,3 +620,34 @@ body.is-mobile .ep-chip-x { padding: 0 4px; }
 }
 .ep-import-err { color: var(--text-error); }
 .ep-import-warn { color: var(--text-warning); }
+
+
+/* -- conditional visibility (C2) -------------------------------------------- */
+/* In edit mode, entries/sections whose `showWhen` is currently false are shown
+   dimmed (and dashed) so the condition stays reachable; outside edit mode they
+   are not rendered at all. */
+.ep-cond-off { opacity: 0.5; }
+.ep-editing .ep-cond-off {
+  outline: 1px dashed var(--background-modifier-border);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+
+/* -- type table view (B3) --------------------------------------------------- */
+.ep-table-view { padding: 8px 12px; }
+.ep-table-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.ep-table-filter { flex: 1; min-width: 120px; }
+.ep-table-count { color: var(--text-muted); font-size: var(--font-ui-smaller); margin-left: auto; }
+.ep-table-scroll { overflow: auto; max-height: calc(100vh - 120px); }
+table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-ui-small); }
+.ep-table th, .ep-table td { border: 1px solid var(--background-modifier-border); padding: 4px 8px; text-align: left; white-space: nowrap; }
+.ep-table thead th { position: sticky; top: 0; background: var(--background-secondary); z-index: 1; }
+.ep-sortable { cursor: pointer; user-select: none; }
+.ep-sort-asc::after { content: " ▲"; opacity: 0.6; font-size: 0.8em; }
+.ep-sort-desc::after { content: " ▼"; opacity: 0.6; font-size: 0.8em; }
+.ep-table-link { cursor: pointer; color: var(--text-accent); }
+.ep-table tbody tr:hover { background: var(--background-modifier-hover); }
+.ep-table-cell { cursor: text; }
+.ep-table-edit { width: 100%; box-sizing: border-box; }
+.ep-table-more { color: var(--text-muted); font-size: var(--font-ui-smaller); padding: 6px 2px; }

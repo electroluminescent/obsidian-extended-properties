@@ -139,6 +139,12 @@ export interface ViewCtx {
   openColorPicker(initial: string, onPick: (hex: string) => void): void;
   /** Briefly highlight an entry (label click feedback). */
   highlight(el: HTMLElement): void;
+  /**
+   * Evaluate a `showWhen` condition against the active note. Empty/unparseable/
+   * unresolved conditions return true (visible). Used for conditional
+   * visibility of entries and sections.
+   */
+  condVisible(showWhen?: string): boolean;
 
   // -- structural operations -------------------------------------------
   removeEntry(section: Section, entry: Entry): void;

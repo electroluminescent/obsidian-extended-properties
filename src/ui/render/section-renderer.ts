@@ -81,6 +81,9 @@ export function renderSection(
 ): void {
   const t = view.i18n.t.bind(view.i18n);
 
+  // Conditional visibility for the whole section (hidden outside edit mode).
+  if (!view.editMode && section.showWhen && !view.condVisible(section.showWhen)) return;
+
   // Outside edit mode a section with no visible entries can hide entirely.
   if (!view.editMode && section.hideIfEmpty !== false) {
     const hasContent = section.entries.some((e) => !isHiddenEntry(view, e));
@@ -89,6 +92,7 @@ export function renderSection(
 
   const det = parent.createDiv({ cls: "ep-section" });
   host.registerSectionEl(section.id, det);
+  if (view.editMode && section.showWhen && !view.condVisible(section.showWhen)) det.addClass("ep-cond-off");
   det.setAttr("data-ep-id", "s:" + section.id);
   if (!section.sticky) det.addClass("ep-flow-section");
   if (section.transparent) det.addClass("ep-transparent");

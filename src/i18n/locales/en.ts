@@ -314,6 +314,9 @@ export const coreEn: StringDict = {
   "options.showLabelDesc": "On = the label is visible outside edit mode",
   "options.showWhenEmpty": "Show when empty",
   "options.showWhenEmptyDesc": "On = stays visible outside edit mode even without a value",
+  "options.showWhen": "Show when",
+  "options.showWhenDesc": "Condition over the note's values — e.g. Class == \"Wizard\" or Level >= 5. Empty = always shown; edit mode shows it dimmed.",
+  "options.showWhenActive": "Shown when: {expr}",
   "options.showType": "Show data type",
   "options.showTypeDesc": "Small italic tag beside the label; auto-hidden when space is tight",
   "options.minimum": "Minimum",
@@ -356,6 +359,7 @@ export const coreEn: StringDict = {
   "sectionOptions.groupRow": "By row",
   "sectionOptions.groupType": "By data type",
   "sectionOptions.showWhenEmptyDesc": "On = the section stays visible even when it has no visible properties (outside edit mode)",
+  "sectionOptions.showWhenDesc": "Show this section only when the condition holds — e.g. Class == \"Wizard\". Empty = always shown.",
   "sectionOptions.sectionHeading": "Section",
   "sectionOptions.name": "Name",
   "sectionOptions.nameDesc": "Optional — blank shows “Section”",
@@ -406,7 +410,18 @@ export const coreEn: StringDict = {
 
   // -- commands & notices ------------------------------------------------------------------------------
   "command.openSidebar": "Open properties sidebar",
+  "command.openTable": "Open type table",
   "command.hideProperty": "Hide a property from Obsidian’s properties panel",
+
+  // -- type table view (B3) -------------------------------------------------
+  "table.title": "Type table",
+  "table.columns": "Columns",
+  "table.filter": "Filter…",
+  "table.name": "Name",
+  "table.count": "{n} notes",
+  "table.noTypes": "No note types are configured yet. Add one in the plugin settings to see its notes here.",
+  "table.removeColumn": "Remove column",
+  "table.truncated": "Showing first {shown} of {total} — narrow the filter to see more.",
   "notice.hiding": "Hiding “{key}” from Obsidian properties.",
   "notice.saveFailed": "Could not save property: {error}",
 

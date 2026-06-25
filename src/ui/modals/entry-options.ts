@@ -19,6 +19,7 @@ import { Modal, Setting, TFile } from "obsidian";
 import type { OptionsCtx, ViewCtx } from "../../core/context";
 import type { Entry, Section } from "../../core/model";
 import type { Constraints } from "../../core/validate";
+import { parseExpr } from "../../core/expr";
 import { restoreFromSnapshot } from "../../utils/misc";
 import { addColorSetting, addIconSetting, ColorHost } from "../components/setting-helpers";
 import { PropSuggest } from "../components/suggest";
@@ -198,6 +199,22 @@ export function renderEntryOptionsBody(
     .addToggle((tg) => {
       tg.setValue(e.hideIfEmpty === false).onChange((v) => {
         e.hideIfEmpty = v ? false : undefined;
+        changed();
+      });
+    });
+  new Setting(c)
+    .setName(t("options.showWhen"))
+    .setDesc(t("options.showWhenDesc"))
+    .addText((tx) => {
+      const mark = () => {
+        const v = tx.getValue().trim();
+        tx.inputEl.toggleClass("ep-invalid", !!v && !parseExpr(v));
+      };
+      tx.setPlaceholder('Class == "Wizard"').setValue((e.showWhen as string) ?? "");
+      mark();
+      tx.onChange((v) => {
+        e.showWhen = v.trim() || undefined;
+        mark();
         changed();
       });
     });
