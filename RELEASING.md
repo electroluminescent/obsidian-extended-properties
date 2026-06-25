@@ -5,9 +5,7 @@ Obsidian's community plugin directory. The plumbing — CI, a tag-triggered rele
 workflow, `LICENSE`, `.gitignore`, `versions.json` discipline — is already in the
 repo; this document is the runbook.
 
-> Replace `<OWNER>` below with the GitHub account/org that hosts the public repo
-> (e.g. `chris-bognar`). That single value is the only thing still needed to
-> finish the community/BRAT steps.
+> Repo: <https://github.com/electroluminescent/obsidian-extended-properties>.
 
 ## 1. Local development
 
@@ -44,7 +42,7 @@ the full project zip attached. Review the draft, then publish it.
 - **Manual:** copy `main.js`, `manifest.json`, `styles.css` from the release into
   `<vault>/.obsidian/plugins/extended-properties/` and enable the plugin.
 - **BRAT (beta):** install [BRAT](https://github.com/TfTHacker/obsidian42-brat),
-  then *Add beta plugin* with `https://github.com/<OWNER>/obsidian-extended-properties`.
+  then *Add beta plugin* with `https://github.com/electroluminescent/obsidian-extended-properties`.
   BRAT tracks the latest GitHub release — no community listing required.
 
 ## 4. Community plugin submission
@@ -63,7 +61,7 @@ the three assets attached, submit to the directory:
      "name": "Extended Properties",
      "author": "electroluminescent",
      "description": "A configurable properties sidebar with rich value types, derived numbers, dice rolling, inline rolls/properties, and per-type layouts.",
-     "repo": "<OWNER>/obsidian-extended-properties"
+     "repo": "electroluminescent/obsidian-extended-properties"
    }
    ```
 
@@ -81,4 +79,4 @@ the three assets attached, submit to the directory:
 - ✅ `manifest.json` has `id`, `name`, `version`, `minAppVersion`, `description`,
   `author`, `isDesktopOnly`.
 - ☐ `authorUrl` / `fundingUrl` — fill in if desired.
-- ☐ Repo pushed public with a published release (needs `<OWNER>`).
+- ☐ Repo pushed public with a published release.

@@ -61,7 +61,28 @@ export const coreDe: StringDict = {
   "section.menu.addObject": "Objekt hinzufügen",
   "section.menu.moveUp": "Nach oben",
   "section.menu.moveDown": "Nach unten",
+  "section.menu.export": "Abschnitt exportieren…",
   "section.menu.delete": "Abschnitt löschen",
+
+  // -- transfer (Export / Import von Typen & Abschnitten) ---------------------
+  "transfer.exportType": "Exportieren",
+  "transfer.exportTypeTip": "Diesen Typ (Layout + referenzierte Ableitungen) als teilbares Snippet in die Zwischenablage kopieren",
+  "transfer.copied": "In die Zwischenablage kopiert",
+  "transfer.importHeading": "Typ oder Abschnitt importieren",
+  "transfer.importHeadingDesc": "Füge ein aus einem anderen Vault exportiertes Snippet ein, um dessen Abschnitte hier hinzuzufügen.",
+  "transfer.importTitle": "Typ oder Abschnitt importieren",
+  "transfer.importPlaceholder": "Exportiertes Typ- oder Abschnitts-Snippet (JSON) einfügen…",
+  "transfer.importBtn": "Importieren",
+  "transfer.invalid": "Kein gültiges Extended-Properties-Snippet.",
+  "transfer.kindType": "Typ",
+  "transfer.kindSection": "Abschnitt",
+  "transfer.summary": "{kind} „{name}“ — {sections} Abschnitt(e), {entries} Eigenschaft(en).",
+  "transfer.missingDerivations": "Fehlende Ableitungsbausteine: {list}",
+  "transfer.createMissing": "Fehlende Ableitungen anlegen",
+  "transfer.targetType": "Zu Typ hinzufügen",
+  "transfer.targetTypeDesc": "Abschnitte werden an diesen Typ angehängt (wird bei Bedarf erstellt). Vorhanden: {types}",
+  "transfer.pickType": "Gib einen Ziel-Typnamen ein.",
+  "transfer.imported": "„{name}“ in {type} importiert",
 
   // -- entries ----------------------------------------------------------------
   "entry.addProperty": "+ Eigenschaft hinzufügen",

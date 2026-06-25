@@ -64,7 +64,28 @@ export const coreEn: StringDict = {
   "section.menu.addObject": "Add object",
   "section.menu.moveUp": "Move up",
   "section.menu.moveDown": "Move down",
+  "section.menu.export": "Export section…",
   "section.menu.delete": "Delete section",
+
+  // -- transfer (export / import of types & sections) -------------------------
+  "transfer.exportType": "Export",
+  "transfer.exportTypeTip": "Copy this type (layout + referenced derivations) to the clipboard as a shareable snippet",
+  "transfer.copied": "Copied to clipboard",
+  "transfer.importHeading": "Import type or section",
+  "transfer.importHeadingDesc": "Paste a snippet exported from another vault to add its sections here.",
+  "transfer.importTitle": "Import type or section",
+  "transfer.importPlaceholder": "Paste an exported type or section snippet (JSON)…",
+  "transfer.importBtn": "Import",
+  "transfer.invalid": "Not a valid Extended Properties snippet.",
+  "transfer.kindType": "type",
+  "transfer.kindSection": "section",
+  "transfer.summary": "{kind} “{name}” — {sections} section(s), {entries} propert(y/ies).",
+  "transfer.missingDerivations": "Missing derivation building blocks: {list}",
+  "transfer.createMissing": "Create missing derivations",
+  "transfer.targetType": "Add to type",
+  "transfer.targetTypeDesc": "Sections are appended to this type (created if it doesn’t exist). Existing: {types}",
+  "transfer.pickType": "Enter a target type name.",
+  "transfer.imported": "Imported “{name}” into {type}",
 
   // -- entries ----------------------------------------------------------------
   "entry.addProperty": "+ add property",

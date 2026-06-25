@@ -68,7 +68,9 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     // The default layout depends on registries, so bootstrap in two steps:
     // build registries assuming defaults, then normalize settings with them.
     this.i18n.register("en", coreEn, "English");
-    this.i18n.register("de", coreDe, "Deutsch");
+    // German is deprecated (frozen at its current coverage; new strings ship in
+    // English only and fall back automatically). See ROADMAP "Deprecations".
+    this.i18n.register("de", coreDe, "Deutsch (deprecated)");
     const data = await this.loadData();
     this.settings = normalizeSettings(data, () => ({ version: 4, sections: [] }));
     this.rebuildRegistries();

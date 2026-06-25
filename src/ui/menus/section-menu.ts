@@ -3,10 +3,11 @@
  * (entry kinds flagged `addable`), reorder and delete.
  */
 
-import { Menu } from "obsidian";
+import { Menu, Notice } from "obsidian";
 import type { ViewCtx } from "../../core/context";
 import type { Section } from "../../core/model";
 import { genId } from "../../utils/misc";
+import { packSection } from "../../core/transfer";
 import * as ops from "../../core/layout-ops";
 import { SectionOptionsModal } from "../modals/section-options";
 import { flipMove } from "../drag";
@@ -84,6 +85,14 @@ export function openSectionMenu(e: MouseEvent, view: ViewCtx, section: Section):
         }
       })
     )
+  );
+  menu.addSeparator();
+  menu.addItem((i) =>
+    i.setTitle(t("section.menu.export")).setIcon("clipboard-copy").onClick(() => {
+      const doc = packSection(section, view.settings.derivations);
+      void navigator.clipboard?.writeText(JSON.stringify(doc, null, 2));
+      new Notice(t("transfer.copied"));
+    })
   );
   menu.addItem((i) =>
     i.setTitle(t("section.menu.delete")).setIcon("trash").onClick(() => {

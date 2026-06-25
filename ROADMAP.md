@@ -6,7 +6,7 @@ The codebase's assets to protect throughout: the registry system (`src/core/regi
 
 ---
 
-## Status (v2.38.0)
+## Status (v2.40.0)
 
 Legend: ✅ done · ◑ partial · ○ planned.
 
@@ -22,18 +22,24 @@ Legend: ✅ done · ◑ partial · ○ planned.
 - ✅ **B2 — Cross-note references & aggregation.** `[[Note]].Prop` / `[[Note]].prop.s`, `this.Prop`, `prop("LinkProp", "Key")`, and `sum`/`avg`/`count`/`min`/`max("Type", "Key")` aggregates in expressions — via a `PropertyIndex`-backed vault accessor threaded into the engine, with a settings kill-switch. (Aggregates are an expression feature; dice notation still takes single references. Cross-note reads use raw values, so no cross-note cycles; lazy index invalidation remains a future perf optimisation.)
 - ✅ **E2 — Mobile refinements.** Long-press → context menu on chips, `vals:` cards, entry rows and roll buttons; bottom-sheet option/colour modals on mobile; font-relative squeeze slack.
 - ✅ **C1 — Validation & constraints.** Pure `core/validate.ts` (required, numeric range, regex pattern, allowed values; list element-wise) with tests; per-entry constraint editors in entry options; non-blocking invalid styling on values; optional clamp-on-commit for numbers.
+- ✅ **D1 — Export / import of types & sections.** Pure `core/transfer.ts` — a versioned snippet (`schema` + plugin stamp) carrying the layout/section plus a dependency manifest of only the derivation blocks it references, with id-remap on import and a reference audit — round-trip tested. *Export* on each type (settings) and *Export section…* on the section menu copy a shareable JSON snippet to the clipboard; an import dialog pastes (or auto-reads the clipboard), lists missing derivation building blocks, offers to create them, and appends the section(s) to a chosen type with freshly-generated ids (collision-free).
+- ✅ **F3 — CI, repo & release.** CI (typecheck → test → build), a tag-triggered draft-release workflow, one-command versioning (`npm version` → `version-bump.mjs` syncs manifest/versions), `LICENSE`, `.gitignore`, README/install pass, a clean innerHTML/console audit, and a `RELEASING.md` runbook with the ready-to-paste `community-plugins.json` entry + review checklist. The repo URL is set (`electroluminescent/obsidian-extended-properties`) in `manifest.json` `authorUrl` and the submission entry. *Operational remainder (run by the maintainer, scripted in `RELEASING.md`):* push the repo public, run a BRAT beta round, open the `obsidian-releases` PR.
 
 Also shipped: subtle Web Audio sound effects (clicks, dice rolls, crit/fail), with a settings toggle + volume; a configurable roll-animation duration with staggered dice/modifiers; a custom scroll-safe slider; and a default d20 for `roll:` with no dice term.
 
-### In progress
+### Deprecations
 
-- ◑ **F3 — CI, repo & release.** CI (typecheck → test → build), a tag-triggered draft-release workflow, one-command versioning (`npm version` → `version-bump.mjs` syncs manifest/versions), `LICENSE`, `.gitignore`, an install/README pass, and a `RELEASING.md` runbook with the ready-to-paste `community-plugins.json` entry + review checklist are all in place; the innerHTML/console audit is clean. *Remaining (external, needs the public GitHub repo URL):* push the repo public, run a BRAT beta round, and open the community-plugins.json PR — then drop the URL into `manifest.json` `authorUrl` and the submission entry's `repo`.
+- **German locale (`de`).** As of v2.40.0 the plugin is English-first: German is **frozen** at its current coverage and shown as *“Deutsch (deprecated)”* in the language picker. New strings ship in English only; German users see them in English automatically — resolution order is override → active locale → **English** → humanized key, so missing `de` keys never break the UI. Planned phase-out:
+  1. **v2.40.0 — Freeze + signal (done).** Stop adding `de` keys; label the locale deprecated in the picker; document the plan here.
+  2. **Next minor — Soft notice.** A one-line deprecation hint under the Language setting when `de` is the active locale, pointing at per-string overrides as the path for anyone who still wants German wording.
+  3. **Following minor — Remove the dictionary.** Delete `src/i18n/locales/de.ts` and its registration in `main.ts`; `de` then resolves entirely through the English fallback. The locale *mechanism* (the `register` API and the override editor) stays intact so a community-maintained dictionary can be slotted back in under F4 (“i18n as data”).
+  - *Rationale:* a single maintainer can't keep a second hand-written dictionary in sync with a fast-moving English reference; the override system already lets any user retranslate any individual string, and F4 will make locales loadable as data rather than compiled-in code.
 
 ### Planned
 
 - ○ **C2** Conditional visibility
 - ○ **B3** Type table view
-- ○ **D1** Export/import · ○ **D2** Layouts as vault files · ○ **D3** Versioned migration table + backups · ○ **D4** Write batching & conflict handling
+- ○ **D2** Layouts as vault files · ○ **D3** Versioned migration table + backups · ○ **D4** Write batching & conflict handling
 - ○ **E1** Keyboard & screen-reader support · ○ **E3** Theming surface
 - ○ **F2** Performance hardening · ○ **F4** i18n as data · ○ **F5** Public module API + legacy deprecation
 
@@ -48,7 +54,7 @@ Per-property unique short forms with name↔short-form interchangeability and au
 - **Milestone 3 — Rolling depth:** ✅ (A2, A3, A4)
 - **Milestone 4 — Notes integration:** ✅ (B1 incl. Live Preview, E2)
 - **Milestone 5 — Scale:** ◑ (B2 ✅; B3, F2 ○)
-- **Milestone 6 — Ecosystem:** ◑ (C3 ✅, F3 ◑; D1, D2, E3, F4, F5 ○)
+- **Milestone 6 — Ecosystem:** ◑ (C3, D1, F3 ✅; D2, E3, F4, F5 ○) · German locale deprecated (see Deprecations)
 
 ---
 
@@ -240,6 +246,8 @@ Per-property unique short forms with name↔short-form interchangeability and au
 ## D. Persistence, portability, safety
 
 ### D1. Export/import of types, sections, templates
+
+> ✅ **Implemented in v2.40.0.** `core/transfer.ts` (pure, round-trip tested) packs a type or section into a versioned snippet with a dependency manifest of referenced derivations; the section menu and per-type settings expose Export (clipboard), and an import dialog audits missing derivations, offers to create them, and appends with fresh ids. Steps 1–4 below are done; "file" snippets default to the clipboard.
 
 **What.** Any note type, section, or template exportable as a JSON snippet (clipboard or file) and importable into another vault — the sharing primitive for a community library.
 

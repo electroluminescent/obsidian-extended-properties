@@ -14,6 +14,8 @@ import { compileFormula } from "../utils/formula";
 import { genId } from "../utils/misc";
 import { RefSuggest } from "./components/suggest";
 import { ConfirmModal, TextPromptModal } from "./modals/dialogs";
+import { ImportModal } from "./modals/transfer-modal";
+import { packType } from "../core/transfer";
 import { segsToText, textToSegs } from "../features/rolling/macros";
 
 /** Max override rows rendered at once (the list is searchable). */
@@ -52,6 +54,13 @@ export class EPSettingTab extends PluginSettingTab {
           )
         )
         .addButton((b) =>
+          b.setButtonText(t("transfer.exportType")).setTooltip(t("transfer.exportTypeTip")).onClick(() => {
+            const doc = packType(type, plugin.ensureLayout(type.toLowerCase()), plugin.settings.derivations, plugin.manifest.version);
+            void navigator.clipboard?.writeText(JSON.stringify(doc, null, 2));
+            new Notice(t("transfer.copied"));
+          })
+        )
+        .addButton((b) =>
           b.setButtonText(t("settings.deleteType"))
             .setWarning()
             .onClick(() => {
@@ -78,6 +87,10 @@ export class EPSettingTab extends PluginSettingTab {
         }).open()
       )
     );
+    new Setting(c)
+      .setName(t("transfer.importHeading"))
+      .setDesc(t("transfer.importHeadingDesc"))
+      .addButton((b) => b.setButtonText(t("transfer.importBtn")).setCta().onClick(() => new ImportModal(plugin).open()));
 
     // -- defaults --------------------------------------------------------------
     const d = plugin.settings.defaults;

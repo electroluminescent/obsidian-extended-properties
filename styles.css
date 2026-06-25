@@ -608,3 +608,15 @@ body.is-mobile .ep-chip-x { padding: 0 4px; }
 .ep-inline-sheet-val { font-variant-numeric: tabular-nums; font-weight: 600; }
 .ep-inline-sheet-roll { margin-left: 4px; }
 .ep-inline-note { color: var(--text-faint); font-style: italic; font-size: var(--font-ui-smaller); }
+
+
+/* -- import dialog (D1) ------------------------------------------------------ */
+.ep-import-text {
+  width: 100%;
+  resize: vertical;
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  margin-bottom: 0.6em;
+}
+.ep-import-err { color: var(--text-error); }
+.ep-import-warn { color: var(--text-warning); }
