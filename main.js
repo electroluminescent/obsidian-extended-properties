@@ -1958,6 +1958,76 @@ var ValueSuggest = class extends import_obsidian2.AbstractInputSuggest {
     (_a = this.close) == null ? void 0 : _a.call(this);
   }
 };
+function noteMatches(app, q, limit = 30) {
+  const files = app.vault.getMarkdownFiles();
+  if (!q) return files.slice().sort((a, b) => a.basename.localeCompare(b.basename)).slice(0, limit);
+  const out = [];
+  for (const f of files) {
+    const i = f.basename.toLowerCase().indexOf(q);
+    if (i < 0) continue;
+    out.push({ f, rank: i === 0 ? 0 : 1 });
+  }
+  out.sort((a, b) => a.rank - b.rank || a.f.basename.localeCompare(b.f.basename));
+  return out.slice(0, limit).map((x) => x.f);
+}
+var _TextLinkSuggest = class _TextLinkSuggest extends import_obsidian2.AbstractInputSuggest {
+  constructor(app, inputEl, getOptions, onChoose) {
+    super(app, inputEl);
+    this.getOptions = getOptions;
+    this.onChoose = onChoose;
+    this.el = inputEl;
+    this.appRef = app;
+  }
+  getSuggestions(value) {
+    const link = _TextLinkSuggest.OPEN.exec(value);
+    if (link) {
+      const q2 = link[1].trim().toLowerCase();
+      return noteMatches(this.appRef, q2).map((f) => ({ kind: "link", text: f.basename, file: f }));
+    }
+    if (!this.getOptions) return [];
+    const q = value.trim();
+    const ql = q.toLowerCase();
+    const opts = this.getOptions();
+    const filtered = (ql ? opts.filter((o) => o.toLowerCase().includes(ql)) : opts).slice(0, 50);
+    const res = filtered.map((o) => ({ kind: "value", text: o }));
+    if (q && !opts.some((o) => o.toLowerCase() === ql)) res.unshift({ kind: "create", text: q });
+    return res;
+  }
+  renderSuggestion(s, el) {
+    var _a;
+    if (s.kind === "link") {
+      el.createSpan({ cls: "ep-sug-link", text: s.text });
+      const p = (_a = s.file.parent) == null ? void 0 : _a.path;
+      if (p && p !== "/") el.createSpan({ cls: "ep-sug-badge", text: p });
+      return;
+    }
+    el.setText(s.text);
+  }
+  selectSuggestion(s) {
+    var _a, _b, _c;
+    if (s.kind === "link") {
+      const val = this.el.value;
+      const m = _TextLinkSuggest.OPEN.exec(val);
+      const start = m ? m.index : val.length;
+      const next = val.slice(0, start) + `[[${s.text}]]`;
+      this.el.value = next;
+      this.el.dispatchEvent(new Event("input"));
+      this.el.focus();
+      try {
+        this.el.setSelectionRange(next.length, next.length);
+      } catch (e) {
+      }
+      (_a = this.close) == null ? void 0 : _a.call(this);
+      return;
+    }
+    (_b = this.onChoose) == null ? void 0 : _b.call(this, s.text);
+    this.setValue(s.text);
+    (_c = this.close) == null ? void 0 : _c.call(this);
+  }
+};
+/** An unclosed `[[` token (no brackets after it) ending at the caret. */
+_TextLinkSuggest.OPEN = /\[\[([^[\]]*)$/;
+var TextLinkSuggest = _TextLinkSuggest;
 
 // src/utils/sound.ts
 var ctx = null;
@@ -2074,7 +2144,7 @@ function openTextInput(app, span, key, value, valuesFor, commit2) {
   span.replaceWith(input);
   input.focus();
   input.select();
-  new ValueSuggest(app, input, () => valuesFor(key), (v) => commit2(v), false);
+  new TextLinkSuggest(app, input, () => valuesFor(key), (v) => commit2(v));
   input.addEventListener("focus", () => input.dispatchEvent(new Event("input")));
   input.dispatchEvent(new Event("input"));
   let done = false;
@@ -6903,7 +6973,9 @@ var PopupManager = class {
   /** Dismiss when clicking outside the popups and their anchor. */
   dismissOnOutsideClick(anchor) {
     const h = (e) => {
+      var _a;
       const t = e.target;
+      if ((_a = t == null ? void 0 : t.closest) == null ? void 0 : _a.call(t, ".suggestion-container")) return;
       if (this.popups.some((p) => p.contains(t)) || anchor.contains(t)) return;
       this.closeAll();
       document.removeEventListener("mousedown", h);
@@ -7065,6 +7137,7 @@ var PopupManager = class {
     const custom = side.createEl("input", { cls: "ep-edit-input ep-side-custom" });
     custom.type = "text";
     custom.placeholder = multi ? t("add.customValue") : t("add.typeValue");
+    new TextLinkSuggest(view.app, custom);
     let addBtn = null;
     const updateCount = () => {
       if (addBtn) addBtn.setText(t("add.addN", { n: sel.size + (custom.value.trim() ? 1 : 0) }));
@@ -7164,6 +7237,7 @@ var PopupManager = class {
     const custom = side.createEl("input", { cls: "ep-edit-input ep-side-custom" });
     custom.type = "text";
     custom.placeholder = t("add.customValue");
+    new TextLinkSuggest(view.app, custom);
     let addBtn;
     const updateCount = () => addBtn.setText(t("add.addN", { n: sel.size + (custom.value.trim() ? 1 : 0) }));
     for (const v of opts) {
@@ -8289,6 +8363,7 @@ var TableView = class extends import_obsidian23.ItemView {
       td.appendChild(input);
       input.focus();
       input.select();
+      new TextLinkSuggest(this.app, input);
       let done = false;
       const finish = (save) => {
         if (done) return;
@@ -8296,7 +8371,7 @@ var TableView = class extends import_obsidian23.ItemView {
         if (save && input.value !== cur) void this.writeCellText(file, key, input.value);
         else this.render();
       };
-      input.onblur = () => finish(true);
+      input.onblur = () => setTimeout(() => finish(true), 150);
       input.onkeydown = (e) => {
         if (e.key === "Enter") {
           e.preventDefault();

@@ -18,6 +18,7 @@ import type ExtendedPropertiesPlugin from "../main";
 import type { Entry, TableLayout } from "../core/model";
 import { getCI, parseNumeric } from "../utils/misc";
 import { parseDiceOrDefault } from "../utils/dice";
+import { TextLinkSuggest } from "./components/suggest";
 
 export const VIEW_TYPE_TABLE = "extended-properties-table";
 
@@ -402,6 +403,7 @@ export class TableView extends ItemView {
       td.appendChild(input);
       input.focus();
       input.select();
+      new TextLinkSuggest(this.app, input); // [[ note autocomplete
       let done = false;
       const finish = (save: boolean) => {
         if (done) return;
@@ -409,7 +411,8 @@ export class TableView extends ItemView {
         if (save && input.value !== cur) void this.writeCellText(file, key, input.value);
         else this.render();
       };
-      input.onblur = () => finish(true);
+      // Delay so a suggestion click can land before the blur commits.
+      input.onblur = () => setTimeout(() => finish(true), 150);
       input.onkeydown = (e: KeyboardEvent) => {
         if (e.key === "Enter") {
           e.preventDefault();

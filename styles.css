@@ -678,3 +678,7 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-conflict-msg { margin-bottom: 8px; }
 .ep-conflict-actions { display: flex; gap: 8px; }
 .ep-conflict-actions button { cursor: pointer; }
+
+
+/* -- [[ note autocomplete --------------------------------------------------- */
+.ep-sug-link { color: var(--text-accent); }

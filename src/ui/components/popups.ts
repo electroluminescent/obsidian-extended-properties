@@ -14,6 +14,7 @@ import type { TFile } from "obsidian";
 import type { ViewCtx } from "../../core/context";
 import type { Section } from "../../core/model";
 import { genId } from "../../utils/misc";
+import { TextLinkSuggest } from "./suggest";
 
 /** Insertion options shared by the add flows. */
 export interface AddTarget {
@@ -51,6 +52,8 @@ export class PopupManager {
   private dismissOnOutsideClick(anchor: HTMLElement): void {
     const h = (e: MouseEvent) => {
       const t = e.target as HTMLElement;
+      // Clicks inside Obsidian's own suggestion popup ([[ note autocomplete) must not dismiss us.
+      if (t?.closest?.(".suggestion-container")) return;
       if (this.popups.some((p) => p.contains(t)) || anchor.contains(t)) return;
       this.closeAll();
       document.removeEventListener("mousedown", h);
@@ -229,6 +232,7 @@ export class PopupManager {
     const custom = side.createEl("input", { cls: "ep-edit-input ep-side-custom" });
     custom.type = "text";
     custom.placeholder = multi ? t("add.customValue") : t("add.typeValue");
+    new TextLinkSuggest(view.app, custom); // [[ note autocomplete
     let addBtn: HTMLButtonElement | null = null;
     const updateCount = () => {
       if (addBtn) addBtn.setText(t("add.addN", { n: sel.size + (custom.value.trim() ? 1 : 0) }));
@@ -331,6 +335,7 @@ export class PopupManager {
     const custom = side.createEl("input", { cls: "ep-edit-input ep-side-custom" });
     custom.type = "text";
     custom.placeholder = t("add.customValue");
+    new TextLinkSuggest(view.app, custom); // [[ note autocomplete
     let addBtn: HTMLButtonElement;
     const updateCount = () => addBtn.setText(t("add.addN", { n: sel.size + (custom.value.trim() ? 1 : 0) }));
     for (const v of opts) {

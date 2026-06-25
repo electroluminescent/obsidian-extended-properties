@@ -5,7 +5,7 @@
 
 import { App } from "obsidian";
 import { fmtNum, clamp } from "../../utils/misc";
-import { ValueSuggest } from "./suggest";
+import { TextLinkSuggest } from "./suggest";
 import { sfx } from "../../utils/sound";
 
 export interface NumberInputOptions {
@@ -69,7 +69,7 @@ export function openTextInput(
   span.replaceWith(input);
   input.focus();
   input.select();
-  new ValueSuggest(app, input, () => valuesFor(key), (v) => commit(v), false);
+  new TextLinkSuggest(app, input, () => valuesFor(key), (v) => commit(v));
   input.addEventListener("focus", () => input.dispatchEvent(new Event("input")));
   input.dispatchEvent(new Event("input"));
   let done = false;

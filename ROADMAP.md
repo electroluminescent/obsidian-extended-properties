@@ -6,7 +6,7 @@ The codebase's assets to protect throughout: the registry system (`src/core/regi
 
 ---
 
-## Status (v2.43.0)
+## Status (v2.44.0)
 
 Legend: ✅ done · ◑ partial · ○ planned.
 
@@ -42,7 +42,7 @@ Also shipped: subtle Web Audio sound effects (clicks, dice rolls, crit/fail), wi
 
 ### Shipped beyond the original plan
 
-Per-property unique short forms with name↔short-form interchangeability and autocomplete; the dotted modifier suffix (`INT.s`, `[[Note]].intelligence.s`, configurable); and the inline `vals:` card that reuses the sidebar value-type renderers with a per-reference options store.
+Per-property unique short forms with name↔short-form interchangeability and autocomplete; the dotted modifier suffix (`INT.s`, `[[Note]].intelligence.s`, configurable); the inline `vals:` card that reuses the sidebar value-type renderers with a per-reference options store; and `[[`-triggered note autocomplete in text/list value inputs (sidebar text edits, inline `val:`/`vals:`, the list value pickers and table cells) that inserts `[[Note]]` links.
 
 ### Milestone sequencing — progress
 

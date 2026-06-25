@@ -4,7 +4,7 @@
  * free-form value suggestions fed by vault usage.
  */
 
-import { AbstractInputSuggest, App } from "obsidian";
+import { AbstractInputSuggest, App, TFile } from "obsidian";
 import type { I18n } from "../../i18n/i18n";
 
 interface PropSuggestion { key: string; kind: "note" | "vault" | "create" }
@@ -131,5 +131,96 @@ export class ValueSuggest extends AbstractInputSuggest<string> {
     this.onChoose(v);
     this.setValue(this.clearOnSelect ? "" : v);
     (this as any).close?.();
+  }
+}
+
+
+/** Markdown notes whose basename matches `q` (empty = all), best matches first. */
+function noteMatches(app: App, q: string, limit = 30): TFile[] {
+  const files = app.vault.getMarkdownFiles();
+  if (!q) return files.slice().sort((a, b) => a.basename.localeCompare(b.basename)).slice(0, limit);
+  const out: { f: TFile; rank: number }[] = [];
+  for (const f of files) {
+    const i = f.basename.toLowerCase().indexOf(q);
+    if (i < 0) continue;
+    out.push({ f, rank: i === 0 ? 0 : 1 });
+  }
+  out.sort((a, b) => a.rank - b.rank || a.f.basename.localeCompare(b.f.basename));
+  return out.slice(0, limit).map((x) => x.f);
+}
+
+type LinkOrValue =
+  | { kind: "link"; text: string; file: TFile }
+  | { kind: "value" | "create"; text: string };
+
+/**
+ * Text-input autocomplete that offers vault-note links when the caret sits in
+ * an unclosed `[[…` token (inserting `[[Note]]`), and otherwise existing
+ * property values when an options provider is given. Attach to any free-text or
+ * list-value input so typing `[[` brings up note suggestions.
+ */
+export class TextLinkSuggest extends AbstractInputSuggest<LinkOrValue> {
+  /** An unclosed `[[` token (no brackets after it) ending at the caret. */
+  private static readonly OPEN = /\[\[([^[\]]*)$/;
+  private el: HTMLInputElement;
+  private appRef: App;
+
+  constructor(
+    app: App,
+    inputEl: HTMLInputElement,
+    private getOptions?: () => string[],
+    private onChoose?: (v: string) => void
+  ) {
+    super(app, inputEl);
+    this.el = inputEl;
+    this.appRef = app;
+  }
+
+  getSuggestions(value: string): LinkOrValue[] {
+    const link = TextLinkSuggest.OPEN.exec(value);
+    if (link) {
+      const q = link[1].trim().toLowerCase();
+      return noteMatches(this.appRef, q).map((f) => ({ kind: "link" as const, text: f.basename, file: f }));
+    }
+    if (!this.getOptions) return [];
+    const q = value.trim();
+    const ql = q.toLowerCase();
+    const opts = this.getOptions();
+    const filtered = (ql ? opts.filter((o) => o.toLowerCase().includes(ql)) : opts).slice(0, 50);
+    const res: LinkOrValue[] = filtered.map((o) => ({ kind: "value" as const, text: o }));
+    if (q && !opts.some((o) => o.toLowerCase() === ql)) res.unshift({ kind: "create", text: q });
+    return res;
+  }
+
+  renderSuggestion(s: LinkOrValue, el: HTMLElement): void {
+    if (s.kind === "link") {
+      el.createSpan({ cls: "ep-sug-link", text: s.text });
+      const p = s.file.parent?.path;
+      if (p && p !== "/") el.createSpan({ cls: "ep-sug-badge", text: p });
+      return;
+    }
+    el.setText(s.text);
+  }
+
+  selectSuggestion(s: LinkOrValue): void {
+    if (s.kind === "link") {
+      const val = this.el.value;
+      const m = TextLinkSuggest.OPEN.exec(val);
+      const start = m ? m.index : val.length;
+      const next = val.slice(0, start) + `[[${s.text}]]`;
+      this.el.value = next;
+      this.el.dispatchEvent(new Event("input"));
+      this.el.focus();
+      try {
+        this.el.setSelectionRange(next.length, next.length);
+      } catch {
+        /* setSelectionRange unsupported on this input type */
+      }
+      (this as unknown as { close?: () => void }).close?.();
+      return;
+    }
+    this.onChoose?.(s.text);
+    this.setValue(s.text);
+    (this as unknown as { close?: () => void }).close?.();
   }
 }
