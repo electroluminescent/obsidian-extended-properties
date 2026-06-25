@@ -27,7 +27,7 @@ Also shipped: subtle Web Audio sound effects (clicks, dice rolls, crit/fail), wi
 
 ### In progress
 
-- ◑ **F3 — CI, repo & release.** CI (typecheck → test → build), a tag-triggered draft-release workflow, `LICENSE`, `.gitignore` and an install/README pass are in place; the innerHTML/console audit is clean. *Remaining:* the BRAT beta round and the community-plugin submission PR (both need a public GitHub repo + the author's repo URL in `manifest.json`).
+- ◑ **F3 — CI, repo & release.** CI (typecheck → test → build), a tag-triggered draft-release workflow, one-command versioning (`npm version` → `version-bump.mjs` syncs manifest/versions), `LICENSE`, `.gitignore`, an install/README pass, and a `RELEASING.md` runbook with the ready-to-paste `community-plugins.json` entry + review checklist are all in place; the innerHTML/console audit is clean. *Remaining (external, needs the public GitHub repo URL):* push the repo public, run a BRAT beta round, and open the community-plugins.json PR — then drop the URL into `manifest.json` `authorUrl` and the submission entry's `repo`.
 
 ### Planned
 
