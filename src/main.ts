@@ -145,7 +145,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       i18n: this.i18n,
       settings: this.settings,
       registries: this.registries,
-      facade: new NoteFacade(this.app, this.i18n),
+      facade: new NoteFacade(this.app, this.i18n, () => this.settings.conflictGuard !== false),
       roll: this.rollService(),
       props: this.props,
       hide: this.hide,

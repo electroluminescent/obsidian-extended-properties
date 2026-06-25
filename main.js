@@ -476,6 +476,10 @@ var coreEn = {
   "table.truncated": "Showing first {shown} of {total} \u2014 narrow the filter to see more.",
   "notice.hiding": "Hiding \u201C{key}\u201D from Obsidian properties.",
   "notice.saveFailed": "Could not save property: {error}",
+  // -- write conflict (D4) -------------------------------------------------
+  "conflict.message": "\u201C{note}\u201D changed on disk while you were editing. Keep your changes, or take the version on disk?",
+  "conflict.keepMine": "Keep mine",
+  "conflict.takeTheirs": "Take theirs",
   // -- presets -------------------------------------------------------------------------------------------
   "preset.empty": "Empty",
   // -- settings tab -----------------------------------------------------------------------------------------
@@ -534,6 +538,8 @@ var coreEn = {
   "settings.modSuffixDesc": "Append this after a dot to use a property's modifier instead of its value (e.g. INT.s or intelligence.s in a roll or expression; cross-note [[Note]].INT.s). Any length; blank disables it.",
   "settings.crossNote": "Cross-note references",
   "settings.crossNoteDesc": 'Allow [[Note]].Prop references and aggregates (sum/avg/count/min/max("Type", "Key")) and prop("LinkProp", "Key") in rolls and expressions. Turn off to disable all vault-wide reads.',
+  "settings.conflictGuard": "Guard against edit conflicts",
+  "settings.conflictGuardDesc": "When a note changes on disk (sync, another pane) while you're editing it here, ask before overwriting instead of clobbering the on-disk version.",
   "settings.abbrHeading": "Short forms",
   "settings.abbrDesc": "Short forms used in modifier denotations (INT + DEX \u2212 AGE). The default is the capitalized first three letters of the property name; overrides apply everywhere the property is shown as a source.",
   "settings.abbrDefault": "Default: {abbr}",
@@ -1586,6 +1592,9 @@ function normalizeSettings(data, defaultLayout) {
     if (data.failOnOne === false) s.failOnOne = false;
     if (typeof data.modifierSuffix === "string") s.modifierSuffix = data.modifierSuffix;
     if (data.crossNote === false) s.crossNote = false;
+    if (data.conflictGuard === false) s.conflictGuard = false;
+    if (data.tableLayouts && typeof data.tableLayouts === "object") s.tableLayouts = data.tableLayouts;
+    if (typeof data.tableLastType === "string") s.tableLastType = data.tableLastType;
   }
   for (const t of s.types) {
     const k = t.toLowerCase();
@@ -4157,6 +4166,36 @@ var import_obsidian22 = require("obsidian");
 // src/core/note-model.ts
 var import_obsidian11 = require("obsidian");
 var ECHO_WINDOW_MS = 600;
+var WRITE_DEBOUNCE_MS = 300;
+var WRITE_MAXWAIT_MS = 1e3;
+var CONFLICT_EPS_MS = 400;
+function writeConflictNotice(i18n, fileName, onKeepMine, onTakeTheirs) {
+  const frag = document.createDocumentFragment();
+  const msg = document.createElement("div");
+  msg.className = "ep-conflict-msg";
+  msg.textContent = i18n.t("conflict.message", { note: fileName });
+  frag.appendChild(msg);
+  const row = document.createElement("div");
+  row.className = "ep-conflict-actions";
+  const mine = document.createElement("button");
+  mine.className = "mod-warning";
+  mine.textContent = i18n.t("conflict.keepMine");
+  const theirs = document.createElement("button");
+  theirs.textContent = i18n.t("conflict.takeTheirs");
+  row.appendChild(mine);
+  row.appendChild(theirs);
+  frag.appendChild(row);
+  let notice;
+  mine.onclick = () => {
+    notice.hide();
+    onKeepMine();
+  };
+  theirs.onclick = () => {
+    notice.hide();
+    onTakeTheirs();
+  };
+  notice = new import_obsidian11.Notice(frag, 0);
+}
 var NoteModel = class {
   constructor(app, i18n, host) {
     this.app = app;
@@ -4169,11 +4208,18 @@ var NoteModel = class {
     this.lastWritePath = null;
     this.lastWriteTime = 0;
     this.undo = /* @__PURE__ */ new Map();
+    // Write queue (D4): per-file coalescing by key + conflict baseline.
+    this.pendingKeys = /* @__PURE__ */ new Map();
+    this.writeTimers = /* @__PURE__ */ new Map();
+    this.batchBase = /* @__PURE__ */ new Map();
+    this.batchStart = /* @__PURE__ */ new Map();
+    this.conflictPaths = /* @__PURE__ */ new Set();
   }
   // -- loading ---------------------------------------------------------
   /** Load `raw` from the metadata cache for `file`. */
   load(file) {
     var _a;
+    if (this.path && this.path !== file.path) this.flushPending(this.path);
     const fm = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter;
     this.raw = fm ? { ...fm } : {};
     this.path = file.path;
@@ -4210,7 +4256,7 @@ var NoteModel = class {
   }
   // -- writing ----------------------------------------------------------
   /**
-   * Set one property and persist it.
+   * Set one property; the UI updates now, the file write is queued (debounced).
    * @param full re-render instead of in-place value refresh
    */
   set(file, key, value, full = false) {
@@ -4219,25 +4265,114 @@ var NoteModel = class {
     else this.raw[key] = value;
     if (full) this.host.onFullChange();
     else this.host.onLightChange();
-    this.persist(file, key);
+    this.queueWrite(file, key);
   }
-  /** Set several properties at once (single frontmatter write, full re-render). */
+  /** Set several properties at once (coalesced into one queued write, full re-render). */
   setMany(file, entries) {
     for (const key of Object.keys(entries)) this.recordUndo(file, key);
     Object.assign(this.raw, entries);
     this.host.onFullChange();
-    this.stampWrite(file);
-    this.app.fileManager.processFrontMatter(file, (fm) => {
-      for (const k of Object.keys(entries)) fm[k] = this.raw[k];
-    }).then(() => this.lastWriteTime = Date.now()).catch((err) => new import_obsidian11.Notice(this.i18n.t("notice.saveFailed", { error: String(err) })));
+    for (const key of Object.keys(entries)) this.queueWrite(file, key);
   }
-  persist(file, key) {
+  /** Queue `key` for a coalesced, debounced write of `raw[key]` to `file`. */
+  queueWrite(file, key) {
+    var _a, _b, _c;
+    const path = file.path;
+    let keys = this.pendingKeys.get(path);
+    if (!keys) {
+      keys = /* @__PURE__ */ new Set();
+      this.pendingKeys.set(path, keys);
+      this.batchBase.set(path, (_b = (_a = file.stat) == null ? void 0 : _a.mtime) != null ? _b : 0);
+      this.batchStart.set(path, Date.now());
+    }
+    keys.add(key);
+    if (this.conflictPaths.has(path)) return;
+    const prev = this.writeTimers.get(path);
+    if (prev) window.clearTimeout(prev);
+    const elapsed = Date.now() - ((_c = this.batchStart.get(path)) != null ? _c : Date.now());
+    const wait = Math.max(0, Math.min(WRITE_DEBOUNCE_MS, WRITE_MAXWAIT_MS - elapsed));
+    this.writeTimers.set(path, window.setTimeout(() => void this.flushFile(file), wait));
+  }
+  async flushFile(file) {
+    var _a, _b, _c;
+    const path = file.path;
+    const timer = this.writeTimers.get(path);
+    if (timer) window.clearTimeout(timer);
+    this.writeTimers.delete(path);
+    const keys = this.pendingKeys.get(path);
+    if (!keys || keys.size === 0) {
+      this.clearBatch(path);
+      return;
+    }
+    const base = (_a = this.batchBase.get(path)) != null ? _a : 0;
+    const cur = (_c = (_b = file.stat) == null ? void 0 : _b.mtime) != null ? _c : 0;
+    const guard = this.host.conflictGuard ? this.host.conflictGuard() : true;
+    if (guard && base && cur - base > CONFLICT_EPS_MS && !this.isEcho(file)) {
+      this.promptConflict(file);
+      return;
+    }
+    await this.applyWrites(file, [...keys]);
+  }
+  async applyWrites(file, keys) {
+    this.clearBatch(file.path);
     this.stampWrite(file);
-    this.app.fileManager.processFrontMatter(file, (fm) => {
-      const cur = this.raw[key];
-      if (cur === void 0) delete fm[key];
-      else fm[key] = cur;
-    }).then(() => this.lastWriteTime = Date.now()).catch((err) => new import_obsidian11.Notice(this.i18n.t("notice.saveFailed", { error: String(err) })));
+    try {
+      await this.app.fileManager.processFrontMatter(file, (fm) => {
+        for (const k of keys) {
+          const cur = this.raw[k];
+          if (cur === void 0) delete fm[k];
+          else fm[k] = cur;
+        }
+      });
+      this.lastWriteTime = Date.now();
+    } catch (err) {
+      new import_obsidian11.Notice(this.i18n.t("notice.saveFailed", { error: String(err) }));
+    }
+  }
+  promptConflict(file) {
+    const path = file.path;
+    if (this.conflictPaths.has(path)) return;
+    this.conflictPaths.add(path);
+    writeConflictNotice(
+      this.i18n,
+      file.basename,
+      () => {
+        this.conflictPaths.delete(path);
+        const keys = this.pendingKeys.get(path);
+        if (keys && keys.size) void this.applyWrites(file, [...keys]);
+        else this.clearBatch(path);
+      },
+      () => {
+        this.conflictPaths.delete(path);
+        this.clearBatch(path);
+        const af = this.app.vault.getAbstractFileByPath(path);
+        if (af instanceof import_obsidian11.TFile) this.load(af);
+        this.host.onFullChange();
+      }
+    );
+  }
+  /** Force-write any pending changes immediately (file switch / unload). */
+  flushPending(path) {
+    const paths = path ? [path] : [...this.pendingKeys.keys()];
+    for (const p of paths) {
+      if (this.conflictPaths.has(p)) continue;
+      const keys = this.pendingKeys.get(p);
+      if (!keys || keys.size === 0) {
+        this.clearBatch(p);
+        continue;
+      }
+      const af = this.app.vault.getAbstractFileByPath(p);
+      if (af instanceof import_obsidian11.TFile) void this.applyWrites(af, [...keys]);
+      else this.clearBatch(p);
+    }
+  }
+  clearBatch(path) {
+    const t = this.writeTimers.get(path);
+    if (t) window.clearTimeout(t);
+    this.writeTimers.delete(path);
+    this.pendingKeys.delete(path);
+    this.batchBase.delete(path);
+    this.batchStart.delete(path);
   }
   stampWrite(file) {
     this.lastWritePath = file.path;
@@ -4276,11 +4411,18 @@ var NoteModel = class {
   }
 };
 var NoteFacade = class {
-  constructor(app, i18n) {
+  constructor(app, i18n, guard) {
     this.app = app;
     this.i18n = i18n;
+    this.guard = guard;
     this.timers = /* @__PURE__ */ new Map();
     this.pending = /* @__PURE__ */ new Map();
+    /** File mtime captured when each pending batch began (conflict baseline). */
+    this.bases = /* @__PURE__ */ new Map();
+    /** When we last wrote each file, to ignore our own echo (ms). */
+    this.lastWriteAt = /* @__PURE__ */ new Map();
+    /** Paths with an open conflict prompt (auto-flush suspended). */
+    this.conflicts = /* @__PURE__ */ new Set();
   }
   /** Shallow copy of a file's frontmatter (empty object when none). */
   raw(file) {
@@ -4305,27 +4447,64 @@ var NoteFacade = class {
   }
   /** Queue a frontmatter write (debounced per file; `undefined` removes the key). */
   set(file, key, value) {
+    var _a, _b;
     let m = this.pending.get(file.path);
     if (!m) {
       m = /* @__PURE__ */ new Map();
       this.pending.set(file.path, m);
+      this.bases.set(file.path, (_b = (_a = file.stat) == null ? void 0 : _a.mtime) != null ? _b : 0);
     }
     m.set(key, value);
+    if (this.conflicts.has(file.path)) return;
     const prev = this.timers.get(file.path);
     if (prev) window.clearTimeout(prev);
-    this.timers.set(file.path, window.setTimeout(() => this.flush(file), 250));
+    this.timers.set(file.path, window.setTimeout(() => this.flush(file), WRITE_DEBOUNCE_MS));
   }
   flush(file) {
+    var _a, _b, _c, _d;
     this.timers.delete(file.path);
+    const m = this.pending.get(file.path);
+    if (!m || m.size === 0) {
+      this.pending.delete(file.path);
+      this.bases.delete(file.path);
+      return;
+    }
+    const base = (_a = this.bases.get(file.path)) != null ? _a : 0;
+    const cur = (_c = (_b = file.stat) == null ? void 0 : _b.mtime) != null ? _c : 0;
+    const guard = this.guard ? this.guard() : true;
+    const echoed = Date.now() - ((_d = this.lastWriteAt.get(file.path)) != null ? _d : 0) < ECHO_WINDOW_MS;
+    if (guard && base && cur - base > CONFLICT_EPS_MS && !echoed) {
+      this.conflicts.add(file.path);
+      writeConflictNotice(
+        this.i18n,
+        file.basename,
+        () => {
+          this.conflicts.delete(file.path);
+          this.write(file);
+        },
+        () => {
+          this.conflicts.delete(file.path);
+          this.pending.delete(file.path);
+          this.bases.delete(file.path);
+        }
+      );
+      return;
+    }
+    this.write(file);
+  }
+  write(file) {
+    var _a, _b;
     const m = this.pending.get(file.path);
     if (!m) return;
     this.pending.delete(file.path);
+    this.lastWriteAt.set(file.path, Date.now());
+    this.bases.set(file.path, (_b = (_a = file.stat) == null ? void 0 : _a.mtime) != null ? _b : 0);
     this.app.fileManager.processFrontMatter(file, (fm) => {
       for (const [k, v] of m) {
         if (v === void 0) delete fm[k];
         else fm[k] = v;
       }
-    }).catch((err) => new import_obsidian11.Notice(this.i18n.t("notice.saveFailed", { error: String(err) })));
+    }).then(() => this.lastWriteAt.set(file.path, Date.now())).catch((err) => new import_obsidian11.Notice(this.i18n.t("notice.saveFailed", { error: String(err) })));
   }
 };
 
@@ -7087,7 +7266,8 @@ var SidebarView = class extends import_obsidian22.ItemView {
     this.note = new NoteModel(this.app, plugin.i18n, {
       onLightChange: () => this.refreshValues(),
       onFullChange: () => this.render(),
-      captureUndo: () => this.editMode
+      captureUndo: () => this.editMode,
+      conflictGuard: () => this.plugin.settings.conflictGuard !== false
     });
   }
   // -- ViewCtx surface ----------------------------------------------------
@@ -7370,6 +7550,7 @@ var SidebarView = class extends import_obsidian22.ItemView {
     this.render();
   }
   async onClose() {
+    this.note.flushPending();
     this.popupsMgr.closeAll();
   }
   get content() {
@@ -8852,6 +9033,12 @@ var EPSettingTab = class extends import_obsidian25.PluginSettingTab {
     new import_obsidian25.Setting(c).setName(t("settings.crossNote")).setDesc(t("settings.crossNoteDesc")).addToggle((tg) => {
       tg.setValue(plugin.settings.crossNote !== false).onChange((v) => {
         plugin.settings.crossNote = v ? void 0 : false;
+        save();
+      });
+    });
+    new import_obsidian25.Setting(c).setName(t("settings.conflictGuard")).setDesc(t("settings.conflictGuardDesc")).addToggle((tg) => {
+      tg.setValue(plugin.settings.conflictGuard !== false).onChange((v) => {
+        plugin.settings.conflictGuard = v ? void 0 : false;
         save();
       });
     });
@@ -11586,7 +11773,8 @@ var InlineViewCtx = class {
     this.note = new NoteModel(this.app, this.i18n, {
       onLightChange: () => this.refreshValues(),
       onFullChange: () => this.redraw(),
-      captureUndo: () => false
+      captureUndo: () => false,
+      conflictGuard: () => this.settings.conflictGuard !== false
     });
     this.note.load(target);
   }
@@ -12471,7 +12659,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian36.Plugin {
       i18n: this.i18n,
       settings: this.settings,
       registries: this.registries,
-      facade: new NoteFacade(this.app, this.i18n),
+      facade: new NoteFacade(this.app, this.i18n, () => this.settings.conflictGuard !== false),
       roll: this.rollService(),
       props: this.props,
       hide: this.hide,

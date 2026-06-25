@@ -260,6 +260,8 @@ export interface EPSettings {
   manualHide: string[];
   /** Replace the right-click menu on Obsidian's properties panel. */
   propMenu: boolean;
+  /** Warn (keep-mine / take-theirs) instead of overwriting when a note changes on disk mid-edit (default on). */
+  conflictGuard?: boolean;
   /** UI language (locale code, e.g. "en"). */
   language: string;
   /** Per-string user overrides, keyed by i18n string key. */

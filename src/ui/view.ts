@@ -71,6 +71,7 @@ export class SidebarView extends ItemView implements ViewCtx {
       onLightChange: () => this.refreshValues(),
       onFullChange: () => this.render(),
       captureUndo: () => this.editMode,
+      conflictGuard: () => this.plugin.settings.conflictGuard !== false,
     });
   }
 
@@ -350,6 +351,7 @@ export class SidebarView extends ItemView implements ViewCtx {
   }
 
   async onClose(): Promise<void> {
+    this.note.flushPending();
     this.popupsMgr.closeAll();
   }
 

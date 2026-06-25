@@ -427,6 +427,11 @@ export const coreEn: StringDict = {
   "notice.hiding": "Hiding “{key}” from Obsidian properties.",
   "notice.saveFailed": "Could not save property: {error}",
 
+  // -- write conflict (D4) -------------------------------------------------
+  "conflict.message": "“{note}” changed on disk while you were editing. Keep your changes, or take the version on disk?",
+  "conflict.keepMine": "Keep mine",
+  "conflict.takeTheirs": "Take theirs",
+
   // -- presets -------------------------------------------------------------------------------------------
   "preset.empty": "Empty",
 
@@ -496,6 +501,8 @@ export const coreEn: StringDict = {
   "settings.crossNote": "Cross-note references",
   "settings.crossNoteDesc":
     "Allow [[Note]].Prop references and aggregates (sum/avg/count/min/max(\"Type\", \"Key\")) and prop(\"LinkProp\", \"Key\") in rolls and expressions. Turn off to disable all vault-wide reads.",
+  "settings.conflictGuard": "Guard against edit conflicts",
+  "settings.conflictGuardDesc": "When a note changes on disk (sync, another pane) while you're editing it here, ask before overwriting instead of clobbering the on-disk version.",
   "settings.abbrHeading": "Short forms",
   "settings.abbrDesc":
     "Short forms used in modifier denotations (INT + DEX − AGE). The default is the capitalized first three letters of the property name; overrides apply everywhere the property is shown as a source.",

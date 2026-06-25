@@ -97,6 +97,7 @@ class InlineViewCtx implements ViewCtx {
       onLightChange: () => this.refreshValues(),
       onFullChange: () => this.redraw(),
       captureUndo: () => false,
+      conflictGuard: () => this.settings.conflictGuard !== false,
     });
     this.note.load(target);
   }

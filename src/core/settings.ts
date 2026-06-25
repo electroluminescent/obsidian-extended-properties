@@ -132,6 +132,9 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
     if (data.failOnOne === false) s.failOnOne = false;
     if (typeof data.modifierSuffix === "string") s.modifierSuffix = data.modifierSuffix;
     if (data.crossNote === false) s.crossNote = false;
+    if (data.conflictGuard === false) s.conflictGuard = false;
+    if (data.tableLayouts && typeof data.tableLayouts === "object") s.tableLayouts = data.tableLayouts;
+    if (typeof data.tableLastType === "string") s.tableLastType = data.tableLastType;
   }
   for (const t of s.types) {
     const k = t.toLowerCase();

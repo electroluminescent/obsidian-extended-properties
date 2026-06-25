@@ -672,3 +672,9 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-table-roll:hover { opacity: 1; }
 .ep-table-roll .svg-icon { width: 14px; height: 14px; }
 .ep-table-spacer td { border: none !important; padding: 0 !important; }
+
+
+/* -- write-conflict notice (D4) --------------------------------------------- */
+.ep-conflict-msg { margin-bottom: 8px; }
+.ep-conflict-actions { display: flex; gap: 8px; }
+.ep-conflict-actions button { cursor: pointer; }

@@ -246,6 +246,15 @@ export class EPSettingTab extends PluginSettingTab {
           save();
         });
       });
+    new Setting(c)
+      .setName(t("settings.conflictGuard"))
+      .setDesc(t("settings.conflictGuardDesc"))
+      .addToggle((tg) => {
+        tg.setValue(plugin.settings.conflictGuard !== false).onChange((v) => {
+          plugin.settings.conflictGuard = v ? undefined : false;
+          save();
+        });
+      });
     for (const key of Object.keys(plugin.settings.sourceAbbrs).sort((a, b) => a.localeCompare(b))) {
       new Setting(c)
         .setName(key)
