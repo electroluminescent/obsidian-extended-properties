@@ -545,6 +545,8 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 .ep-macro-chip:hover { border-color: var(--interactive-accent); }
 /* invalid macro/expression notation in settings */
 .ep-invalid { border-color: var(--text-error) !important; }
+/* C1: invalid value marker on value displays (non-blocking) */
+.ep-invalid-mark { box-shadow: 0 0 0 1px var(--text-error); border-radius: 4px; }
 /* expression engine: failed derivations (—) and the inline expression field */
 .ep-expr-error { color: var(--text-error); cursor: help; font-weight: 700; }
 .ep-expr-input { width: 100%; font-family: var(--font-monospace); }

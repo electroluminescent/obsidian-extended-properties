@@ -6,6 +6,7 @@
 import { App } from "obsidian";
 import { fmtNum, clamp } from "../../utils/misc";
 import { ValueSuggest } from "./suggest";
+import { sfx } from "../../utils/sound";
 
 export interface NumberInputOptions {
   min: number;
@@ -44,7 +45,7 @@ export function openNumberInput(
     if (!Number.isFinite(n)) return;
     if (!o.float) n = Math.round(n);
     if (o.clamp) n = clamp(n, o.min, o.max);
-    if (save) commit(n);
+    if (save) { sfx.tick(); commit(n); }
   };
   input.onblur = () => finish(true);
   input.onkeydown = (e: KeyboardEvent) => {
@@ -76,7 +77,7 @@ export function openTextInput(
     if (done) return;
     done = true;
     if (input.parentElement) input.replaceWith(span);
-    if (save) commit(input.value.trim());
+    if (save) { sfx.tick(); commit(input.value.trim()); }
   };
   // Delay so a suggestion click can land before the blur commits.
   input.onblur = () => setTimeout(() => finish(true), 150);

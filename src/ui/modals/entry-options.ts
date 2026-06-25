@@ -18,6 +18,7 @@
 import { Modal, Setting, TFile } from "obsidian";
 import type { OptionsCtx, ViewCtx } from "../../core/context";
 import type { Entry, Section } from "../../core/model";
+import type { Constraints } from "../../core/validate";
 import { restoreFromSnapshot } from "../../utils/misc";
 import { addColorSetting, addIconSetting, ColorHost } from "../components/setting-helpers";
 import { PropSuggest } from "../components/suggest";
@@ -45,6 +46,54 @@ export function viewColorHost(view: ViewCtx): ColorHost {
  *                   are mirrored to several entries — per-entry identity
  *                   (key, label) and removal are hidden.
  */
+const NUMERIC_CONSTRAINT_TYPES = new Set(["number", "decimal", "formula", "unit", "rating"]);
+
+/** Validation-constraint editors for a prop entry, shown per resolved data type. */
+function renderConstraints(octx: OptionsCtx, type: string): void {
+  const { view, entry, container: c, changed } = octx;
+  const t = view.i18n.t.bind(view.i18n);
+  const cn = (): Constraints => ((entry.constraints ??= {}) as Constraints);
+  c.createEl("h4", { text: t("options.constraintsHeading") });
+  new Setting(c).setName(t("options.required")).setDesc(t("options.requiredDesc")).addToggle((tg) => {
+    tg.setValue(!!entry.constraints?.required).onChange((v) => {
+      cn().required = v || undefined;
+      changed();
+    });
+  });
+  if (NUMERIC_CONSTRAINT_TYPES.has(type)) {
+    const numField = (name: string, get: () => number | undefined, set: (n: number | undefined) => void) =>
+      new Setting(c).setName(name).addText((tx) => {
+        tx.setValue(get() !== undefined ? String(get()) : "").onChange((v) => {
+          const n = Number(v);
+          set(v.trim() === "" || !Number.isFinite(n) ? undefined : n);
+          changed();
+        });
+      });
+    numField(t("options.constraintMin"), () => entry.constraints?.min, (n) => (cn().min = n));
+    numField(t("options.constraintMax"), () => entry.constraints?.max, (n) => (cn().max = n));
+    new Setting(c).setName(t("options.constraintClamp")).setDesc(t("options.constraintClampDesc")).addToggle((tg) => {
+      tg.setValue(!!entry.constraints?.clamp).onChange((v) => {
+        cn().clamp = v || undefined;
+        changed();
+      });
+    });
+  } else {
+    new Setting(c).setName(t("options.constraintPattern")).setDesc(t("options.constraintPatternDesc")).addText((tx) => {
+      tx.setValue(entry.constraints?.pattern ?? "").onChange((v) => {
+        cn().pattern = v.trim() || undefined;
+        changed();
+      });
+    });
+    new Setting(c).setName(t("options.constraintAllowed")).setDesc(t("options.constraintAllowedDesc")).addText((tx) => {
+      tx.setValue((entry.constraints?.allowed ?? []).join(", ")).onChange((v) => {
+        const arr = v.split(",").map((x) => x.trim()).filter(Boolean);
+        cn().allowed = arr.length ? arr : undefined;
+        changed();
+      });
+    });
+  }
+}
+
 export function renderEntryOptionsBody(
   octx: OptionsCtx,
   onDone: () => void,
@@ -107,6 +156,7 @@ export function renderEntryOptionsBody(
         });
       });
     view.registries.valueTypes.get(cur)?.renderOptions?.(octx);
+    renderConstraints(octx, cur);
   } else {
     view.registries.entryKinds.get(e.kind)?.renderOptions?.(octx);
   }

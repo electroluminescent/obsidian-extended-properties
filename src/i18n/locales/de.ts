@@ -135,6 +135,22 @@ export const coreDe: StringDict = {
   "date.today": "heute",
   "date.inDays": "in {n} Tagen",
   "date.daysAgo": "vor {n} Tagen",
+  "validate.required": "Dieser Wert ist erforderlich.",
+  "validate.min": "Muss mindestens {n} sein.",
+  "validate.max": "Darf höchstens {n} sein.",
+  "validate.pattern": "Entspricht nicht dem erforderlichen Format.",
+  "validate.allowed": "Kein zulässiger Wert.",
+  "options.constraintsHeading": "Validierung",
+  "options.required": "Erforderlich",
+  "options.requiredDesc": "Markiert den Wert als ungültig, wenn er leer ist.",
+  "options.constraintMin": "Minimum",
+  "options.constraintMax": "Maximum",
+  "options.constraintClamp": "Beim Bearbeiten auf Bereich begrenzen",
+  "options.constraintClampDesc": "Werte außerhalb des Bereichs werden beim Speichern auf die nächste Grenze gesetzt statt nur gewarnt.",
+  "options.constraintPattern": "Muster (Regex)",
+  "options.constraintPatternDesc": "Der gesamte Wert (jeder Listeneintrag) muss diesem regulären Ausdruck entsprechen. Leer lassen zum Überspringen.",
+  "options.constraintAllowed": "Erlaubte Werte",
+  "options.constraintAllowedDesc": "Kommagetrennte akzeptierte Werte (Groß-/Kleinschreibung egal). Leer = alles erlaubt.",
 
   // -- modifiers (influence engine) ----------------------------------------------
   "derive.value": "Wert unverändert",
@@ -411,6 +427,10 @@ export const coreDe: StringDict = {
   "settings.diceAnimStay": "Ergebnisse anzeigen lassen",
   "settings.diceAnimStayDesc":
     "An = Wurf-Karten bleiben, bis sie angeklickt werden; aus = sie schließen sich selbst. Klick auf eine Karte schaltet das Behalten immer um.",
+  "settings.sound": "Soundeffekte",
+  "settings.soundDesc": "Dezente synthetische Töne für Klicks, Würfe und kritische Treffer/Fehlschläge.",
+  "settings.soundVolume": "Lautstärke",
+  "settings.soundVolumeDesc": "Lautstärke der Soundeffekte (0 = stumm).",
   "settings.diceAnimBlock": "Hintergrund beim Würfeln blockieren",
   "settings.diceAnimBlockDesc":
     "Dunkelt alles hinter den Wurf-Karten ab und verhindert Klicks, bis sie geschlossen sind.",

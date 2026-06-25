@@ -48,6 +48,8 @@ export function defaultSettings(): EPSettings {
     diceAnim: true,
     diceAnimRolls: 10,
     diceAnimMs: 1500,
+    sound: true,
+    soundVolume: 0.3,
     diceAnimStay: false,
     diceAnimBlock: true,
     modsOffProp: "Modifiers Off",
@@ -95,6 +97,9 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
       s.diceAnimRolls = Math.min(60, Math.floor(data.diceAnimRolls));
     if (typeof data.diceAnimMs === "number" && data.diceAnimMs >= 300)
       s.diceAnimMs = Math.min(10000, Math.floor(data.diceAnimMs));
+    if (data.sound === false) s.sound = false;
+    if (typeof data.soundVolume === "number" && data.soundVolume >= 0)
+      s.soundVolume = Math.min(1, data.soundVolume);
     if (typeof data.diceAnimStay === "boolean") s.diceAnimStay = data.diceAnimStay;
     if (typeof data.diceAnimBlock === "boolean") s.diceAnimBlock = data.diceAnimBlock;
     if (data.karmicRolls === true) s.karmicRolls = true;

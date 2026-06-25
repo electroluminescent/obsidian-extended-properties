@@ -28,6 +28,7 @@ import type { I18n } from "../../i18n/i18n";
 import { formatDice } from "../../utils/dice";
 import { diceIconId } from "../../ui/render/dice-icons";
 import { fmtMod } from "../../utils/misc";
+import { sfx } from "../../utils/sound";
 
 /** Visual cap — huge pools still roll, but only this many dice render. */
 const MAX_DICE_SHOWN = 12;
@@ -60,6 +61,8 @@ export interface RollAnimJob {
   spins?: number;
   /** Total animation budget in ms — dice and modifiers stagger to finish within it. */
   durationMs?: number;
+  /** Result tone — drives the crit/fail sound on resolve. */
+  tone?: "normal" | "crit" | "fail";
   /** Keep the card on screen after resolving (clicking always toggles). */
   stay: boolean;
   /** Dim the background and block interaction while cards are up. */
@@ -214,6 +217,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
   }
 
   pending++;
+  sfx.roll();
   const token = {};
   const box = cardsHost(job.block).createDiv({ cls: "ep-roll-box" });
   box.createDiv({ cls: "ep-roll-label", text: job.label });
@@ -322,6 +326,8 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     lives.set(token, { total: job.total, sides: job.groups[0]?.sides ?? 20, reroll: job.reroll });
     done();
     updateSummary(i18n);
+    if (job.tone === "crit") sfx.crit();
+    else if (job.tone === "fail") sfx.fail();
     // The auto-close must re-check pinning — clicking a card during this
     // window has to keep it (the old timer closed it regardless).
     if (!pinned) later(() => {
@@ -340,6 +346,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     const { grp, idx } = flat[i];
     const dropped = grp.dropped[idx];
     if (i < dies.length) {
+      sfx.settle();
       dies[i].el.removeClass("ep-rolling");
       dies[i].el.addClass("ep-settled");
       if (dropped) dies[i].el.addClass("ep-roll-drop");

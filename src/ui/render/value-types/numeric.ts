@@ -13,6 +13,9 @@ import type { EntryRenderCtx, EntryRef, OptionsCtx } from "../../../core/context
 import type { ClusterNeeds, ValueTypeDef } from "../../../core/registry";
 import { compileFormula, invertFormula } from "../../../utils/formula";
 import { clamp, fmtNum } from "../../../utils/misc";
+import { sfx } from "../../../utils/sound";
+import { shouldClamp, clampToConstraints } from "../../../core/validate";
+import { applyValidity } from "../validity";
 import { addonsFor, mergeNeeds, emptyFlags } from "../cluster";
 import { TextPromptModal } from "../../modals/dialogs";
 
@@ -98,7 +101,7 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
     max,
     float: isDecimal || isFormula,
     clamp: !!entry.clamp,
-    commit: (v) => view.note.set(file, key, v),
+    commit: (v) => view.note.set(file, key, shouldClamp(entry.constraints) ? clampToConstraints(v, entry.constraints) : v),
     slots,
   });
   if (entry.valueColor) refs.val.style.color = entry.valueColor;
@@ -172,7 +175,8 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
       active = false;
       slider.removeClass("is-active");
       try { knob.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
-      view.note.set(file, key, pending);
+      view.note.set(file, key, shouldClamp(entry.constraints) ? clampToConstraints(pending, entry.constraints) : pending);
+      sfx.tick();
       syncKnob?.();
     };
     knob.addEventListener("pointerup", finish);
@@ -194,10 +198,13 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
     });
   }
 
+  const checkValid = () => applyValidity(refs.val, entry, kind, view.note.raw[key], view.i18n);
+  checkValid();
   view.registerUpdater(() => {
     const v = view.note.num(key, 0);
     refs.val.setText(fmtNum(v));
     syncKnob?.();
+    checkValid();
   });
 }
 

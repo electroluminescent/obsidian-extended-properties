@@ -209,6 +209,22 @@ var coreEn = {
   "date.today": "today",
   "date.inDays": "in {n} days",
   "date.daysAgo": "{n} days ago",
+  "validate.required": "This value is required.",
+  "validate.min": "Must be at least {n}.",
+  "validate.max": "Must be at most {n}.",
+  "validate.pattern": "Doesn\u2019t match the required format.",
+  "validate.allowed": "Not one of the allowed values.",
+  "options.constraintsHeading": "Validation",
+  "options.required": "Required",
+  "options.requiredDesc": "Flag the value as invalid when empty.",
+  "options.constraintMin": "Minimum",
+  "options.constraintMax": "Maximum",
+  "options.constraintClamp": "Clamp to range on edit",
+  "options.constraintClampDesc": "Committed values outside the range snap to the nearest bound instead of only warning.",
+  "options.constraintPattern": "Pattern (regex)",
+  "options.constraintPatternDesc": "The whole value (each list item) must match this regular expression. Leave blank to skip.",
+  "options.constraintAllowed": "Allowed values",
+  "options.constraintAllowedDesc": "Comma-separated accepted values (case-insensitive). Leave blank to allow anything.",
   // -- modifiers (influence engine) ----------------------------------------------
   "derive.value": "Value as-is",
   "mods.heading": "Modifier",
@@ -462,6 +478,10 @@ var coreEn = {
   "settings.diceAnimStayDesc": "On = roll cards stay until clicked; off = they dismiss themselves. Clicking a card always toggles keeping it.",
   "settings.diceAnimBlock": "Block background while rolling",
   "settings.diceAnimBlockDesc": "Dim everything behind the roll cards and prevent clicking through until they are dismissed.",
+  "settings.sound": "Sound effects",
+  "settings.soundDesc": "Subtle synthesized blips for clicks, dice rolls, and critical hits/fails.",
+  "settings.soundVolume": "Sound volume",
+  "settings.soundVolumeDesc": "Loudness of the sound effects (0 = silent).",
   "settings.failOnOne": "Fail on natural 1",
   "settings.failOnOneDesc": "Mark a roll red when every kept die of the first group shows 1.",
   "settings.critRangesDesc": "Crit threshold per die size \u2014 the lowest face that counts toward a crit (default = the die's maximum). E.g. set d20 to 19 for a 19\u201320 crit range.",
@@ -657,6 +677,22 @@ var coreDe = {
   "date.today": "heute",
   "date.inDays": "in {n} Tagen",
   "date.daysAgo": "vor {n} Tagen",
+  "validate.required": "Dieser Wert ist erforderlich.",
+  "validate.min": "Muss mindestens {n} sein.",
+  "validate.max": "Darf h\xF6chstens {n} sein.",
+  "validate.pattern": "Entspricht nicht dem erforderlichen Format.",
+  "validate.allowed": "Kein zul\xE4ssiger Wert.",
+  "options.constraintsHeading": "Validierung",
+  "options.required": "Erforderlich",
+  "options.requiredDesc": "Markiert den Wert als ung\xFCltig, wenn er leer ist.",
+  "options.constraintMin": "Minimum",
+  "options.constraintMax": "Maximum",
+  "options.constraintClamp": "Beim Bearbeiten auf Bereich begrenzen",
+  "options.constraintClampDesc": "Werte au\xDFerhalb des Bereichs werden beim Speichern auf die n\xE4chste Grenze gesetzt statt nur gewarnt.",
+  "options.constraintPattern": "Muster (Regex)",
+  "options.constraintPatternDesc": "Der gesamte Wert (jeder Listeneintrag) muss diesem regul\xE4ren Ausdruck entsprechen. Leer lassen zum \xDCberspringen.",
+  "options.constraintAllowed": "Erlaubte Werte",
+  "options.constraintAllowedDesc": "Kommagetrennte akzeptierte Werte (Gro\xDF-/Kleinschreibung egal). Leer = alles erlaubt.",
   // -- modifiers (influence engine) ----------------------------------------------
   "derive.value": "Wert unver\xE4ndert",
   "mods.heading": "Modifikator",
@@ -908,6 +944,10 @@ var coreDe = {
   "settings.diceAnimMsDesc": "Wie lange ein Wurf bis zur vollst\xE4ndigen Aufl\xF6sung dauert. W\xFCrfel und Modifikatoren erscheinen gestaffelt nacheinander und enden innerhalb dieser Zeit.",
   "settings.diceAnimStay": "Ergebnisse anzeigen lassen",
   "settings.diceAnimStayDesc": "An = Wurf-Karten bleiben, bis sie angeklickt werden; aus = sie schlie\xDFen sich selbst. Klick auf eine Karte schaltet das Behalten immer um.",
+  "settings.sound": "Soundeffekte",
+  "settings.soundDesc": "Dezente synthetische T\xF6ne f\xFCr Klicks, W\xFCrfe und kritische Treffer/Fehlschl\xE4ge.",
+  "settings.soundVolume": "Lautst\xE4rke",
+  "settings.soundVolumeDesc": "Lautst\xE4rke der Soundeffekte (0 = stumm).",
   "settings.diceAnimBlock": "Hintergrund beim W\xFCrfeln blockieren",
   "settings.diceAnimBlockDesc": "Dunkelt alles hinter den Wurf-Karten ab und verhindert Klicks, bis sie geschlossen sind.",
   "settings.failOnOne": "Patzer bei nat\xFCrlicher 1",
@@ -1880,6 +1920,8 @@ function defaultSettings() {
     diceAnim: true,
     diceAnimRolls: 10,
     diceAnimMs: 1500,
+    sound: true,
+    soundVolume: 0.3,
     diceAnimStay: false,
     diceAnimBlock: true,
     modsOffProp: "Modifiers Off",
@@ -1921,6 +1963,9 @@ function normalizeSettings(data, defaultLayout) {
       s.diceAnimRolls = Math.min(60, Math.floor(data.diceAnimRolls));
     if (typeof data.diceAnimMs === "number" && data.diceAnimMs >= 300)
       s.diceAnimMs = Math.min(1e4, Math.floor(data.diceAnimMs));
+    if (data.sound === false) s.sound = false;
+    if (typeof data.soundVolume === "number" && data.soundVolume >= 0)
+      s.soundVolume = Math.min(1, data.soundVolume);
     if (typeof data.diceAnimStay === "boolean") s.diceAnimStay = data.diceAnimStay;
     if (typeof data.diceAnimBlock === "boolean") s.diceAnimBlock = data.diceAnimBlock;
     if (data.karmicRolls === true) s.karmicRolls = true;
@@ -2315,6 +2360,75 @@ var ValueSuggest = class extends import_obsidian2.AbstractInputSuggest {
   }
 };
 
+// src/utils/sound.ts
+var ctx = null;
+var enabled = false;
+var volume = 0.3;
+function configureSound(on, vol) {
+  enabled = on;
+  volume = Math.max(0, Math.min(1, Number.isFinite(vol) ? vol : 0.3));
+}
+function audio() {
+  if (!enabled) return null;
+  try {
+    if (!ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      ctx = new AC();
+    }
+    if (ctx.state === "suspended") void ctx.resume();
+    return ctx;
+  } catch (e) {
+    return null;
+  }
+}
+function blip({ freq, type = "sine", dur = 0.06, gain = 1, sweep = 0 }, delay = 0) {
+  const ac = audio();
+  if (!ac) return;
+  const t0 = ac.currentTime + delay;
+  const osc = ac.createOscillator();
+  const g = ac.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t0);
+  if (sweep) osc.frequency.exponentialRampToValueAtTime(Math.max(20, freq + sweep), t0 + dur);
+  const peak = Math.max(2e-4, volume * gain * 0.14);
+  g.gain.setValueAtTime(2e-4, t0);
+  g.gain.exponentialRampToValueAtTime(peak, t0 + 4e-3);
+  g.gain.exponentialRampToValueAtTime(2e-4, t0 + dur);
+  osc.connect(g).connect(ac.destination);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.02);
+}
+var sfx = {
+  /** A faint click for steppers, value edits, ratings. */
+  tick() {
+    blip({ freq: 520, type: "triangle", dur: 0.03, gain: 0.5 });
+  },
+  /** A slightly brighter blip for checkbox/state toggles. */
+  toggle() {
+    blip({ freq: 680, type: "triangle", dur: 0.045, gain: 0.6 });
+  },
+  /** A soft tumble when a roll starts. */
+  roll() {
+    blip({ freq: 300, type: "sawtooth", dur: 0.05, gain: 0.4, sweep: 140 });
+  },
+  /** A tiny tap as a die lands. */
+  settle() {
+    blip({ freq: 430, type: "sine", dur: 0.025, gain: 0.3 });
+  },
+  /** A pleasant ascending chime for a critical hit. */
+  crit() {
+    blip({ freq: 660, type: "sine", dur: 0.12, gain: 0.85 }, 0);
+    blip({ freq: 990, type: "sine", dur: 0.14, gain: 0.8 }, 0.08);
+    blip({ freq: 1320, type: "sine", dur: 0.18, gain: 0.7 }, 0.16);
+  },
+  /** A low descending buzz for a critical fail. */
+  fail() {
+    blip({ freq: 220, type: "sawtooth", dur: 0.18, gain: 0.7, sweep: -110 }, 0);
+    blip({ freq: 160, type: "square", dur: 0.16, gain: 0.45 }, 0.07);
+  }
+};
+
 // src/ui/components/inline-edit.ts
 function openNumberInput(span, value, commit2, o) {
   const input = createEl("input", { cls: "ep-edit-input" });
@@ -2338,7 +2452,10 @@ function openNumberInput(span, value, commit2, o) {
     if (!Number.isFinite(n)) return;
     if (!o.float) n = Math.round(n);
     if (o.clamp) n = clamp(n, o.min, o.max);
-    if (save) commit2(n);
+    if (save) {
+      sfx.tick();
+      commit2(n);
+    }
   };
   input.onblur = () => finish(true);
   input.onkeydown = (e) => {
@@ -2366,7 +2483,10 @@ function openTextInput(app, span, key, value, valuesFor, commit2) {
     if (done) return;
     done = true;
     if (input.parentElement) input.replaceWith(span);
-    if (save) commit2(input.value.trim());
+    if (save) {
+      sfx.tick();
+      commit2(input.value.trim());
+    }
   };
   input.onblur = () => setTimeout(() => finish(true), 150);
   input.onkeydown = (e) => {
@@ -2529,14 +2649,87 @@ var TextPromptModal = class extends import_obsidian3.Modal {
   }
 };
 
+// src/core/validate.ts
+var OK = { ok: true };
+function isEmpty(v) {
+  return v === void 0 || v === null || v === "" || Array.isArray(v) && v.length === 0;
+}
+var NUMERIC = /* @__PURE__ */ new Set(["number", "decimal", "formula", "derived", "unit", "rating"]);
+function validate(raw, c, type) {
+  if (!c) return OK;
+  if (isEmpty(raw)) return c.required ? { ok: false, code: "required" } : OK;
+  if (NUMERIC.has(type)) {
+    const n = Number(raw);
+    if (Number.isFinite(n)) {
+      if (c.min !== void 0 && n < c.min) return { ok: false, code: "min", bound: c.min };
+      if (c.max !== void 0 && n > c.max) return { ok: false, code: "max", bound: c.max };
+    }
+    return OK;
+  }
+  const items = Array.isArray(raw) ? raw.map((x) => String(x)) : [String(raw)];
+  let re = null;
+  if (c.pattern) {
+    try {
+      re = new RegExp(`^(?:${c.pattern})$`);
+    } catch (e) {
+      re = null;
+    }
+  }
+  const allow = c.allowed && c.allowed.length ? c.allowed.map((a) => a.toLowerCase()) : null;
+  for (const item of items) {
+    if (re && !re.test(item)) return { ok: false, code: "pattern" };
+    if (allow && !allow.includes(item.toLowerCase())) return { ok: false, code: "allowed" };
+  }
+  return OK;
+}
+function clampToConstraints(n, c) {
+  if (!c) return n;
+  let out = n;
+  if (c.min !== void 0 && out < c.min) out = c.min;
+  if (c.max !== void 0 && out > c.max) out = c.max;
+  return out;
+}
+function shouldClamp(c) {
+  return !!(c == null ? void 0 : c.clamp) && (c.min !== void 0 || c.max !== void 0);
+}
+
+// src/ui/render/validity.ts
+function validityMessage(i18n, v) {
+  switch (v.code) {
+    case "required":
+      return i18n.t("validate.required");
+    case "min":
+      return i18n.t("validate.min", { n: String(v.bound) });
+    case "max":
+      return i18n.t("validate.max", { n: String(v.bound) });
+    case "pattern":
+      return i18n.t("validate.pattern");
+    case "allowed":
+      return i18n.t("validate.allowed");
+    default:
+      return "";
+  }
+}
+function applyValidity(el, entry, type, raw, i18n) {
+  const v = validate(raw, entry.constraints, type);
+  el.toggleClass("ep-invalid", !v.ok);
+  el.toggleClass("ep-invalid-mark", !v.ok);
+  if (v.ok) el.removeAttribute("data-ep-invalid");
+  else {
+    el.setAttr("data-ep-invalid", "1");
+    el.setAttr("title", validityMessage(i18n, v));
+  }
+  return v.ok;
+}
+
 // src/ui/render/value-types/text.ts
 var textType = {
   id: "text",
   name: (i18n) => i18n.t("type.text"),
-  render(ctx) {
-    const { view, file, entry } = ctx;
+  render(ctx2) {
+    const { view, file, entry } = ctx2;
     const key = entry.key;
-    const v = ctx.head.createDiv({ cls: "ep-val-right" });
+    const v = ctx2.head.createDiv({ cls: "ep-val-right" });
     if (entry.valueSize) v.style.fontSize = entry.valueSize + "px";
     if (entry.valueColor) v.style.color = entry.valueColor;
     const s = v.createSpan();
@@ -2551,6 +2744,7 @@ var textType = {
         view.renderLinks(s, val);
       }
       s.addClass("ep-editable");
+      applyValidity(v, entry, "text", view.note.raw[key], view.i18n);
     };
     draw();
     view.bindOpen(
@@ -2629,6 +2823,7 @@ function buildCluster(head, flags, o, bindOpen) {
     if (o.steppers && editable) {
       const dec = cl.createEl("button", { cls: "ep-step-btn", text: "\u2212" });
       dec.onclick = () => {
+        sfx.tick();
         const cur = o.get();
         o.commit(o.clamp ? clamp(cur - 1, min, max) : cur - 1);
       };
@@ -2650,6 +2845,7 @@ function buildCluster(head, flags, o, bindOpen) {
     if (o.steppers && editable) {
       const inc = cl.createEl("button", { cls: "ep-step-btn", text: "+" });
       inc.onclick = () => {
+        sfx.tick();
         const cur = o.get();
         o.commit(o.clamp ? clamp(cur + 1, min, max) : cur + 1);
       };
@@ -2698,9 +2894,9 @@ function clusterNeeds(kind, ref) {
   for (const a of addonsFor(ref)) mergeNeeds(flags, a.needs(ref));
   return { steppers: flags.steppers, before: flags.before, after: flags.after };
 }
-function render(kind, ctx) {
+function render(kind, ctx2) {
   var _a;
-  const { view, file, entry } = ctx;
+  const { view, file, entry } = ctx2;
   const key = entry.key;
   const isFormula = kind === "formula";
   const isDecimal = kind === "decimal";
@@ -2709,10 +2905,10 @@ function render(kind, ctx) {
   const label = (_a = entry.alias) != null ? _a : key;
   const f = isFormula ? compileFormula(entry.formula || "x") || ((x) => x) : null;
   const get = () => view.note.num(key, 0);
-  const addons = addonsFor(ctx);
+  const addons = addonsFor(ctx2);
   const slots = {};
-  for (const a of addons) Object.assign(slots, a.fillSlots(ctx, { get, label }));
-  const refs = view.buildCluster(ctx.head, ctx.flags, {
+  for (const a of addons) Object.assign(slots, a.fillSlots(ctx2, { get, label }));
+  const refs = view.buildCluster(ctx2.head, ctx2.flags, {
     get,
     display: fmtNum(get()),
     steppers: wantSteppers(kind, entry),
@@ -2720,7 +2916,7 @@ function render(kind, ctx) {
     max,
     float: isDecimal || isFormula,
     clamp: !!entry.clamp,
-    commit: (v) => view.note.set(file, key, v),
+    commit: (v) => view.note.set(file, key, shouldClamp(entry.constraints) ? clampToConstraints(v, entry.constraints) : v),
     slots
   });
   if (entry.valueColor) refs.val.style.color = entry.valueColor;
@@ -2739,7 +2935,7 @@ function render(kind, ctx) {
   };
   let syncKnob = null;
   if (entry.slider || isFormula) {
-    const slider = ctx.extra.createDiv({ cls: "ep-slider2" });
+    const slider = ctx2.extra.createDiv({ cls: "ep-slider2" });
     slider.createDiv({ cls: "ep-slider2-track" });
     const knob = slider.createDiv({ cls: "ep-slider2-knob" });
     knob.tabIndex = 0;
@@ -2765,7 +2961,7 @@ function render(kind, ctx) {
       pending2 = fmt(out);
       place(pending2);
       refs.val.setText(fmtNum(pending2));
-      for (const a of addons) (_a2 = a.onPreview) == null ? void 0 : _a2.call(a, ctx, refs.cells, pending2);
+      for (const a of addons) (_a2 = a.onPreview) == null ? void 0 : _a2.call(a, ctx2, refs.cells, pending2);
     };
     knob.addEventListener("pointerdown", (e) => {
       active = true;
@@ -2791,7 +2987,8 @@ function render(kind, ctx) {
         knob.releasePointerCapture(e.pointerId);
       } catch (e2) {
       }
-      view.note.set(file, key, pending2);
+      view.note.set(file, key, shouldClamp(entry.constraints) ? clampToConstraints(pending2, entry.constraints) : pending2);
+      sfx.tick();
       syncKnob == null ? void 0 : syncKnob();
     };
     knob.addEventListener("pointerup", finish);
@@ -2812,10 +3009,13 @@ function render(kind, ctx) {
       view.note.set(file, key, fmt(v));
     });
   }
+  const checkValid = () => applyValidity(refs.val, entry, kind, view.note.raw[key], view.i18n);
+  checkValid();
   view.registerUpdater(() => {
     const v = view.note.num(key, 0);
     refs.val.setText(fmtNum(v));
     syncKnob == null ? void 0 : syncKnob();
+    checkValid();
   });
 }
 function renderOptions(kind, octx) {
@@ -2906,7 +3106,7 @@ function makeNumericType(kind, nameKey) {
   return {
     id: kind,
     name: (i18n) => i18n.t(nameKey),
-    render: (ctx) => render(kind, ctx),
+    render: (ctx2) => render(kind, ctx2),
     clusterNeeds: (ref) => clusterNeeds(kind, ref),
     renderOptions: (octx) => renderOptions(kind, octx),
     menuItems: (menu, ref) => menuItems(kind, menu, ref)
@@ -3069,11 +3269,11 @@ var modifierAddon = {
     if (ext(ref.entry).showMod && !isDerived) before.push({ id: "mod", cls: "ep-mod-badge" });
     return { before };
   },
-  fillSlots(ctx) {
-    const view = ctx.view;
-    const e = ext(ctx.entry);
+  fillSlots(ctx2) {
+    const view = ctx2.view;
+    const e = ext(ctx2.entry);
     const slots = {};
-    const togs = togglable(ctx.entry);
+    const togs = togglable(ctx2.entry);
     if (togs.length) {
       slots["tog"] = (cell) => {
         var _a, _b;
@@ -3081,9 +3281,9 @@ var modifierAddon = {
           const cb = cell.createEl("input");
           cb.type = "checkbox";
           cb.addClass("ep-prof");
-          const sync = () => cb.checked = influenceActive(view, ctx.entry, inf);
+          const sync = () => cb.checked = influenceActive(view, ctx2.entry, inf);
           sync();
-          const flip = () => setInfluenceActive(view, ctx.file, ctx.entry, inf, !influenceActive(view, ctx.entry, inf));
+          const flip = () => setInfluenceActive(view, ctx2.file, ctx2.entry, inf, !influenceActive(view, ctx2.entry, inf));
           if (view.editMode) {
             cb.setAttr("title", (_a = inf.toggle) != null ? _a : "");
             cb.onchange = flip;
@@ -3096,32 +3296,32 @@ var modifierAddon = {
         }
       };
     }
-    if (e.showMod && view.resolveType(ctx.entry) !== "derived") {
+    if (e.showMod && view.resolveType(ctx2.entry) !== "derived") {
       slots["mod"] = (cell) => {
-        paintBadge(cell, ctx);
-        view.registerUpdater(() => paintBadge(cell, ctx));
+        paintBadge(cell, ctx2);
+        view.registerUpdater(() => paintBadge(cell, ctx2));
       };
     }
     return slots;
   },
   /** Keep the badge live while a slider drags (only the self term reacts). */
-  onPreview(ctx, cells, value) {
-    const e = ext(ctx.entry);
+  onPreview(ctx2, cells, value) {
+    const e = ext(ctx2.entry);
     if (!e.showMod || !cells["mod"] || e.rollOverride !== void 0) return;
-    const view = ctx.view;
+    const view = ctx2.view;
     let total = 0;
-    for (const inf of mods(ctx.entry)) {
+    for (const inf of mods(ctx2.entry)) {
       if (inf.source || inf.expr) {
-        total += influenceTerm(view, ctx.entry, inf);
+        total += influenceTerm(view, ctx2.entry, inf);
         continue;
       }
-      if (!influenceActive(view, ctx.entry, inf)) continue;
+      if (!influenceActive(view, ctx2.entry, inf)) continue;
       total += (inf.weight === -1 ? -1 : 1) * applyDerivation(view, inf, value);
     }
     const cell = cells["mod"];
     cell.empty();
-    if (ctx.entry.showChain !== false) paintDenotation(cell, view, ctx.entry, ctx.file);
-    paintDice(cell, ctx.entry);
+    if (ctx2.entry.showChain !== false) paintDenotation(cell, view, ctx2.entry, ctx2.file);
+    paintDice(cell, ctx2.entry);
     cell.appendText(fmtMod(total));
   },
   // -- options: the influence editor ---------------------------------------
@@ -3246,11 +3446,11 @@ var modifierAddon = {
             tx.inputEl,
             () => referenceSuggestions(view.settings, view.propCandidates(true).map((c2) => c2.key))
           );
-          const validate = (val) => tx.inputEl.toggleClass("ep-invalid", val.trim() !== "" && !parseExpr(val));
-          validate((_b = inf.expr) != null ? _b : "");
+          const validate2 = (val) => tx.inputEl.toggleClass("ep-invalid", val.trim() !== "" && !parseExpr(val));
+          validate2((_b = inf.expr) != null ? _b : "");
           tx.onChange((val) => {
             inf.expr = val;
-            validate(val);
+            validate2(val);
             changed();
           });
         });
@@ -3369,27 +3569,27 @@ var derivedType = {
     flags.before.push({ id: "den", cls: "ep-den-cell" });
     return flags;
   },
-  render(ctx) {
-    const { view, entry } = ctx;
+  render(ctx2) {
+    const { view, entry } = ctx2;
     const compute = () => modifierTotal(view, entry);
     const label = entry.alias || entry.key || "";
     const slots = {
       den: (cell) => {
         const paint = () => {
           cell.empty();
-          if (entry.showChain !== false) paintDenotation(cell, view, entry, ctx.file);
+          if (entry.showChain !== false) paintDenotation(cell, view, entry, ctx2.file);
           paintDice(cell, entry);
         };
         paint();
         view.registerUpdater(paint);
       }
     };
-    for (const a of addonsFor(ctx)) Object.assign(slots, a.fillSlots(ctx, { get: compute, label }));
+    for (const a of addonsFor(ctx2)) Object.assign(slots, a.fillSlots(ctx2, { get: compute, label }));
     const disp = () => {
       const r = modifierInfo(view, entry);
       return r.value === void 0 ? "\u2014" : fmtMod(r.value);
     };
-    const refs = view.buildCluster(ctx.head, ctx.flags, { display: disp(), slots });
+    const refs = view.buildCluster(ctx2.head, ctx2.flags, { display: disp(), slots });
     refs.val.addClass("ep-num-join");
     if (entry.valueSize) refs.val.style.fontSize = entry.valueSize + "px";
     if (entry.valueColor) refs.val.style.color = entry.valueColor;
@@ -3410,12 +3610,12 @@ var derivedType = {
     sync();
     view.bindOpen(
       refs.val,
-      () => openNumberInput(refs.val, compute(), (v) => view.note.set(ctx.file, entry.key, v), {
+      () => openNumberInput(refs.val, compute(), (v) => view.note.set(ctx2.file, entry.key, v), {
         min: -9999,
         max: 9999,
         float: false,
         clamp: false,
-        onEmpty: () => view.note.set(ctx.file, entry.key, void 0)
+        onEmpty: () => view.note.set(ctx2.file, entry.key, void 0)
       })
     );
     view.registerUpdater(sync);
@@ -3549,31 +3749,37 @@ function gradientStops(samples, at) {
 }
 
 // src/ui/render/value-types/basic.ts
-function isChecked(ctx, key) {
-  const v = ctx.view.note.raw[key];
+function isChecked(ctx2, key) {
+  const v = ctx2.view.note.raw[key];
   return v === true || String(v).toLowerCase() === "true";
 }
 var checkboxType = {
   id: "checkbox",
   name: (i18n) => i18n.t("type.checkbox"),
-  render(ctx) {
-    const { view, file, entry } = ctx;
+  render(ctx2) {
+    const { view, file, entry } = ctx2;
     const key = entry.key;
-    const v = ctx.head.createDiv({ cls: "ep-val-right" });
+    const v = ctx2.head.createDiv({ cls: "ep-val-right" });
     if (entry.valueColor) v.style.color = entry.valueColor;
     const cb = v.createEl("input");
     cb.type = "checkbox";
     cb.addClass("ep-prof");
-    cb.checked = isChecked(ctx, key);
+    cb.checked = isChecked(ctx2, key);
     if (view.editMode) {
-      cb.onchange = () => view.note.set(file, key, cb.checked);
+      cb.onchange = () => {
+        sfx.toggle();
+        view.note.set(file, key, cb.checked);
+      };
     } else {
       cb.setAttr("title", view.i18n.t("hint.dblToggle"));
       cb.onclick = (e) => e.preventDefault();
-      cb.ondblclick = () => view.note.set(file, key, !isChecked(ctx, key));
+      cb.ondblclick = () => {
+        sfx.toggle();
+        view.note.set(file, key, !isChecked(ctx2, key));
+      };
     }
     view.registerUpdater(() => {
-      cb.checked = isChecked(ctx, key);
+      cb.checked = isChecked(ctx2, key);
     });
   },
   menuItems(menu, ref) {
@@ -3586,8 +3792,8 @@ var checkboxType = {
     );
   }
 };
-function buildList(ctx, holder, showAdd) {
-  const { view, file, entry } = ctx;
+function buildList(ctx2, holder, showAdd) {
+  const { view, file, entry } = ctx2;
   const key = entry.key;
   const current = view.note.list(key);
   const list = holder.createDiv({ cls: "ep-list" });
@@ -3609,15 +3815,19 @@ function buildList(ctx, holder, showAdd) {
 var listType = {
   id: "list",
   name: (i18n) => i18n.t("type.list"),
-  render(ctx) {
-    const { view, entry } = ctx;
-    const holder = ctx.extra.createDiv({ cls: "ep-list-holder" });
+  render(ctx2) {
+    const { view, entry } = ctx2;
+    const holder = ctx2.extra.createDiv({ cls: "ep-list-holder" });
     if (entry.valueSize) holder.style.fontSize = entry.valueSize + "px";
     if (entry.valueColor) holder.style.color = entry.valueColor;
-    buildList(ctx, holder, view.editMode);
+    const key = entry.key;
+    const checkValid = () => applyValidity(holder, entry, "list", view.note.raw[key], view.i18n);
+    buildList(ctx2, holder, view.editMode);
+    checkValid();
     view.registerUpdater(() => {
       holder.empty();
-      buildList(ctx, holder, view.editMode);
+      buildList(ctx2, holder, view.editMode);
+      checkValid();
     });
   },
   menuItems(menu, ref, pos) {
@@ -3633,10 +3843,10 @@ var listType = {
 var colorType = {
   id: "color",
   name: (i18n) => i18n.t("type.color"),
-  render(ctx) {
-    const { view, file, entry } = ctx;
+  render(ctx2) {
+    const { view, file, entry } = ctx2;
     const key = entry.key;
-    const v = ctx.head.createDiv({ cls: "ep-val-right" });
+    const v = ctx2.head.createDiv({ cls: "ep-val-right" });
     if (entry.valueSize) v.style.fontSize = entry.valueSize + "px";
     if (entry.valueColor) v.style.color = entry.valueColor;
     const sw = v.createSpan({ cls: "ep-swatch" });
@@ -3727,11 +3937,11 @@ var IMAGE_HEIGHTS = { s: 120, m: 240, l: 360 };
 var imageType = {
   id: "image",
   name: (i18n) => i18n.t("type.image"),
-  render(ctx) {
+  render(ctx2) {
     var _a, _b;
-    const { view, file, entry } = ctx;
+    const { view, file, entry } = ctx2;
     const key = entry.key;
-    const holder = ctx.extra.createDiv({ cls: "ep-image" });
+    const holder = ctx2.extra.createDiv({ cls: "ep-image" });
     const h = (_b = IMAGE_HEIGHTS[(_a = entry.size) != null ? _a : ""]) != null ? _b : 0;
     const draw = () => {
       holder.empty();
@@ -3809,10 +4019,10 @@ var imageType = {
 var iframeType = {
   id: "iframe",
   name: (i18n) => i18n.t("type.iframe"),
-  render(ctx) {
-    const { view, file, entry } = ctx;
+  render(ctx2) {
+    const { view, file, entry } = ctx2;
     const key = entry.key;
-    const holder = ctx.extra.createDiv({ cls: "ep-iframe-wrap" });
+    const holder = ctx2.extra.createDiv({ cls: "ep-iframe-wrap" });
     const scale = entry.iframeScale && entry.iframeScale > 0 ? entry.iframeScale : 0.25;
     const height = entry.iframeHeight && entry.iframeHeight > 0 ? entry.iframeHeight : 200;
     const draw = () => {
@@ -3842,7 +4052,7 @@ var iframeType = {
       (val) => view.note.set(file, key, val.trim() === "" ? void 0 : val.trim())
     ).open();
     if (view.editMode) {
-      const edit = ctx.extra.createDiv({ cls: "ep-iframe-edit" });
+      const edit = ctx2.extra.createDiv({ cls: "ep-iframe-edit" });
       const btn = edit.createEl("button", { cls: "ep-mini-btn", text: view.i18n.t("iframe.setUrl") });
       btn.onclick = promptUrl;
     } else {
@@ -3884,12 +4094,12 @@ var import_obsidian9 = require("obsidian");
 var ratingType = {
   id: "rating",
   name: (i18n) => i18n.t("type.rating"),
-  render(ctx) {
-    const { view, file, entry } = ctx;
+  render(ctx2) {
+    const { view, file, entry } = ctx2;
     const key = entry.key;
     const max = Math.max(1, Math.min(20, Math.round(Number(entry.ratingMax) || 5)));
     const icon = entry.ratingIcon || "star";
-    const v = ctx.head.createDiv({ cls: "ep-val-right ep-rating" });
+    const v = ctx2.head.createDiv({ cls: "ep-val-right ep-rating" });
     if (entry.valueColor) v.style.color = entry.valueColor;
     const draw = () => {
       v.empty();
@@ -3900,6 +4110,7 @@ var ratingType = {
         pip.onclick = (e) => {
           e.preventDefault();
           e.stopPropagation();
+          sfx.tick();
           view.note.set(file, key, i === cur ? i - 1 : i);
         };
       }
@@ -3947,10 +4158,10 @@ function promptLink(view, set, key) {
 var linkType = {
   id: "link",
   name: (i18n) => i18n.t("type.link"),
-  render(ctx) {
-    const { view, file, entry } = ctx;
+  render(ctx2) {
+    const { view, file, entry } = ctx2;
     const key = entry.key;
-    const v = ctx.head.createDiv({ cls: "ep-val-right ep-linkval" });
+    const v = ctx2.head.createDiv({ cls: "ep-val-right ep-linkval" });
     if (entry.valueColor) v.style.color = entry.valueColor;
     const draw = () => {
       v.empty();
@@ -3981,12 +4192,12 @@ var linkType = {
 var unitType = {
   id: "unit",
   name: (i18n) => i18n.t("type.unit"),
-  render(ctx) {
-    const { view, file, entry } = ctx;
+  render(ctx2) {
+    const { view, file, entry } = ctx2;
     const key = entry.key;
     const unit = entry.unit || "";
     const factor = Number(entry.unitFactor) > 0 ? Number(entry.unitFactor) : 1;
-    const cell = ctx.head.createDiv({ cls: "ep-val-right ep-unitval" });
+    const cell = ctx2.head.createDiv({ cls: "ep-val-right ep-unitval" });
     if (entry.valueColor) cell.style.color = entry.valueColor;
     const num = cell.createSpan({ cls: "ep-num ep-editable" });
     if (unit) cell.createSpan({ cls: "ep-unit-suffix", text: " " + unit });
@@ -4031,10 +4242,10 @@ function relativeDays(i18n, d) {
 var datetimeType = {
   id: "datetime",
   name: (i18n) => i18n.t("type.datetime"),
-  render(ctx) {
-    const { view, file, entry } = ctx;
+  render(ctx2) {
+    const { view, file, entry } = ctx2;
     const key = entry.key;
-    const cell = ctx.head.createDiv({ cls: "ep-val-right ep-dateval" });
+    const cell = ctx2.head.createDiv({ cls: "ep-val-right ep-dateval" });
     if (entry.valueColor) cell.style.color = entry.valueColor;
     const txt = cell.createSpan({ cls: "ep-editable" });
     const rel = cell.createSpan({ cls: "ep-date-rel" });
@@ -4242,21 +4453,21 @@ var propKind = {
     const type = ref.view.resolveType(ref.entry);
     return (_c = (_b = (_a = ref.view.registries.valueTypes.get(type)) == null ? void 0 : _a.clusterNeeds) == null ? void 0 : _b.call(_a, ref)) != null ? _c : {};
   },
-  render(ctx) {
+  render(ctx2) {
     var _a;
-    const { view, entry } = ctx;
-    view.renderLabel(ctx.head, ctx);
+    const { view, entry } = ctx2;
+    view.renderLabel(ctx2.head, ctx2);
     const type = view.resolveType(entry);
     const def = (_a = view.registries.valueTypes.get(type)) != null ? _a : view.registries.valueTypes.get("text");
-    def == null ? void 0 : def.render(ctx);
+    def == null ? void 0 : def.render(ctx2);
   }
 };
 var blankKind = {
   id: "blank",
   bare: true,
   defaultLabel: (i18n) => i18n.t("kind.blank"),
-  render(ctx) {
-    const { view, section, entry, wrap } = ctx;
+  render(ctx2) {
+    const { view, section, entry, wrap } = ctx2;
     if (!view.editMode) return;
     const t = view.i18n.t.bind(view.i18n);
     const grip = wrap.createSpan({ cls: "ep-grip", text: "\u283F" });
@@ -4304,10 +4515,10 @@ var tocKind = {
   id: "toc",
   addable: true,
   defaultLabel: (i18n) => i18n.t("kind.toc"),
-  render(ctx) {
-    const { view } = ctx;
-    view.renderLabel(ctx.head, ctx);
-    const list = ctx.extra.createDiv({ cls: "ep-toc" });
+  render(ctx2) {
+    const { view } = ctx2;
+    view.renderLabel(ctx2.head, ctx2);
+    const list = ctx2.extra.createDiv({ cls: "ep-toc" });
     list.setAttr("title", view.i18n.t("toc.hint"));
     for (const s of view.layout.sections) {
       const row = list.createDiv({ cls: "ep-toc-row" });
@@ -4322,8 +4533,8 @@ var tocKind = {
 };
 
 // src/ui/render/value-types/index.ts
-function registerCore(ctx) {
-  const r = ctx.registries;
+function registerCore(ctx2) {
+  const r = ctx2.registries;
   r.valueTypes.add(textType);
   r.valueTypes.add(numberType);
   r.valueTypes.add(decimalType);
@@ -4778,8 +4989,8 @@ function renderEntry(grid, view, file, section, entry, flags, drag) {
   if (kind == null ? void 0 : kind.bare) {
     const wrap2 = grid.createDiv({ cls: "ep-entry ep-blank" });
     wrap2.setAttr("data-ep-id", "e:" + entry.id);
-    const ctx2 = { view, file, section, entry, head: wrap2, extra: wrap2, flags, wrap: wrap2 };
-    kind.render(ctx2);
+    const ctx3 = { view, file, section, entry, head: wrap2, extra: wrap2, flags, wrap: wrap2 };
+    kind.render(ctx3);
     if (view.editMode) {
       const grip2 = wrap2.querySelector(".ep-grip");
       if (grip2) drag.attachEntry(wrap2, grip2, section, entry);
@@ -4802,11 +5013,11 @@ function renderEntry(grid, view, file, section, entry, flags, drag) {
     if (entry.iconColor) ic.style.color = entry.iconColor;
   }
   const extra = wrap.createDiv({ cls: "ep-entry-extra" });
-  const ctx = { view, file, section, entry, head, extra, flags, wrap };
+  const ctx2 = { view, file, section, entry, head, extra, flags, wrap };
   if (kind) {
-    kind.render(ctx);
+    kind.render(ctx2);
   } else {
-    view.renderLabel(head, ctx);
+    view.renderLabel(head, ctx2);
     const v = head.createDiv({ cls: "ep-val-right" });
     v.createSpan({ cls: "ep-placeholder", text: view.i18n.t("entry.unknownKind", { kind: entry.kind }) });
   }
@@ -4978,10 +5189,10 @@ var ColorPickerModal = class extends import_obsidian15.Modal {
     canvas.addClass("ep-cp-field");
     const cursor = wrap.createDiv({ cls: "ep-cp-cursor" });
     const paint = () => {
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
+      const ctx2 = canvas.getContext("2d");
+      if (!ctx2) return;
       const w = canvas.width, h = canvas.height;
-      const img = ctx.createImageData(w, h);
+      const img = ctx2.createImageData(w, h);
       const d = img.data;
       for (let py = 0; py < h; py++) {
         const yy = py / (h - 1);
@@ -4995,7 +5206,7 @@ var ColorPickerModal = class extends import_obsidian15.Modal {
           d[i + 3] = 255;
         }
       }
-      ctx.putImageData(img, 0, 0);
+      ctx2.putImageData(img, 0, 0);
     };
     const place = () => {
       const [x, y] = getXY();
@@ -5353,6 +5564,63 @@ function viewColorHost(view) {
     }
   };
 }
+var NUMERIC_CONSTRAINT_TYPES = /* @__PURE__ */ new Set(["number", "decimal", "formula", "unit", "rating"]);
+function renderConstraints(octx, type) {
+  const { view, entry, container: c, changed } = octx;
+  const t = view.i18n.t.bind(view.i18n);
+  const cn = () => {
+    var _a;
+    return (_a = entry.constraints) != null ? _a : entry.constraints = {};
+  };
+  c.createEl("h4", { text: t("options.constraintsHeading") });
+  new import_obsidian18.Setting(c).setName(t("options.required")).setDesc(t("options.requiredDesc")).addToggle((tg) => {
+    var _a;
+    tg.setValue(!!((_a = entry.constraints) == null ? void 0 : _a.required)).onChange((v) => {
+      cn().required = v || void 0;
+      changed();
+    });
+  });
+  if (NUMERIC_CONSTRAINT_TYPES.has(type)) {
+    const numField = (name, get, set) => new import_obsidian18.Setting(c).setName(name).addText((tx) => {
+      tx.setValue(get() !== void 0 ? String(get()) : "").onChange((v) => {
+        const n = Number(v);
+        set(v.trim() === "" || !Number.isFinite(n) ? void 0 : n);
+        changed();
+      });
+    });
+    numField(t("options.constraintMin"), () => {
+      var _a;
+      return (_a = entry.constraints) == null ? void 0 : _a.min;
+    }, (n) => cn().min = n);
+    numField(t("options.constraintMax"), () => {
+      var _a;
+      return (_a = entry.constraints) == null ? void 0 : _a.max;
+    }, (n) => cn().max = n);
+    new import_obsidian18.Setting(c).setName(t("options.constraintClamp")).setDesc(t("options.constraintClampDesc")).addToggle((tg) => {
+      var _a;
+      tg.setValue(!!((_a = entry.constraints) == null ? void 0 : _a.clamp)).onChange((v) => {
+        cn().clamp = v || void 0;
+        changed();
+      });
+    });
+  } else {
+    new import_obsidian18.Setting(c).setName(t("options.constraintPattern")).setDesc(t("options.constraintPatternDesc")).addText((tx) => {
+      var _a, _b;
+      tx.setValue((_b = (_a = entry.constraints) == null ? void 0 : _a.pattern) != null ? _b : "").onChange((v) => {
+        cn().pattern = v.trim() || void 0;
+        changed();
+      });
+    });
+    new import_obsidian18.Setting(c).setName(t("options.constraintAllowed")).setDesc(t("options.constraintAllowedDesc")).addText((tx) => {
+      var _a, _b;
+      tx.setValue(((_b = (_a = entry.constraints) == null ? void 0 : _a.allowed) != null ? _b : []).join(", ")).onChange((v) => {
+        const arr = v.split(",").map((x) => x.trim()).filter(Boolean);
+        cn().allowed = arr.length ? arr : void 0;
+        changed();
+      });
+    });
+  }
+}
 function renderEntryOptionsBody(octx, onDone, onRemoved, opts = {}) {
   var _a, _b, _c, _d;
   const { view, section, entry: e, container: c, changed, redraw } = octx;
@@ -5398,6 +5666,7 @@ function renderEntryOptionsBody(octx, onDone, onRemoved, opts = {}) {
       });
     });
     (_b = (_a = view.registries.valueTypes.get(cur)) == null ? void 0 : _a.renderOptions) == null ? void 0 : _b.call(_a, octx);
+    renderConstraints(octx, cur);
   } else {
     (_d = (_c = view.registries.entryKinds.get(e.kind)) == null ? void 0 : _c.renderOptions) == null ? void 0 : _d.call(_c, octx);
   }
@@ -7421,9 +7690,9 @@ var SidebarView = class extends import_obsidian22.ItemView {
     ).open();
   }
   // -- label rendering (shared by entry kinds) ----------------------------------
-  renderLabel(head, ctx) {
+  renderLabel(head, ctx2) {
     var _a, _b;
-    const { entry } = ctx;
+    const { entry } = ctx2;
     const showLabel = this.editMode || !entry.hideLabel;
     if (!showLabel) return;
     const span = head.createSpan({ cls: "ep-line-name" });
@@ -8299,6 +8568,19 @@ var EPSettingTab = class extends import_obsidian23.PluginSettingTab {
         save();
       });
     });
+    new import_obsidian23.Setting(c).setName(t("settings.sound")).setDesc(t("settings.soundDesc")).addToggle((tg) => {
+      tg.setValue(plugin.settings.sound !== false).onChange((v) => {
+        plugin.settings.sound = v;
+        save();
+      });
+    });
+    new import_obsidian23.Setting(c).setName(t("settings.soundVolume")).setDesc(t("settings.soundVolumeDesc")).addSlider((sl) => {
+      var _a;
+      sl.setLimits(0, 1, 0.05).setValue((_a = plugin.settings.soundVolume) != null ? _a : 0.3).setDynamicTooltip().onChange((v) => {
+        plugin.settings.soundVolume = v;
+        save();
+      });
+    });
     new import_obsidian23.Setting(c).setName(t("settings.failOnOne")).setDesc(t("settings.failOnOneDesc")).addToggle((tg) => {
       tg.setValue(plugin.settings.failOnOne !== false).onChange((v) => {
         plugin.settings.failOnOne = v;
@@ -8657,13 +8939,13 @@ var rollsKind = {
   id: "rolls",
   addable: true,
   defaultLabel: (i18n) => i18n.t("roll.rolls"),
-  render(ctx) {
-    const { view } = ctx;
+  render(ctx2) {
+    const { view } = ctx2;
     const t = view.i18n.t.bind(view.i18n);
-    view.renderLabel(ctx.head, ctx);
+    view.renderLabel(ctx2.head, ctx2);
     const history = view.history;
-    const e = ext(ctx.entry);
-    const tools = ctx.extra.createDiv({ cls: "ep-log-tools" });
+    const e = ext(ctx2.entry);
+    const tools = ctx2.extra.createDiv({ cls: "ep-log-tools" });
     const rngBtn = tools.createEl("button", { cls: "ep-mode-btn" });
     rngBtn.setAttr("title", t("roll.rngHint"));
     rngBtn.onclick = () => {
@@ -8696,7 +8978,7 @@ var rollsKind = {
         () => history.clear(noteOnly ? view.note.path : void 0)
       ).open();
     };
-    const logEl = ctx.extra.createDiv({ cls: "ep-log" });
+    const logEl = ctx2.extra.createDiv({ cls: "ep-log" });
     const redraw = () => {
       var _a;
       rngBtn.setText(view.settings.karmicRolls ? t("roll.rngKarmic") : t("roll.rngRandom"));
@@ -8892,6 +9174,7 @@ function playRollAnimation(job, i18n, done) {
     return;
   }
   pending++;
+  sfx.roll();
   const token = {};
   const box = cardsHost(job.block).createDiv({ cls: "ep-roll-box" });
   box.createDiv({ cls: "ep-roll-label", text: job.label });
@@ -8994,6 +9277,8 @@ function playRollAnimation(job, i18n, done) {
     lives.set(token, { total: job.total, sides: (_b2 = (_a2 = job.groups[0]) == null ? void 0 : _a2.sides) != null ? _b2 : 20, reroll: job.reroll });
     done();
     updateSummary(i18n);
+    if (job.tone === "crit") sfx.crit();
+    else if (job.tone === "fail") sfx.fail();
     if (!pinned) later(() => {
       if (!pinned) close();
     }, 1400);
@@ -9005,6 +9290,7 @@ function playRollAnimation(job, i18n, done) {
     const { grp, idx } = flat[i];
     const dropped = grp.dropped[idx];
     if (i < dies.length) {
+      sfx.settle();
       dies[i].el.removeClass("ep-rolling");
       dies[i].el.addClass("ep-settled");
       if (dropped) dies[i].el.addClass("ep-roll-drop");
@@ -9129,6 +9415,7 @@ var RollService = class {
           total,
           spins: (_g = this.settings.diceAnimRolls) != null ? _g : 10,
           durationMs: (_h = this.settings.diceAnimMs) != null ? _h : 1500,
+          tone: res.tone,
           stay: opts.stay || this.settings.diceAnimStay === true,
           block: this.settings.diceAnimBlock !== false,
           reroll: redo
@@ -9137,6 +9424,9 @@ var RollService = class {
         commit2
       );
     } else {
+      sfx.roll();
+      if (res.tone === "crit") sfx.crit();
+      else if (res.tone === "fail") sfx.fail();
       commit2();
     }
   }
@@ -9348,13 +9638,13 @@ var rollerKind = {
   id: "diceroller",
   addable: true,
   defaultLabel: (i18n) => i18n.t("roller.title"),
-  render(ctx) {
+  render(ctx2) {
     var _a;
-    const { view } = ctx;
+    const { view } = ctx2;
     const t = view.i18n.t.bind(view.i18n);
-    view.renderLabel(ctx.head, ctx);
-    const e = ext(ctx.entry);
-    const wrap = ctx.extra.createDiv({ cls: "ep-roller" });
+    view.renderLabel(ctx2.head, ctx2);
+    const e = ext(ctx2.entry);
+    const wrap = ctx2.extra.createDiv({ cls: "ep-roller" });
     const segs = () => Array.isArray(e.rollerSegs) ? e.rollerSegs : [];
     const setSegs = (next) => {
       e.rollerSegs = next.length ? next : void 0;
@@ -9550,7 +9840,7 @@ var rollerKind = {
     const go = ctl.createEl("button", { cls: "ep-roll-btn ep-roller-go", text: t("roll.roll") });
     go.onclick = () => {
       var _a2, _b;
-      const label = ctx.entry.alias || t("roller.title");
+      const label = ctx2.entry.alias || t("roller.title");
       runRoll(svc(view), view.i18n, {
         segs: segs(),
         mode: curMode(),
@@ -9659,24 +9949,24 @@ var rollAddon = {
   needs() {
     return { after: [{ id: "roll", cls: "ep-roll-cell" }] };
   },
-  fillSlots(ctx, num) {
-    const view = ctx.view;
-    const e = ext(ctx.entry);
+  fillSlots(ctx2, num) {
+    const view = ctx2.view;
+    const e = ext(ctx2.entry);
     const slots = {};
     slots["roll"] = (cell) => {
       const btn = cell.createEl("button", { cls: "ep-roll-btn", text: view.i18n.t("roll.roll") });
       const svc2 = () => view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings, view.history, view.app));
       const partsFor = () => {
         var _a;
-        const me = ext(ctx.entry);
-        if (hasNoteOverride(view, ctx.entry) || me.rollOverride !== void 0)
-          return [{ label: view.i18n.t("roll.partOverride"), value: modifierTotal(view, ctx.entry) }];
-        return ((_a = me.mods) != null ? _a : []).filter((inf) => influenceActive(view, ctx.entry, inf)).map((inf) => ({
-          label: abbrFor(view.settings, inf.source || ctx.entry.key || ""),
-          value: influenceTerm(view, ctx.entry, inf)
+        const me = ext(ctx2.entry);
+        if (hasNoteOverride(view, ctx2.entry) || me.rollOverride !== void 0)
+          return [{ label: view.i18n.t("roll.partOverride"), value: modifierTotal(view, ctx2.entry) }];
+        return ((_a = me.mods) != null ? _a : []).filter((inf) => influenceActive(view, ctx2.entry, inf)).map((inf) => ({
+          label: abbrFor(view.settings, inf.source || ctx2.entry.key || ""),
+          value: influenceTerm(view, ctx2.entry, inf)
         }));
       };
-      btn.onclick = () => svc2().roll(num.label, modifierTotal(view, ctx.entry), parseDiceOrDefault(e.dice), {
+      btn.onclick = () => svc2().roll(num.label, modifierTotal(view, ctx2.entry), parseDiceOrDefault(e.dice), {
         parts: partsFor()
       });
       btn.addEventListener("contextmenu", (ev) => {
@@ -9686,7 +9976,7 @@ var rollAddon = {
           for (let i = 0; i < times; i++)
             svc2().roll(
               times > 1 ? `${num.label} #${i + 1}` : num.label,
-              modifierTotal(view, ctx.entry),
+              modifierTotal(view, ctx2.entry),
               parseDiceOrDefault(e.dice),
               { parts: partsFor(), mode, stay: times > 1 }
             );
@@ -9883,12 +10173,12 @@ function confirmConvert(ref) {
     () => convertToProperties(ref)
   ).open();
 }
-function updateRecord(ctx, index, change) {
-  const key = ctx.entry.key;
-  const records = readRecords(ctx.view, key);
+function updateRecord(ctx2, index, change) {
+  const key = ctx2.entry.key;
+  const records = readRecords(ctx2.view, key);
   if (!records[index]) return;
   change(records[index]);
-  writeRecords(ctx.view, ctx.file, key, records);
+  writeRecords(ctx2.view, ctx2.file, key, records);
 }
 function populateFromPreset(view, file, key, preset) {
   const fresh = preset.records();
@@ -9946,17 +10236,17 @@ function inlineText(span, value, commit2) {
     }
   };
 }
-function inlineSource(ctx, span, index) {
+function inlineSource(ctx2, span, index) {
   var _a, _b;
-  const view = ctx.view;
+  const view = ctx2.view;
   const input = createEl("input", { cls: "ep-edit-input ep-edit-label" });
   input.type = "text";
-  input.value = (_b = (_a = readRecords(view, ctx.entry.key)[index]) == null ? void 0 : _a.source) != null ? _b : "";
+  input.value = (_b = (_a = readRecords(view, ctx2.entry.key)[index]) == null ? void 0 : _a.source) != null ? _b : "";
   span.replaceWith(input);
   input.focus();
   input.select();
   let done = false;
-  const choose = (key) => updateRecord(ctx, index, (r) => r.source = key || void 0);
+  const choose = (key) => updateRecord(ctx2, index, (r) => r.source = key || void 0);
   new PropSuggest(view.app, input, view.i18n, () => view.propCandidates(true), (key) => {
     done = true;
     if (input.parentElement) input.replaceWith(span);
@@ -9979,11 +10269,11 @@ function inlineSource(ctx, span, index) {
     }
   };
 }
-function renderRow(ctx, list, records, index) {
+function renderRow(ctx2, list, records, index) {
   var _a;
-  const view = ctx.view;
+  const view = ctx2.view;
   const t = view.i18n.t.bind(view.i18n);
-  const e = ext(ctx.entry);
+  const e = ext(ctx2.entry);
   const rec = records[index];
   const row = list.createDiv({ cls: "ep-line" });
   const cb = row.createEl("input");
@@ -9992,23 +10282,23 @@ function renderRow(ctx, list, records, index) {
   cb.checked = !!rec.prof;
   if (view.editMode) {
     cb.setAttr("title", t("skills.proficientHint"));
-    cb.onchange = () => updateRecord(ctx, index, (r) => r.prof = cb.checked || void 0);
+    cb.onchange = () => updateRecord(ctx2, index, (r) => r.prof = cb.checked || void 0);
   } else {
     cb.setAttr("title", t("hint.dblToggle"));
     cb.onclick = (ev) => ev.preventDefault();
-    cb.ondblclick = () => updateRecord(ctx, index, (r) => r.prof = !r.prof || void 0);
+    cb.ondblclick = () => updateRecord(ctx2, index, (r) => r.prof = !r.prof || void 0);
   }
   const nameSpan = row.createSpan({ cls: "ep-line-name", text: rec.name });
   view.bindOpen(
     nameSpan,
-    () => inlineText(nameSpan, rec.name, (v) => updateRecord(ctx, index, (r) => r.name = v))
+    () => inlineText(nameSpan, rec.name, (v) => updateRecord(ctx2, index, (r) => r.name = v))
   );
   const abbrSpan = row.createSpan({
     cls: "ep-line-abbr",
     text: rec.source ? abbrFor(view.settings, rec.source) : "\u2014"
   });
   abbrSpan.setAttr("aria-label", rec.source || t("skills.menu.setSource"));
-  view.bindOpen(abbrSpan, () => inlineSource(ctx, abbrSpan, index));
+  view.bindOpen(abbrSpan, () => inlineSource(ctx2, abbrSpan, index));
   const diceNotation = (_a = rec.dice) != null ? _a : e.dice;
   const diceTag = renderDiceTag(row, diceNotation);
   if (diceTag) {
@@ -10018,9 +10308,9 @@ function renderRow(ctx, list, records, index) {
       openDiceMenu(fakeEvent, view.app, view.i18n, {
         get: () => {
           var _a2, _b;
-          return (_b = (_a2 = readRecords(view, ctx.entry.key)[index]) == null ? void 0 : _a2.dice) != null ? _b : e.dice;
+          return (_b = (_a2 = readRecords(view, ctx2.entry.key)[index]) == null ? void 0 : _a2.dice) != null ? _b : e.dice;
         },
-        set: (n) => updateRecord(ctx, index, (r) => r.dice = n)
+        set: (n) => updateRecord(ctx2, index, (r) => r.dice = n)
       });
     });
   }
@@ -10029,7 +10319,7 @@ function renderRow(ctx, list, records, index) {
     modSpan,
     () => openNumberInput(modSpan, effectiveMod(view, e, rec), (v) => {
       const prof = rec.prof ? profBonus(view, e) : 0;
-      updateRecord(ctx, index, (r) => r.mod = v - prof);
+      updateRecord(ctx2, index, (r) => r.mod = v - prof);
     }, { min: -999, max: 999, float: false, clamp: false })
   );
   const rb = row.createEl("button", { cls: "ep-roll-btn", text: t("roll.roll") });
@@ -10069,42 +10359,42 @@ function renderRow(ctx, list, records, index) {
     ev.stopPropagation();
     const menu = new import_obsidian30.Menu();
     menu.addItem(
-      (i) => i.setTitle(t("skills.menu.setSource")).setIcon("link").onClick(() => inlineSource(ctx, abbrSpan, index))
+      (i) => i.setTitle(t("skills.menu.setSource")).setIcon("link").onClick(() => inlineSource(ctx2, abbrSpan, index))
     );
     menu.addItem(
       (i) => i.setTitle(t("skills.menu.setDice")).setIcon("dice").onClick(
         () => openDiceMenu(ev, view.app, view.i18n, {
           get: () => {
             var _a2, _b;
-            return (_b = (_a2 = readRecords(view, ctx.entry.key)[index]) == null ? void 0 : _a2.dice) != null ? _b : e.dice;
+            return (_b = (_a2 = readRecords(view, ctx2.entry.key)[index]) == null ? void 0 : _a2.dice) != null ? _b : e.dice;
           },
-          set: (n) => updateRecord(ctx, index, (r) => r.dice = n)
+          set: (n) => updateRecord(ctx2, index, (r) => r.dice = n)
         })
       )
     );
     if (rec.mod !== void 0)
       menu.addItem(
         (i) => i.setTitle(t("skills.menu.clearOverride")).setIcon("eraser").onClick(
-          () => updateRecord(ctx, index, (r) => r.mod = void 0)
+          () => updateRecord(ctx2, index, (r) => r.mod = void 0)
         )
       );
     menu.addSeparator();
     const move = (delta) => {
-      const key = ctx.entry.key;
+      const key = ctx2.entry.key;
       const rs = readRecords(view, key);
       const j = index + delta;
       if (j < 0 || j >= rs.length) return;
       [rs[index], rs[j]] = [rs[j], rs[index]];
-      writeRecords(view, ctx.file, key, rs);
+      writeRecords(view, ctx2.file, key, rs);
     };
     menu.addItem((i) => i.setTitle(t("skills.menu.moveUp")).setIcon("arrow-up").onClick(() => move(-1)));
     menu.addItem((i) => i.setTitle(t("skills.menu.moveDown")).setIcon("arrow-down").onClick(() => move(1)));
     menu.addItem(
       (i) => i.setTitle(t("skills.menu.remove")).setIcon("trash").onClick(() => {
-        const key = ctx.entry.key;
+        const key = ctx2.entry.key;
         const rs = readRecords(view, key);
         rs.splice(index, 1);
-        writeRecords(view, ctx.file, key, rs);
+        writeRecords(view, ctx2.file, key, rs);
       })
     );
     menu.showAtMouseEvent(ev);
@@ -10114,23 +10404,23 @@ var skillsType = {
   id: "skills",
   wide: true,
   name: (i18n) => i18n.t("type.skills"),
-  render(ctx) {
-    const { view, entry } = ctx;
+  render(ctx2) {
+    const { view, entry } = ctx2;
     const key = entry.key;
-    const holder = ctx.extra.createDiv({ cls: "ep-block-list" });
+    const holder = ctx2.extra.createDiv({ cls: "ep-block-list" });
     const build = () => {
       holder.empty();
       const records = readRecords(view, key);
       if (!records.length) {
         const empty = holder.createDiv({ cls: "ep-empty-sub", text: view.i18n.t("skills.empty") });
         const btn = empty.createEl("button", { cls: "ep-mini-btn", text: view.i18n.t("skills.addMenu") });
-        btn.onclick = (ev) => openAddSkillsMenu(ev, view, ctx.file, key);
+        btn.onclick = (ev) => openAddSkillsMenu(ev, view, ctx2.file, key);
         return;
       }
-      for (let i = 0; i < records.length; i++) renderRow(ctx, holder, records, i);
+      for (let i = 0; i < records.length; i++) renderRow(ctx2, holder, records, i);
       if (view.editMode) {
         const add = holder.createEl("button", { cls: "ep-mini-btn ep-list-addbtn", text: view.i18n.t("skills.addSkill") });
-        add.onclick = (ev) => openAddSkillsMenu(ev, view, ctx.file, key);
+        add.onclick = (ev) => openAddSkillsMenu(ev, view, ctx2.file, key);
       }
     };
     build();
@@ -10469,14 +10759,14 @@ var rollingModule = {
   id: "rolling",
   name: (i18n) => i18n.t("roll.featureName"),
   description: (i18n) => i18n.t("roll.featureDesc"),
-  register(ctx) {
-    ctx.i18n.register("en", rollingEn);
-    ctx.i18n.register("de", rollingDe);
-    ctx.registries.valueTypes.add(skillsType);
-    ctx.registries.entryKinds.add(rollsKind);
-    ctx.registries.entryKinds.add(rollerKind);
-    ctx.registries.clusterAddons.add(rollAddon);
-    ctx.registries.sectionTemplates.add({
+  register(ctx2) {
+    ctx2.i18n.register("en", rollingEn);
+    ctx2.i18n.register("de", rollingDe);
+    ctx2.registries.valueTypes.add(skillsType);
+    ctx2.registries.entryKinds.add(rollsKind);
+    ctx2.registries.entryKinds.add(rollerKind);
+    ctx2.registries.clusterAddons.add(rollAddon);
+    ctx2.registries.sectionTemplates.add({
       id: "diceroller",
       name: (i18n) => i18n.t("roller.title"),
       build: (i18n) => ({
@@ -10736,13 +11026,13 @@ var dnd5eModule = {
   id: "dnd5e",
   name: (i18n) => i18n.t("dnd.featureName"),
   description: (i18n) => i18n.t("dnd.featureDesc"),
-  register(ctx) {
-    ctx.i18n.register("en", dndEn);
-    ctx.i18n.register("de", dndDe);
-    ctx.registries.skillPresets.add(savesPreset);
-    ctx.registries.skillPresets.add(skillsPreset);
-    for (const tpl of sectionTemplates()) ctx.registries.sectionTemplates.add(tpl);
-    ctx.registries.layoutPresets.add(characterPreset);
+  register(ctx2) {
+    ctx2.i18n.register("en", dndEn);
+    ctx2.i18n.register("de", dndDe);
+    ctx2.registries.skillPresets.add(savesPreset);
+    ctx2.registries.skillPresets.add(skillsPreset);
+    for (const tpl of sectionTemplates()) ctx2.registries.sectionTemplates.add(tpl);
+    ctx2.registries.layoutPresets.add(characterPreset);
   },
   /**
    * Upgrade layouts written by older versions:
@@ -10916,14 +11206,14 @@ var import_obsidian32 = require("obsidian");
 
 // src/features/inline/inline-view.ts
 var import_obsidian31 = require("obsidian");
-function layoutForFile(ctx, file) {
-  const raw = ctx.facade.raw(file);
+function layoutForFile(ctx2, file) {
+  const raw = ctx2.facade.raw(file);
   const tk = Object.keys(raw).find((k) => k.toLowerCase() === "type");
   const tv = tk !== void 0 ? raw[tk] : void 0;
   const types = Array.isArray(tv) ? tv.map(String) : tv === void 0 || tv === null ? [] : [String(tv)];
-  const match = ctx.settings.types.find((tp) => types.some((x) => x.toLowerCase() === tp.toLowerCase()));
+  const match = ctx2.settings.types.find((tp) => types.some((x) => x.toLowerCase() === tp.toLowerCase()));
   if (!match) return null;
-  const layout = ctx.settings.layouts[match.toLowerCase()];
+  const layout = ctx2.settings.layouts[match.toLowerCase()];
   return layout && Array.isArray(layout.sections) ? layout : null;
 }
 function findPropEntry(layout, key) {
@@ -10935,21 +11225,21 @@ function findPropEntry(layout, key) {
   return null;
 }
 var InlineViewCtx = class {
-  constructor(ctx, target, layout, mount, redraw) {
-    this.ctx = ctx;
+  constructor(ctx2, target, layout, mount, redraw) {
+    this.ctx = ctx2;
     this.target = target;
     this.redraw = redraw;
     this.hub = new ServiceHub();
     this.editMode = false;
     this.activeTypeKey = null;
     this.updaters = [];
-    this.app = ctx.app;
-    this.i18n = ctx.i18n;
-    this.settings = ctx.settings;
-    this.registries = ctx.registries;
-    this.props = ctx.props;
-    this.hide = ctx.hide;
-    this.history = ctx.history;
+    this.app = ctx2.app;
+    this.i18n = ctx2.i18n;
+    this.settings = ctx2.settings;
+    this.registries = ctx2.registries;
+    this.props = ctx2.props;
+    this.hide = ctx2.hide;
+    this.history = ctx2.history;
     this.containerEl = mount;
     this.layout = layout != null ? layout : { version: 0, sections: [] };
     this.note = new NoteModel(this.app, this.i18n, {
@@ -11000,8 +11290,8 @@ var InlineViewCtx = class {
     const kind = this.registries.entryKinds.get(entry.kind);
     return kind ? kind.defaultLabel(this.i18n, entry) : entry.kind;
   }
-  renderLabel(head, ctx) {
-    const { entry } = ctx;
+  renderLabel(head, ctx2) {
+    const { entry } = ctx2;
     if (entry.hideLabel) return;
     const span = head.createSpan({ cls: "ep-line-name" });
     if (entry.labelSize) span.style.fontSize = entry.labelSize + "px";
@@ -11073,11 +11363,11 @@ var InlineViewCtx = class {
     return Object.keys(this.note.raw).map((key) => ({ key, onNote: true }));
   }
 };
-function makeValsEl(ctx, file, body, onEditSource) {
+function makeValsEl(ctx2, file, body, onEditSource) {
   const wrap = createDiv({ cls: "ep-inline-vals" });
   wrap.style.display = "inline-block";
   wrap.style.verticalAlign = "middle";
-  const t = ctx.i18n.t.bind(ctx.i18n);
+  const t = ctx2.i18n.t.bind(ctx2.i18n);
   const draw = () => {
     var _a, _b, _c, _d, _e, _f;
     wrap.empty();
@@ -11090,27 +11380,27 @@ function makeValsEl(ctx, file, body, onEditSource) {
       target = file;
       let ref = body;
       if (noteRef && noteRef.accessor) {
-        const lf = ctx.app.metadataCache.getFirstLinkpathDest(noteRef.link, file.path);
+        const lf = ctx2.app.metadataCache.getFirstLinkpathDest(noteRef.link, file.path);
         if (!lf) throw new Error("unresolved note link");
         target = lf;
         ref = noteRef.accessor;
       }
-      const layout = layoutForFile(ctx, target);
-      view = new InlineViewCtx(ctx, target, layout, wrap, draw);
-      const key = (_a = keyForShortForm(ctx.settings, ref, Object.keys(view.note.raw))) != null ? _a : ref;
+      const layout = layoutForFile(ctx2, target);
+      view = new InlineViewCtx(ctx2, target, layout, wrap, draw);
+      const key = (_a = keyForShortForm(ctx2.settings, ref, Object.keys(view.note.raw))) != null ? _a : ref;
       const inLayout = layout ? findPropEntry(layout, key) : null;
       if (inLayout) {
         section = inLayout.section;
         entry = inLayout.entry;
       } else {
         const id = (noteRef ? noteRef.link.toLowerCase() + "/" : "") + key.toLowerCase();
-        const store = (_c = (_b = ctx.settings).inlineEntries) != null ? _c : _b.inlineEntries = {};
+        const store = (_c = (_b = ctx2.settings).inlineEntries) != null ? _c : _b.inlineEntries = {};
         entry = (_d = store[id]) != null ? _d : store[id] = { id: "ep-inline:" + id, kind: "prop", key };
         if (!entry.key) entry.key = key;
         section = { id: "ep-inline", title: "", columns: 1, layoutMode: "list", entries: [entry] };
       }
     } catch (e) {
-      wrap.appendChild(makeValEl(ctx, file, body, onEditSource));
+      wrap.appendChild(makeValEl(ctx2, file, body, onEditSource));
       return;
     }
     const def = (_e = view.registries.valueTypes.get(view.resolveType(entry))) != null ? _e : view.registries.valueTypes.get("text");
@@ -11132,7 +11422,7 @@ function makeValsEl(ctx, file, body, onEditSource) {
       def == null ? void 0 : def.render(ectx);
     } catch (e) {
       console.error("extended-properties: vals value render failed", e);
-      const v = ctx.facade.get(target, entry.key);
+      const v = ctx2.facade.get(target, entry.key);
       head.createDiv({ cls: "ep-val-right" }).setText(v === void 0 || v === null || v === "" ? "\u2014" : Array.isArray(v) ? v.join(", ") : String(v));
     }
     wrap.addEventListener("contextmenu", (ev) => {
@@ -11170,13 +11460,13 @@ function makeValsEl(ctx, file, body, onEditSource) {
 }
 
 // src/features/inline/inline-render.ts
-var enabled = (ctx) => ctx.settings.features["inline"] !== false;
-function processInline(el, mdctx, ctx) {
+var enabled2 = (ctx2) => ctx2.settings.features["inline"] !== false;
+function processInline(el, mdctx, ctx2) {
   var _a, _b;
-  if (!enabled(ctx)) return;
+  if (!enabled2(ctx2)) return;
   const codes = Array.from(el.querySelectorAll("code"));
   if (!codes.length) return;
-  const file = ctx.app.vault.getAbstractFileByPath(mdctx.sourcePath);
+  const file = ctx2.app.vault.getAbstractFileByPath(mdctx.sourcePath);
   if (!(file instanceof import_obsidian32.TFile)) return;
   for (const code of codes) {
     if (code.closest("pre")) continue;
@@ -11186,17 +11476,17 @@ function processInline(el, mdctx, ctx) {
     const opt = ((_b = m[2]) != null ? _b : "").trim();
     const body = m[3].trim();
     if (kind === "roll") {
-      code.replaceWith(makeRollChip(ctx, file, body, opt));
+      code.replaceWith(makeRollChip(ctx2, file, body, opt));
     } else {
       const span = createSpan();
       code.replaceWith(span);
-      const child = kind === "val" ? new ValInline(span, ctx, file, body) : kind === "vals" ? new ValsInline(span, ctx, file, body) : new PropInline(span, ctx, file, body);
+      const child = kind === "val" ? new ValInline(span, ctx2, file, body) : kind === "vals" ? new ValsInline(span, ctx2, file, body) : new PropInline(span, ctx2, file, body);
       mdctx.addChild(child);
     }
   }
 }
-function refResolver(ctx, file) {
-  return makeNoteAwareResolver(ctx.app, ctx.settings, ctx.registries, envFor(ctx, file), file.path);
+function refResolver(ctx2, file) {
+  return makeNoteAwareResolver(ctx2.app, ctx2.settings, ctx2.registries, envFor(ctx2, file), file.path);
 }
 function primarySides(ast) {
   if (ast) {
@@ -11221,17 +11511,17 @@ function applyMode(ast, mode) {
   }
   return { terms };
 }
-function runInlineRoll(ctx, file, body, mode, times) {
-  const t = ctx.i18n.t.bind(ctx.i18n);
+function runInlineRoll(ctx2, file, body, mode, times) {
+  const t = ctx2.i18n.t.bind(ctx2.i18n);
   if (!parseRoll(body)) {
     new import_obsidian32.Notice(t("inline.rollInvalid"));
     return;
   }
   const tag = mode === "advantage" ? " " + t("roll.tagAdvantage") : mode === "disadvantage" ? " " + t("roll.tagDisadvantage") : "";
   const n = Math.max(1, Math.min(20, times || 1));
-  const resolve = refResolver(ctx, file);
+  const resolve = refResolver(ctx2, file);
   for (let i = 0; i < n; i++) {
-    ctx.roll.rollAst(n > 1 ? `${body} #${i + 1}` : body, applyMode(withDefaultDie(parseRoll(body)), mode), {
+    ctx2.roll.rollAst(n > 1 ? `${body} #${i + 1}` : body, applyMode(withDefaultDie(parseRoll(body)), mode), {
       tag,
       mode,
       stay: n > 1,
@@ -11239,11 +11529,11 @@ function runInlineRoll(ctx, file, body, mode, times) {
     });
   }
 }
-function makeRollChip(ctx, file, body, opt, onEdit) {
-  const t = ctx.i18n.t.bind(ctx.i18n);
+function makeRollChip(ctx2, file, body, opt, onEdit) {
+  const t = ctx2.i18n.t.bind(ctx2.i18n);
   const parsed = parseRoll(body);
   const ast = parsed ? withDefaultDie(parsed) : null;
-  const resolve = refResolver(ctx, file);
+  const resolve = refResolver(ctx2, file);
   const chip = createSpan({ cls: "ep-inline-roll" });
   const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });
   (0, import_obsidian32.setIcon)(ic, diceIconId(primarySides(ast)));
@@ -11260,20 +11550,20 @@ function makeRollChip(ctx, file, body, opt, onEdit) {
   chip.onclick = (ev) => {
     ev.preventDefault();
     ev.stopPropagation();
-    runInlineRoll(ctx, file, body, mode, 1);
+    runInlineRoll(ctx2, file, body, mode, 1);
   };
   chip.oncontextmenu = (ev) => {
     ev.preventDefault();
     ev.stopPropagation();
-    openRollMenu(ev, ctx.i18n, mode, (mo, ti) => runInlineRoll(ctx, file, body, mo, ti), onEdit ? { onEdit } : void 0);
+    openRollMenu(ev, ctx2.i18n, mode, (mo, ti) => runInlineRoll(ctx2, file, body, mo, ti), onEdit ? { onEdit } : void 0);
   };
   longPressContextMenu(chip);
   guardScrollTaps(chip);
   return chip;
 }
-function renderPropValue(ctx, file, key) {
-  const t = ctx.i18n.t.bind(ctx.i18n);
-  const raw = ctx.facade.get(file, key);
+function renderPropValue(ctx2, file, key) {
+  const t = ctx2.i18n.t.bind(ctx2.i18n);
+  const raw = ctx2.facade.get(file, key);
   const text = raw === void 0 || raw === null || raw === "" ? t("inline.empty") : Array.isArray(raw) ? raw.join(", ") : String(raw);
   const val = createSpan({ cls: "ep-inline-val ep-inline-editable", text });
   val.setAttr("title", t("inline.propHint", { key }));
@@ -11286,7 +11576,7 @@ function renderPropValue(ctx, file, key) {
         val,
         Number(raw != null ? raw : 0),
         (v) => {
-          ctx.facade.set(file, key, v);
+          ctx2.facade.set(file, key, v);
           val.setText(fmtNum(v));
         },
         {
@@ -11295,14 +11585,14 @@ function renderPropValue(ctx, file, key) {
           float: true,
           clamp: false,
           onEmpty: () => {
-            ctx.facade.set(file, key, void 0);
+            ctx2.facade.set(file, key, void 0);
             val.setText(t("inline.empty"));
           }
         }
       );
     } else {
-      openTextInput(ctx.app, val, key, raw == null ? "" : String(raw), () => [], (v) => {
-        ctx.facade.set(file, key, v || void 0);
+      openTextInput(ctx2.app, val, key, raw == null ? "" : String(raw), () => [], (v) => {
+        ctx2.facade.set(file, key, v || void 0);
         val.setText(v || t("inline.empty"));
       });
     }
@@ -11310,10 +11600,10 @@ function renderPropValue(ctx, file, key) {
   return val;
 }
 var PropInline = class extends import_obsidian32.MarkdownRenderChild {
-  constructor(root, ctx, file, key) {
+  constructor(root, ctx2, file, key) {
     super(root);
     this.root = root;
-    this.ctx = ctx;
+    this.ctx = ctx2;
     this.file = file;
     this.key = key;
   }
@@ -11331,25 +11621,25 @@ var PropInline = class extends import_obsidian32.MarkdownRenderChild {
     this.root.appendChild(renderPropValue(this.ctx, this.file, this.key));
   }
 };
-function findInlineEntry(ctx, file, key) {
-  const layout = layoutForFile2(ctx, file);
+function findInlineEntry(ctx2, file, key) {
+  const layout = layoutForFile2(ctx2, file);
   if (!layout) return null;
   const kl = key.toLowerCase();
   for (const s of layout.sections)
     for (const e of s.entries) if (e.kind === "prop" && e.key && e.key.toLowerCase() === kl) return e;
   return null;
 }
-function makeValEl(ctx, file, body, onEditSource) {
+function makeValEl(ctx2, file, body, onEditSource) {
   var _a, _b;
-  const t = ctx.i18n.t.bind(ctx.i18n);
+  const t = ctx2.i18n.t.bind(ctx2.i18n);
   const noteRef = parseNoteRef(body);
-  const noteKeys = Object.keys(ctx.facade.raw(file));
-  const directKey = noteRef ? null : keyForShortForm(ctx.settings, body, noteKeys);
-  const base = directKey || noteRef ? null : modifierBaseFor(ctx.settings, body);
-  const baseKey = base ? keyForShortForm(ctx.settings, base, noteKeys) : null;
+  const noteKeys = Object.keys(ctx2.facade.raw(file));
+  const directKey = noteRef ? null : keyForShortForm(ctx2.settings, body, noteKeys);
+  const base = directKey || noteRef ? null : modifierBaseFor(ctx2.settings, body);
+  const baseKey = base ? keyForShortForm(ctx2.settings, base, noteKeys) : null;
   const chip = createSpan({ cls: "ep-inline-roll ep-inline-valchip" });
   const iconKey = directKey != null ? directKey : baseKey;
-  const entry = iconKey ? findInlineEntry(ctx, file, iconKey) : null;
+  const entry = iconKey ? findInlineEntry(ctx2, file, iconKey) : null;
   if (entry == null ? void 0 : entry.icon) {
     const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });
     (0, import_obsidian32.setIcon)(ic, entry.icon);
@@ -11358,8 +11648,8 @@ function makeValEl(ctx, file, body, onEditSource) {
   let crossName = null;
   if (noteRef) {
     let prop2 = noteRef.accessor;
-    const lf = ctx.app.metadataCache.getFirstLinkpathDest(noteRef.link, file.path);
-    if (lf) prop2 = (_a = keyForShortForm(ctx.settings, noteRef.accessor, Object.keys(ctx.facade.raw(lf)))) != null ? _a : noteRef.accessor;
+    const lf = ctx2.app.metadataCache.getFirstLinkpathDest(noteRef.link, file.path);
+    if (lf) prop2 = (_a = keyForShortForm(ctx2.settings, noteRef.accessor, Object.keys(ctx2.facade.raw(lf)))) != null ? _a : noteRef.accessor;
     crossName = noteRef.accessor ? `${noteRef.link}/${prop2}` : noteRef.link;
   }
   const fullName = (_b = directKey != null ? directKey : baseKey) != null ? _b : crossName;
@@ -11368,13 +11658,13 @@ function makeValEl(ctx, file, body, onEditSource) {
   let editValue = null;
   if (directKey) {
     const key = directKey;
-    const raw = ctx.facade.get(file, key);
+    const raw = ctx2.facade.get(file, key);
     const str = raw === void 0 || raw === null || raw === "" ? "" : Array.isArray(raw) ? raw.join(", ") : String(raw);
     editValue = () => {
       const isNum = typeof raw === "number" || str.trim() !== "" && Number.isFinite(Number(str));
       if (isNum) {
         openNumberInput(lab, Number(raw != null ? raw : 0), (v) => {
-          ctx.facade.set(file, key, v);
+          ctx2.facade.set(file, key, v);
           lab.setText(fmtNum(v));
         }, {
           min: -1e5,
@@ -11382,19 +11672,19 @@ function makeValEl(ctx, file, body, onEditSource) {
           float: true,
           clamp: false,
           onEmpty: () => {
-            ctx.facade.set(file, key, void 0);
+            ctx2.facade.set(file, key, void 0);
             lab.setText(t("inline.empty"));
           }
         });
       } else {
-        openTextInput(ctx.app, lab, key, str, () => [], (v) => {
-          ctx.facade.set(file, key, v || void 0);
+        openTextInput(ctx2.app, lab, key, str, () => [], (v) => {
+          ctx2.facade.set(file, key, v || void 0);
           lab.setText(v || t("inline.empty"));
         });
       }
     };
     if (str && /\[\[.+?\]\]|\]\([^)]+\)/.test(str)) {
-      renderLinkedText(ctx.app, lab, str, file.path);
+      renderLinkedText(ctx2.app, lab, str, file.path);
     } else {
       lab.setText(str || t("inline.empty"));
       lab.addClass("ep-inline-editable");
@@ -11406,7 +11696,7 @@ function makeValEl(ctx, file, body, onEditSource) {
     }
     chip.setAttr("title", t("inline.propHint", { key }));
   } else {
-    const v = makeNoteAwareResolver(ctx.app, ctx.settings, ctx.registries, envFor(ctx, file), file.path)(body);
+    const v = makeNoteAwareResolver(ctx2.app, ctx2.settings, ctx2.registries, envFor(ctx2, file), file.path)(body);
     lab.setText(v === void 0 ? t("inline.empty") : base ? fmtMod(v) : String(v));
     if (v === void 0) chip.addClass("ep-expr-error");
     chip.setAttr("title", body);
@@ -11427,10 +11717,10 @@ function makeValEl(ctx, file, body, onEditSource) {
   return chip;
 }
 var ValInline = class extends import_obsidian32.MarkdownRenderChild {
-  constructor(root, ctx, file, body) {
+  constructor(root, ctx2, file, body) {
     super(root);
     this.root = root;
-    this.ctx = ctx;
+    this.ctx = ctx2;
     this.file = file;
     this.body = body;
   }
@@ -11448,10 +11738,10 @@ var ValInline = class extends import_obsidian32.MarkdownRenderChild {
   }
 };
 var ValsInline = class extends import_obsidian32.MarkdownRenderChild {
-  constructor(root, ctx, file, body) {
+  constructor(root, ctx2, file, body) {
     super(root);
     this.root = root;
-    this.ctx = ctx;
+    this.ctx = ctx2;
     this.file = file;
     this.body = body;
   }
@@ -11468,8 +11758,8 @@ var ValsInline = class extends import_obsidian32.MarkdownRenderChild {
     this.root.appendChild(makeValsEl(this.ctx, this.file, this.body));
   }
 };
-function buildEnv(ctx, file, layout) {
-  const raw = ctx.facade.raw(file);
+function buildEnv(ctx2, file, layout) {
+  const raw = ctx2.facade.raw(file);
   const note = {
     raw,
     num: (k, d) => getNum(raw, k, d),
@@ -11477,35 +11767,35 @@ function buildEnv(ctx, file, layout) {
   };
   return {
     note,
-    registries: ctx.registries,
-    settings: ctx.settings,
+    registries: ctx2.registries,
+    settings: ctx2.settings,
     layout: layout != null ? layout : void 0,
-    vault: makeVaultAccess(ctx.props, () => file.path)
+    vault: makeVaultAccess(ctx2.props, () => file.path)
   };
 }
-function envFor(ctx, file) {
-  return buildEnv(ctx, file, layoutForFile2(ctx, file));
+function envFor(ctx2, file) {
+  return buildEnv(ctx2, file, layoutForFile2(ctx2, file));
 }
-function layoutForFile2(ctx, file) {
-  const raw = ctx.facade.raw(file);
+function layoutForFile2(ctx2, file) {
+  const raw = ctx2.facade.raw(file);
   const tk = Object.keys(raw).find((k) => k.toLowerCase() === "type");
   const tv = tk !== void 0 ? raw[tk] : void 0;
   const types = Array.isArray(tv) ? tv.map(String) : tv === void 0 || tv === null ? [] : [String(tv)];
-  const match = ctx.settings.types.find((tp) => types.some((x) => x.toLowerCase() === tp.toLowerCase()));
+  const match = ctx2.settings.types.find((tp) => types.some((x) => x.toLowerCase() === tp.toLowerCase()));
   if (!match) return null;
-  const layout = ctx.settings.layouts[match.toLowerCase()];
+  const layout = ctx2.settings.layouts[match.toLowerCase()];
   return layout && Array.isArray(layout.sections) ? layout : null;
 }
-function renderSheet(src, el, mdctx, ctx) {
-  const file = ctx.app.vault.getAbstractFileByPath(mdctx.sourcePath);
+function renderSheet(src, el, mdctx, ctx2) {
+  const file = ctx2.app.vault.getAbstractFileByPath(mdctx.sourcePath);
   if (!(file instanceof import_obsidian32.TFile)) return;
-  mdctx.addChild(new SheetInline(el, ctx, file, src));
+  mdctx.addChild(new SheetInline(el, ctx2, file, src));
 }
 var SheetInline = class extends import_obsidian32.MarkdownRenderChild {
-  constructor(root, ctx, file, src) {
+  constructor(root, ctx2, file, src) {
     super(root);
     this.root = root;
-    this.ctx = ctx;
+    this.ctx = ctx2;
     this.file = file;
     this.src = src;
   }
@@ -11521,7 +11811,7 @@ var SheetInline = class extends import_obsidian32.MarkdownRenderChild {
     const t = this.ctx.i18n.t.bind(this.ctx.i18n);
     this.root.empty();
     this.root.addClass("ep-inline-sheet");
-    if (!enabled(this.ctx)) return;
+    if (!enabled2(this.ctx)) return;
     const layout = layoutForFile2(this.ctx, this.file);
     if (!layout) {
       this.root.createDiv({ cls: "ep-inline-note", text: t("inline.sheetNoType") });
@@ -11593,9 +11883,9 @@ function backtickSpan(doc, from, to) {
   return { from: s, to: e };
 }
 var InlineWidget = class extends import_view.WidgetType {
-  constructor(ctx, file, kind, opt, body) {
+  constructor(ctx2, file, kind, opt, body) {
     super();
-    this.ctx = ctx;
+    this.ctx = ctx2;
     this.file = file;
     this.kind = kind;
     this.opt = opt;
@@ -11647,12 +11937,12 @@ var InlineWidget = class extends import_view.WidgetType {
     return true;
   }
 };
-function buildDecos(view, ctx) {
+function buildDecos(view, ctx2) {
   var _a, _b, _c;
   const b = new import_state.RangeSetBuilder();
-  if (ctx.settings.features["inline"] === false) return b.finish();
+  if (ctx2.settings.features["inline"] === false) return b.finish();
   if (!view.state.field(import_obsidian33.editorLivePreviewField, false)) return b.finish();
-  const file = (_b = (_a = view.state.field(import_obsidian33.editorInfoField, false)) == null ? void 0 : _a.file) != null ? _b : ctx.app.workspace.getActiveFile();
+  const file = (_b = (_a = view.state.field(import_obsidian33.editorInfoField, false)) == null ? void 0 : _a.file) != null ? _b : ctx2.app.workspace.getActiveFile();
   if (!file) return b.finish();
   const sel = view.state.selection;
   const doc = view.state.doc;
@@ -11674,7 +11964,7 @@ function buildDecos(view, ctx) {
           from: span.from,
           to: span.to,
           deco: import_view.Decoration.replace({
-            widget: new InlineWidget(ctx, file, m[1].toLowerCase(), ((_a2 = m[2]) != null ? _a2 : "").trim(), m[3].trim())
+            widget: new InlineWidget(ctx2, file, m[1].toLowerCase(), ((_a2 = m[2]) != null ? _a2 : "").trim(), m[3].trim())
           })
         });
       }
@@ -11689,11 +11979,11 @@ function buildDecos(view, ctx) {
   }
   return b.finish();
 }
-function inlineLivePreview(ctx) {
+function inlineLivePreview(ctx2) {
   return import_view.ViewPlugin.fromClass(
     class {
       constructor(view) {
-        this.decorations = buildDecos(view, ctx);
+        this.decorations = buildDecos(view, ctx2);
       }
       update(u) {
         if (u.docChanged) this.decorations = this.decorations.map(u.changes);
@@ -11702,7 +11992,7 @@ function inlineLivePreview(ctx) {
         // reappears on its own instead of waiting to be re-touched.
         (0, import_language.syntaxTree)(u.startState) !== (0, import_language.syntaxTree)(u.state)) {
           try {
-            this.decorations = buildDecos(u.view, ctx);
+            this.decorations = buildDecos(u.view, ctx2);
           } catch (e) {
             console.error("extended-properties: live-preview rebuild failed", e);
           }
@@ -11744,15 +12034,15 @@ var inlineModule = {
   id: "inline",
   name: (i18n) => i18n.t("inline.featureName"),
   description: (i18n) => i18n.t("inline.featureDesc"),
-  register(ctx) {
-    ctx.i18n.register("en", inlineEn);
-    ctx.i18n.register("de", inlineDe);
+  register(ctx2) {
+    ctx2.i18n.register("en", inlineEn);
+    ctx2.i18n.register("de", inlineDe);
   }
 };
-function registerInline(plugin, ctx) {
-  plugin.registerMarkdownPostProcessor((el, mdctx) => processInline(el, mdctx, ctx));
-  plugin.registerMarkdownCodeBlockProcessor("ep-sheet", (src, el, mdctx) => renderSheet(src, el, mdctx, ctx));
-  plugin.registerEditorExtension(inlineLivePreview(ctx));
+function registerInline(plugin, ctx2) {
+  plugin.registerMarkdownPostProcessor((el, mdctx) => processInline(el, mdctx, ctx2));
+  plugin.registerMarkdownCodeBlockProcessor("ep-sheet", (src, el, mdctx) => renderSheet(src, el, mdctx, ctx2));
+  plugin.registerEditorExtension(inlineLivePreview(ctx2));
 }
 
 // src/main.ts
@@ -11772,7 +12062,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian34.Plugin {
     return FEATURE_MODULES;
   }
   async onload() {
-    var _a;
+    var _a, _b;
     this.props = new PropertyIndex(this.app);
     registerDiceIcons();
     this.i18n.register("en", coreEn, "English");
@@ -11781,11 +12071,12 @@ var ExtendedPropertiesPlugin = class extends import_obsidian34.Plugin {
     this.settings = normalizeSettings(data, () => ({ version: 4, sections: [] }));
     this.rebuildRegistries();
     this.settings = normalizeSettings(data, () => this.defaultLayout());
+    configureSound(this.settings.sound !== false, (_a = this.settings.soundVolume) != null ? _a : 0.3);
     this.i18n.setLocale(this.settings.language);
     this.i18n.setOverrides(this.settings.stringOverrides);
     let migrated = false;
     for (const mod of FEATURE_MODULES) {
-      if (this.settings.features[mod.id] !== false && ((_a = mod.migrate) == null ? void 0 : _a.call(mod, this.settings))) migrated = true;
+      if (this.settings.features[mod.id] !== false && ((_b = mod.migrate) == null ? void 0 : _b.call(mod, this.settings))) migrated = true;
     }
     if (materializeShortForms(this.settings)) migrated = true;
     this.hide = new HideService({
@@ -11889,9 +12180,9 @@ var ExtendedPropertiesPlugin = class extends import_obsidian34.Plugin {
    */
   syncMacroCommands() {
     var _a;
-    const enabled2 = this.settings.features["rolling"] !== false;
-    const macros = enabled2 && Array.isArray(this.settings.macros) ? this.settings.macros : [];
-    const sig = (enabled2 ? "" : "off|") + macros.map((m) => `${m.id}:${m.name}`).join("|");
+    const enabled3 = this.settings.features["rolling"] !== false;
+    const macros = enabled3 && Array.isArray(this.settings.macros) ? this.settings.macros : [];
+    const sig = (enabled3 ? "" : "off|") + macros.map((m) => `${m.id}:${m.name}`).join("|");
     if (sig === this.macroSig) return;
     this.macroSig = sig;
     const cmds = this.app.commands;
@@ -11926,10 +12217,10 @@ var ExtendedPropertiesPlugin = class extends import_obsidian34.Plugin {
   /** (Re)build all registries from core + enabled feature modules. */
   rebuildRegistries() {
     this.registries.clear();
-    const ctx = { i18n: this.i18n, registries: this.registries };
-    registerCore(ctx);
+    const ctx2 = { i18n: this.i18n, registries: this.registries };
+    registerCore(ctx2);
     for (const mod of FEATURE_MODULES) {
-      if (this.settings.features[mod.id] !== false) mod.register(ctx);
+      if (this.settings.features[mod.id] !== false) mod.register(ctx2);
     }
     registerDerivations(this.registries, this.settings);
   }
@@ -11941,7 +12232,9 @@ var ExtendedPropertiesPlugin = class extends import_obsidian34.Plugin {
   }
   // -- settings & layouts --------------------------------------------------------
   async saveSettings() {
+    var _a;
     await this.saveData(this.settings);
+    configureSound(this.settings.sound !== false, (_a = this.settings.soundVolume) != null ? _a : 0.3);
     this.hide.update();
     this.syncMacroCommands();
   }

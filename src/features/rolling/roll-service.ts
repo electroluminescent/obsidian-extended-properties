@@ -25,6 +25,7 @@ import {
 } from "../../utils/dice-expr";
 import { rollFace } from "./karma";
 import { playRollAnimation, RollAnimGroup, RollPart } from "./dice-anim";
+import { sfx } from "../../utils/sound";
 import type { HistoryService } from "./history";
 
 export type { RollPart } from "./dice-anim";
@@ -158,6 +159,7 @@ export class RollService implements ViewService {
           total,
           spins: this.settings.diceAnimRolls ?? 10,
           durationMs: this.settings.diceAnimMs ?? 1500,
+          tone: res.tone,
           stay: opts.stay || this.settings.diceAnimStay === true,
           block: this.settings.diceAnimBlock !== false,
           reroll: redo,
@@ -166,6 +168,9 @@ export class RollService implements ViewService {
         commit
       );
     } else {
+      sfx.roll();
+      if (res.tone === "crit") sfx.crit();
+      else if (res.tone === "fail") sfx.fail();
       commit();
     }
   }

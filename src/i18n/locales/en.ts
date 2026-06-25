@@ -138,6 +138,22 @@ export const coreEn: StringDict = {
   "date.today": "today",
   "date.inDays": "in {n} days",
   "date.daysAgo": "{n} days ago",
+  "validate.required": "This value is required.",
+  "validate.min": "Must be at least {n}.",
+  "validate.max": "Must be at most {n}.",
+  "validate.pattern": "Doesn’t match the required format.",
+  "validate.allowed": "Not one of the allowed values.",
+  "options.constraintsHeading": "Validation",
+  "options.required": "Required",
+  "options.requiredDesc": "Flag the value as invalid when empty.",
+  "options.constraintMin": "Minimum",
+  "options.constraintMax": "Maximum",
+  "options.constraintClamp": "Clamp to range on edit",
+  "options.constraintClampDesc": "Committed values outside the range snap to the nearest bound instead of only warning.",
+  "options.constraintPattern": "Pattern (regex)",
+  "options.constraintPatternDesc": "The whole value (each list item) must match this regular expression. Leave blank to skip.",
+  "options.constraintAllowed": "Allowed values",
+  "options.constraintAllowedDesc": "Comma-separated accepted values (case-insensitive). Leave blank to allow anything.",
 
   // -- modifiers (influence engine) ----------------------------------------------
   "derive.value": "Value as-is",
@@ -417,6 +433,10 @@ export const coreEn: StringDict = {
   "settings.diceAnimBlock": "Block background while rolling",
   "settings.diceAnimBlockDesc":
     "Dim everything behind the roll cards and prevent clicking through until they are dismissed.",
+  "settings.sound": "Sound effects",
+  "settings.soundDesc": "Subtle synthesized blips for clicks, dice rolls, and critical hits/fails.",
+  "settings.soundVolume": "Sound volume",
+  "settings.soundVolumeDesc": "Loudness of the sound effects (0 = silent).",
   "settings.failOnOne": "Fail on natural 1",
   "settings.failOnOneDesc": "Mark a roll red when every kept die of the first group shows 1.",
   "settings.critRangesDesc":

@@ -13,6 +13,7 @@
  */
 
 import type { ColorSpace } from "../utils/color";
+import type { Constraints } from "./validate";
 
 /** Height presets used by sections and image entries. */
 export type SectionSize = "s" | "m" | "l" | "unlimited";
@@ -73,6 +74,9 @@ export interface EntryBase {
 
   /** Keep this property visible in Obsidian's own properties panel. */
   showInObsidian?: boolean;
+
+  /** Optional validation constraints (range, regex, allowed values, required). */
+  constraints?: Constraints;
 }
 
 /**
@@ -265,6 +269,10 @@ export interface EPSettings {
   diceAnimRolls: number;
   /** Total roll-animation duration in ms (dice + modifiers stagger within it). */
   diceAnimMs?: number;
+  /** Play subtle UI / dice / crit sound effects (default on). */
+  sound?: boolean;
+  /** Sound-effect volume, 0–1 (default 0.3). */
+  soundVolume?: number;
   /** Keep roll cards on screen by default (clicking always toggles). */
   diceAnimStay: boolean;
   /** Roll cards dim the background and block interaction until dismissed. */

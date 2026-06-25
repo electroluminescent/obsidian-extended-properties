@@ -1,7 +1,7 @@
 {
   "id": "extended-properties",
   "name": "Extended Properties",
-  "version": "2.37.0",
+  "version": "2.38.0",
   "minAppVersion": "1.4.0",
   "description": "A configurable sidebar for note properties: arrangeable sections, rich value types (sliders, colors, images, formulas, derived numbers driven by other properties), dice rolling (d2-d100 or custom), per-type layouts, and toggleable feature modules such as a D&D 5e character sheet. UI language is configurable.",
   "author": "electroluminescent",

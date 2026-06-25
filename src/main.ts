@@ -29,6 +29,7 @@ import { HistoryService } from "./features/rolling/history";
 import { RollService } from "./features/rolling/roll-service";
 import { runMacro } from "./features/rolling/macros";
 import { inlineModule, registerInline } from "./features/inline/index";
+import { configureSound } from "./utils/sound";
 import { NoteFacade } from "./core/note-model";
 
 /**
@@ -73,6 +74,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     this.rebuildRegistries();
     // Re-normalize so types missing a layout get the real default preset.
     this.settings = normalizeSettings(data, () => this.defaultLayout());
+    configureSound(this.settings.sound !== false, this.settings.soundVolume ?? 0.3);
     this.i18n.setLocale(this.settings.language);
     this.i18n.setOverrides(this.settings.stringOverrides);
 
@@ -262,6 +264,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
+    configureSound(this.settings.sound !== false, this.settings.soundVolume ?? 0.3);
     this.hide.update();
     this.syncMacroCommands();
   }

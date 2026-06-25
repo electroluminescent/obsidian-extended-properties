@@ -6,7 +6,7 @@ The codebase's assets to protect throughout: the registry system (`src/core/regi
 
 ---
 
-## Status (v2.29.0)
+## Status (v2.38.0)
 
 Legend: ✅ done · ◑ partial · ○ planned.
 
@@ -21,6 +21,9 @@ Legend: ✅ done · ◑ partial · ○ planned.
 - ✅ **F1 — Test harness.** Vitest over the pure modules + a golden settings-migration fixture.
 - ✅ **B2 — Cross-note references & aggregation.** `[[Note]].Prop` / `[[Note]].prop.s`, `this.Prop`, `prop("LinkProp", "Key")`, and `sum`/`avg`/`count`/`min`/`max("Type", "Key")` aggregates in expressions — via a `PropertyIndex`-backed vault accessor threaded into the engine, with a settings kill-switch. (Aggregates are an expression feature; dice notation still takes single references. Cross-note reads use raw values, so no cross-note cycles; lazy index invalidation remains a future perf optimisation.)
 - ✅ **E2 — Mobile refinements.** Long-press → context menu on chips, `vals:` cards, entry rows and roll buttons; bottom-sheet option/colour modals on mobile; font-relative squeeze slack.
+- ✅ **C1 — Validation & constraints.** Pure `core/validate.ts` (required, numeric range, regex pattern, allowed values; list element-wise) with tests; per-entry constraint editors in entry options; non-blocking invalid styling on values; optional clamp-on-commit for numbers.
+
+Also shipped: subtle Web Audio sound effects (clicks, dice rolls, crit/fail), with a settings toggle + volume; a configurable roll-animation duration with staggered dice/modifiers; a custom scroll-safe slider; and a default d20 for `roll:` with no dice term.
 
 ### In progress
 
@@ -28,7 +31,7 @@ Legend: ✅ done · ◑ partial · ○ planned.
 
 ### Planned
 
-- ○ **C1** Validation & constraints · ○ **C2** Conditional visibility
+- ○ **C2** Conditional visibility
 - ○ **B3** Type table view
 - ○ **D1** Export/import · ○ **D2** Layouts as vault files · ○ **D3** Versioned migration table + backups · ○ **D4** Write batching & conflict handling
 - ○ **E1** Keyboard & screen-reader support · ○ **E3** Theming surface
@@ -41,7 +44,7 @@ Per-property unique short forms with name↔short-form interchangeability and au
 ### Milestone sequencing — progress
 
 - **Milestone 1 — Foundations:** ◑ (F1 ✅; D3, D4 ○)
-- **Milestone 2 — Expressions:** ◑ (A1 ✅; C1, C2 ○)
+- **Milestone 2 — Expressions:** ◑ (A1, C1 ✅; C2 ○)
 - **Milestone 3 — Rolling depth:** ✅ (A2, A3, A4)
 - **Milestone 4 — Notes integration:** ✅ (B1 incl. Live Preview, E2)
 - **Milestone 5 — Scale:** ◑ (B2 ✅; B3, F2 ○)

@@ -6,6 +6,7 @@
 import type { ValueTypeDef } from "../../../core/registry";
 import { openTextInput } from "../../components/inline-edit";
 import { TextPromptModal } from "../../modals/dialogs";
+import { applyValidity } from "../validity";
 
 export const textType: ValueTypeDef = {
   id: "text",
@@ -29,6 +30,7 @@ export const textType: ValueTypeDef = {
         view.renderLinks(s, val);
       }
       s.addClass("ep-editable");
+      applyValidity(v, entry, "text", view.note.raw[key], view.i18n);
     };
     draw();
     view.bindOpen(s, () =>

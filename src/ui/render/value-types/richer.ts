@@ -20,6 +20,7 @@ import type { NoteModel } from "../../../core/note-model";
 import type { ValueTypeDef } from "../../../core/registry";
 import { fmtNum } from "../../../utils/misc";
 import { openNumberInput } from "../../components/inline-edit";
+import { sfx } from "../../../utils/sound";
 import { TextPromptModal } from "../../modals/dialogs";
 
 /** The subset of the view a link prompt needs. */
@@ -53,6 +54,7 @@ export const ratingType: ValueTypeDef = {
         pip.onclick = (e) => {
           e.preventDefault();
           e.stopPropagation();
+          sfx.tick();
           // Click the current highest pip to clear it (toggle down).
           view.note.set(file, key, i === cur ? i - 1 : i);
         };

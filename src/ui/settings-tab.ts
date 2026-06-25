@@ -310,6 +310,27 @@ export class EPSettingTab extends PluginSettingTab {
         });
       });
     new Setting(c)
+      .setName(t("settings.sound"))
+      .setDesc(t("settings.soundDesc"))
+      .addToggle((tg) => {
+        tg.setValue(plugin.settings.sound !== false).onChange((v) => {
+          plugin.settings.sound = v;
+          save();
+        });
+      });
+    new Setting(c)
+      .setName(t("settings.soundVolume"))
+      .setDesc(t("settings.soundVolumeDesc"))
+      .addSlider((sl) => {
+        sl.setLimits(0, 1, 0.05)
+          .setValue(plugin.settings.soundVolume ?? 0.3)
+          .setDynamicTooltip()
+          .onChange((v) => {
+            plugin.settings.soundVolume = v;
+            save();
+          });
+      });
+    new Setting(c)
       .setName(t("settings.failOnOne"))
       .setDesc(t("settings.failOnOneDesc"))
       .addToggle((tg) => {

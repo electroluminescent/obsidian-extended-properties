@@ -11,6 +11,7 @@ import type { ClusterFlags, ClusterOptions, ClusterRefs, EntryRef } from "../../
 import type { ClusterAddon, ClusterNeeds, ClusterSlot } from "../../core/registry";
 import { clamp, fmtNum } from "../../utils/misc";
 import { openNumberInput } from "../components/inline-edit";
+import { sfx } from "../../utils/sound";
 
 /** Cluster addons applicable to an entry, in registration order. */
 export function addonsFor(ref: EntryRef): ClusterAddon[] {
@@ -73,6 +74,7 @@ export function buildCluster(
     if (o.steppers && editable) {
       const dec = cl.createEl("button", { cls: "ep-step-btn", text: "−" });
       dec.onclick = () => {
+        sfx.tick();
         const cur = o.get!();
         o.commit!(o.clamp ? clamp(cur - 1, min, max) : cur - 1);
       };
@@ -95,6 +97,7 @@ export function buildCluster(
     if (o.steppers && editable) {
       const inc = cl.createEl("button", { cls: "ep-step-btn", text: "+" });
       inc.onclick = () => {
+        sfx.tick();
         const cur = o.get!();
         o.commit!(o.clamp ? clamp(cur + 1, min, max) : cur + 1);
       };

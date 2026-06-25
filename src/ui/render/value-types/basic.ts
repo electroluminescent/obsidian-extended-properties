@@ -9,6 +9,8 @@
 import type { EntryRenderCtx } from "../../../core/context";
 import type { ValueTypeDef } from "../../../core/registry";
 import { hexToRgb } from "../../../utils/color";
+import { sfx } from "../../../utils/sound";
+import { applyValidity } from "../validity";
 
 // ---------------------------------------------------------------------------
 // checkbox
@@ -33,11 +35,11 @@ export const checkboxType: ValueTypeDef = {
     cb.addClass("ep-prof");
     cb.checked = isChecked(ctx, key);
     if (view.editMode) {
-      cb.onchange = () => view.note.set(file, key, cb.checked);
+      cb.onchange = () => { sfx.toggle(); view.note.set(file, key, cb.checked); };
     } else {
       cb.setAttr("title", view.i18n.t("hint.dblToggle"));
       cb.onclick = (e) => e.preventDefault();
-      cb.ondblclick = () => view.note.set(file, key, !isChecked(ctx, key));
+      cb.ondblclick = () => { sfx.toggle(); view.note.set(file, key, !isChecked(ctx, key)); };
     }
     view.registerUpdater(() => {
       cb.checked = isChecked(ctx, key);
@@ -90,10 +92,14 @@ export const listType: ValueTypeDef = {
     const holder = ctx.extra.createDiv({ cls: "ep-list-holder" });
     if (entry.valueSize) holder.style.fontSize = entry.valueSize + "px";
     if (entry.valueColor) holder.style.color = entry.valueColor;
+    const key = entry.key as string;
+    const checkValid = () => applyValidity(holder, entry, "list", view.note.raw[key], view.i18n);
     buildList(ctx, holder, view.editMode);
+    checkValid();
     view.registerUpdater(() => {
       holder.empty();
       buildList(ctx, holder, view.editMode);
+      checkValid();
     });
   },
 
