@@ -421,6 +421,8 @@ export const coreEn: StringDict = {
   "table.count": "{n} notes",
   "table.noTypes": "No note types are configured yet. Add one in the plugin settings to see its notes here.",
   "table.removeColumn": "Remove column",
+  "table.roll": "Roll this property",
+  "table.rollFailed": "Rolling is unavailable.",
   "table.truncated": "Showing first {shown} of {total} — narrow the filter to see more.",
   "notice.hiding": "Hiding “{key}” from Obsidian properties.",
   "notice.saveFailed": "Could not save property: {error}",

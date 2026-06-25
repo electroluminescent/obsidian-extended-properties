@@ -471,6 +471,8 @@ var coreEn = {
   "table.count": "{n} notes",
   "table.noTypes": "No note types are configured yet. Add one in the plugin settings to see its notes here.",
   "table.removeColumn": "Remove column",
+  "table.roll": "Roll this property",
+  "table.rollFailed": "Rolling is unavailable.",
   "table.truncated": "Showing first {shown} of {total} \u2014 narrow the filter to see more.",
   "notice.hiding": "Hiding \u201C{key}\u201D from Obsidian properties.",
   "notice.saveFailed": "Could not save property: {error}",
@@ -7782,10 +7784,17 @@ var SidebarView = class extends import_obsidian22.ItemView {
 // src/ui/table-view.ts
 var import_obsidian23 = require("obsidian");
 var VIEW_TYPE_TABLE = "extended-properties-table";
+var NUMERIC2 = /* @__PURE__ */ new Set(["number", "decimal", "unit", "formula", "derived"]);
+var VIRT_THRESHOLD = 150;
+var ROW_H = 29;
 function fmtCell(v) {
   if (v === void 0 || v === null) return "";
   if (Array.isArray(v)) return v.map((x) => String(x)).join(", ");
   return String(v);
+}
+function linkTarget3(raw) {
+  const m = /\[\[([^\]|#]+)/.exec(raw);
+  return (m ? m[1] : raw).trim();
 }
 var TableView = class extends import_obsidian23.ItemView {
   constructor(leaf, plugin) {
@@ -7793,6 +7802,9 @@ var TableView = class extends import_obsidian23.ItemView {
     this.plugin = plugin;
     this.typeKey = "";
     this.filter = "";
+    /** Active virtualization scroll listener, cleaned up between renders. */
+    this.scrollEl = null;
+    this.scrollFn = null;
   }
   getViewType() {
     return VIEW_TYPE_TABLE;
@@ -7818,7 +7830,6 @@ var TableView = class extends import_obsidian23.ItemView {
     return this.containerEl.children[1];
   }
   // -- data ------------------------------------------------------------------
-  /** All notes whose `Type` includes `typeKey`, with their frontmatter. */
   rows(typeKey) {
     var _a;
     const want = typeKey.trim().toLowerCase();
@@ -7833,7 +7844,6 @@ var TableView = class extends import_obsidian23.ItemView {
     }
     return out;
   }
-  /** The stored table layout for a type, created on first use. */
   layoutFor(typeKey) {
     const s = this.plugin.settings;
     if (!s.tableLayouts) s.tableLayouts = {};
@@ -7841,7 +7851,6 @@ var TableView = class extends import_obsidian23.ItemView {
     if (!s.tableLayouts[k]) s.tableLayouts[k] = { columns: this.defaultColumns(typeKey) };
     return s.tableLayouts[k];
   }
-  /** Default columns: the type's sidebar property keys, else its commonest keys. */
   defaultColumns(typeKey) {
     var _a;
     const layout = this.plugin.settings.layouts[typeKey.toLowerCase()];
@@ -7861,11 +7870,41 @@ var TableView = class extends import_obsidian23.ItemView {
       }
     return [...freq.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k]) => k);
   }
+  /** Resolve type / rollability / dice / rating-max for each column. */
+  colMetas(cols, rows) {
+    const layout = this.plugin.settings.layouts[this.typeKey.toLowerCase()];
+    const rolling = this.plugin.settings.features["rolling"] !== false;
+    const findEntry = (key) => {
+      if (!layout) return void 0;
+      for (const sec of layout.sections)
+        for (const e of sec.entries)
+          if (e.kind === "prop" && e.key && e.key.toLowerCase() === key.toLowerCase()) return e;
+      return void 0;
+    };
+    return cols.map((key) => {
+      const entry = findEntry(key);
+      let type = (entry == null ? void 0 : entry.dataType) || this.plugin.props.obsidianType(key) || "";
+      if (!type) {
+        for (const r of rows) {
+          const v = getCI(r.fm, key);
+          if (v === void 0 || v === null) continue;
+          type = typeof v === "boolean" ? "checkbox" : typeof v === "number" ? "number" : Array.isArray(v) ? "list" : "text";
+          break;
+        }
+        if (!type) type = "text";
+      }
+      const roll = entry ? entry["roll"] : void 0;
+      const rollable = rolling && !!roll && (NUMERIC2.has(type) || type === "rating");
+      const dice = entry ? entry["dice"] : void 0;
+      return { key, type, rollable, dice, max: entry == null ? void 0 : entry.max };
+    });
+  }
   // -- render ----------------------------------------------------------------
   render() {
     const t = this.plugin.i18n.t.bind(this.plugin.i18n);
     const s = this.plugin.settings;
     const c = this.body;
+    this.detachScroll();
     c.empty();
     c.addClass("ep-table-view");
     if (!s.types.length) {
@@ -7903,17 +7942,20 @@ var TableView = class extends import_obsidian23.ItemView {
   }
   renderTable(scroll, count) {
     const t = this.plugin.i18n.t.bind(this.plugin.i18n);
+    this.detachScroll();
     scroll.empty();
     const layout = this.layoutFor(this.typeKey);
     const cols = layout.columns;
-    let data = this.rows(this.typeKey);
+    const rows = this.rows(this.typeKey);
+    const metas = this.colMetas(cols, rows);
+    let data = rows;
     const q = this.filter.trim().toLowerCase();
     if (q)
       data = data.filter(
         (r) => r.file.basename.toLowerCase().includes(q) || cols.some((k) => fmtCell(getCI(r.fm, k)).toLowerCase().includes(q))
       );
     const sort = layout.sort;
-    data.sort((a, b) => {
+    data = data.slice().sort((a, b) => {
       if (!sort || !sort.key) return a.file.basename.localeCompare(b.file.basename);
       const av = getCI(a.fm, sort.key);
       const bv = getCI(b.fm, sort.key);
@@ -7923,33 +7965,213 @@ var TableView = class extends import_obsidian23.ItemView {
       return sort.dir === "desc" ? -cmp : cmp;
     });
     count.setText(t("table.count", { n: String(data.length) }));
-    const MAX = 500;
     const table = scroll.createEl("table", { cls: "ep-table" });
     const htr = table.createEl("thead").createEl("tr");
-    this.headerCell(htr, "", t("table.name"), layout);
-    for (const k of cols) this.headerCell(htr, k, k, layout);
+    this.headerCell(htr, "", t("table.name"), layout, null);
+    metas.forEach((m) => this.headerCell(htr, m.key, m.key, layout, m));
     const tbody = table.createEl("tbody");
-    for (const r of data.slice(0, MAX)) {
-      const tr = tbody.createEl("tr");
-      const nameTd = tr.createEl("td", { cls: "ep-table-name" });
-      const a = nameTd.createEl("a", { text: r.file.basename, cls: "ep-table-link" });
+    if (data.length <= VIRT_THRESHOLD) {
+      for (const r of data) this.renderRow(tbody, r, metas);
+      return;
+    }
+    const colspan = metas.length + 1;
+    const renderWindow = () => {
+      const top = scroll.scrollTop;
+      const vh = scroll.clientHeight || 400;
+      const start = Math.max(0, Math.floor(top / ROW_H) - 6);
+      const end = Math.min(data.length, start + Math.ceil(vh / ROW_H) + 12);
+      tbody.empty();
+      if (start > 0) this.spacer(tbody, colspan, start * ROW_H);
+      for (let i = start; i < end; i++) this.renderRow(tbody, data[i], metas);
+      if (end < data.length) this.spacer(tbody, colspan, (data.length - end) * ROW_H);
+    };
+    this.scrollEl = scroll;
+    this.scrollFn = renderWindow;
+    scroll.addEventListener("scroll", renderWindow);
+    renderWindow();
+  }
+  spacer(tbody, colspan, h) {
+    const tr = tbody.createEl("tr", { cls: "ep-table-spacer" });
+    const td = tr.createEl("td", { attr: { colspan: String(colspan) } });
+    td.style.height = h + "px";
+    td.style.padding = "0";
+  }
+  detachScroll() {
+    if (this.scrollEl && this.scrollFn) this.scrollEl.removeEventListener("scroll", this.scrollFn);
+    this.scrollEl = null;
+    this.scrollFn = null;
+  }
+  renderRow(tbody, r, metas) {
+    const tr = tbody.createEl("tr");
+    const nameTd = tr.createEl("td", { cls: "ep-table-name" });
+    const a = nameTd.createEl("a", { text: r.file.basename, cls: "ep-table-link" });
+    a.onclick = (e) => {
+      e.preventDefault();
+      void this.app.workspace.getLeaf(false).openFile(r.file);
+    };
+    for (const m of metas) {
+      const td = tr.createEl("td", { cls: "ep-table-cell" });
+      this.renderValue(td, r.file, r.fm, m);
+    }
+  }
+  // -- cell rendering --------------------------------------------------------
+  renderValue(td, file, fm, m) {
+    var _a;
+    const raw = getCI(fm, m.key);
+    const type = m.type;
+    if (type === "checkbox") {
+      const cb = td.createEl("input");
+      cb.type = "checkbox";
+      cb.checked = raw === true || raw === "true";
+      cb.onclick = (e) => {
+        e.stopPropagation();
+        void this.writeRaw(file, m.key, cb.checked);
+      };
+      return;
+    }
+    if (type === "rating") {
+      const n = Math.max(0, Math.round((_a = parseNumeric(raw)) != null ? _a : 0));
+      const max = m.max && m.max > 0 ? m.max : 5;
+      const wrap = td.createSpan({ cls: "ep-cell-rating" });
+      for (let i = 1; i <= max; i++) wrap.createSpan({ text: i <= n ? "\u2605" : "\u2606" });
+      this.maybeRoll(td, file, m, raw);
+      return;
+    }
+    if (type === "color") {
+      const s = fmtCell(raw);
+      if (s) {
+        const sw = td.createSpan({ cls: "ep-cell-swatch" });
+        sw.style.background = s;
+      }
+      td.createSpan({ cls: "ep-cell-muted", text: s });
+      return;
+    }
+    if (type === "link") {
+      const s = fmtCell(raw);
+      const target = linkTarget3(s);
+      const a = td.createEl("a", { cls: "ep-table-link", text: target || s });
       a.onclick = (e) => {
         e.preventDefault();
-        void this.app.workspace.getLeaf(false).openFile(r.file);
+        if (target) void this.app.workspace.openLinkText(target, file.path, false);
       };
-      for (const k of cols) {
-        const td = tr.createEl("td", { cls: "ep-table-cell", text: fmtCell(getCI(r.fm, k)) });
-        this.bindCellEdit(td, r.file, k);
-      }
+      return;
     }
-    if (data.length > MAX)
-      scroll.createDiv({ cls: "ep-table-more", text: t("table.truncated", { shown: String(MAX), total: String(data.length) }) });
+    if (type === "image") {
+      const url = this.resolveImage(fmtCell(raw), file);
+      if (url) {
+        const img = td.createEl("img", { cls: "ep-cell-img" });
+        img.src = url;
+      }
+      return;
+    }
+    if (type === "list" || Array.isArray(raw)) {
+      const arr = Array.isArray(raw) ? raw : raw === void 0 || raw === null || raw === "" ? [] : [raw];
+      for (const x of arr) td.createSpan({ cls: "ep-cell-chip", text: String(x) });
+      return;
+    }
+    if (NUMERIC2.has(type)) {
+      td.addClass("ep-cell-num");
+      td.createSpan({ text: fmtCell(raw) });
+      this.maybeRoll(td, file, m, raw);
+      this.bindCellEdit(td, file, m.key);
+      return;
+    }
+    td.createSpan({ text: fmtCell(raw) });
+    this.bindCellEdit(td, file, m.key);
   }
-  headerCell(tr, key, label, layout) {
-    var _a;
-    const th = tr.createEl("th", { cls: "ep-table-col ep-sortable", text: label });
+  maybeRoll(td, file, m, raw) {
+    if (!m.rollable) return;
+    const btn = td.createEl("button", { cls: "ep-table-roll" });
+    (0, import_obsidian23.setIcon)(btn, "dices");
+    btn.setAttr("title", this.plugin.i18n.t("table.roll"));
+    btn.onclick = (e) => {
+      var _a;
+      e.stopPropagation();
+      try {
+        const mod = (_a = parseNumeric(raw)) != null ? _a : 0;
+        this.plugin.rollService().roll(`${file.basename} \xB7 ${m.key}`, mod, parseDiceOrDefault(m.dice));
+      } catch (e2) {
+        new import_obsidian23.Notice(this.plugin.i18n.t("table.rollFailed"));
+      }
+    };
+  }
+  bindCellEdit(td, file, key) {
+    td.addClass("ep-editable-cell");
+    td.ondblclick = () => {
+      var _a, _b;
+      const fm = (_b = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter) != null ? _b : {};
+      const cur = fmtCell(getCI(fm, key));
+      const input = createEl("input", { cls: "ep-table-edit" });
+      input.type = "text";
+      input.value = cur;
+      td.empty();
+      td.appendChild(input);
+      input.focus();
+      input.select();
+      let done = false;
+      const finish = (save) => {
+        if (done) return;
+        done = true;
+        if (save && input.value !== cur) void this.writeCellText(file, key, input.value);
+        else this.render();
+      };
+      input.onblur = () => finish(true);
+      input.onkeydown = (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          input.blur();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          finish(false);
+        }
+      };
+    };
+  }
+  async writeCellText(file, key, value) {
+    const v = value.trim();
+    await this.app.fileManager.processFrontMatter(file, (fm) => {
+      if (v === "") {
+        delete fm[key];
+        return;
+      }
+      const n = Number(v);
+      fm[key] = Number.isFinite(n) && String(n) === v ? n : value;
+    });
+    this.render();
+  }
+  async writeRaw(file, key, value) {
+    await this.app.fileManager.processFrontMatter(file, (fm) => {
+      fm[key] = value;
+    });
+  }
+  /** Resolve an image property value to a displayable URL (best effort). */
+  resolveImage(src, file) {
+    src = (src || "").trim();
+    if (!src) return "";
+    const m = src.match(/!?\[\[(.*?)\]\]/);
+    const path = m ? m[1].split("|")[0].split("#")[0].trim() : src;
+    if (/^(https?:|data:|app:|file:)/.test(path)) return path;
+    const dest = this.app.metadataCache.getFirstLinkpathDest(path, file.path);
+    if (dest) return this.app.vault.getResourcePath(dest);
+    const af = this.app.vault.getAbstractFileByPath(path);
+    return af instanceof import_obsidian23.TFile ? this.app.vault.getResourcePath(af) : "";
+  }
+  // -- header (sort + resize) ------------------------------------------------
+  headerCell(tr, key, label, layout, meta) {
+    var _a, _b;
+    const th = tr.createEl("th", { cls: "ep-table-col ep-sortable" });
+    th.createSpan({ cls: "ep-th-label", text: label });
+    if (meta) {
+      const w = (_a = layout.widths) == null ? void 0 : _a[key];
+      if (w && w > 0) {
+        th.style.width = w + "px";
+        th.style.minWidth = w + "px";
+      }
+    } else {
+      th.addClass("ep-table-namecol");
+    }
     const sort = layout.sort;
-    if (((_a = sort == null ? void 0 : sort.key) != null ? _a : "") === key && (sort || key === ""))
+    if (((_b = sort == null ? void 0 : sort.key) != null ? _b : "") === key && (sort || key === ""))
       th.addClass((sort == null ? void 0 : sort.dir) === "desc" ? "ep-sort-desc" : "ep-sort-asc");
     th.onclick = () => {
       var _a2;
@@ -7962,59 +8184,43 @@ var TableView = class extends import_obsidian23.ItemView {
     if (key)
       th.oncontextmenu = (e) => {
         e.preventDefault();
-        const m = new import_obsidian23.Menu();
-        m.addItem(
+        const menu = new import_obsidian23.Menu();
+        menu.addItem(
           (i) => i.setTitle(this.plugin.i18n.t("table.removeColumn")).setIcon("x").onClick(() => {
             layout.columns = layout.columns.filter((c) => c !== key);
             void this.plugin.saveSettings();
             this.render();
           })
         );
-        m.showAtMouseEvent(e);
+        menu.showAtMouseEvent(e);
       };
+    if (meta) this.attachResize(th, key, layout);
   }
-  bindCellEdit(td, file, key) {
-    td.ondblclick = () => {
-      var _a, _b;
-      const cur = fmtCell(getCI((_b = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter) != null ? _b : {}, key));
-      const input = createEl("input", { cls: "ep-table-edit" });
-      input.type = "text";
-      input.value = cur;
-      td.empty();
-      td.appendChild(input);
-      input.focus();
-      input.select();
-      let done = false;
-      const finish = (save) => {
-        if (done) return;
-        done = true;
-        if (save && input.value !== cur) void this.writeCell(file, key, input.value);
-        else td.setText(cur);
+  attachResize(th, key, layout) {
+    const grip = th.createSpan({ cls: "ep-col-resize" });
+    grip.onclick = (e) => e.stopPropagation();
+    grip.onpointerdown = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const startW = th.offsetWidth;
+      grip.setPointerCapture(e.pointerId);
+      const move = (ev) => {
+        const w = Math.max(48, startW + (ev.clientX - startX));
+        th.style.width = w + "px";
+        th.style.minWidth = w + "px";
       };
-      input.onblur = () => finish(true);
-      input.onkeydown = (e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          input.blur();
-        } else if (e.key === "Escape") {
-          e.preventDefault();
-          done = true;
-          td.setText(cur);
-        }
+      const up = (ev) => {
+        grip.releasePointerCapture(e.pointerId);
+        grip.removeEventListener("pointermove", move);
+        grip.removeEventListener("pointerup", up);
+        if (!layout.widths) layout.widths = {};
+        layout.widths[key] = Math.max(48, startW + (ev.clientX - startX));
+        void this.plugin.saveSettings();
       };
+      grip.addEventListener("pointermove", move);
+      grip.addEventListener("pointerup", up);
     };
-  }
-  async writeCell(file, key, value) {
-    const v = value.trim();
-    await this.app.fileManager.processFrontMatter(file, (fm) => {
-      if (v === "") {
-        delete fm[key];
-        return;
-      }
-      const n = Number(v);
-      fm[key] = Number.isFinite(n) && String(n) === v ? n : value;
-    });
-    this.render();
   }
   openColumnsMenu(e) {
     const layout = this.layoutFor(this.typeKey);
@@ -8024,9 +8230,9 @@ var TableView = class extends import_obsidian23.ItemView {
         const lk = k.toLowerCase();
         if (lk !== "type" && lk !== "position") candidates.add(k);
       }
-    const m = new import_obsidian23.Menu();
+    const menu = new import_obsidian23.Menu();
     for (const k of [...candidates].sort((a, b) => a.localeCompare(b))) {
-      m.addItem(
+      menu.addItem(
         (i) => i.setTitle(k).setChecked(layout.columns.includes(k)).onClick(() => {
           layout.columns = layout.columns.includes(k) ? layout.columns.filter((c) => c !== k) : [...layout.columns, k];
           void this.plugin.saveSettings();
@@ -8034,7 +8240,10 @@ var TableView = class extends import_obsidian23.ItemView {
         })
       );
     }
-    m.showAtMouseEvent(e);
+    menu.showAtMouseEvent(e);
+  }
+  async onClose() {
+    this.detachScroll();
   }
 };
 
@@ -12314,6 +12523,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian36.Plugin {
   }
   // -- rolling: history export & macro commands -------------------------------
   /** Lazily-created roll service for view-less rolls (macro commands). */
+  /** Lazily-created roll service for view-less rolls (macro commands, table cells). */
   rollService() {
     if (!this.rollSvc) this.rollSvc = new RollService(this.i18n, this.settings, this.history, this.app);
     return this.rollSvc;

@@ -202,7 +202,8 @@ export default class ExtendedPropertiesPlugin extends Plugin {
   // -- rolling: history export & macro commands -------------------------------
 
   /** Lazily-created roll service for view-less rolls (macro commands). */
-  private rollService(): RollService {
+  /** Lazily-created roll service for view-less rolls (macro commands, table cells). */
+  rollService(): RollService {
     if (!this.rollSvc) this.rollSvc = new RollService(this.i18n, this.settings, this.history, this.app);
     return this.rollSvc;
   }

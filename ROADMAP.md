@@ -6,7 +6,7 @@ The codebase's assets to protect throughout: the registry system (`src/core/regi
 
 ---
 
-## Status (v2.41.0)
+## Status (v2.42.0)
 
 Legend: ✅ done · ◑ partial · ○ planned.
 
@@ -25,12 +25,9 @@ Legend: ✅ done · ◑ partial · ○ planned.
 - ✅ **D1 — Export / import of types & sections.** Pure `core/transfer.ts` — a versioned snippet (`schema` + plugin stamp) carrying the layout/section plus a dependency manifest of only the derivation blocks it references, with id-remap on import and a reference audit — round-trip tested. *Export* on each type (settings) and *Export section…* on the section menu copy a shareable JSON snippet to the clipboard; an import dialog pastes (or auto-reads the clipboard), lists missing derivation building blocks, offers to create them, and appends the section(s) to a chosen type with freshly-generated ids (collision-free).
 - ✅ **F3 — CI, repo & release.** CI (typecheck → test → build), a tag-triggered draft-release workflow, one-command versioning (`npm version` → `version-bump.mjs` syncs manifest/versions), `LICENSE`, `.gitignore`, README/install pass, a clean innerHTML/console audit, and a `RELEASING.md` runbook with the ready-to-paste `community-plugins.json` entry + review checklist. The repo URL is set (`electroluminescent/obsidian-extended-properties`) in `manifest.json` `authorUrl` and the submission entry. *Operational remainder (run by the maintainer, scripted in `RELEASING.md`):* push the repo public, run a BRAT beta round, open the `obsidian-releases` PR.
 - ✅ **C2 — Conditional visibility.** `showWhen` on entries and sections — a boolean expression over the note's values (`Class == "Wizard"`, `Level >= 5`, with `&&`/`||`/`!`). The shared expression engine is now string-aware (case-insensitive equality, string/number truthiness) with a tested `evalCondition` entry point; entries/sections are hidden outside edit mode and shown dimmed inside it (so the condition stays reachable), and the view's empty-signature now folds in condition outcomes so a value that flips a condition re-renders precisely. Condition inputs with live parse feedback live in the entry and section options.
+- ✅ **B3 — Type table view.** A workspace view (`src/ui/table-view.ts`; "Open type table" command + ribbon) listing every note of a chosen type as rows with chosen properties as columns: type picker, column pick-list, text filter, click-to-sort headers (asc → desc → none), and drag-to-resize, persisted column widths. Rows click through to the note; cells render a compact, type-aware widget (checkbox, rating pips, colour swatch, internal link, image thumbnail, right-aligned numbers, list chips) and edit in place on double-click via `processFrontMatter`; rollable columns get a die button that rolls the cell value through the plugin roll service. Rows virtualize above 150 so a type with thousands of notes stays responsive. Column sets, sort and widths persist per type in `settings.tableLayouts`.
 
 Also shipped: subtle Web Audio sound effects (clicks, dice rolls, crit/fail), with a settings toggle + volume; a configurable roll-animation duration with staggered dice/modifiers; a custom scroll-safe slider; and a default d20 for `roll:` with no dice term.
-
-### In progress
-
-- ◑ **B3 — Type table view.** A workspace view (`src/ui/table-view.ts`, "Open type table" command + ribbon) listing every note of a chosen type as rows with chosen frontmatter properties as columns: a type picker, a column pick-list (menu), a text filter, click-to-sort headers (asc → desc → none), row click-through to the note, and double-click inline cell editing written via `processFrontMatter`. Column sets and sort persist per type in `settings.tableLayouts`. *Remaining B3 steps:* full value-type cell renderers (a "compact" flag) and in-cell roll buttons, column-width drag, and row virtualization — cells currently render a compact text projection and the list caps at 500 rows.
 
 ### Deprecations
 
@@ -52,7 +49,7 @@ Per-property unique short forms with name↔short-form interchangeability and au
 - **Milestone 2 — Expressions:** ✅ (A1, C1, C2 ✅)
 - **Milestone 3 — Rolling depth:** ✅ (A2, A3, A4)
 - **Milestone 4 — Notes integration:** ✅ (B1 incl. Live Preview, E2)
-- **Milestone 5 — Scale:** ◑ (B2 ✅, B3 ◑; F2 ○)
+- **Milestone 5 — Scale:** ◑ (B2, B3 ✅; F2 ○)
 - **Milestone 6 — Ecosystem:** ◑ (C3, D1, F3 ✅; D2, E3, F4, F5 ○) · German locale removed (English-only; see Deprecations)
 
 ---
@@ -171,6 +168,8 @@ Per-property unique short forms with name↔short-form interchangeability and au
 5. Document the performance model in README; add the kill-switch toggle.
 
 ### B3. Type table view
+
+> ✅ **Implemented in v2.42.0** (`src/ui/table-view.ts`). All five steps below are done — read-only projection, sort + filter, inline editing, in-cell roll buttons, and persisted per-type layouts with column-width drag — plus compact type-aware cells and row virtualization. The "compact mode flag" was realised as dedicated compact cell widgets in the table rather than threading a flag through every sidebar renderer (which would have required a per-file `ViewCtx`/`NoteModel` for every cell).
 
 **What.** A workspace view listing every note of a chosen type as rows with chosen properties as columns — sortable, with inline editing and roll buttons.
 

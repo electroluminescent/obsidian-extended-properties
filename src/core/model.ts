@@ -244,6 +244,8 @@ export interface TableLayout {
   columns: string[];
   /** Active sort: property key (empty = by note name) and direction. */
   sort?: { key: string; dir: "asc" | "desc" };
+  /** User-dragged column widths in px, keyed by property key. */
+  widths?: Record<string, number>;
 }
 
 export interface EPSettings {

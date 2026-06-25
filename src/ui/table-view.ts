@@ -2,38 +2,65 @@
  * Type table view (roadmap B3).
  *
  * A workspace view listing every note of a chosen type as rows, with chosen
- * frontmatter properties as columns. Sortable (click a header), filterable
- * (text box), columns are pick-and-choose (a menu) and persisted per type in
- * `settings.tableLayouts`. Clicking a row opens the note; double-clicking a
- * cell edits that property in place (written via `processFrontMatter`).
+ * frontmatter properties as columns. Sortable headers, a text filter, a column
+ * pick-list and drag-to-resize columns — all persisted per type in
+ * `settings.tableLayouts`. Rows click through to the note; cells render a
+ * compact, type-aware widget (checkbox, rating, colour swatch, link, image,
+ * number, list chips) and edit in place on double-click; rollable columns get a
+ * die button that rolls via the plugin roll service. Rows virtualize so a type
+ * with thousands of notes stays responsive.
  *
- * Data comes straight from the metadata cache — this is a projection over the
- * vault, not a new data store. Cells render a compact text value; the full
- * value-type cell renderers and in-cell roll buttons are a later B3 step.
+ * Data is a projection over the metadata cache, not a new store.
  */
 
-import { ItemView, Menu, TFile, WorkspaceLeaf } from "obsidian";
+import { ItemView, Menu, Notice, setIcon, TFile, WorkspaceLeaf } from "obsidian";
 import type ExtendedPropertiesPlugin from "../main";
-import type { TableLayout } from "../core/model";
+import type { Entry, TableLayout } from "../core/model";
 import { getCI, parseNumeric } from "../utils/misc";
+import { parseDiceOrDefault } from "../utils/dice";
 
 export const VIEW_TYPE_TABLE = "extended-properties-table";
+
+/** Value types rendered right-aligned and eligible for a roll button. */
+const NUMERIC = new Set(["number", "decimal", "unit", "formula", "derived"]);
+/** Below this row count we render every row; above it we virtualize. */
+const VIRT_THRESHOLD = 150;
+/** Assumed row height (px) for virtualization spacers. */
+const ROW_H = 29;
 
 interface Row {
   file: TFile;
   fm: Record<string, unknown>;
 }
 
-/** Compact text projection of a frontmatter value for a cell. */
+interface ColMeta {
+  key: string;
+  /** Resolved value-type id. */
+  type: string;
+  rollable: boolean;
+  dice?: string;
+  max?: number;
+}
+
+/** Compact text projection of a frontmatter value. */
 function fmtCell(v: unknown): string {
   if (v === undefined || v === null) return "";
   if (Array.isArray(v)) return v.map((x) => String(x)).join(", ");
   return String(v);
 }
 
+/** Bare link target of `[[Target|alias]]` / `[[Target#h]]`, else the string itself. */
+function linkTarget(raw: string): string {
+  const m = /\[\[([^\]|#]+)/.exec(raw);
+  return (m ? m[1] : raw).trim();
+}
+
 export class TableView extends ItemView {
   private typeKey = "";
   private filter = "";
+  /** Active virtualization scroll listener, cleaned up between renders. */
+  private scrollEl: HTMLElement | null = null;
+  private scrollFn: (() => void) | null = null;
 
   constructor(leaf: WorkspaceLeaf, private plugin: ExtendedPropertiesPlugin) {
     super(leaf);
@@ -70,7 +97,6 @@ export class TableView extends ItemView {
 
   // -- data ------------------------------------------------------------------
 
-  /** All notes whose `Type` includes `typeKey`, with their frontmatter. */
   private rows(typeKey: string): Row[] {
     const want = typeKey.trim().toLowerCase();
     if (!want) return [];
@@ -89,7 +115,6 @@ export class TableView extends ItemView {
     return out;
   }
 
-  /** The stored table layout for a type, created on first use. */
   private layoutFor(typeKey: string): TableLayout {
     const s = this.plugin.settings;
     if (!s.tableLayouts) s.tableLayouts = {};
@@ -98,7 +123,6 @@ export class TableView extends ItemView {
     return s.tableLayouts[k];
   }
 
-  /** Default columns: the type's sidebar property keys, else its commonest keys. */
   private defaultColumns(typeKey: string): string[] {
     const layout = this.plugin.settings.layouts[typeKey.toLowerCase()];
     const keys: string[] = [];
@@ -117,12 +141,43 @@ export class TableView extends ItemView {
     return [...freq.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k]) => k);
   }
 
+  /** Resolve type / rollability / dice / rating-max for each column. */
+  private colMetas(cols: string[], rows: Row[]): ColMeta[] {
+    const layout = this.plugin.settings.layouts[this.typeKey.toLowerCase()];
+    const rolling = this.plugin.settings.features["rolling"] !== false;
+    const findEntry = (key: string): Entry | undefined => {
+      if (!layout) return undefined;
+      for (const sec of layout.sections)
+        for (const e of sec.entries)
+          if (e.kind === "prop" && e.key && e.key.toLowerCase() === key.toLowerCase()) return e;
+      return undefined;
+    };
+    return cols.map((key) => {
+      const entry = findEntry(key);
+      let type = entry?.dataType || this.plugin.props.obsidianType(key) || "";
+      if (!type) {
+        for (const r of rows) {
+          const v = getCI(r.fm, key);
+          if (v === undefined || v === null) continue;
+          type = typeof v === "boolean" ? "checkbox" : typeof v === "number" ? "number" : Array.isArray(v) ? "list" : "text";
+          break;
+        }
+        if (!type) type = "text";
+      }
+      const roll = entry ? (entry as Record<string, unknown>)["roll"] : undefined;
+      const rollable = rolling && !!roll && (NUMERIC.has(type) || type === "rating");
+      const dice = entry ? ((entry as Record<string, unknown>)["dice"] as string | undefined) : undefined;
+      return { key, type, rollable, dice, max: entry?.max };
+    });
+  }
+
   // -- render ----------------------------------------------------------------
 
   private render(): void {
     const t = this.plugin.i18n.t.bind(this.plugin.i18n);
     const s = this.plugin.settings;
     const c = this.body;
+    this.detachScroll();
     c.empty();
     c.addClass("ep-table-view");
 
@@ -133,7 +188,6 @@ export class TableView extends ItemView {
     if (!this.typeKey || !s.types.some((tp) => tp.toLowerCase() === this.typeKey.toLowerCase()))
       this.typeKey = s.types[0];
 
-    // -- toolbar -------------------------------------------------------------
     const bar = c.createDiv({ cls: "ep-table-bar" });
     const sel = bar.createEl("select", { cls: "dropdown ep-table-type" });
     for (const tp of s.types) {
@@ -157,7 +211,6 @@ export class TableView extends ItemView {
     filt.value = this.filter;
 
     const count = bar.createSpan({ cls: "ep-table-count" });
-
     const scroll = c.createDiv({ cls: "ep-table-scroll" });
     filt.oninput = () => {
       this.filter = filt.value;
@@ -168,11 +221,14 @@ export class TableView extends ItemView {
 
   private renderTable(scroll: HTMLElement, count: HTMLElement): void {
     const t = this.plugin.i18n.t.bind(this.plugin.i18n);
+    this.detachScroll();
     scroll.empty();
     const layout = this.layoutFor(this.typeKey);
     const cols = layout.columns;
+    const rows = this.rows(this.typeKey);
+    const metas = this.colMetas(cols, rows);
 
-    let data = this.rows(this.typeKey);
+    let data = rows;
     const q = this.filter.trim().toLowerCase();
     if (q)
       data = data.filter(
@@ -182,7 +238,7 @@ export class TableView extends ItemView {
       );
 
     const sort = layout.sort;
-    data.sort((a, b) => {
+    data = data.slice().sort((a, b) => {
       if (!sort || !sort.key) return a.file.basename.localeCompare(b.file.basename);
       const av = getCI(a.fm, sort.key);
       const bv = getCI(b.fm, sort.key);
@@ -194,61 +250,151 @@ export class TableView extends ItemView {
 
     count.setText(t("table.count", { n: String(data.length) }));
 
-    const MAX = 500;
     const table = scroll.createEl("table", { cls: "ep-table" });
     const htr = table.createEl("thead").createEl("tr");
-    this.headerCell(htr, "", t("table.name"), layout);
-    for (const k of cols) this.headerCell(htr, k, k, layout);
+    this.headerCell(htr, "", t("table.name"), layout, null);
+    metas.forEach((m) => this.headerCell(htr, m.key, m.key, layout, m));
 
     const tbody = table.createEl("tbody");
-    for (const r of data.slice(0, MAX)) {
-      const tr = tbody.createEl("tr");
-      const nameTd = tr.createEl("td", { cls: "ep-table-name" });
-      const a = nameTd.createEl("a", { text: r.file.basename, cls: "ep-table-link" });
-      a.onclick = (e) => {
-        e.preventDefault();
-        void this.app.workspace.getLeaf(false).openFile(r.file);
-      };
-      for (const k of cols) {
-        const td = tr.createEl("td", { cls: "ep-table-cell", text: fmtCell(getCI(r.fm, k)) });
-        this.bindCellEdit(td, r.file, k);
-      }
+    if (data.length <= VIRT_THRESHOLD) {
+      for (const r of data) this.renderRow(tbody, r, metas);
+      return;
     }
-    if (data.length > MAX)
-      scroll.createDiv({ cls: "ep-table-more", text: t("table.truncated", { shown: String(MAX), total: String(data.length) }) });
+
+    // -- virtualization: render only the visible window + spacers -----------
+    const colspan = metas.length + 1;
+    const renderWindow = (): void => {
+      const top = scroll.scrollTop;
+      const vh = scroll.clientHeight || 400;
+      const start = Math.max(0, Math.floor(top / ROW_H) - 6);
+      const end = Math.min(data.length, start + Math.ceil(vh / ROW_H) + 12);
+      tbody.empty();
+      if (start > 0) this.spacer(tbody, colspan, start * ROW_H);
+      for (let i = start; i < end; i++) this.renderRow(tbody, data[i], metas);
+      if (end < data.length) this.spacer(tbody, colspan, (data.length - end) * ROW_H);
+    };
+    this.scrollEl = scroll;
+    this.scrollFn = renderWindow;
+    scroll.addEventListener("scroll", renderWindow);
+    renderWindow();
   }
 
-  private headerCell(tr: HTMLElement, key: string, label: string, layout: TableLayout): void {
-    const th = tr.createEl("th", { cls: "ep-table-col ep-sortable", text: label });
-    const sort = layout.sort;
-    if ((sort?.key ?? "") === key && (sort || key === ""))
-      th.addClass(sort?.dir === "desc" ? "ep-sort-desc" : "ep-sort-asc");
-    th.onclick = () => {
-      const cur = layout.sort;
-      // asc → desc → none (default name order)
-      if (cur && (cur.key ?? "") === key) layout.sort = cur.dir === "asc" ? { key, dir: "desc" } : undefined;
-      else layout.sort = { key, dir: "asc" };
-      void this.plugin.saveSettings();
-      this.render();
+  private spacer(tbody: HTMLElement, colspan: number, h: number): void {
+    const tr = tbody.createEl("tr", { cls: "ep-table-spacer" });
+    const td = tr.createEl("td", { attr: { colspan: String(colspan) } });
+    td.style.height = h + "px";
+    td.style.padding = "0";
+  }
+
+  private detachScroll(): void {
+    if (this.scrollEl && this.scrollFn) this.scrollEl.removeEventListener("scroll", this.scrollFn);
+    this.scrollEl = null;
+    this.scrollFn = null;
+  }
+
+  private renderRow(tbody: HTMLElement, r: Row, metas: ColMeta[]): void {
+    const tr = tbody.createEl("tr");
+    const nameTd = tr.createEl("td", { cls: "ep-table-name" });
+    const a = nameTd.createEl("a", { text: r.file.basename, cls: "ep-table-link" });
+    a.onclick = (e) => {
+      e.preventDefault();
+      void this.app.workspace.getLeaf(false).openFile(r.file);
     };
-    if (key)
-      th.oncontextmenu = (e) => {
-        e.preventDefault();
-        const m = new Menu();
-        m.addItem((i) =>
-          i.setTitle(this.plugin.i18n.t("table.removeColumn")).setIcon("x").onClick(() => {
-            layout.columns = layout.columns.filter((c) => c !== key);
-            void this.plugin.saveSettings();
-            this.render();
-          })
-        );
-        m.showAtMouseEvent(e as MouseEvent);
+    for (const m of metas) {
+      const td = tr.createEl("td", { cls: "ep-table-cell" });
+      this.renderValue(td, r.file, r.fm, m);
+    }
+  }
+
+  // -- cell rendering --------------------------------------------------------
+
+  private renderValue(td: HTMLElement, file: TFile, fm: Record<string, unknown>, m: ColMeta): void {
+    const raw = getCI(fm, m.key);
+    const type = m.type;
+
+    if (type === "checkbox") {
+      const cb = td.createEl("input");
+      cb.type = "checkbox";
+      cb.checked = raw === true || raw === "true";
+      cb.onclick = (e) => {
+        e.stopPropagation();
+        void this.writeRaw(file, m.key, cb.checked);
       };
+      return;
+    }
+    if (type === "rating") {
+      const n = Math.max(0, Math.round(parseNumeric(raw) ?? 0));
+      const max = m.max && m.max > 0 ? m.max : 5;
+      const wrap = td.createSpan({ cls: "ep-cell-rating" });
+      for (let i = 1; i <= max; i++) wrap.createSpan({ text: i <= n ? "★" : "☆" });
+      this.maybeRoll(td, file, m, raw);
+      return;
+    }
+    if (type === "color") {
+      const s = fmtCell(raw);
+      if (s) {
+        const sw = td.createSpan({ cls: "ep-cell-swatch" });
+        sw.style.background = s;
+      }
+      td.createSpan({ cls: "ep-cell-muted", text: s });
+      return;
+    }
+    if (type === "link") {
+      const s = fmtCell(raw);
+      const target = linkTarget(s);
+      const a = td.createEl("a", { cls: "ep-table-link", text: target || s });
+      a.onclick = (e) => {
+        e.preventDefault();
+        if (target) void this.app.workspace.openLinkText(target, file.path, false);
+      };
+      return;
+    }
+    if (type === "image") {
+      const url = this.resolveImage(fmtCell(raw), file);
+      if (url) {
+        const img = td.createEl("img", { cls: "ep-cell-img" });
+        img.src = url;
+      }
+      return;
+    }
+    if (type === "list" || Array.isArray(raw)) {
+      const arr = Array.isArray(raw) ? raw : raw === undefined || raw === null || raw === "" ? [] : [raw];
+      for (const x of arr) td.createSpan({ cls: "ep-cell-chip", text: String(x) });
+      return;
+    }
+    if (NUMERIC.has(type)) {
+      td.addClass("ep-cell-num");
+      td.createSpan({ text: fmtCell(raw) });
+      this.maybeRoll(td, file, m, raw);
+      this.bindCellEdit(td, file, m.key);
+      return;
+    }
+    // text / datetime / default
+    td.createSpan({ text: fmtCell(raw) });
+    this.bindCellEdit(td, file, m.key);
+  }
+
+  private maybeRoll(td: HTMLElement, file: TFile, m: ColMeta, raw: unknown): void {
+    if (!m.rollable) return;
+    const btn = td.createEl("button", { cls: "ep-table-roll" });
+    setIcon(btn, "dices");
+    btn.setAttr("title", this.plugin.i18n.t("table.roll"));
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      try {
+        const mod = parseNumeric(raw) ?? 0;
+        this.plugin.rollService().roll(`${file.basename} · ${m.key}`, mod, parseDiceOrDefault(m.dice));
+      } catch {
+        new Notice(this.plugin.i18n.t("table.rollFailed"));
+      }
+    };
   }
 
   private bindCellEdit(td: HTMLElement, file: TFile, key: string): void {
+    td.addClass("ep-editable-cell");
     td.ondblclick = () => {
-      const cur = fmtCell(getCI((this.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown>) ?? {}, key));
+      const fm = (this.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown>) ?? {};
+      const cur = fmtCell(getCI(fm, key));
       const input = createEl("input", { cls: "ep-table-edit" });
       input.type = "text";
       input.value = cur;
@@ -260,8 +406,8 @@ export class TableView extends ItemView {
       const finish = (save: boolean) => {
         if (done) return;
         done = true;
-        if (save && input.value !== cur) void this.writeCell(file, key, input.value);
-        else td.setText(cur);
+        if (save && input.value !== cur) void this.writeCellText(file, key, input.value);
+        else this.render();
       };
       input.onblur = () => finish(true);
       input.onkeydown = (e: KeyboardEvent) => {
@@ -270,14 +416,13 @@ export class TableView extends ItemView {
           input.blur();
         } else if (e.key === "Escape") {
           e.preventDefault();
-          done = true;
-          td.setText(cur);
+          finish(false);
         }
       };
     };
   }
 
-  private async writeCell(file: TFile, key: string, value: string): Promise<void> {
+  private async writeCellText(file: TFile, key: string, value: string): Promise<void> {
     const v = value.trim();
     await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
       if (v === "") {
@@ -285,10 +430,95 @@ export class TableView extends ItemView {
         return;
       }
       const n = Number(v);
-      // Only store a number when the text round-trips exactly (keeps "007", "1.0", phone numbers as text).
       fm[key] = Number.isFinite(n) && String(n) === v ? n : value;
     });
     this.render();
+  }
+
+  private async writeRaw(file: TFile, key: string, value: unknown): Promise<void> {
+    await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+      fm[key] = value;
+    });
+  }
+
+  /** Resolve an image property value to a displayable URL (best effort). */
+  private resolveImage(src: string, file: TFile): string {
+    src = (src || "").trim();
+    if (!src) return "";
+    const m = src.match(/!?\[\[(.*?)\]\]/);
+    const path = m ? m[1].split("|")[0].split("#")[0].trim() : src;
+    if (/^(https?:|data:|app:|file:)/.test(path)) return path;
+    const dest = this.app.metadataCache.getFirstLinkpathDest(path, file.path);
+    if (dest) return this.app.vault.getResourcePath(dest);
+    const af = this.app.vault.getAbstractFileByPath(path);
+    return af instanceof TFile ? this.app.vault.getResourcePath(af) : "";
+  }
+
+  // -- header (sort + resize) ------------------------------------------------
+
+  private headerCell(tr: HTMLElement, key: string, label: string, layout: TableLayout, meta: ColMeta | null): void {
+    const th = tr.createEl("th", { cls: "ep-table-col ep-sortable" });
+    th.createSpan({ cls: "ep-th-label", text: label });
+    if (meta) {
+      const w = layout.widths?.[key];
+      if (w && w > 0) {
+        th.style.width = w + "px";
+        th.style.minWidth = w + "px";
+      }
+    } else {
+      th.addClass("ep-table-namecol");
+    }
+    const sort = layout.sort;
+    if ((sort?.key ?? "") === key && (sort || key === ""))
+      th.addClass(sort?.dir === "desc" ? "ep-sort-desc" : "ep-sort-asc");
+    th.onclick = () => {
+      const cur = layout.sort;
+      if (cur && (cur.key ?? "") === key) layout.sort = cur.dir === "asc" ? { key, dir: "desc" } : undefined;
+      else layout.sort = { key, dir: "asc" };
+      void this.plugin.saveSettings();
+      this.render();
+    };
+    if (key)
+      th.oncontextmenu = (e) => {
+        e.preventDefault();
+        const menu = new Menu();
+        menu.addItem((i) =>
+          i.setTitle(this.plugin.i18n.t("table.removeColumn")).setIcon("x").onClick(() => {
+            layout.columns = layout.columns.filter((c) => c !== key);
+            void this.plugin.saveSettings();
+            this.render();
+          })
+        );
+        menu.showAtMouseEvent(e as MouseEvent);
+      };
+    if (meta) this.attachResize(th, key, layout);
+  }
+
+  private attachResize(th: HTMLElement, key: string, layout: TableLayout): void {
+    const grip = th.createSpan({ cls: "ep-col-resize" });
+    grip.onclick = (e) => e.stopPropagation();
+    grip.onpointerdown = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const startW = th.offsetWidth;
+      grip.setPointerCapture(e.pointerId);
+      const move = (ev: PointerEvent) => {
+        const w = Math.max(48, startW + (ev.clientX - startX));
+        th.style.width = w + "px";
+        th.style.minWidth = w + "px";
+      };
+      const up = (ev: PointerEvent) => {
+        grip.releasePointerCapture(e.pointerId);
+        grip.removeEventListener("pointermove", move);
+        grip.removeEventListener("pointerup", up);
+        if (!layout.widths) layout.widths = {};
+        layout.widths[key] = Math.max(48, startW + (ev.clientX - startX));
+        void this.plugin.saveSettings();
+      };
+      grip.addEventListener("pointermove", move);
+      grip.addEventListener("pointerup", up);
+    };
   }
 
   private openColumnsMenu(e: MouseEvent): void {
@@ -299,9 +529,9 @@ export class TableView extends ItemView {
         const lk = k.toLowerCase();
         if (lk !== "type" && lk !== "position") candidates.add(k);
       }
-    const m = new Menu();
+    const menu = new Menu();
     for (const k of [...candidates].sort((a, b) => a.localeCompare(b))) {
-      m.addItem((i) =>
+      menu.addItem((i) =>
         i
           .setTitle(k)
           .setChecked(layout.columns.includes(k))
@@ -314,6 +544,10 @@ export class TableView extends ItemView {
           })
       );
     }
-    m.showAtMouseEvent(e);
+    menu.showAtMouseEvent(e);
+  }
+
+  async onClose(): Promise<void> {
+    this.detachScroll();
   }
 }
