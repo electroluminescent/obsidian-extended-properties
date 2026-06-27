@@ -161,6 +161,28 @@ A complete D&D 5e character sheet built entirely as a feature module on top of t
 
 **Modifier building blocks**: Named formulas (in `x`) that influences apply to source values, plus the modifier chain depth and per-property short forms — all editable.
 
+## Theming
+
+Every plugin surface reads its sizes and colours from `--ep-*` CSS variables, each falling back to the current Obsidian theme value, so themes and the [Style Settings](https://github.com/mgmeyers/obsidian-style-settings) plugin can restyle Extended Properties without `!important`. A Style Settings panel (**Extended Properties**) is bundled; you can also set any variable yourself in a CSS snippet, e.g. `body { --ep-radius: 12px; --ep-accent-default: #c678dd; }`.
+
+| Variable | Default | Controls |
+| --- | --- | --- |
+| `--ep-accent-default` | `var(--text-accent)` | Section title / icon / drop-marker accent (per-section colours still win) |
+| `--ep-control-default` | `var(--interactive-normal)` | Stepper / control button background |
+| `--ep-section-bg` | `var(--background-secondary)` | Section background fill |
+| `--ep-section-border` | `var(--background-modifier-border)` | Section border colour |
+| `--ep-section-title-bg` | `var(--background-secondary)` | Sticky section-title background |
+| `--ep-radius` | `8px` | Corner radius of sections, cards and chips |
+| `--ep-section-gap` | `10px` | Vertical gap above each section |
+| `--ep-section-pad` | `4px 8px 6px` | Section padding |
+| `--ep-chip-bg` | `var(--background-modifier-hover)` | List / tag value-chip background |
+| `--ep-chip-fg` | `inherit` | Chip text colour |
+| `--ep-chip-radius` | `var(--ep-radius)` | Chip corner radius |
+| `--ep-rating-color` | theme accent | Rating stars / pips |
+| `--ep-font`, `--ep-size-base`/`-label`/`-value`/`-title`/`-list` | theme | Typography (also set from the plugin's own settings) |
+
+Toggle **Flat sections** in Style Settings (or add the `ep-flat-sections` class to `body`) to drop section borders and backgrounds for a borderless look.
+
 ## Backward Compatibility & Data
 
 - `data.json` written by v1 loads unchanged—the data model is stable.
