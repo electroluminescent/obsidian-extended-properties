@@ -42,6 +42,10 @@ Every property entry has a configurable data type that controls how it renders a
 - **Color**: Interactive color picker with multiple color space support (RGB, HSL, OKLCH, OKLab), eyedropper tool, out-of-gamut indicator, and direct hex/input entry. Select your preferred color space globally in settings.
 - **Image**: Render images from URLs or Obsidian embeds (`![[image]]`). Includes a zoomable modal viewer and height preset controls (small, medium, large, unlimited).
 - **Iframe**: Embed external web content with configurable width, height, and scaling.
+- **Rating**: A star/pip rating with a configurable maximum; click to set, click again to clear. Stored as a plain number.
+- **Link**: An internal `[[note]]` reference rendered as a clickable link, with `[[`-triggered note autocomplete while editing.
+- **Unit**: A number carrying a unit suffix (e.g. `30 ft`, `5 kg`); the unit is stripped when the value is referenced in expressions or rolls.
+- **Datetime**: A date (and optional time) value with a native picker; the `today()` and `days()` expression functions operate on it.
 
 ### Entry Types
 
@@ -65,6 +69,8 @@ Any numeric or derived entry can carry a list of *influences* — terms summed i
 
 Rows display the chain as short forms (`INT + DEX − AGE`), the dice breakdown (`2d20` with a die pictogram) and the total. **Short forms are configured per number property** (in its options), kept **unique across properties** — setting one already in use prompts to overwrite, and the previous owner is re-derived by walking the name (`Dexterity → DEX`, `Dexterous → DET`). A property's name and its short form are **interchangeable** wherever you reference it, and both autocomplete as you type (chains, expressions, the dice roller, inline `val:`/`roll:`). The data-type tag, chain, dice and die icon each have their own show toggle, and whatever is enabled is shown or hidden dynamically as the sidebar is resized.
 
+**Cross-note references & aggregates.** Expressions can also read *other* notes: `[[Note]].Prop` (and `.s` for its modifier), `this.Prop`, and `prop("LinkProp", "Key")` to follow a link property. Aggregate functions roll up a whole note type — `sum`, `avg`, `count`, `min`, `max("Type", "Key")` — so a property can total or average a field across every note of a type. These reads use raw stored values (no cross-note cycles), are backed by the vault-wide property index, and can be disabled with a settings kill-switch.
+
 ### Dice & Rolls System
 
 Enable the rolling feature (default-on; toggle in Settings → Features) for full dice support:
@@ -84,10 +90,25 @@ Enable the inline feature (default-on; toggle in Settings → Features) to proje
 - **Inline rolls**: `` `roll: 2d6+DEX` `` becomes a clickable roll chip — full dice notation and property references, with `` `roll(adv):` `` / `` `roll(dis):` `` for advantage/disadvantage. Rolls go through the same animation and history as the sidebar, with no view open.
 - **Inline properties**: `` `prop: Strength` `` shows the note's live value and is click-to-edit, writing back to frontmatter.
 - **Inline values**: `` `val: INT` `` renders a property (by name or short form) as a chip styled like a roll — with the property's icon, if it has one. `` `val: INTs` `` (the modifier suffix) shows that property's *modifier* instead of its value. Link values are clickable to navigate, with a right-click *Edit value* action.
+- **Inline value cards**: `` `vals: Strength` `` renders the property's full sidebar value-type card inline (interactive — steppers, sliders, pickers, roll buttons), with a right-click *Configure* menu and a per-reference options store, so a body line edits exactly like the sidebar.
 - **Modifier references**: append the configurable suffix (default `s`) to any reference to use a property's modifier rather than its value — in expressions, `` `roll:` `` (`2d6 + INTs`), and `` `val:` ``. If a property's modifier is overridden, that override is used.
 - **Statblock block**: an `ep-sheet` code block projects the note type's sections as a compact read-only statblock (derived values computed, roll buttons included). List section titles inside the block to show only those.
 
 Values resolve against the note the code lives in, so embeds and hover previews stay correct. Chips render in both **reading mode and Live Preview**. In Live Preview, moving the caret just before, into, or just after a chip reveals its raw text for editing; on a roll chip, right-click for the usual roll menu (advantage/disadvantage, number of rolls) plus an *Edit source* action.
+
+### Type Table View
+
+*Open type table* (command + ribbon icon) opens a workspace view that lists every note of a chosen type as rows, with the properties you pick as columns. Choose the type, pick the columns, filter by text, and click a header to sort (ascending → descending → none). Cells render a compact, type-aware widget — checkbox, rating pips, colour swatch, internal link, image thumbnail, right-aligned numbers, list chips — and edit in place on double-click; rollable columns get a die button that rolls the cell value through the dice system. Rows click through to the note. Columns drag to resize, and the column set, sort order and widths persist per type. Rows above 150 virtualize, so a type with thousands of notes stays responsive.
+
+### Validation & Conditional Visibility
+
+**Validation & constraints.** Any entry can carry constraints — required, numeric range, regex pattern, allowed values (element-wise for lists). Invalid values get a non-blocking invalid style (the data is never rejected), and numbers can optionally clamp to range on commit.
+
+**Conditional visibility.** Entries and sections accept a `showWhen` condition — a boolean expression over the note's own values, e.g. `Class == "Wizard"`, `Level >= 5`, with `&&` / `||` / `!` and string or numeric comparisons. The condition is evaluated live; matching content shows, the rest is hidden outside edit mode (and shown dimmed inside it, so the rule stays reachable). Condition fields give live parse feedback in the entry and section options.
+
+### Export & Import
+
+Share a layout or a single section as a portable JSON snippet. *Export* on a type, or *Export section…* on a section menu, copies a versioned snippet to the clipboard — carrying the layout/section plus a dependency manifest of just the derivation blocks it references. The import dialog pastes (or auto-reads the clipboard), lists any missing derivation building blocks and offers to create them, then appends the section(s) to a chosen type with freshly generated, collision-free ids.
 
 ### Obsidian Integration
 
@@ -105,11 +126,13 @@ Values resolve against the note the code lives in, so embeds and hover previews 
 
 **Theme colors**: Customize accent, background, and control colors per section, with overflow and contrast-aware displays.
 
-**Keyboard & touch friendly**: Numeric steppers work with keyboard (± / click), inline edit activates via double-click or Enter, and the sidebar is fully responsive for mobile devices.
+**Keyboard navigation & screen readers**: Sidebar entries form a roving-tabindex group — Tab into the list, then ↑/↓/Home/End move between entries and Enter/Space opens the focused entry's context menu, so reorder/edit/remove (the drag alternatives) are reachable without a mouse. Visible `:focus-visible` rings appear across the sidebar, table view and popups; custom popups close on Escape; roll buttons carry `aria-label`s; and a polite `aria-live` region announces roll totals to assistive technology. Numeric steppers also work from the keyboard, and inline edit activates on double-click or Enter.
+
+**Touch friendly**: The sidebar is fully responsive for mobile — long-press opens context menus on chips, value cards, rows and roll buttons; option and colour modals become bottom sheets; sliders are scroll-safe.
 
 ### Localization & Text Override
 
-**Multi-language support**: Built-in English and German; add more by contributing locale files.
+**Translatable strings**: The UI ships in English, with every string stored as **JSON data** (`src/i18n/locales/en.json` plus a `strings.json` per feature module) rather than baked into code, so a language can be added without touching logic. A parity checker (`npm run i18n`, also run in CI) verifies a new locale against the English schema. Missing keys fall back to English at runtime (resolution order: per-string override → active locale → English → humanized key). See [CONTRIBUTING.md](CONTRIBUTING.md) for the add-a-language workflow. (German shipped through v2.40 and was retired in v2.41; the locale mechanism remains, so a community dictionary can be slotted back in.)
 
 **String overrides**: Override any UI text string individually via a searchable editor in Settings → Language, without touching code. Useful for domain-specific terminology or personal naming preferences.
 
@@ -128,6 +151,8 @@ The plugin's architecture is built around registries, allowing feature modules t
 - **Skill presets**: Pre-populated record lists for the legacy skills type (e.g., D&D 5e skill lists, saving throws).
 
 All feature modules can be toggled on/off in Settings → Features without breaking existing layouts or data.
+
+**Public API**: The same `FeatureModule` contract is published as a stable, versioned API on `window.ExtendedProperties` (and the plugin's `.api`), so *third-party* plugins can register their own value types, entry kinds, derivations and locale strings without forking. See [ARCHITECTURE.md](ARCHITECTURE.md) for the surface and a worked example.
 
 ### D&D 5e Character Sheet Module
 
@@ -159,7 +184,13 @@ A complete D&D 5e character sheet built entirely as a feature module on top of t
 
 **Note type activation**: Select which `Type` values activate the sidebar, and define a unique layout per type. There is no default type — give any note a `Type` value and it is adopted with an empty layout.
 
+**Layouts as vault files** (optional): Store each type's layout as a JSON file in a configurable vault folder, so your configuration syncs, diffs and shares with the vault instead of living only in `data.json`. The files win on load and `data.json` keeps a backup copy, so a sync conflict becomes an ordinary file conflict rather than a silent overwrite. A toggle, folder field and *Reload from files* button live in settings; enabling exports your current layouts, disabling reabsorbs them.
+
 **Modifier building blocks**: Named formulas (in `x`) that influences apply to source values, plus the modifier chain depth and per-property short forms — all editable.
+
+**Sound effects**: Optional Web Audio cues for clicks, dice rolls and crit/fail, with a master toggle, volume, and independent per-category toggles (UI / dice / crit). Roll-animation duration is configurable too.
+
+**Data safety**: Frontmatter writes are batched and debounced per file (so a held slider drag is one write, not a burst). An optional *Guard against edit conflicts* watches each file's modification time and, if a note changes on disk mid-write (sync, another pane), shows a *Keep mine / Take theirs* prompt instead of clobbering. Settings upgrades run through a versioned, idempotent migration runner, and the pre-upgrade `data.json` is snapshotted to the plugin's `backups/` folder (last 5 kept).
 
 ## Theming
 
@@ -188,7 +219,7 @@ Toggle **Flat sections** in Style Settings (or add the `ep-flat-sections` class 
 - `data.json` written by v1 loads unchanged—the data model is stable.
 - Persisted data is plain YAML frontmatter, fully compatible with Obsidian and other tools.
 - Feature modules extend entries using open-ended field storage; disabling a module preserves its data (displayed as "Unavailable" stubs until the module is re-enabled).
-- Migrations are applied automatically for schema updates.
+- Migrations are applied automatically for schema updates, via a versioned, idempotent runner; the pre-migration `data.json` is backed up first (last 5 kept).
 
 ## Development
 
@@ -203,9 +234,10 @@ npm run build      # esbuild: src/main.ts → main.js
 npm run dev        # continuous rebuild on file changes
 npm run typecheck  # tsc --noEmit (strict)
 npm test           # vitest over the pure modules (utils/*, core/*)
+npm run i18n       # locale key-parity check against the English schema
 ```
 
-Tests live in `tests/` and cover the pure, Obsidian-free modules: dice math, the dice and expression engines, the influence/short-form rules, cross-note references, and a golden settings-migration fixture. CI (`.github/workflows/`) runs typecheck → test → build on every push; pushing a `MAJOR.MINOR.PATCH` tag that matches `manifest.json` publishes a draft release with `main.js`, `manifest.json`, and `styles.css` attached.
+Tests live in `tests/` and cover the pure, Obsidian-free modules: dice math, the dice and expression engines, the influence/short-form rules, validation and conditions, cross-note references, export/import round-trips, and a golden settings-migration fixture. CI (`.github/workflows/`) runs typecheck → test → build (and the i18n parity check) on every push; pushing a `MAJOR.MINOR.PATCH` tag that matches `manifest.json` publishes a draft release with `main.js`, `manifest.json`, and `styles.css` attached. Third-party extension authors should start with [ARCHITECTURE.md](ARCHITECTURE.md) and the public API in `src/api.ts`.
 
 ### Project Structure
 

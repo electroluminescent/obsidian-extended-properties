@@ -50,8 +50,8 @@ the full project zip attached. Review the draft, then publish it.
 Once the repo is public and at least one published (non-draft) release exists with
 the three assets attached, submit to the directory:
 
-1. Optionally set `authorUrl` (and `fundingUrl`) in `manifest.json` — both are
-   optional for review but recommended.
+1. `authorUrl` is already set in `manifest.json`; optionally add `fundingUrl`
+   too — optional for review but recommended.
 2. Fork [`obsidianmd/obsidian-releases`](https://github.com/obsidianmd/obsidian-releases)
    and add this entry to the **end** of `community-plugins.json`:
 
@@ -78,5 +78,5 @@ the three assets attached, submit to the directory:
 - ✅ MIT `LICENSE` present.
 - ✅ `manifest.json` has `id`, `name`, `version`, `minAppVersion`, `description`,
   `author`, `isDesktopOnly`.
-- ☐ `authorUrl` / `fundingUrl` — fill in if desired.
+- ✅ `authorUrl` set (`https://github.com/electroluminescent/obsidian-extended-properties`); `fundingUrl` optional — add if desired.
 - ☐ Repo pushed public with a published release.
