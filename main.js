@@ -575,7 +575,8 @@ var en_default = {
   "settings.macroDelete": "Delete macro",
   "settings.macroAdd": "Add a macro",
   "settings.macroAddBtn": "+ Macro",
-  "settings.macroNewName": "New macro"
+  "settings.macroNewName": "New macro",
+  "skills.deprecated": "The skills type is deprecated and will be removed in a future major version. Convert it to regular properties below \u2014 your records are preserved."
 };
 
 // src/i18n/locales/en.ts
@@ -4270,6 +4271,9 @@ function registerCore(ctx2) {
     build: () => ({ version: LAYOUT_VERSION, sections: [] })
   });
 }
+
+// src/api.ts
+var API_VERSION = 1;
 
 // src/ui/view.ts
 var import_obsidian22 = require("obsidian");
@@ -11123,6 +11127,7 @@ var skillsType = {
     const e = ext(entry);
     c.createEl("h4", { text: t("skills.options.heading") });
     c.createEl("p", { cls: "setting-item-description", text: t("skills.options.editHint") });
+    c.createDiv({ cls: "ep-skills-deprecated", text: t("skills.deprecated") });
     new import_obsidian32.Setting(c).setName(t("skills.convert")).setDesc(t("skills.convertDesc")).addButton(
       (b) => b.setButtonText(t("skills.convertBtn")).onClick(() => confirmConvert(octx))
     );
@@ -12594,6 +12599,8 @@ var ExtendedPropertiesPlugin = class extends import_obsidian36.Plugin {
     super(...arguments);
     this.i18n = new I18n();
     this.registries = new Registries();
+    /** Third-party feature modules registered through the public API. */
+    this.externalModules = [];
     /** Command ids registered for the current macro set (for clean removal). */
     this.macroCmdIds = [];
     /** Signature of the registered macro set; guards needless re-registration. */
@@ -12722,6 +12729,38 @@ var ExtendedPropertiesPlugin = class extends import_obsidian36.Plugin {
       if (!((_a2 = target == null ? void 0 : target.closest) == null ? void 0 : _a2.call(target, ".metadata-properties-heading"))) return;
       window.setTimeout(() => augmentPropsMenu(host), 0);
     });
+    this.exposeApi();
+  }
+  // -- public module API (F5) ---------------------------------------------
+  /** Build and expose the public API on `this.api` and `window.ExtendedProperties`. */
+  exposeApi() {
+    this.api = {
+      apiVersion: API_VERSION,
+      version: this.manifest.version,
+      register: (module2) => this.registerExternalModule(module2),
+      t: (key, vars) => this.i18n.t(key, vars)
+    };
+    window.ExtendedProperties = this.api;
+    this.register(() => {
+      if (window.ExtendedProperties === this.api)
+        delete window.ExtendedProperties;
+    });
+  }
+  /** @see ExtendedPropertiesApi.register — incorporate a third-party module. */
+  registerExternalModule(module2) {
+    if (!module2 || typeof module2.id !== "string" || typeof module2.register !== "function") {
+      console.error("Extended Properties: invalid module passed to register()");
+      return;
+    }
+    const declared = module2.apiVersion;
+    if (typeof declared === "number" && declared > API_VERSION) {
+      new import_obsidian36.Notice("A plugin needs a newer Extended Properties API (v" + declared + " > v" + API_VERSION + ").");
+      return;
+    }
+    if (FEATURE_MODULES.some((m) => m.id === module2.id) || this.externalModules.some((m) => m.id === module2.id)) return;
+    this.externalModules.push(module2);
+    this.rebuildRegistries();
+    this.refreshViews();
   }
   onunload() {
     var _a;
@@ -12783,6 +12822,14 @@ var ExtendedPropertiesPlugin = class extends import_obsidian36.Plugin {
     registerCore(ctx2);
     for (const mod of FEATURE_MODULES) {
       if (this.settings.features[mod.id] !== false) mod.register(ctx2);
+    }
+    for (const mod of this.externalModules) {
+      if (this.settings.features[mod.id] === false) continue;
+      try {
+        mod.register(ctx2);
+      } catch (e) {
+        console.error("Extended Properties: external module '" + mod.id + "' failed to register", e);
+      }
     }
     registerDerivations(this.registries, this.settings);
   }

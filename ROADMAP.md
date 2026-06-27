@@ -6,7 +6,7 @@ The codebase's assets to protect throughout: the registry system (`src/core/regi
 
 ---
 
-## Status (v2.48.0)
+## Status (v2.49.0)
 
 Legend: ✅ done · ◑ partial · ○ planned.
 
@@ -31,6 +31,7 @@ Legend: ✅ done · ◑ partial · ○ planned.
 - ✅ **F2 — Performance hardening.** The sidebar's width-responsive pass (which hides type hints → dice tags → chains → toggles → modifier badges as rows tighten) now (1) early-exits any section whose signature — width, laid-out row count, edit mode — is unchanged since the last pass, so resize storms, collapse animations and value-refresh echoes stop re-measuring stable sections; and (2) measures **tier-major** (read which rows are tight, then squeeze that tier on all of them) so forced reflows drop from O(rows × tiers) to O(tiers). Squeezing is row-local, so the batched reads give identical results; the cache is dropped on render and value refresh so it can't go stale. Row virtualization (step 3) was judged unnecessary — B3's table covers large tabular data and per-section sheets stay bounded.
 - ✅ **E3 — Theming surface.** Plugin surfaces read their colours and sizes from `--ep-*` variables that fall back to the current Obsidian theme value, so themes and the Style Settings plugin can restyle Extended Properties without `!important`. A bundled Style Settings panel (`/* @settings */` in `styles.css`) exposes section accent, rating colour, chip background, section background, corner radius, section gap and a *Flat sections* toggle; the full variable set (sections, chips, ratings, typography) is documented in the README. Every token is wired as `var(--ep-x, <current value>)`, so an untouched theme renders identically.
 - ✅ **F4 — i18n as data.** Every UI dictionary is now a JSON data file — `src/i18n/locales/en.json` (core, 488 keys) and `src/features/<mod>/strings.json` (per module, 139 keys) — loaded through thin typed `.ts` shims, so strings can be diffed and translated without touching code. A `scripts/i18n-check.mjs` parity checker (run in CI and via `npm run i18n`) validates the English schema (balanced `{placeholder}` tokens, no stray braces) and diffs any added `<code>.json` locale against it: missing keys, unknown keys, placeholder drift. `CONTRIBUTING.md` documents the add-a-language workflow. (Also finished the German removal: the feature modules still registered a partial `de` dictionary — those registrations and the dead German feature strings are gone, shrinking the bundle.)
+- ✅ **F5 — Public module API & legacy deprecation.** The internal `FeatureModule` contract is now a frozen, versioned public API (`src/api.ts`, `apiVersion` 1) exposed on `window.ExtendedProperties` and the plugin's `.api`: third-party plugins call `register(module)` to add value types, entry kinds, derivations, locale strings and more. External modules are incorporated into the registries (idempotent by id, error-isolated, built-in ids reserved, rejected if they need a newer API) and open views refresh; `ARCHITECTURE.md` documents the surface with a ~20-line example. The legacy record-based **skills** value type now shows a deprecation notice in its options (its one-click *Convert to properties* converter already shipped), ahead of removal in a future major. Three dead `dnd5e` stubs (`entry-kinds`, `numeric-addon`, `roll-service`) were deleted. *Remaining (deferred to the announced major):* the actual skills-type removal with a read-only fallback for unconverted data.
 
 Also shipped: subtle Web Audio sound effects (clicks, dice rolls, crit/fail), with a master toggle, volume and per-category (UI / dice / crit) toggles; a configurable roll-animation duration with staggered dice/modifiers; a custom scroll-safe slider; and a default d20 for `roll:` with no dice term.
 
@@ -42,7 +43,6 @@ Also shipped: subtle Web Audio sound effects (clicks, dice rolls, crit/fail), wi
 
 - ○ **D2** Layouts as vault files
 - ○ **E1** Keyboard & screen-reader support
-- ○ **F5** Public module API + legacy deprecation
 
 ### Shipped beyond the original plan
 
@@ -55,7 +55,7 @@ Per-property unique short forms with name↔short-form interchangeability and au
 - **Milestone 3 — Rolling depth:** ✅ (A2, A3, A4)
 - **Milestone 4 — Notes integration:** ✅ (B1 incl. Live Preview, E2)
 - **Milestone 5 — Scale:** ✅ (B2, B3, F2 ✅)
-- **Milestone 6 — Ecosystem:** ◑ (C3, D1, F3, E3, F4 ✅; D2, F5 ○) · German locale removed (English-only; see Deprecations)
+- **Milestone 6 — Ecosystem:** ◑ (C3, D1, F3, E3, F4, F5 ✅; D2 ○) · German locale removed (English-only; see Deprecations)
 
 ---
 
@@ -445,6 +445,8 @@ Per-property unique short forms with name↔short-form interchangeability and au
 3. Document the translation workflow.
 
 ### F5. Public module API and legacy deprecation
+
+> ✅ **Implemented in v2.49.0** (`src/api.ts`, `src/main.ts`, `src/features/rolling/skills-type.ts`, `ARCHITECTURE.md`). Steps 1–4 done: dead dnd5e stubs deleted; skills deprecation notice + existing one-click convert; frozen `apiVersion`-gated public API on `window.ExtendedProperties` / `.api`; registration exposed post-`onload` with a documented example. Step 5 (removing the skills type with a read-only fallback) is deferred to the announced major.
 
 **What.** A documented, versioned API for third-party feature modules (`window.ExtendedProperties.register(module)` or a plugin-to-plugin handshake), plus the formal deprecation of the record-based skills type and the dead `dnd5e` stubs.
 

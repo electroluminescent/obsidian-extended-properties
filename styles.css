@@ -753,3 +753,6 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 
 /* -- [[ note autocomplete --------------------------------------------------- */
 .ep-sug-link { color: var(--text-accent); }
+
+/* -- skills type deprecation (F5) -------------------------------------------- */
+.ep-skills-deprecated { color: var(--text-warning); border: 1px solid var(--text-warning); border-radius: 6px; padding: 6px 8px; margin: 4px 0 8px; font-size: var(--font-ui-smaller); }

@@ -17,6 +17,8 @@ import { FeatureModule, Registries } from "./core/registry";
 import { PropertyIndex } from "./core/property-index";
 import { HideService } from "./core/hide-service";
 import { registerCore } from "./ui/render/value-types/index";
+import { API_VERSION } from "./api";
+import type { ExtendedPropertiesApi } from "./api";
 import { registerDiceIcons } from "./ui/render/dice-icons";
 import { SidebarView, VIEW_TYPE } from "./ui/view";
 import { TableView, VIEW_TYPE_TABLE } from "./ui/table-view";
@@ -44,6 +46,10 @@ export default class ExtendedPropertiesPlugin extends Plugin {
   settings!: EPSettings;
   readonly i18n = new I18n();
   readonly registries = new Registries();
+  /** Public, versioned API (F5) — also exposed on `window.ExtendedProperties`. */
+  api!: ExtendedPropertiesApi;
+  /** Third-party feature modules registered through the public API. */
+  private externalModules: FeatureModule[] = [];
   props!: PropertyIndex;
   hide!: HideService;
   /** Plugin-level, persistent roll history shared by every view. */
@@ -203,6 +209,42 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       if (!target?.closest?.(".metadata-properties-heading")) return;
       window.setTimeout(() => augmentPropsMenu(host), 0);
     });
+
+    this.exposeApi();
+  }
+
+  // -- public module API (F5) ---------------------------------------------
+
+  /** Build and expose the public API on `this.api` and `window.ExtendedProperties`. */
+  private exposeApi(): void {
+    this.api = {
+      apiVersion: API_VERSION,
+      version: this.manifest.version,
+      register: (module) => this.registerExternalModule(module),
+      t: (key, vars) => this.i18n.t(key, vars),
+    };
+    (window as unknown as Record<string, unknown>).ExtendedProperties = this.api;
+    this.register(() => {
+      if ((window as unknown as Record<string, unknown>).ExtendedProperties === this.api)
+        delete (window as unknown as Record<string, unknown>).ExtendedProperties;
+    });
+  }
+
+  /** @see ExtendedPropertiesApi.register — incorporate a third-party module. */
+  private registerExternalModule(module: FeatureModule): void {
+    if (!module || typeof module.id !== "string" || typeof module.register !== "function") {
+      console.error("Extended Properties: invalid module passed to register()");
+      return;
+    }
+    const declared = (module as { apiVersion?: number }).apiVersion;
+    if (typeof declared === "number" && declared > API_VERSION) {
+      new Notice("A plugin needs a newer Extended Properties API (v" + declared + " > v" + API_VERSION + ").");
+      return;
+    }
+    if (FEATURE_MODULES.some((m) => m.id === module.id) || this.externalModules.some((m) => m.id === module.id)) return;
+    this.externalModules.push(module);
+    this.rebuildRegistries();
+    this.refreshViews();
   }
 
   onunload(): void {
@@ -272,6 +314,14 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     registerCore(ctx);
     for (const mod of FEATURE_MODULES) {
       if (this.settings.features[mod.id] !== false) mod.register(ctx);
+    }
+    for (const mod of this.externalModules) {
+      if (this.settings.features[mod.id] === false) continue;
+      try {
+        mod.register(ctx);
+      } catch (e) {
+        console.error("Extended Properties: external module '" + mod.id + "' failed to register", e);
+      }
     }
     // User-editable derivation building blocks (settings → registry).
     registerDerivations(this.registries, this.settings);

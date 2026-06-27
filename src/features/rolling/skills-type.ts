@@ -538,6 +538,7 @@ export const skillsType: ValueTypeDef = {
     const e = ext<SkillsExt>(entry);
     c.createEl("h4", { text: t("skills.options.heading") });
     c.createEl("p", { cls: "setting-item-description", text: t("skills.options.editHint") });
+    c.createDiv({ cls: "ep-skills-deprecated", text: t("skills.deprecated") });
 
     new Setting(c)
       .setName(t("skills.convert"))
