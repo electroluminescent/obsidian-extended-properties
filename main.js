@@ -86,16 +86,14 @@ function humanize(key) {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-// src/i18n/locales/en.ts
-var coreEn = {
-  // -- common -----------------------------------------------------------
+// src/i18n/locales/en.json
+var en_default = {
   "common.cancel": "Cancel",
   "common.confirm": "Confirm",
   "common.save": "Save",
   "common.clear": "Clear",
   "common.choose": "Choose",
   "common.done": "Done",
-  // -- view chrome ------------------------------------------------------
   "view.title": "Extended properties",
   "view.noNote": "Open a note to see its properties here.",
   "view.noType": "\u201C{note}\u201D has no matching Type.",
@@ -112,11 +110,9 @@ var coreEn = {
   "view.resetConfirm": "Reset the \u201C{type}\u201D layout to defaults? Note properties are not changed.",
   "view.addTemplates": "Add:",
   "view.templateResetConfirm": "The \u201C{name}\u201D section already exists. Reset it to its original section and properties?",
-  // -- generic hints ------------------------------------------------------
   "hint.clickEdit": "Click to edit",
   "hint.dblEdit": "Double-click to edit",
   "hint.dblToggle": "Double-click to toggle",
-  // -- sections ------------------------------------------------------------
   "section.namePlaceholder": "Section",
   "section.newName": "New section",
   "section.untitled": "Untitled",
@@ -141,7 +137,6 @@ var coreEn = {
   "section.menu.moveDown": "Move down",
   "section.menu.export": "Export section\u2026",
   "section.menu.delete": "Delete section",
-  // -- transfer (export / import of types & sections) -------------------------
   "transfer.exportType": "Export",
   "transfer.exportTypeTip": "Copy this type (layout + referenced derivations) to the clipboard as a shareable snippet",
   "transfer.copied": "Copied to clipboard",
@@ -160,7 +155,6 @@ var coreEn = {
   "transfer.targetTypeDesc": "Sections are appended to this type (created if it doesn\u2019t exist). Existing: {types}",
   "transfer.pickType": "Enter a target type name.",
   "transfer.imported": "Imported \u201C{name}\u201D into {type}",
-  // -- entries ----------------------------------------------------------------
   "entry.addProperty": "+ add property",
   "entry.addToColumnHint": "Add a property to this column of \u201C{section}\u201D",
   "entry.addToSectionHint": "Add a property to \u201C{section}\u201D",
@@ -180,14 +174,12 @@ var coreEn = {
   "entry.menu.pickColor": "Pick color\u2026",
   "entry.menu.editImage": "Edit image link\u2026",
   "prompt.editValue": "Edit {name}",
-  // -- entry kinds -----------------------------------------------------------
   "kind.blank": "Blank",
   "kind.toc": "Contents",
   "toc.hint": "Contents \u2014 click a section to scroll to it",
   "blank.dragHint": "Blank cell \u2014 drag to move",
   "blank.addHere": "Add property here",
   "blank.remove": "Remove blank",
-  // -- grid editing --------------------------------------------------------------
   "grid.removeRow": "Remove this row",
   "grid.removeColumn": "Remove this column",
   "grid.removeAColumn": "Remove a column",
@@ -195,7 +187,6 @@ var coreEn = {
   "grid.removeColumnHint": "Remove this column",
   "grid.addRowHint": "Add a row here",
   "grid.removeRowHint": "Remove this row",
-  // -- value types -------------------------------------------------------------
   "type.text": "text",
   "type.number": "number",
   "type.decimal": "decimal",
@@ -245,7 +236,6 @@ var coreEn = {
   "options.constraintPatternDesc": "The whole value (each list item) must match this regular expression. Leave blank to skip.",
   "options.constraintAllowed": "Allowed values",
   "options.constraintAllowedDesc": "Comma-separated accepted values (case-insensitive). Leave blank to allow anything.",
-  // -- modifiers (influence engine) ----------------------------------------------
   "derive.value": "Value as-is",
   "mods.heading": "Modifier",
   "mods.preview": "{denote} = {total}",
@@ -299,7 +289,6 @@ var coreEn = {
   "iframe.emptyHint": "No URL \u2014 click to set",
   "iframe.urlPrompt": "Embed URL",
   "iframe.setUrl": "Set URL",
-  // -- add-property popup -----------------------------------------------------
   "add.searchPlaceholder": "Add a property to \u201C{section}\u201D\u2026",
   "add.hiddenBadge": "hidden",
   "add.create": "Create \u201C{key}\u201D",
@@ -314,10 +303,8 @@ var coreEn = {
   "add.noValues": "No existing values.",
   "add.notesWith": "Notes with \u201C{value}\u201D",
   "add.noNotes": "No notes use this value.",
-  // -- suggestions ----------------------------------------------------------------
   "suggest.create": "Create \u201C{key}\u201D (text)",
   "suggest.onNote": "on note",
-  // -- dialogs -----------------------------------------------------------------------
   "exitEdit.title": "Leave edit mode",
   "exitEdit.message": "You made changes while editing. Keep them, or undo everything from this session?",
   "exitEdit.keepEditing": "Keep editing",
@@ -327,7 +314,6 @@ var coreEn = {
   "confirmChanges.message": "Keep the changes you made here, or undo them?",
   "confirmChanges.keep": "Keep changes",
   "confirmChanges.undo": "Undo changes",
-  // -- pickers --------------------------------------------------------------------------
   "iconPicker.title": "Choose an icon",
   "iconPicker.search": "Search icons\u2026",
   "iconPicker.noMatch": "No matching icons.",
@@ -343,7 +329,6 @@ var coreEn = {
   "colorPicker.labA": "a (green\u2013red)",
   "colorPicker.labB": "b (blue\u2013yellow)",
   "imageViewer.hint": "Scroll to zoom \xB7 drag to pan \xB7 double-click to reset",
-  // -- entry options modal -----------------------------------------------------------------
   "options.title": "\u201C{name}\u201D options",
   "options.propertyHeading": "Property",
   "options.objectHeading": "Object",
@@ -402,7 +387,6 @@ var coreEn = {
   "options.showInObsidian": "Show in Obsidian properties",
   "options.showInObsidianDesc": "Off = hidden from the properties panel",
   "options.placementHeading": "Placement",
-  // -- section options modal ----------------------------------------------------------------
   "sectionOptions.title": "Format \u201C{name}\u201D",
   "sectionOptions.tabSection": "Section",
   "sectionOptions.tabsHint": "Click a tab to edit it. Ctrl/Cmd-click toggles single tabs, Shift-click selects a range, and dragging across tabs selects several \u2014 the body then shows their shared settings, and only settings you change are written to all selected tabs.",
@@ -439,7 +423,6 @@ var coreEn = {
   "sectionOptions.controlsDesc": "Buttons & list chips",
   "sectionOptions.titleHeading": "Title",
   "sectionOptions.titleSize": "Title size",
-  // -- sizes ------------------------------------------------------------------------------------
   "size.unlimited": "Unlimited",
   "size.small": "Small",
   "size.medium": "Medium",
@@ -447,7 +430,6 @@ var coreEn = {
   "size.smallRows": "Small (~4)",
   "size.mediumRows": "Medium (~8)",
   "size.largeRows": "Large (~12)",
-  // -- Obsidian properties-panel integration ---------------------------------------------------------
   "propPanel.hideEverywhere": "Hide \u201C{key}\u201D in properties (all notes)",
   "propPanel.showEverywhere": "Show \u201C{key}\u201D in properties (all notes)",
   "propPanel.hideShow": "Hide / show properties",
@@ -459,11 +441,9 @@ var coreEn = {
   "propPanel.noneHidden": "None hidden",
   "propPanel.sidebarSuffix": "{key} (sidebar)",
   "propPanel.showAll": "Show all hidden",
-  // -- commands & notices ------------------------------------------------------------------------------
   "command.openSidebar": "Open properties sidebar",
   "command.openTable": "Open type table",
   "command.hideProperty": "Hide a property from Obsidian\u2019s properties panel",
-  // -- type table view (B3) -------------------------------------------------
   "table.title": "Type table",
   "table.columns": "Columns",
   "table.filter": "Filter\u2026",
@@ -476,13 +456,10 @@ var coreEn = {
   "table.truncated": "Showing first {shown} of {total} \u2014 narrow the filter to see more.",
   "notice.hiding": "Hiding \u201C{key}\u201D from Obsidian properties.",
   "notice.saveFailed": "Could not save property: {error}",
-  // -- write conflict (D4) -------------------------------------------------
   "conflict.message": "\u201C{note}\u201D changed on disk while you were editing. Keep your changes, or take the version on disk?",
   "conflict.keepMine": "Keep mine",
   "conflict.takeTheirs": "Take theirs",
-  // -- presets -------------------------------------------------------------------------------------------
   "preset.empty": "Empty",
-  // -- settings tab -----------------------------------------------------------------------------------------
   "settings.intro": "Open a note whose Type matches one below, then click Edit (or right-click anything) to arrange it. Drag handles, use \u22EF / right-click for options (Configure for the full panel), click labels to rename, add properties at each section\u2019s bottom.",
   "settings.typesHeading": "Types",
   "settings.typesDesc": "Each Type has its own layout; a note\u2019s Type property selects it.",
@@ -582,7 +559,6 @@ var coreEn = {
   "settings.hidePromptTitle": "Property name to hide",
   "settings.featuresHeading": "Features",
   "settings.featuresDesc": "Optional modules. Disabling one hides its widgets and templates; layouts and note properties are kept.",
-  // -- rolls (history & macros) ------------------------------------------------------------------
   "settings.rollsHeading": "Rolls",
   "settings.rollHistory": "Persistent roll history",
   "settings.rollHistoryDesc": "Keep the roll history across reloads. Off = history lives only for the current session.",
@@ -601,6 +577,9 @@ var coreEn = {
   "settings.macroAddBtn": "+ Macro",
   "settings.macroNewName": "New macro"
 };
+
+// src/i18n/locales/en.ts
+var coreEn = en_default;
 
 // src/core/model.ts
 function ext(entry) {
@@ -11209,8 +11188,8 @@ var skillsType = {
   }
 };
 
-// src/features/rolling/strings.ts
-var rollingEn = {
+// src/features/rolling/strings.json
+var strings_default = {
   "roll.featureName": "Dice & rolls",
   "roll.featureDesc": "Roll buttons on properties, configurable dice (d2\u2013d100 or custom), the roll log panel, and the skills data type.",
   "roll.roll": "Roll",
@@ -11330,126 +11309,9 @@ var rollingEn = {
   "skills.options.presets": "Skill presets",
   "skills.options.addPreset": "Add"
 };
-var rollingDe = {
-  "roll.featureName": "W\xFCrfel & W\xFCrfe",
-  "roll.featureDesc": "W\xFCrfeln-Schaltfl\xE4chen an Eigenschaften, konfigurierbare W\xFCrfel (W2\u2013W100 oder eigene), das Wurfprotokoll und der Fertigkeiten-Datentyp.",
-  "roll.roll": "W\xFCrfeln",
-  "roll.rolls": "W\xFCrfe",
-  "roll.checkLabel": "{name}-Probe",
-  "roll.tagAdvantage": "(Vorteil)",
-  "roll.tagDisadvantage": "(Nachteil)",
-  "roll.modeHint": "Wurfmodus \u2014 gilt f\xFCr alle W\xFCrfeln-Schaltfl\xE4chen",
-  "roll.modeDisadvantage": "Nachteil",
-  "roll.modeNormal": "Normal",
-  "roll.modeAdvantage": "Vorteil",
-  "roll.logEmpty": "Wurfergebnisse erscheinen hier.",
-  "roll.options.heading": "W\xFCrfeln",
-  "roll.options.rollButton": "W\xFCrfeln-Schaltfl\xE4che",
-  "roll.options.rollButtonDesc": "W\xFCrfelt die W\xFCrfel plus den Modifikator dieses Eintrags (siehe Modifikator oben)",
-  "roll.partDrop": "entf\xE4llt",
-  "roll.closeAll": "Alle schlie\xDFen",
-  "roll.card.copyValue": "Wert kopieren",
-  "roll.card.copyChain": "Kette kopieren",
-  "roll.card.reroll": "Neu w\xFCrfeln",
-  "roll.card.dismiss": "Schlie\xDFen",
-  "roll.redoHint": "Klicken, um erneut zu w\xFCrfeln",
-  "roll.logChains": "Ketten",
-  "roll.logChainsHint": "Vollst\xE4ndige Wurfkette anzeigen (aus = nur Bezeichnung und Ergebnis)",
-  "roll.rerollAll": "Alle neu w\xFCrfeln",
-  "roll.rngRandom": "Zufall",
-  "roll.rngKarmic": "Karmisch",
-  "roll.rngHint": "Globales Wurfsystem umschalten: reiner Zufall oder adaptiv (karmisch) \u2014 Fehlschl\xE4ge bauen verborgene Gl\xFCcksschuld auf, die k\xFCnftige Fehlschl\xE4ge teils in Erfolge wandelt; Pechstr\xE4hnen klingen ab.",
-  "roll.logNoteOnly": "Diese Notiz",
-  "roll.logNoteOnlyHint": "Nur W\xFCrfe der aktuellen Notiz anzeigen",
-  "roll.logClear": "Leeren",
-  "roll.logClearHint": "Wurfverlauf leeren",
-  "roll.logClearConfirm": "Den gesamten Wurfverlauf leeren?",
-  "roll.logClearNoteConfirm": "Den Wurfverlauf dieser Notiz leeren?",
-  "roll.cmd.exportHistory": "Wurfverlauf in eine Notiz exportieren",
-  "roll.cmd.macroPrefix": "Makro w\xFCrfeln: {name}",
-  "roll.export.title": "Wurfverlauf",
-  "roll.export.fileName": "Wurfverlauf",
-  "roll.export.time": "Zeit",
-  "roll.export.note": "Notiz",
-  "roll.export.label": "Wurf",
-  "roll.export.total": "Summe",
-  "roll.export.mode": "Modus",
-  "roll.export.detail": "Detail",
-  "roll.export.done": "Wurfverlauf exportiert.",
-  "roll.export.failed": "Export fehlgeschlagen: {error}",
-  "roller.title": "W\xFCrfelbrett",
-  "roller.addDie": "+ W\xFCrfel",
-  "roller.addNum": "+ Zahl",
-  "roller.times": "W\xFCrfe",
-  "roller.chipHint": "Klicken zum Bearbeiten, \u2715 zum Entfernen",
-  "roller.removeSeg": "Entfernen",
-  "roller.exprPlaceholder": "z. B. 2d6kh1 + 1d8 + DEX + 3",
-  "roller.exprHint": "Wurf eingeben. kh/kl/dh/dl behalten/verwerfen W\xFCrfel, ! explodiert, rN/roN w\xFCrfeln \u2264 N neu, >=N z\xE4hlt Erfolge; Namen wie DEX lesen die Eigenschaft der Notiz.",
-  "roller.fnDie": "W\xFCrfel",
-  "roller.fnDieHint": "W\xFCrfel einf\xFCgen (Gr\xF6\xDFe w\xE4hlen)",
-  "roller.fnKeepHigh": "H\xF6chsten behalten (Vorteil)",
-  "roller.fnKeepLow": "Niedrigsten behalten (Nachteil)",
-  "roller.fnExplode": "Bei Maximum explodieren",
-  "roller.fnReroll": "Neu w\xFCrfeln \u2264 1",
-  "roller.fnSuccess": "Erfolge z\xE4hlen (\u2265 N)",
-  "roller.fnPlus": "Term hinzuf\xFCgen",
-  "roller.macros": "Makros",
-  "roller.saveMacro": "+ als Makro speichern",
-  "roller.saveMacroPrompt": "Makroname",
-  "roller.saveMacroEmpty": "F\xFCge mindestens einen W\xFCrfel hinzu, bevor du ein Makro speicherst.",
-  "roller.macroRun": "W\xFCrfeln",
-  "roller.macroLoad": "In den Builder laden",
-  "roller.macroRename": "Umbenennen",
-  "roller.macroRenamePrompt": "Makroname",
-  "roller.macroDelete": "Makro l\xF6schen",
-  "roller.macroSaved": "Makro \u201E{name}\u201C gespeichert.",
-  "dice.die": "W\xFCrfel",
-  "dice.dieDesc": "Vordefinierter W\xFCrfel, oder eigene Gr\xF6\xDFe daneben eintragen",
-  "dice.custom": "Eigene\u2026",
-  "dice.customSize": "Eigene W\xFCrfelgr\xF6\xDFe\u2026",
-  "dice.customSizePrompt": "W\xFCrfelgr\xF6\xDFe (Anzahl Seiten)",
-  "dice.customSizeShort": "Gr\xF6\xDFe",
-  "dice.count": "Anzahl W\xFCrfel\u2026",
-  "dice.countPrompt": "Anzahl W\xFCrfel",
-  "dice.countLabel": "Anzahl W\xFCrfel",
-  "dice.reset": "Standard (W20)",
-  "type.skills": "Fertigkeiten (Legacy-Liste)",
-  "skills.convert": "In Eigenschafts-Eintr\xE4ge umwandeln\u2026",
-  "skills.convertBtn": "Umwandeln",
-  "skills.convertDesc": "Ersetzt diese Liste durch je eine abgeleitete Zahlen-Eigenschaft pro Zeile. \xDCbung wird zu einem umschaltbaren Einfluss mit Listen-Eigenschaft; Quellen bleiben namentlich referenziert.",
-  "skills.convertConfirm": "Diese Fertigkeitenliste in einzelne abgeleitete Eigenschafts-Eintr\xE4ge umwandeln? Die Zeilen der aktuellen Notiz (oder der Vorlage) bestimmen die neuen Eintr\xE4ge; die Listen-Eigenschaft selbst bleibt unver\xE4ndert.",
-  "skills.convertEmpty": "Keine Zeilen zum Umwandeln.",
-  "skills.convertDone": "{n} Eigenschafts-Eintr\xE4ge erstellt.",
-  "skills.convertKeySuffix": "{name} Save",
-  "skills.convertProfProperty": "Proficiency Bonus",
-  "skills.convertProfList": "{name} Proficiencies",
-  "skills.empty": "Noch keine Fertigkeiten.",
-  "skills.addMenu": "Fertigkeiten hinzuf\xFCgen\u2026",
-  "skills.addSkill": "+ Fertigkeit hinzuf\xFCgen",
-  "skills.newSkill": "Neue Fertigkeit\u2026",
-  "skills.newSkillPrompt": "Name der Fertigkeit",
-  "skills.proficientHint": "Ge\xFCbt",
-  "skills.menu.addPreset": "Vorlage hinzuf\xFCgen: {name}",
-  "skills.menu.setSource": "Modifikator-Quelle festlegen\u2026",
-  "skills.menu.setDice": "W\xFCrfel festlegen\u2026",
-  "skills.menu.clearOverride": "Modifikator-\xDCberschreibung entfernen",
-  "skills.menu.moveUp": "Nach oben",
-  "skills.menu.moveDown": "Nach unten",
-  "skills.menu.remove": "Fertigkeit entfernen",
-  "skills.options.heading": "Fertigkeiten",
-  "skills.options.editHint": "Zeilen werden direkt in der Seitenleiste bearbeitet: Name, Quellen-K\xFCrzel oder Modifikator anklicken (au\xDFerhalb des Bearbeitungsmodus doppelklicken); Rechtsklick f\xFCr W\xFCrfel, Reihenfolge und Entfernen.",
-  "skills.options.sourceMode": "Modifikator aus der Quelle",
-  "skills.options.modeValue": "Quellwert unver\xE4ndert",
-  "skills.options.modeAbilityMod": "Attributsmodifikator ((Wert \u2212 10) / 2)",
-  "skills.options.profMode": "\xDCbungsbonus",
-  "skills.options.profNone": "Keiner",
-  "skills.options.profLevel": "Aus einer Stufen-Eigenschaft",
-  "skills.options.profFixed": "Fester Wert",
-  "skills.options.profSource": "Stufen-Eigenschaft",
-  "skills.options.profFixedValue": "Bonus",
-  "skills.options.presets": "Fertigkeiten-Vorlagen",
-  "skills.options.addPreset": "Hinzuf\xFCgen"
-};
+
+// src/features/rolling/strings.ts
+var rollingEn = strings_default;
 
 // src/features/rolling/index.ts
 var rollingModule = {
@@ -11458,7 +11320,6 @@ var rollingModule = {
   description: (i18n) => i18n.t("roll.featureDesc"),
   register(ctx2) {
     ctx2.i18n.register("en", rollingEn);
-    ctx2.i18n.register("de", rollingDe);
     ctx2.registries.valueTypes.add(skillsType);
     ctx2.registries.entryKinds.add(rollsKind);
     ctx2.registries.entryKinds.add(rollerKind);
@@ -11690,8 +11551,8 @@ var characterPreset = {
   })
 };
 
-// src/features/dnd5e/strings.ts
-var dndEn = {
+// src/features/dnd5e/strings.json
+var strings_default2 = {
   "dnd.featureName": "D&D 5e character sheet",
   "dnd.featureDesc": "Character sheet templates, ability scores, 5e saving throw & skill presets, proficiency and initiative.",
   "dnd.presetName": "D&D 5e character",
@@ -11704,19 +11565,9 @@ var dndEn = {
   "dnd.tpl.vitals": "Vitals",
   "dnd.tpl.abilities": "Ability scores"
 };
-var dndDe = {
-  "dnd.featureName": "D&D-5e-Charakterbogen",
-  "dnd.featureDesc": "Charakterbogen-Vorlagen, Attributswerte, 5e-Vorlagen f\xFCr Rettungsw\xFCrfe & Fertigkeiten, \xDCbungsbonus und Initiative.",
-  "dnd.presetName": "D&D-5e-Charakter",
-  "dnd.proficiency": "\xDCbungsbonus",
-  "dnd.initiative": "Initiative",
-  "dnd.savingThrows": "Rettungsw\xFCrfe",
-  "dnd.skills": "Fertigkeiten",
-  "dnd.tpl.contents": "Inhalt",
-  "dnd.tpl.details": "Details",
-  "dnd.tpl.vitals": "Vitalwerte",
-  "dnd.tpl.abilities": "Attributswerte"
-};
+
+// src/features/dnd5e/strings.ts
+var dndEn = strings_default2;
 
 // src/features/dnd5e/index.ts
 var dnd5eModule = {
@@ -11725,7 +11576,6 @@ var dnd5eModule = {
   description: (i18n) => i18n.t("dnd.featureDesc"),
   register(ctx2) {
     ctx2.i18n.register("en", dndEn);
-    ctx2.i18n.register("de", dndDe);
     ctx2.registries.skillPresets.add(savesPreset);
     ctx2.registries.skillPresets.add(skillsPreset);
     for (const tpl of sectionTemplates()) ctx2.registries.sectionTemplates.add(tpl);
@@ -12705,8 +12555,8 @@ function inlineLivePreview(ctx2) {
   );
 }
 
-// src/features/inline/strings.ts
-var inlineEn = {
+// src/features/inline/strings.json
+var strings_default3 = {
   "inline.featureName": "Inline rolls & properties",
   "inline.featureDesc": "Render `roll: 2d6+DEX` as a clickable roll and `prop: Strength` as a live, editable value in note bodies (reading mode), plus an `ep-sheet` code block that projects a note-type section.",
   "inline.rollHint": "Click to roll \xB7 {expr}",
@@ -12718,18 +12568,9 @@ var inlineEn = {
   "inline.sheetNoType": "ep-sheet: this note has no matching type.",
   "inline.sheetEmpty": "ep-sheet: nothing to show."
 };
-var inlineDe = {
-  "inline.featureName": "Inline-W\xFCrfe & Eigenschaften",
-  "inline.featureDesc": "Stellt `roll: 2d6+DEX` als anklickbaren Wurf und `prop: St\xE4rke` als lebenden, bearbeitbaren Wert im Notiztext dar (Lesemodus), plus einen `ep-sheet`-Codeblock, der einen Abschnitt des Notiztyps projiziert.",
-  "inline.rollHint": "Zum W\xFCrfeln klicken \xB7 {expr}",
-  "inline.rollInvalid": "Ung\xFCltiger Wurf-Ausdruck.",
-  "inline.propHint": "{key} \u2014 zum Bearbeiten klicken",
-  "inline.editSource": "Quelle bearbeiten",
-  "inline.editValue": "Wert von {prop} bearbeiten",
-  "inline.empty": "\u2014",
-  "inline.sheetNoType": "ep-sheet: Diese Notiz hat keinen passenden Typ.",
-  "inline.sheetEmpty": "ep-sheet: Nichts anzuzeigen."
-};
+
+// src/features/inline/strings.ts
+var inlineEn = strings_default3;
 
 // src/features/inline/index.ts
 var inlineModule = {
@@ -12738,7 +12579,6 @@ var inlineModule = {
   description: (i18n) => i18n.t("inline.featureDesc"),
   register(ctx2) {
     ctx2.i18n.register("en", inlineEn);
-    ctx2.i18n.register("de", inlineDe);
   }
 };
 function registerInline(plugin, ctx2) {

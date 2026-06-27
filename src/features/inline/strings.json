@@ -1,0 +1,12 @@
+{
+  "inline.featureName": "Inline rolls & properties",
+  "inline.featureDesc": "Render `roll: 2d6+DEX` as a clickable roll and `prop: Strength` as a live, editable value in note bodies (reading mode), plus an `ep-sheet` code block that projects a note-type section.",
+  "inline.rollHint": "Click to roll · {expr}",
+  "inline.rollInvalid": "Invalid roll expression.",
+  "inline.propHint": "{key} — click to edit",
+  "inline.editSource": "Edit source",
+  "inline.editValue": "Edit {prop} value",
+  "inline.empty": "—",
+  "inline.sheetNoType": "ep-sheet: this note has no matching type.",
+  "inline.sheetEmpty": "ep-sheet: nothing to show."
+}

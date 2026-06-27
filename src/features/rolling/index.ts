@@ -16,7 +16,7 @@ import { rollsKind } from "./rolls-panel";
 import { rollerKind } from "./roller";
 import { rollAddon } from "./numeric-addon";
 import { skillsType } from "./skills-type";
-import { rollingDe, rollingEn } from "./strings";
+import { rollingEn } from "./strings";
 
 export const rollingModule: FeatureModule = {
   id: "rolling",
@@ -25,7 +25,6 @@ export const rollingModule: FeatureModule = {
 
   register(ctx: FeatureContext): void {
     ctx.i18n.register("en", rollingEn);
-    ctx.i18n.register("de", rollingDe);
     ctx.registries.valueTypes.add(skillsType);
     ctx.registries.entryKinds.add(rollsKind);
     ctx.registries.entryKinds.add(rollerKind);

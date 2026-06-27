@@ -17,4 +17,5 @@ jobs:
       - run: npm install --legacy-peer-deps --no-audit --no-fund
       - run: npm run typecheck
       - run: npm test
+      - run: npm run i18n
       - run: npm run build

@@ -1,0 +1,13 @@
+{
+  "dnd.featureName": "D&D 5e character sheet",
+  "dnd.featureDesc": "Character sheet templates, ability scores, 5e saving throw & skill presets, proficiency and initiative.",
+  "dnd.presetName": "D&D 5e character",
+  "dnd.proficiency": "Proficiency",
+  "dnd.initiative": "Initiative",
+  "dnd.savingThrows": "Saving throws",
+  "dnd.skills": "Skills",
+  "dnd.tpl.contents": "Contents",
+  "dnd.tpl.details": "Details",
+  "dnd.tpl.vitals": "Vitals",
+  "dnd.tpl.abilities": "Ability scores"
+}

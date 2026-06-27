@@ -6,7 +6,7 @@ The codebase's assets to protect throughout: the registry system (`src/core/regi
 
 ---
 
-## Status (v2.47.0)
+## Status (v2.48.0)
 
 Legend: ✅ done · ◑ partial · ○ planned.
 
@@ -30,18 +30,19 @@ Legend: ✅ done · ◑ partial · ○ planned.
 - ✅ **D3 — Versioned migration table + backups.** `settings.schemaVersion` plus an ordered, idempotent migration runner (`runSchemaMigrations`, pure and unit-tested) that runs each step at most once and stamps the version; `normalizeSettings` still handles legacy shape-coercion ahead of it. Before persisting any upgrade the pre-migration `data.json` is snapshotted to `…/plugins/extended-properties/backups/` (last 5 kept) — cheap insurance on the plugin's most dangerous path; a fresh vault is stamped without a backup. The existing per-module `migrate()` hooks still run inside the same gated pass (converting each into a registered version step is an incremental follow-up).
 - ✅ **F2 — Performance hardening.** The sidebar's width-responsive pass (which hides type hints → dice tags → chains → toggles → modifier badges as rows tighten) now (1) early-exits any section whose signature — width, laid-out row count, edit mode — is unchanged since the last pass, so resize storms, collapse animations and value-refresh echoes stop re-measuring stable sections; and (2) measures **tier-major** (read which rows are tight, then squeeze that tier on all of them) so forced reflows drop from O(rows × tiers) to O(tiers). Squeezing is row-local, so the batched reads give identical results; the cache is dropped on render and value refresh so it can't go stale. Row virtualization (step 3) was judged unnecessary — B3's table covers large tabular data and per-section sheets stay bounded.
 - ✅ **E3 — Theming surface.** Plugin surfaces read their colours and sizes from `--ep-*` variables that fall back to the current Obsidian theme value, so themes and the Style Settings plugin can restyle Extended Properties without `!important`. A bundled Style Settings panel (`/* @settings */` in `styles.css`) exposes section accent, rating colour, chip background, section background, corner radius, section gap and a *Flat sections* toggle; the full variable set (sections, chips, ratings, typography) is documented in the README. Every token is wired as `var(--ep-x, <current value>)`, so an untouched theme renders identically.
+- ✅ **F4 — i18n as data.** Every UI dictionary is now a JSON data file — `src/i18n/locales/en.json` (core, 488 keys) and `src/features/<mod>/strings.json` (per module, 139 keys) — loaded through thin typed `.ts` shims, so strings can be diffed and translated without touching code. A `scripts/i18n-check.mjs` parity checker (run in CI and via `npm run i18n`) validates the English schema (balanced `{placeholder}` tokens, no stray braces) and diffs any added `<code>.json` locale against it: missing keys, unknown keys, placeholder drift. `CONTRIBUTING.md` documents the add-a-language workflow. (Also finished the German removal: the feature modules still registered a partial `de` dictionary — those registrations and the dead German feature strings are gone, shrinking the bundle.)
 
 Also shipped: subtle Web Audio sound effects (clicks, dice rolls, crit/fail), with a master toggle, volume and per-category (UI / dice / crit) toggles; a configurable roll-animation duration with staggered dice/modifiers; a custom scroll-safe slider; and a default d20 for `roll:` with no dice term.
 
 ### Deprecations
 
-- **German locale (`de`) — removed in v2.41.0.** The plugin is now English-only. The German dictionary (`src/i18n/locales/de.ts`) and its registration in `main.ts` are gone; any vault still set to `language: "de"` resolves entirely through the English fallback (override → active locale → **English** → humanized key), so nothing breaks. The locale *mechanism* — the `register` API and the per-string override editor — is deliberately kept intact, so a community-maintained dictionary can be slotted back in under F4 (“i18n as data”). *Rationale:* a single maintainer can't keep a second hand-written dictionary in sync with a fast-moving English reference; the override system already lets any user retranslate any individual string. Phases delivered: freeze + picker label (v2.40.0) → dictionary removed (v2.41.0).
+- **German locale (`de`) — removed in v2.41.0.** The plugin is now English-only. The German dictionary (`src/i18n/locales/de.ts`) and its registration in `main.ts` are gone; any vault still set to `language: "de"` resolves entirely through the English fallback (override → active locale → **English** → humanized key), so nothing breaks. The locale *mechanism* — the `register` API and the per-string override editor — is deliberately kept intact, so a community-maintained dictionary can be slotted back in under F4 (“i18n as data”). *Rationale:* a single maintainer can't keep a second hand-written dictionary in sync with a fast-moving English reference; the override system already lets any user retranslate any individual string. Phases delivered: freeze + picker label (v2.40.0) → core dictionary removed (v2.41.0) → feature-module `de` registrations removed (v2.48.0, alongside F4).
 
 ### Planned
 
 - ○ **D2** Layouts as vault files
 - ○ **E1** Keyboard & screen-reader support
-- ○ **F4** i18n as data · ○ **F5** Public module API + legacy deprecation
+- ○ **F5** Public module API + legacy deprecation
 
 ### Shipped beyond the original plan
 
@@ -54,7 +55,7 @@ Per-property unique short forms with name↔short-form interchangeability and au
 - **Milestone 3 — Rolling depth:** ✅ (A2, A3, A4)
 - **Milestone 4 — Notes integration:** ✅ (B1 incl. Live Preview, E2)
 - **Milestone 5 — Scale:** ✅ (B2, B3, F2 ✅)
-- **Milestone 6 — Ecosystem:** ◑ (C3, D1, F3, E3 ✅; D2, F4, F5 ○) · German locale removed (English-only; see Deprecations)
+- **Milestone 6 — Ecosystem:** ◑ (C3, D1, F3, E3, F4 ✅; D2, F5 ○) · German locale removed (English-only; see Deprecations)
 
 ---
 
@@ -427,6 +428,8 @@ Per-property unique short forms with name↔short-form interchangeability and au
 4. Community submission PR; address review feedback.
 
 ### F4. i18n as data + community translations
+
+> ✅ **Implemented in v2.48.0** (`src/i18n/locales/en.json`, `src/features/*/strings.json`, `scripts/i18n-check.mjs`, `CONTRIBUTING.md`). Dictionaries are JSON loaded via thin typed shims (`resolveJsonModule`); a key-parity checker runs in CI and as `npm run i18n`; the translation workflow is documented. Steps 1–3 done. Plural rules remain deferred (no current string needs them; adopt `Intl.PluralRules` lazily if one ever does).
 
 **What.** Locale dictionaries as JSON files (per module or merged at build), a documented key list, and a contribution path for new languages.
 

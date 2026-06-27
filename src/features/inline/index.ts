@@ -11,7 +11,7 @@ import type { Plugin } from "obsidian";
 import type { FeatureContext, FeatureModule } from "../../core/registry";
 import { InlineCtx, processInline, renderSheet } from "./inline-render";
 import { inlineLivePreview } from "./live-preview";
-import { inlineDe, inlineEn } from "./strings";
+import { inlineEn } from "./strings";
 
 export const inlineModule: FeatureModule = {
   id: "inline",
@@ -20,7 +20,6 @@ export const inlineModule: FeatureModule = {
 
   register(ctx: FeatureContext): void {
     ctx.i18n.register("en", inlineEn);
-    ctx.i18n.register("de", inlineDe);
   },
 };
 

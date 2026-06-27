@@ -15,7 +15,7 @@ import {
   characterPreset, initiativeEntry, profBonusEntry, savesEntries, savesPreset,
   sectionTemplates, skillsEntries, skillsPreset,
 } from "./sections";
-import { dndDe, dndEn } from "./strings";
+import { dndEn } from "./strings";
 
 export const dnd5eModule: FeatureModule = {
   id: "dnd5e",
@@ -24,7 +24,6 @@ export const dnd5eModule: FeatureModule = {
 
   register(ctx: FeatureContext): void {
     ctx.i18n.register("en", dndEn);
-    ctx.i18n.register("de", dndDe);
 
     ctx.registries.skillPresets.add(savesPreset);
     ctx.registries.skillPresets.add(skillsPreset);
