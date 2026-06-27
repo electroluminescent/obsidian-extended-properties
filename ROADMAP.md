@@ -6,7 +6,7 @@ The codebase's assets to protect throughout: the registry system (`src/core/regi
 
 ---
 
-## Status (v2.45.0)
+## Status (v2.46.0)
 
 Legend: ✅ done · ◑ partial · ○ planned.
 
@@ -28,6 +28,7 @@ Legend: ✅ done · ◑ partial · ○ planned.
 - ✅ **B3 — Type table view.** A workspace view (`src/ui/table-view.ts`; "Open type table" command + ribbon) listing every note of a chosen type as rows with chosen properties as columns: type picker, column pick-list, text filter, click-to-sort headers (asc → desc → none), and drag-to-resize, persisted column widths. Rows click through to the note; cells render a compact, type-aware widget (checkbox, rating pips, colour swatch, internal link, image thumbnail, right-aligned numbers, list chips) and edit in place on double-click via `processFrontMatter`; rollable columns get a die button that rolls the cell value through the plugin roll service. Rows virtualize above 150 so a type with thousands of notes stays responsive. Column sets, sort and widths persist per type in `settings.tableLayouts`.
 - ✅ **D4 — Write batching & conflict handling.** Frontmatter writes are coalesced per file and debounced (~300ms, with a 1s max-wait so a held slider drag still flushes), replacing the per-`set` burst writes; the queue flushes on note-switch and view close. An mtime conflict guard snapshots the file's modification time when a batch begins and, if the note changed on disk (sync, another pane) before the write lands, shows a sticky *Keep mine / Take theirs* notice instead of clobbering — on both the view path (`NoteModel`) and the inline path (`NoteFacade`), each with echo-suppression so our own writes never self-trigger. Setting: *Guard against edit conflicts* (on by default). (Also fixed in passing: `tableLayouts`/`tableLastType` are now preserved by `normalizeSettings`, so B3 column choices persist across restarts.)
 - ✅ **D3 — Versioned migration table + backups.** `settings.schemaVersion` plus an ordered, idempotent migration runner (`runSchemaMigrations`, pure and unit-tested) that runs each step at most once and stamps the version; `normalizeSettings` still handles legacy shape-coercion ahead of it. Before persisting any upgrade the pre-migration `data.json` is snapshotted to `…/plugins/extended-properties/backups/` (last 5 kept) — cheap insurance on the plugin's most dangerous path; a fresh vault is stamped without a backup. The existing per-module `migrate()` hooks still run inside the same gated pass (converting each into a registered version step is an incremental follow-up).
+- ✅ **F2 — Performance hardening.** The sidebar's width-responsive pass (which hides type hints → dice tags → chains → toggles → modifier badges as rows tighten) now (1) early-exits any section whose signature — width, laid-out row count, edit mode — is unchanged since the last pass, so resize storms, collapse animations and value-refresh echoes stop re-measuring stable sections; and (2) measures **tier-major** (read which rows are tight, then squeeze that tier on all of them) so forced reflows drop from O(rows × tiers) to O(tiers). Squeezing is row-local, so the batched reads give identical results; the cache is dropped on render and value refresh so it can't go stale. Row virtualization (step 3) was judged unnecessary — B3's table covers large tabular data and per-section sheets stay bounded.
 
 Also shipped: subtle Web Audio sound effects (clicks, dice rolls, crit/fail), with a master toggle, volume and per-category (UI / dice / crit) toggles; a configurable roll-animation duration with staggered dice/modifiers; a custom scroll-safe slider; and a default d20 for `roll:` with no dice term.
 
@@ -39,7 +40,7 @@ Also shipped: subtle Web Audio sound effects (clicks, dice rolls, crit/fail), wi
 
 - ○ **D2** Layouts as vault files
 - ○ **E1** Keyboard & screen-reader support · ○ **E3** Theming surface
-- ○ **F2** Performance hardening · ○ **F4** i18n as data · ○ **F5** Public module API + legacy deprecation
+- ○ **F4** i18n as data · ○ **F5** Public module API + legacy deprecation
 
 ### Shipped beyond the original plan
 
@@ -51,7 +52,7 @@ Per-property unique short forms with name↔short-form interchangeability and au
 - **Milestone 2 — Expressions:** ✅ (A1, C1, C2 ✅)
 - **Milestone 3 — Rolling depth:** ✅ (A2, A3, A4)
 - **Milestone 4 — Notes integration:** ✅ (B1 incl. Live Preview, E2)
-- **Milestone 5 — Scale:** ◑ (B2, B3 ✅; F2 ○)
+- **Milestone 5 — Scale:** ✅ (B2, B3, F2 ✅)
 - **Milestone 6 — Ecosystem:** ◑ (C3, D1, F3 ✅; D2, E3, F4, F5 ○) · German locale removed (English-only; see Deprecations)
 
 ---
@@ -390,6 +391,8 @@ Per-property unique short forms with name↔short-form interchangeability and au
 4. CI gate.
 
 ### F2. Performance hardening
+
+> ✅ **Implemented in v2.46.0** (`src/ui/view.ts`). Steps 1–2 done: a per-section (width | row count | edit mode) signature early-exits unchanged sections, and the tier loop is now tier-major (batched read→write), cutting forced reflows to O(tiers). Step 3 (profiling → windowing) concluded windowing is unnecessary: B3's table handles large tabular data and per-section sheets are bounded. Note-model write batching landed separately in D4.
 
 **What.** Skip responsive passes when section widths are unchanged; batch DOM reads before writes in the pass; virtualize very long sections; cap updater work on light changes.
 

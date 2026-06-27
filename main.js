@@ -7392,6 +7392,8 @@ var SidebarView = class extends import_obsidian22.ItemView {
     this.lastEmptySig = "";
     /** Parsed `showWhen` ASTs, keyed by expression text (null = unparseable). */
     this.condCache = /* @__PURE__ */ new Map();
+    /** Responsive-pass signature per section id — skip re-measuring unchanged ones (F2). */
+    this.respSig = /* @__PURE__ */ new Map();
     this.hlTimer = 0;
     this.scrollTimer = 0;
     /** Animate the next render (entering/leaving edit mode). */
@@ -7448,6 +7450,7 @@ var SidebarView = class extends import_obsidian22.ItemView {
       } catch (e) {
       }
     }
+    this.respSig.clear();
     this.responsivePass();
   }
   registerUpdater(fn) {
@@ -7835,27 +7838,35 @@ var SidebarView = class extends import_obsidian22.ItemView {
    * Re-run on every render and on container resize.
    */
   responsivePass() {
+    var _a;
     const SLACK = 1.5 * (parseFloat(getComputedStyle(this.content).fontSize) || 16);
     const TIERS = [".ep-type-hint", ".ep-dice-tag", ".ep-denote", ".ep-tog-cell", ".ep-mod-badge"];
+    const mode = this.editMode ? "e" : "v";
     for (const el of this.content.findAll(".ep-section")) {
       const sec = el;
       if (sec.clientWidth === 0) continue;
+      const heads = sec.findAll(".ep-entry-head").filter((h) => h.clientWidth > 0);
+      const id = (_a = sec.getAttribute("data-ep-id")) != null ? _a : "";
+      const sig = sec.clientWidth + "|" + heads.length + "|" + mode;
+      if (id && this.respSig.get(id) === sig) continue;
       sec.addClass("ep-measuring");
       sec.findAll(".ep-squeezed").forEach((x) => x.removeClass("ep-squeezed"));
       alignClustersNow(sec);
+      const range = sec.ownerDocument.createRange();
       const spareOf = (n) => {
-        const r = n.ownerDocument.createRange();
-        r.selectNodeContents(n);
-        const cw = r.getBoundingClientRect().width;
-        r.detach();
+        range.selectNodeContents(n);
+        const cw = range.getBoundingClientRect().width;
         return n.getBoundingClientRect().width - cw;
       };
-      for (const h of sec.findAll(".ep-entry-head")) {
-        if (h.clientWidth === 0) continue;
+      const isTight = (h) => {
         const name = h.querySelector(".ep-line-name");
-        const tight = () => h.scrollWidth > h.clientWidth + 1 || !!name && spareOf(name) < SLACK;
-        for (const cls of TIERS) {
-          if (!tight()) break;
+        return h.scrollWidth > h.clientWidth + 1 || !!name && spareOf(name) < SLACK;
+      };
+      let candidates = heads;
+      for (const cls of TIERS) {
+        candidates = candidates.filter(isTight);
+        if (!candidates.length) break;
+        for (const h of candidates) {
           h.findAll(cls).forEach((x) => {
             x.addClass("ep-squeezed");
             const cell = x.closest("[data-ep-slot]");
@@ -7863,8 +7874,10 @@ var SidebarView = class extends import_obsidian22.ItemView {
           });
         }
       }
+      range.detach();
       void sec.offsetWidth;
       sec.removeClass("ep-measuring");
+      if (id) this.respSig.set(id, sig);
     }
   }
   // -- layout & rendering -------------------------------------------------------
@@ -7929,6 +7942,7 @@ var SidebarView = class extends import_obsidian22.ItemView {
     }
     this.updaters = [];
     this.sectionEls = {};
+    this.respSig.clear();
     const file = this.app.workspace.getActiveFile();
     if (!file) {
       this.note.path = null;

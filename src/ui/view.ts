@@ -57,6 +57,8 @@ export class SidebarView extends ItemView implements ViewCtx {
   private lastEmptySig = "";
   /** Parsed `showWhen` ASTs, keyed by expression text (null = unparseable). */
   private condCache = new Map<string, ExprNode | null>();
+  /** Responsive-pass signature per section id — skip re-measuring unchanged ones (F2). */
+  private respSig = new Map<string, string>();
   private hlTimer = 0;
   private scrollTimer = 0;
   /** Animate the next render (entering/leaving edit mode). */
@@ -95,7 +97,9 @@ export class SidebarView extends ItemView implements ViewCtx {
       try { u(); } catch { /* a single broken updater must not kill the pass */ }
     }
     // Updaters may repaint decorations (badges, chains) fresh — re-decide
-    // visibility so a refresh can't resurrect squeezed elements.
+    // visibility so a refresh can't resurrect squeezed elements. A repaint can
+    // change content widths, so drop the signature cache and re-measure.
+    this.respSig.clear();
     this.responsivePass();
   }
 
@@ -525,6 +529,7 @@ export class SidebarView extends ItemView implements ViewCtx {
     // modifier total, toggle checkboxes, modifier chain, dice, data type —
     // so the data type vanishes first and the modifier badge last.
     const TIERS = [".ep-type-hint", ".ep-dice-tag", ".ep-denote", ".ep-tog-cell", ".ep-mod-badge"];
+    const mode = this.editMode ? "e" : "v";
     for (const el of this.content.findAll(".ep-section")) {
       const sec = el as HTMLElement;
       // Everything below happens synchronously (no paint in between), so
@@ -533,29 +538,48 @@ export class SidebarView extends ItemView implements ViewCtx {
       // off-screen): zero-width measurements would wrongly hide everything.
       // The next pass on a visible section re-decides.
       if (sec.clientWidth === 0) continue;
+      const heads = (sec.findAll(".ep-entry-head") as HTMLElement[]).filter((h) => h.clientWidth > 0);
+
+      // F2 step 1: early-exit sections whose geometry is unchanged since the
+      // last pass (resize storms, sticky/height reflows). A section width, its
+      // laid-out row count and edit mode fully determine the squeeze outcome
+      // for fixed content; content edits clear the whole cache (render /
+      // refreshValues), so this signature can never go stale.
+      const id = sec.getAttribute("data-ep-id") ?? "";
+      const sig = sec.clientWidth + "|" + heads.length + "|" + mode;
+      if (id && this.respSig.get(id) === sig) continue;
+
       sec.addClass("ep-measuring");
       sec.findAll(".ep-squeezed").forEach((x) => x.removeClass("ep-squeezed"));
       alignClustersNow(sec);
-      // Decide PER ROW: one cramped row must not strip the decorations off
-      // every other row of the section. A row is "tight" when its children
-      // genuinely overflow it, or when the label (flex: 1 — it absorbs all
-      // spare room) has less than SLACK px left before truncating. The
-      // label's content width must be measured with a Range — scrollWidth
-      // is max(clientWidth, content) and can never report spare room.
+
+      // A row is "tight" when its children genuinely overflow it, or when the
+      // label (flex: 1 — it absorbs all spare room) has less than SLACK px left
+      // before truncating. The label's content width must be measured with a
+      // Range — scrollWidth is max(clientWidth, content) and never reports spare
+      // room. Reuse one Range for the whole section to avoid per-row allocation.
+      const range = sec.ownerDocument.createRange();
       const spareOf = (n: HTMLElement): number => {
-        const r = n.ownerDocument.createRange();
-        r.selectNodeContents(n);
-        const cw = r.getBoundingClientRect().width;
-        r.detach();
+        range.selectNodeContents(n);
+        const cw = range.getBoundingClientRect().width;
         return n.getBoundingClientRect().width - cw;
       };
-      for (const h of sec.findAll(".ep-entry-head") as HTMLElement[]) {
-        if (h.clientWidth === 0) continue;
+      const isTight = (h: HTMLElement): boolean => {
         const name = h.querySelector(".ep-line-name") as HTMLElement | null;
-        const tight = () =>
-          h.scrollWidth > h.clientWidth + 1 || (!!name && spareOf(name) < SLACK);
-        for (const cls of TIERS) {
-          if (!tight()) break;
+        return h.scrollWidth > h.clientWidth + 1 || (!!name && spareOf(name) < SLACK);
+      };
+
+      // F2 step 2: tier-major read-then-write. Each iteration reads which rows
+      // are still tight (one reflow), then writes that tier's squeeze on them —
+      // O(tiers) forced reflows instead of O(rows × tiers). Squeezing is
+      // row-local (every cell keeps its own min-width, and rows own their grid),
+      // so batching the reads can't alter another row's decision. Decide PER ROW
+      // so one cramped row never strips decorations off the rest of the section.
+      let candidates = heads;
+      for (const cls of TIERS) {
+        candidates = candidates.filter(isTight);
+        if (!candidates.length) break;
+        for (const h of candidates) {
           h.findAll(cls).forEach((x) => {
             x.addClass("ep-squeezed");
             // Reclaim the column width the hidden element reserved.
@@ -564,8 +588,10 @@ export class SidebarView extends ItemView implements ViewCtx {
           });
         }
       }
+      range.detach();
       void sec.offsetWidth;
       sec.removeClass("ep-measuring");
+      if (id) this.respSig.set(id, sig);
     }
   }
 
@@ -635,6 +661,7 @@ export class SidebarView extends ItemView implements ViewCtx {
     }
     this.updaters = [];
     this.sectionEls = {};
+    this.respSig.clear(); // DOM is rebuilt — drop the responsive-pass cache
 
     const file = this.app.workspace.getActiveFile();
     if (!file) {
