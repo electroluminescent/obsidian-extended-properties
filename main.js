@@ -1527,6 +1527,48 @@ function defaultSettings() {
     crossNote: true
   };
 }
+var HANDLED_KEYS = /* @__PURE__ */ new Set([
+  "types",
+  "layouts",
+  "layout",
+  "hideShown",
+  "defaults",
+  "manualHide",
+  "propMenu",
+  "language",
+  "stringOverrides",
+  "features",
+  "derivations",
+  "sourceAbbrs",
+  "modDepth",
+  "diceAnim",
+  "diceAnimRolls",
+  "diceAnimMs",
+  "sound",
+  "soundVolume",
+  "diceAnimStay",
+  "diceAnimBlock",
+  "karmicRolls",
+  "modsOffProp",
+  "macros",
+  "rollHistory",
+  "rollHistoryLimit",
+  "rollHistoryEnabled",
+  "critRanges",
+  "failOnOne",
+  "modifierSuffix",
+  "crossNote",
+  "conflictGuard",
+  "tableLayouts",
+  "tableLastType",
+  "schemaVersion",
+  "soundUi",
+  "soundDice",
+  "soundCrit",
+  "layoutVault",
+  "layoutVaultFolder",
+  "appVersion"
+]);
 function normalizeSettings(data, defaultLayout) {
   var _a, _b, _c;
   const s = defaultSettings();
@@ -1598,6 +1640,9 @@ function normalizeSettings(data, defaultLayout) {
     if (data.layoutVault === true) s.layoutVault = true;
     if (typeof data.layoutVaultFolder === "string" && data.layoutVaultFolder.trim())
       s.layoutVaultFolder = data.layoutVaultFolder.trim();
+    if (typeof data.appVersion === "string") s.appVersion = data.appVersion;
+    for (const k of Object.keys(data))
+      if (!HANDLED_KEYS.has(k)) s[k] = data[k];
   }
   for (const t of s.types) {
     const k = t.toLowerCase();
@@ -12914,6 +12959,10 @@ var ExtendedPropertiesPlugin = class extends import_obsidian37.Plugin {
     });
     const isFresh = !data || Object.keys(data).length === 0;
     if (runSchemaMigrations(this.settings).changed) migrated = true;
+    if (this.settings.appVersion !== this.manifest.version) {
+      this.settings.appVersion = this.manifest.version;
+      migrated = true;
+    }
     if (migrated) {
       if (!isFresh) await this.backupData(data);
       await this.saveSettings();

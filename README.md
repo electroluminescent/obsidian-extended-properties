@@ -220,6 +220,7 @@ Toggle **Flat sections** in Style Settings (or add the `ep-flat-sections` class 
 - Persisted data is plain YAML frontmatter, fully compatible with Obsidian and other tools.
 - Feature modules extend entries using open-ended field storage; disabling a module preserves its data (displayed as "Unavailable" stubs until the module is re-enabled).
 - Migrations are applied automatically for schema updates, via a versioned, idempotent runner; the pre-migration `data.json` is backed up first (last 5 kept).
+- Customizations carry across plugin versions: settings written by a newer version (or by a third-party module) are preserved rather than dropped on load, and any version change snapshots `data.json` so an upgrade can always be rolled back.
 
 ## Development
 

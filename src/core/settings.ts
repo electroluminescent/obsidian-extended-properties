@@ -65,6 +65,25 @@ export function defaultSettings(): EPSettings {
 }
 
 /**
+ * Every top-level settings key `normalizeSettings` reads and sanitizes
+ * explicitly. Any persisted key NOT in this set is carried over verbatim (see
+ * the end of `normalizeSettings`), so settings written by a newer plugin
+ * version — or top-level keys saved by a third-party module through the public
+ * API — survive a load → save round-trip instead of being silently dropped.
+ */
+const HANDLED_KEYS: ReadonlySet<string> = new Set([
+  "types", "layouts", "layout", "hideShown", "defaults", "manualHide",
+  "propMenu", "language", "stringOverrides", "features", "derivations",
+  "sourceAbbrs", "modDepth", "diceAnim", "diceAnimRolls", "diceAnimMs",
+  "sound", "soundVolume", "diceAnimStay", "diceAnimBlock", "karmicRolls",
+  "modsOffProp", "macros", "rollHistory", "rollHistoryLimit",
+  "rollHistoryEnabled", "critRanges", "failOnOne", "modifierSuffix",
+  "crossNote", "conflictGuard", "tableLayouts", "tableLastType",
+  "schemaVersion", "soundUi", "soundDice", "soundCrit", "layoutVault",
+  "layoutVaultFolder", "appVersion",
+]);
+
+/**
  * Merge persisted `data` (any historical shape, possibly null) into a valid
  * settings object.
  */
@@ -142,6 +161,12 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
     if (data.layoutVault === true) s.layoutVault = true;
     if (typeof data.layoutVaultFolder === "string" && data.layoutVaultFolder.trim())
       s.layoutVaultFolder = data.layoutVaultFolder.trim();
+    if (typeof data.appVersion === "string") s.appVersion = data.appVersion;
+    // Carry-over guard: preserve any keys we don't explicitly handle above
+    // (forward-compat settings from a newer version, or top-level keys written
+    // by a third-party module) so user customizations are never lost on load.
+    for (const k of Object.keys(data))
+      if (!HANDLED_KEYS.has(k)) (s as unknown as Record<string, unknown>)[k] = (data as Record<string, unknown>)[k];
   }
   for (const t of s.types) {
     const k = t.toLowerCase();

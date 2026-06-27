@@ -301,6 +301,12 @@ export interface EPSettings {
   soundCrit?: boolean;
   /** Settings schema version (roadmap D3); absent = pre-versioning. */
   schemaVersion?: number;
+  /**
+   * Plugin version that last wrote these settings. Used to take a one-off
+   * data.json backup on any version change (carry-over insurance), independent
+   * of the schema-version migration table.
+   */
+  appVersion?: string;
   /** Store layouts as vault files instead of only in data.json (D2; opt-in). */
   layoutVault?: boolean;
   /** Vault folder for layout files when `layoutVault` is on. */

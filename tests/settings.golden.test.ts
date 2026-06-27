@@ -39,4 +39,23 @@ describe("normalizeSettings", () => {
     const s = normalizeSettings({ types: [], layouts: {}, derivations: [] }, layout);
     expect(s.derivations).toEqual([]);
   });
+
+  it("preserves unknown / forward-compat keys and appVersion (carry-over)", () => {
+    const s = normalizeSettings(
+      {
+        types: [],
+        layouts: {},
+        appVersion: "9.9.9",
+        modDepth: "oops", // invalid → must fall back, not carry the bad value
+        futureSetting: { nested: 1 },
+        myModuleConfig: [1, 2, 3],
+      },
+      layout
+    ) as Record<string, unknown>;
+    expect(s.appVersion).toBe("9.9.9");
+    expect(s.futureSetting).toEqual({ nested: 1 });
+    expect(s.myModuleConfig).toEqual([1, 2, 3]);
+    // a handled-but-invalid value is sanitized to its default, never carried raw
+    expect(s.modDepth).toBe(8);
+  });
 });

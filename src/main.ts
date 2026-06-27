@@ -116,6 +116,13 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     // -- D3: versioned schema migration + pre-migration backup --------------
     const isFresh = !data || Object.keys(data as object).length === 0;
     if (runSchemaMigrations(this.settings).changed) migrated = true;
+    // Carry user customizations across plugin-version upgrades: stamp the
+    // running version and, on a real upgrade, snapshot data.json even when the
+    // schema is unchanged — so any release can be rolled back to its predecessor.
+    if (this.settings.appVersion !== this.manifest.version) {
+      this.settings.appVersion = this.manifest.version;
+      migrated = true;
+    }
     if (migrated) {
       // Snapshot data.json before persisting an upgrade (nothing to back up on a fresh vault).
       if (!isFresh) await this.backupData(data);
