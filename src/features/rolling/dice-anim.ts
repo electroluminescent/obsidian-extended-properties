@@ -30,8 +30,9 @@ import { diceIconId } from "../../ui/render/dice-icons";
 import { fmtMod } from "../../utils/misc";
 import { sfx } from "../../utils/sound";
 
-/** Visual cap — huge pools still roll, but only this many dice render. */
-const MAX_DICE_SHOWN = 12;
+/** Safety cap — every realistic roll renders all its dice (the row scrolls
+ * through them); only absurd pools are capped to bound the DOM. */
+const MAX_DICE_SHOWN = 200;
 /** Milliseconds between face cycles while tumbling. */
 const TICK_MS = 80;
 
@@ -370,7 +371,9 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
       dies[i].el.addClass("ep-settled");
       if (dropped) dies[i].el.addClass("ep-roll-drop");
       dies[i].num.setText(String(grp.faces[idx]));
-      conveyor(i); // slide the new die into view; older dice slide off the left
+      // Keep the next (still-tumbling) die parked at the right edge, so you
+      // watch each die roll there and the just-settled ones slide off the left.
+      conveyor(i + 1 < dies.length ? i + 1 : i);
     }
     if (dropped) {
       addCell(null, String(grp.faces[idx]), i18n.t("roll.partDrop"), "ep-roll-dropped");

@@ -503,11 +503,11 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 .ep-roll-label { font-weight: 700; }
 /* one clipped row; the track inside slides left as dice settle (see dice-anim.ts) */
 .ep-roll-dice { display: flex; overflow: hidden; position: relative; max-width: 420px; }
-.ep-roll-dice-track { display: flex; flex-wrap: nowrap; gap: 14px; margin: auto; perspective: 480px; transition: transform .35s cubic-bezier(.22, .61, .36, 1); will-change: transform; }
+.ep-roll-dice-track { display: flex; flex: 0 0 auto; flex-wrap: nowrap; gap: 14px; margin: auto; perspective: 480px; transition: transform .35s cubic-bezier(.22, .61, .36, 1); will-change: transform; }
 /* once anything has scrolled, fade dice out as they cross the left edge of the node */
 .ep-roll-dice.ep-overflow { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 32px, #000 100%); mask-image: linear-gradient(to right, transparent 0, #000 32px, #000 100%); }
 @media (prefers-reduced-motion: reduce) { .ep-roll-dice-track { transition: none; } }
-.ep-roll-die { position: relative; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; transform-style: preserve-3d; }
+.ep-roll-die { position: relative; flex: 0 0 auto; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; transform-style: preserve-3d; }
 .ep-roll-die-ico { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
 .ep-roll-die-ico svg { width: 64px; height: 64px; }
 .ep-roll-die-num { position: relative; font-weight: 800; font-size: 1.3em; font-variant-numeric: tabular-nums; }

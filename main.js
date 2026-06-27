@@ -10460,7 +10460,7 @@ function rollFace(sides, karmic) {
 
 // src/features/rolling/dice-anim.ts
 var import_obsidian31 = require("obsidian");
-var MAX_DICE_SHOWN = 12;
+var MAX_DICE_SHOWN = 200;
 var TICK_MS = 80;
 var layer = null;
 var summaryEl = null;
@@ -10720,7 +10720,7 @@ function playRollAnimation(job, i18n, done) {
       dies[i].el.addClass("ep-settled");
       if (dropped) dies[i].el.addClass("ep-roll-drop");
       dies[i].num.setText(String(grp.faces[idx]));
-      conveyor(i);
+      conveyor(i + 1 < dies.length ? i + 1 : i);
     }
     if (dropped) {
       addCell(null, String(grp.faces[idx]), i18n.t("roll.partDrop"), "ep-roll-dropped");
