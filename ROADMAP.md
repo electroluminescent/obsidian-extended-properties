@@ -1,10 +1,10 @@
 # Extended Properties — roadmap
 
-**Status: v3.1.0.** The original feature roadmap (milestones 1–6) is fully
-implemented, and the first forward-roadmap item — **L1 (history & safe sync)** —
-shipped in v3.1.0. This document is consolidated: it records what shipped —
-without the original per-feature planning notes or challenge analysis — and lays
-out the remaining forward-looking roadmap.
+**Status: v3.2.0.** The original feature roadmap (milestones 1–6) is fully
+implemented, and forward-roadmap items **L1 (history & safe sync, v3.1.0)** and
+**G2 (inline charts & sparklines, v3.2.0)** have shipped. This document is
+consolidated: it records what shipped — without the original per-feature planning
+notes or challenge analysis — and lays out the remaining forward-looking roadmap.
 
 Legend: ✅ done · ◑ partial · ○ planned.
 
@@ -72,6 +72,19 @@ encrypts a sensitive text property with AES-256-GCM under a session passphrase;
 the value is stored as a self-describing envelope, shown masked until unlocked,
 and a wrong passphrase fails closed — decryption is always non-destructive.
 
+### Visualization (v3.2.0) ✅
+
+G2 added lightweight charts. Pure SVG geometry (`utils/chart.ts`, unit-tested)
+feeds a DOM renderer (`ui/render/charts.ts`) that themes through `--ep-*` and is
+accessible (every chart is `role="img"` with an `aria-label` and a visually-hidden
+text fallback). Four inline tokens render in reading mode and Live Preview —
+`` `spark: a, b, c` ``, `` `bar: …` ``, `` `radar: STR, DEX, CON, INT, WIS, CHA` ``
+and `` `progress: HP / MaxHP` `` — and an `ep-chart` code block takes a small
+`type` / `props` / `max` / `title` config for a larger chart. All references
+resolve through the existing engine, so short forms, modifier suffixes and
+cross-note references work. *Deferred:* a chart cell in the type table view
+(needs per-column type config) remains a follow-up.
+
 ## Deprecations
 
 - **German locale (`de`) — removed in v2.41.** English-only; the locale
@@ -125,23 +138,13 @@ milestones. Nothing here is committed; it is a design backlog.
   executor (filter → sort → group) → render modes (table / list / cards) →
   debounced live refresh → reuse the cross-note kill-switch.
 
-#### G2 — Inline charts & sparklines ○
+#### G2 — Inline charts & sparklines ✅ (shipped in v3.2.0)
 
-- **What.** Lightweight visualizations of numeric / derived properties: an
-  `ep-chart` block, inline `spark:` / `bar:` chips, and a radar/hex chart for a
-  section of related numbers (e.g. the six ability scores). Optional chart cells
-  in the table view.
-- **Considerations.** Inline visuals are pure inline SVG (no dependency, themed
-  through `--ep-*`); only the block form needs a richer renderer. Everything reads
-  through the existing value resolver so cross-note and modifier references work.
-- **Barriers.** Bundle size if a chart library is added (plugins can't pull from a
-  CDN at runtime — keep it inline SVG, or vendor a minimal renderer); mobile
-  sizing; accessibility (every chart needs a table/text fallback and an
-  `aria-label`).
-- **Touchpoints.** New `src/utils/chart.ts` (pure SVG generators, unit-testable);
-  `src/features/inline/` (new tokens); `ui/table-view.ts` (chart cell).
-- **Steps.** Pure SVG sparkline/bar util + tests → inline tokens → section radar →
-  `ep-chart` block → table chart cell → a11y fallbacks.
+Delivered: pure SVG geometry + renderer, the `spark:` / `bar:` / `radar:` /
+`progress:` inline tokens (reading mode + Live Preview), and the `ep-chart` block
+— all themed by `--ep-*` and accessible (see the *Visualization* entry above).
+*Future extension:* a chart cell in the type table view, which needs per-column
+type configuration in `ui/table-view.ts`.
 
 ### Milestone 8 — Relationships & authoring
 
@@ -247,9 +250,9 @@ inline `prop:`/`val:` chips (the sidebar masks/reveals today).
 
 ### Suggested sequencing
 
-- **Milestone 7** first (G1, G2): highest visible value and built almost entirely
-  on what already exists (the index, the table cell renderers, the expression
-  engine).
+- **Milestone 7** (G1, G2): **G2 shipped in v3.2.0**; G1 (query blocks) remains —
+  highest visible value and built almost entirely on what already exists (the
+  index, the table cell renderers, the expression engine).
 - **Milestone 8** (H1, H2) depends on a solid index — pull N1's per-file dirty
   marking forward if target vaults are large.
 - **Milestone 9** (N1, M1, L1): trust and scale — **L1 shipped in v3.1.0**; N1

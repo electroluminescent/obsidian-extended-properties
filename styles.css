@@ -501,7 +501,12 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 .ep-roll-overlay.ep-closing { animation: ep-pop-out .15s ease forwards; pointer-events: none; }
 .ep-roll-box { background: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-radius: 12px; padding: 18px 28px; display: flex; flex-direction: column; align-items: center; gap: 12px; box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5); }
 .ep-roll-label { font-weight: 700; }
-.ep-roll-dice { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; max-width: 420px; perspective: 480px; }
+/* one clipped row; the track inside slides left as dice settle (see dice-anim.ts) */
+.ep-roll-dice { display: flex; overflow: hidden; position: relative; max-width: 420px; }
+.ep-roll-dice-track { display: flex; flex-wrap: nowrap; gap: 14px; margin: auto; perspective: 480px; transition: transform .35s cubic-bezier(.22, .61, .36, 1); will-change: transform; }
+/* once anything has scrolled, fade dice out as they cross the left edge of the node */
+.ep-roll-dice.ep-overflow { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 32px, #000 100%); mask-image: linear-gradient(to right, transparent 0, #000 32px, #000 100%); }
+@media (prefers-reduced-motion: reduce) { .ep-roll-dice-track { transition: none; } }
 .ep-roll-die { position: relative; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; transform-style: preserve-3d; }
 .ep-roll-die-ico { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
 .ep-roll-die-ico svg { width: 64px; height: 64px; }
@@ -754,6 +759,21 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 /* -- sensitive value encryption (L1) ---------------------------------------- */
 .ep-locked { opacity: 0.75; font-style: italic; }
 .ep-lock-badge { opacity: 0.6; font-size: 0.85em; }
+
+/* -- inline charts (G2) ----------------------------------------------------- */
+.ep-inline-chart { display: inline-flex; align-items: center; vertical-align: middle; line-height: 1; }
+.ep-inline-chart .ep-chart-svg { height: 1.15em; width: auto; }
+.ep-chart-svg { display: block; overflow: visible; }
+.ep-chart-line { stroke: var(--ep-accent-default, var(--text-accent)); stroke-width: 1.5; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.ep-chart-bar { fill: var(--ep-accent-default, var(--text-accent)); }
+.ep-chart-grid { stroke: var(--background-modifier-border); stroke-width: 0.75; fill: none; }
+.ep-chart-area { fill: var(--ep-accent-default, var(--text-accent)); fill-opacity: 0.25; stroke: var(--ep-accent-default, var(--text-accent)); stroke-width: 1.25; stroke-linejoin: round; }
+.ep-chart-track { fill: var(--background-modifier-border); }
+.ep-chart-fill { fill: var(--ep-accent-default, var(--text-accent)); }
+.ep-chart-err { color: var(--text-error); font-size: var(--font-ui-smaller); }
+.ep-chart-block { margin: 0.6em 0; }
+.ep-chart-block .ep-chart-svg { width: min(260px, 92%); height: auto; }
+.ep-chart-title { font-weight: 600; margin-bottom: 4px; }
 
 
 /* -- [[ note autocomplete --------------------------------------------------- */

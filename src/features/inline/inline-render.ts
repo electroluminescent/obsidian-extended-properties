@@ -35,6 +35,7 @@ import { fmtMod, fmtNum, getList, getNum } from "../../utils/misc";
 import { diceIconId } from "../../ui/render/dice-icons";
 import { openNumberInput, openTextInput } from "../../ui/components/inline-edit";
 import { renderLinkedText } from "../../ui/components/links";
+import { renderBars, renderProgress, renderRadar, renderSparkline } from "../../ui/render/charts";
 import { openRollMenu } from "../rolling/dice-ui";
 import type { RollMode, RollService } from "../rolling/roll-service";
 
@@ -72,13 +73,19 @@ export function processInline(el: HTMLElement, mdctx: MarkdownPostProcessorConte
   if (!(file instanceof TFile)) return;
   for (const code of codes) {
     if (code.closest("pre")) continue; // skip fenced code blocks
-    const m = /^(roll|prop|vals|val)(?:\(([^)]*)\))?:\s*(.+)$/i.exec((code.textContent ?? "").trim());
+    const m = /^(roll|prop|vals|val|spark|bar|radar|progress)(?:\(([^)]*)\))?:\s*(.+)$/i.exec(
+      (code.textContent ?? "").trim()
+    );
     if (!m) continue;
     const kind = m[1].toLowerCase();
     const opt = (m[2] ?? "").trim();
     const body = m[3].trim();
     if (kind === "roll") {
       code.replaceWith(makeRollChip(ctx, file, body, opt));
+    } else if (kind === "spark" || kind === "bar" || kind === "radar" || kind === "progress") {
+      const span = createSpan();
+      code.replaceWith(span);
+      mdctx.addChild(new ChartInline(span, ctx, file, kind, body));
     } else {
       const span = createSpan();
       code.replaceWith(span);
@@ -400,6 +407,143 @@ class ValsInline extends MarkdownRenderChild {
   private draw(): void {
     this.root.empty();
     this.root.appendChild(makeValsEl(this.ctx, this.file, this.body));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Inline charts (G2): `spark:` / `bar:` / `radar:` / `progress:` + `ep-chart`
+// ---------------------------------------------------------------------------
+
+type ChartKind = "spark" | "bar" | "radar" | "progress";
+
+interface ChartSpec {
+  kind: ChartKind;
+  /** Property references for spark / bar / radar. */
+  refs: string[];
+  /** Progress numerator reference. */
+  value?: string;
+  /** Max as a literal number or a property reference. */
+  max?: string;
+  /** Block title (`ep-chart` only). */
+  title?: string;
+}
+
+/** A max that may be a literal number or a property reference resolved on the note. */
+function resolveMax(max: string | undefined, resolve: (n: string) => number | undefined): number | undefined {
+  if (max === undefined || max === "") return undefined;
+  const n = Number(max);
+  return Number.isFinite(n) ? n : resolve(max);
+}
+
+/** Render a chart spec into `parent` (an inline chip or a block container). */
+function renderChartSpec(parent: HTMLElement, ctx: InlineCtx, file: TFile, spec: ChartSpec): void {
+  const t = ctx.i18n.t.bind(ctx.i18n);
+  const resolve = refResolver(ctx, file);
+  const err = (): void => void parent.createSpan({ cls: "ep-chart-err", text: t("inline.chartInvalid") });
+
+  if (spec.kind === "progress") {
+    const ref = spec.value ?? spec.refs[0] ?? "";
+    const value = resolve(ref);
+    const max = resolveMax(spec.max, resolve);
+    if (value === undefined || max === undefined || max <= 0) return err();
+    renderProgress(parent, value, max, { label: `${ref} ${fmtNum(value)} / ${fmtNum(max)}` });
+    return;
+  }
+
+  const valid = spec.refs.map((r) => ({ name: r, v: resolve(r) })).filter((p) => p.v !== undefined) as {
+    name: string;
+    v: number;
+  }[];
+  if (valid.length < (spec.kind === "radar" ? 3 : 2)) return err();
+  const values = valid.map((p) => p.v);
+  const labels = valid.map((p) => p.name);
+  const aria = t("inline.chartAria", {
+    kind: spec.kind,
+    data: labels.map((l, i) => `${l} ${fmtNum(values[i])}`).join(", "),
+  });
+  if (spec.kind === "spark") renderSparkline(parent, values, { aria });
+  else if (spec.kind === "bar") renderBars(parent, values, { aria });
+  else renderRadar(parent, values, labels, { aria, max: resolveMax(spec.max, resolve) });
+}
+
+/** Build an inline chart chip from a token kind + body. */
+export function makeChartEl(ctx: InlineCtx, file: TFile, kind: string, body: string): HTMLElement {
+  const chip = createSpan({ cls: "ep-inline-chart" });
+  let spec: ChartSpec;
+  if (kind === "progress") {
+    const [v, m] = body.split("/").map((s) => s.trim());
+    spec = { kind: "progress", refs: [], value: v, max: m };
+  } else {
+    spec = { kind: kind as ChartKind, refs: body.split(",").map((s) => s.trim()).filter(Boolean) };
+  }
+  renderChartSpec(chip, ctx, file, spec);
+  return chip;
+}
+
+/** Reading-mode inline chart (redraws when the note's values change). */
+class ChartInline extends MarkdownRenderChild {
+  constructor(public root: HTMLElement, private ctx: InlineCtx, private file: TFile, private kind: string, private body: string) {
+    super(root);
+  }
+  onload(): void {
+    this.draw();
+    this.registerEvent(
+      this.ctx.app.metadataCache.on("changed", (f) => {
+        if (f.path === this.file.path) this.draw();
+      })
+    );
+  }
+  private draw(): void {
+    this.root.empty();
+    this.root.appendChild(makeChartEl(this.ctx, this.file, this.kind, this.body));
+  }
+}
+
+const CHART_KINDS = new Set(["spark", "bar", "radar", "progress"]);
+
+/** Parse an `ep-chart` block body into a spec. */
+function parseChartConfig(src: string): ChartSpec {
+  const spec: ChartSpec = { kind: "bar", refs: [] };
+  for (const line of src.split("\n")) {
+    const m = /^(\w+)\s*:\s*(.+)$/.exec(line.trim());
+    if (!m) continue;
+    const k = m[1].toLowerCase();
+    const v = m[2].trim();
+    if (k === "type") spec.kind = (CHART_KINDS.has(v.toLowerCase()) ? v.toLowerCase() : "bar") as ChartKind;
+    else if (k === "props" || k === "properties") spec.refs = v.split(",").map((s) => s.trim()).filter(Boolean);
+    else if (k === "value") spec.value = v;
+    else if (k === "max" || k === "of") spec.max = v;
+    else if (k === "title") spec.title = v;
+  }
+  return spec;
+}
+
+/** Code-block processor for ```ep-chart. */
+export function renderChart(src: string, el: HTMLElement, mdctx: MarkdownPostProcessorContext, ctx: InlineCtx): void {
+  const file = ctx.app.vault.getAbstractFileByPath(mdctx.sourcePath);
+  if (!(file instanceof TFile)) return;
+  mdctx.addChild(new ChartBlock(el, ctx, file, src));
+}
+
+class ChartBlock extends MarkdownRenderChild {
+  constructor(public root: HTMLElement, private ctx: InlineCtx, private file: TFile, private src: string) {
+    super(root);
+  }
+  onload(): void {
+    this.draw();
+    this.registerEvent(
+      this.ctx.app.metadataCache.on("changed", (f) => {
+        if (f.path === this.file.path) this.draw();
+      })
+    );
+  }
+  private draw(): void {
+    this.root.empty();
+    this.root.addClass("ep-chart-block");
+    if (!enabled(this.ctx)) return;
+    const spec = parseChartConfig(this.src);
+    if (spec.title) this.root.createDiv({ cls: "ep-chart-title", text: spec.title });
+    renderChartSpec(this.root, this.ctx, this.file, spec);
   }
 }
 

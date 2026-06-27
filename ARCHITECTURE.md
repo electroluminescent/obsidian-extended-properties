@@ -27,7 +27,7 @@ Two principles run through the code:
 | `src/ui/` | The sidebar `ItemView` (`view.ts`), the type table view (`table-view.ts`), renderers (`render/*`), menus (`menus/*`), settings tab (`settings-tab.ts`), and reusable components (`components/*`, including the popup helpers and the `[[`-autocomplete `suggest.ts`). |
 | `src/features/` | Optional modules — `rolling/` (dice + history + macros), `dnd5e/` (character-sheet templates/presets), `inline/` (`roll:` / `prop:` / `val:` / `vals:` and the `ep-sheet` block). Each owns a `strings.json`. |
 | `src/i18n/` | The localization service plus JSON dictionaries loaded through thin typed shims (`locales/en.json`). |
-| `src/utils/` | Obsidian-free helpers: `dice.ts`, `dice-expr.ts`, colour math, formula parsing, `sound.ts`, `a11y.ts`. |
+| `src/utils/` | Obsidian-free helpers: `dice.ts`, `dice-expr.ts`, colour math, formula parsing, `sound.ts`, `a11y.ts`, chart geometry (`chart.ts`). |
 | `src/api.ts` | The frozen public surface (see below). |
 | `scripts/i18n-check.mjs` | Locale key-parity checker (CI + `npm run i18n`). |
 | `tests/` | Vitest specs over the pure modules + a golden settings-migration fixture. |

@@ -16,10 +16,10 @@ import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetTy
 import { RangeSetBuilder } from "@codemirror/state";
 import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import { editorInfoField, editorLivePreviewField, Menu, TFile } from "obsidian";
-import { InlineCtx, makeRollChip, makeValEl, renderPropValue } from "./inline-render";
+import { InlineCtx, makeChartEl, makeRollChip, makeValEl, renderPropValue } from "./inline-render";
 import { makeValsEl } from "./inline-view";
 
-const PREFIX = /^(roll|prop|vals|val)(?:\(([^)]*)\))?:\s*(.+)$/i;
+const PREFIX = /^(roll|prop|vals|val|spark|bar|radar|progress)(?:\(([^)]*)\))?:\s*(.+)$/i;
 
 /** Expand an inline-code content range to include its backtick fences. */
 function backtickSpan(doc: { sliceString(a: number, b: number): string; length: number }, from: number, to: number) {
@@ -66,6 +66,8 @@ class InlineWidget extends WidgetType {
       if (this.kind === "roll") dom = makeRollChip(this.ctx, this.file, this.body, this.opt, reveal);
       else if (this.kind === "vals") dom = makeValsEl(this.ctx, this.file, this.body, reveal);
       else if (this.kind === "val") dom = makeValEl(this.ctx, this.file, this.body, reveal);
+      else if (this.kind === "spark" || this.kind === "bar" || this.kind === "radar" || this.kind === "progress")
+        dom = makeChartEl(this.ctx, this.file, this.kind, this.body);
       else {
         const wrap = createSpan({ cls: "ep-inline-prop" });
         wrap.appendChild(renderPropValue(this.ctx, this.file, this.body));

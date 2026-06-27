@@ -8,5 +8,7 @@
   "inline.editValue": "Edit {prop} value",
   "inline.empty": "—",
   "inline.sheetNoType": "ep-sheet: this note has no matching type.",
-  "inline.sheetEmpty": "ep-sheet: nothing to show."
+  "inline.sheetEmpty": "ep-sheet: nothing to show.",
+  "inline.chartInvalid": "Not enough values to chart.",
+  "inline.chartAria": "{kind} chart: {data}"
 }

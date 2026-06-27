@@ -10595,18 +10595,27 @@ function playRollAnimation(job, i18n, done) {
   const box = cardsHost(job.block).createDiv({ cls: "ep-roll-box" });
   box.createDiv({ cls: "ep-roll-label", text: job.label });
   const diceRow = box.createDiv({ cls: "ep-roll-dice" });
+  const diceTrack = diceRow.createDiv({ cls: "ep-roll-dice-track" });
   const chain = box.createDiv({ cls: "ep-roll-chain" });
   const flat = [];
   for (const grp of job.groups) grp.faces.forEach((_, idx) => flat.push({ grp, idx }));
   const shown = Math.min(flat.length, MAX_DICE_SHOWN);
   const dies = [];
   for (let i = 0; i < shown; i++) {
-    const el = diceRow.createDiv({ cls: "ep-roll-die ep-rolling" });
+    const el = diceTrack.createDiv({ cls: "ep-roll-die ep-rolling" });
     const ic = el.createDiv({ cls: "ep-roll-die-ico" });
     (0, import_obsidian31.setIcon)(ic, diceIconId(flat[i].grp.sides));
     const num = el.createDiv({ cls: "ep-roll-die-num" });
     dies.push({ el, num, sides: flat[i].grp.sides });
   }
+  const conveyor = (i) => {
+    if (i < 0 || i >= dies.length) return;
+    const cw = diceRow.clientWidth;
+    const die = dies[i].el;
+    const offset = Math.max(0, die.offsetLeft + die.offsetWidth - cw);
+    diceRow.toggleClass("ep-overflow", offset > 0);
+    diceTrack.style.transform = offset > 0 ? `translateX(${-offset}px)` : "";
+  };
   const timers = [];
   let interval = 0;
   let pinned = job.stay;
@@ -10711,6 +10720,7 @@ function playRollAnimation(job, i18n, done) {
       dies[i].el.addClass("ep-settled");
       if (dropped) dies[i].el.addClass("ep-roll-drop");
       dies[i].num.setText(String(grp.faces[idx]));
+      conveyor(i);
     }
     if (dropped) {
       addCell(null, String(grp.faces[idx]), i18n.t("roll.partDrop"), "ep-roll-dropped");
@@ -12755,6 +12765,116 @@ function makeValsEl(ctx2, file, body, onEditSource) {
   return wrap;
 }
 
+// src/utils/chart.ts
+function extent(values) {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const v of values) {
+    if (Number.isFinite(v)) {
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+  }
+  if (!Number.isFinite(min)) return { min: 0, max: 1 };
+  if (min === max) return { min: min - 1, max: max + 1 };
+  return { min, max };
+}
+function sparklinePath(values, w, h, pad = 1) {
+  if (values.length === 0) return "";
+  const { min, max } = extent(values);
+  const n = values.length;
+  const span = max - min;
+  const x = (i) => n === 1 ? w / 2 : pad + i * (w - 2 * pad) / (n - 1);
+  const y = (v) => h - pad - (v - min) / span * (h - 2 * pad);
+  let d = "";
+  values.forEach((v, i) => {
+    d += (i === 0 ? "M" : "L") + x(i).toFixed(2) + " " + y(v).toFixed(2) + (i < n - 1 ? " " : "");
+  });
+  return d;
+}
+function barLayout(values, w, h, gap = 1) {
+  const n = values.length;
+  if (n === 0) return [];
+  const peak = Math.max(0, ...values.map((v) => Number.isFinite(v) ? v : 0));
+  const base = peak <= 0 ? 1 : peak;
+  const bw = Math.max(0, (w - gap * (n - 1)) / n);
+  return values.map((v, i) => {
+    const bh = Math.max(0, Math.max(Number.isFinite(v) ? v : 0, 0) / base * h);
+    return { x: i * (bw + gap), y: h - bh, w: bw, h: bh };
+  });
+}
+function radarPoints(values, max, cx, cy, r) {
+  const n = values.length;
+  return values.map((v, i) => {
+    const ang = -Math.PI / 2 + i * 2 * Math.PI / n;
+    const frac = max > 0 && Number.isFinite(v) ? Math.max(0, Math.min(1, v / max)) : 0;
+    return { x: cx + frac * r * Math.cos(ang), y: cy + frac * r * Math.sin(ang) };
+  });
+}
+function ringPoints(n, cx, cy, r) {
+  return radarPoints(new Array(n).fill(1), 1, cx, cy, r);
+}
+function pointsAttr(pts) {
+  return pts.map((p) => p.x.toFixed(2) + "," + p.y.toFixed(2)).join(" ");
+}
+function clampFrac(value, max) {
+  if (!(max > 0) || !Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(1, value / max));
+}
+
+// src/ui/render/charts.ts
+var NS = "http://www.w3.org/2000/svg";
+function svgEl(tag, attrs) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, String(attrs[k]));
+  return e;
+}
+function frame(parent, w, h, aria) {
+  const svg = svgEl("svg", {
+    viewBox: `0 0 ${w} ${h}`,
+    class: "ep-chart-svg",
+    role: "img",
+    "aria-label": aria,
+    preserveAspectRatio: "xMidYMid meet"
+  });
+  parent.appendChild(svg);
+  parent.createSpan({ cls: "ep-sr-only", text: aria });
+  return svg;
+}
+function renderSparkline(parent, values, opts) {
+  const w = 64;
+  const h = 16;
+  const svg = frame(parent, w, h, opts.aria);
+  svg.appendChild(svgEl("path", { d: sparklinePath(values, w, h, 2), class: "ep-chart-line", fill: "none" }));
+}
+function renderBars(parent, values, opts) {
+  const w = Math.max(24, values.length * 8);
+  const h = 16;
+  const svg = frame(parent, w, h, opts.aria);
+  for (const r of barLayout(values, w, h, 1.5))
+    svg.appendChild(svgEl("rect", { x: r.x, y: r.y, width: r.w, height: r.h, rx: 1, class: "ep-chart-bar" }));
+}
+function renderRadar(parent, values, _labels, opts) {
+  const s = 64;
+  const c = s / 2;
+  const r = 26;
+  const max = opts.max && opts.max > 0 ? opts.max : Math.max(1, ...values);
+  const svg = frame(parent, s, s, opts.aria);
+  const ring = ringPoints(values.length, c, c, r);
+  svg.appendChild(svgEl("polygon", { points: pointsAttr(ring), class: "ep-chart-grid", fill: "none" }));
+  for (const p of ring) svg.appendChild(svgEl("line", { x1: c, y1: c, x2: p.x, y2: p.y, class: "ep-chart-grid" }));
+  svg.appendChild(svgEl("polygon", { points: pointsAttr(radarPoints(values, max, c, c, r)), class: "ep-chart-area" }));
+}
+function renderProgress(parent, value, max, opts) {
+  const w = 64;
+  const h = 10;
+  const svg = frame(parent, w, h, opts.label);
+  svg.appendChild(svgEl("rect", { x: 0, y: 0, width: w, height: h, rx: h / 2, class: "ep-chart-track" }));
+  const fw = clampFrac(value, max) * w;
+  if (fw > 0)
+    svg.appendChild(svgEl("rect", { x: 0, y: 0, width: Math.max(fw, h / 2), height: h, rx: h / 2, class: "ep-chart-fill" }));
+}
+
 // src/features/inline/inline-render.ts
 var enabled2 = (ctx2) => ctx2.settings.features["inline"] !== false;
 function processInline(el, mdctx, ctx2) {
@@ -12766,13 +12886,19 @@ function processInline(el, mdctx, ctx2) {
   if (!(file instanceof import_obsidian38.TFile)) return;
   for (const code of codes) {
     if (code.closest("pre")) continue;
-    const m = /^(roll|prop|vals|val)(?:\(([^)]*)\))?:\s*(.+)$/i.exec(((_a = code.textContent) != null ? _a : "").trim());
+    const m = /^(roll|prop|vals|val|spark|bar|radar|progress)(?:\(([^)]*)\))?:\s*(.+)$/i.exec(
+      ((_a = code.textContent) != null ? _a : "").trim()
+    );
     if (!m) continue;
     const kind = m[1].toLowerCase();
     const opt = ((_b = m[2]) != null ? _b : "").trim();
     const body = m[3].trim();
     if (kind === "roll") {
       code.replaceWith(makeRollChip(ctx2, file, body, opt));
+    } else if (kind === "spark" || kind === "bar" || kind === "radar" || kind === "progress") {
+      const span = createSpan();
+      code.replaceWith(span);
+      mdctx.addChild(new ChartInline(span, ctx2, file, kind, body));
     } else {
       const span = createSpan();
       code.replaceWith(span);
@@ -13054,6 +13180,116 @@ var ValsInline = class extends import_obsidian38.MarkdownRenderChild {
     this.root.appendChild(makeValsEl(this.ctx, this.file, this.body));
   }
 };
+function resolveMax(max, resolve) {
+  if (max === void 0 || max === "") return void 0;
+  const n = Number(max);
+  return Number.isFinite(n) ? n : resolve(max);
+}
+function renderChartSpec(parent, ctx2, file, spec) {
+  var _a, _b;
+  const t = ctx2.i18n.t.bind(ctx2.i18n);
+  const resolve = refResolver(ctx2, file);
+  const err = () => void parent.createSpan({ cls: "ep-chart-err", text: t("inline.chartInvalid") });
+  if (spec.kind === "progress") {
+    const ref = (_b = (_a = spec.value) != null ? _a : spec.refs[0]) != null ? _b : "";
+    const value = resolve(ref);
+    const max = resolveMax(spec.max, resolve);
+    if (value === void 0 || max === void 0 || max <= 0) return err();
+    renderProgress(parent, value, max, { label: `${ref} ${fmtNum(value)} / ${fmtNum(max)}` });
+    return;
+  }
+  const valid = spec.refs.map((r) => ({ name: r, v: resolve(r) })).filter((p) => p.v !== void 0);
+  if (valid.length < (spec.kind === "radar" ? 3 : 2)) return err();
+  const values = valid.map((p) => p.v);
+  const labels = valid.map((p) => p.name);
+  const aria = t("inline.chartAria", {
+    kind: spec.kind,
+    data: labels.map((l, i) => `${l} ${fmtNum(values[i])}`).join(", ")
+  });
+  if (spec.kind === "spark") renderSparkline(parent, values, { aria });
+  else if (spec.kind === "bar") renderBars(parent, values, { aria });
+  else renderRadar(parent, values, labels, { aria, max: resolveMax(spec.max, resolve) });
+}
+function makeChartEl(ctx2, file, kind, body) {
+  const chip = createSpan({ cls: "ep-inline-chart" });
+  let spec;
+  if (kind === "progress") {
+    const [v, m] = body.split("/").map((s) => s.trim());
+    spec = { kind: "progress", refs: [], value: v, max: m };
+  } else {
+    spec = { kind, refs: body.split(",").map((s) => s.trim()).filter(Boolean) };
+  }
+  renderChartSpec(chip, ctx2, file, spec);
+  return chip;
+}
+var ChartInline = class extends import_obsidian38.MarkdownRenderChild {
+  constructor(root, ctx2, file, kind, body) {
+    super(root);
+    this.root = root;
+    this.ctx = ctx2;
+    this.file = file;
+    this.kind = kind;
+    this.body = body;
+  }
+  onload() {
+    this.draw();
+    this.registerEvent(
+      this.ctx.app.metadataCache.on("changed", (f) => {
+        if (f.path === this.file.path) this.draw();
+      })
+    );
+  }
+  draw() {
+    this.root.empty();
+    this.root.appendChild(makeChartEl(this.ctx, this.file, this.kind, this.body));
+  }
+};
+var CHART_KINDS = /* @__PURE__ */ new Set(["spark", "bar", "radar", "progress"]);
+function parseChartConfig(src) {
+  const spec = { kind: "bar", refs: [] };
+  for (const line of src.split("\n")) {
+    const m = /^(\w+)\s*:\s*(.+)$/.exec(line.trim());
+    if (!m) continue;
+    const k = m[1].toLowerCase();
+    const v = m[2].trim();
+    if (k === "type") spec.kind = CHART_KINDS.has(v.toLowerCase()) ? v.toLowerCase() : "bar";
+    else if (k === "props" || k === "properties") spec.refs = v.split(",").map((s) => s.trim()).filter(Boolean);
+    else if (k === "value") spec.value = v;
+    else if (k === "max" || k === "of") spec.max = v;
+    else if (k === "title") spec.title = v;
+  }
+  return spec;
+}
+function renderChart(src, el, mdctx, ctx2) {
+  const file = ctx2.app.vault.getAbstractFileByPath(mdctx.sourcePath);
+  if (!(file instanceof import_obsidian38.TFile)) return;
+  mdctx.addChild(new ChartBlock(el, ctx2, file, src));
+}
+var ChartBlock = class extends import_obsidian38.MarkdownRenderChild {
+  constructor(root, ctx2, file, src) {
+    super(root);
+    this.root = root;
+    this.ctx = ctx2;
+    this.file = file;
+    this.src = src;
+  }
+  onload() {
+    this.draw();
+    this.registerEvent(
+      this.ctx.app.metadataCache.on("changed", (f) => {
+        if (f.path === this.file.path) this.draw();
+      })
+    );
+  }
+  draw() {
+    this.root.empty();
+    this.root.addClass("ep-chart-block");
+    if (!enabled2(this.ctx)) return;
+    const spec = parseChartConfig(this.src);
+    if (spec.title) this.root.createDiv({ cls: "ep-chart-title", text: spec.title });
+    renderChartSpec(this.root, this.ctx, this.file, spec);
+  }
+};
 function buildEnv(ctx2, file, layout) {
   const raw = ctx2.facade.raw(file);
   const note = {
@@ -13170,7 +13406,7 @@ var import_view = require("@codemirror/view");
 var import_state = require("@codemirror/state");
 var import_language = require("@codemirror/language");
 var import_obsidian39 = require("obsidian");
-var PREFIX3 = /^(roll|prop|vals|val)(?:\(([^)]*)\))?:\s*(.+)$/i;
+var PREFIX3 = /^(roll|prop|vals|val|spark|bar|radar|progress)(?:\(([^)]*)\))?:\s*(.+)$/i;
 function backtickSpan(doc, from, to) {
   let s = from;
   while (s > 0 && doc.sliceString(s - 1, s) === "`") s--;
@@ -13209,6 +13445,8 @@ var InlineWidget = class extends import_view.WidgetType {
       if (this.kind === "roll") dom = makeRollChip(this.ctx, this.file, this.body, this.opt, reveal);
       else if (this.kind === "vals") dom = makeValsEl(this.ctx, this.file, this.body, reveal);
       else if (this.kind === "val") dom = makeValEl(this.ctx, this.file, this.body, reveal);
+      else if (this.kind === "spark" || this.kind === "bar" || this.kind === "radar" || this.kind === "progress")
+        dom = makeChartEl(this.ctx, this.file, this.kind, this.body);
       else {
         const wrap = createSpan({ cls: "ep-inline-prop" });
         wrap.appendChild(renderPropValue(this.ctx, this.file, this.body));
@@ -13310,7 +13548,9 @@ var strings_default3 = {
   "inline.editValue": "Edit {prop} value",
   "inline.empty": "\u2014",
   "inline.sheetNoType": "ep-sheet: this note has no matching type.",
-  "inline.sheetEmpty": "ep-sheet: nothing to show."
+  "inline.sheetEmpty": "ep-sheet: nothing to show.",
+  "inline.chartInvalid": "Not enough values to chart.",
+  "inline.chartAria": "{kind} chart: {data}"
 };
 
 // src/features/inline/strings.ts
@@ -13328,6 +13568,7 @@ var inlineModule = {
 function registerInline(plugin, ctx2) {
   plugin.registerMarkdownPostProcessor((el, mdctx) => processInline(el, mdctx, ctx2));
   plugin.registerMarkdownCodeBlockProcessor("ep-sheet", (src, el, mdctx) => renderSheet(src, el, mdctx, ctx2));
+  plugin.registerMarkdownCodeBlockProcessor("ep-chart", (src, el, mdctx) => renderChart(src, el, mdctx, ctx2));
   plugin.registerEditorExtension(inlineLivePreview(ctx2));
 }
 

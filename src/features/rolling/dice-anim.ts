@@ -222,6 +222,10 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
   const box = cardsHost(job.block).createDiv({ cls: "ep-roll-box" });
   box.createDiv({ cls: "ep-roll-label", text: job.label });
   const diceRow = box.createDiv({ cls: "ep-roll-dice" });
+  // Dice live on a sliding track inside the clipped row: a single line that
+  // scrolls left as new dice settle, so older ones slide off the (masked) left
+  // edge instead of wrapping onto a second row.
+  const diceTrack = diceRow.createDiv({ cls: "ep-roll-dice-track" });
   const chain = box.createDiv({ cls: "ep-roll-chain" });
 
   // Flatten the groups into one die sequence (each die keeps its group).
@@ -230,12 +234,27 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
   const shown = Math.min(flat.length, MAX_DICE_SHOWN);
   const dies: { el: HTMLElement; num: HTMLElement; sides: number }[] = [];
   for (let i = 0; i < shown; i++) {
-    const el = diceRow.createDiv({ cls: "ep-roll-die ep-rolling" });
+    const el = diceTrack.createDiv({ cls: "ep-roll-die ep-rolling" });
     const ic = el.createDiv({ cls: "ep-roll-die-ico" });
     setIcon(ic, diceIconId(flat[i].grp.sides));
     const num = el.createDiv({ cls: "ep-roll-die-num" });
     dies.push({ el, num, sides: flat[i].grp.sides });
   }
+
+  /**
+   * Single-row conveyor: slide the track so die `i`'s right edge sits at the
+   * row's right edge. Once anything has scrolled (offset > 0) the left-edge
+   * mask turns on, so dice crossing it fade out as the (animated) translate
+   * carries them off the node. When everything fits, the track stays centered.
+   */
+  const conveyor = (i: number): void => {
+    if (i < 0 || i >= dies.length) return;
+    const cw = diceRow.clientWidth;
+    const die = dies[i].el;
+    const offset = Math.max(0, die.offsetLeft + die.offsetWidth - cw);
+    diceRow.toggleClass("ep-overflow", offset > 0);
+    diceTrack.style.transform = offset > 0 ? `translateX(${-offset}px)` : "";
+  };
 
   const timers: number[] = [];
   let interval = 0;
@@ -351,6 +370,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
       dies[i].el.addClass("ep-settled");
       if (dropped) dies[i].el.addClass("ep-roll-drop");
       dies[i].num.setText(String(grp.faces[idx]));
+      conveyor(i); // slide the new die into view; older dice slide off the left
     }
     if (dropped) {
       addCell(null, String(grp.faces[idx]), i18n.t("roll.partDrop"), "ep-roll-dropped");

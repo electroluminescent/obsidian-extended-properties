@@ -9,7 +9,7 @@
 
 import type { Plugin } from "obsidian";
 import type { FeatureContext, FeatureModule } from "../../core/registry";
-import { InlineCtx, processInline, renderSheet } from "./inline-render";
+import { InlineCtx, processInline, renderChart, renderSheet } from "./inline-render";
 import { inlineLivePreview } from "./live-preview";
 import { inlineEn } from "./strings";
 
@@ -27,5 +27,6 @@ export const inlineModule: FeatureModule = {
 export function registerInline(plugin: Plugin, ctx: InlineCtx): void {
   plugin.registerMarkdownPostProcessor((el, mdctx) => processInline(el, mdctx, ctx));
   plugin.registerMarkdownCodeBlockProcessor("ep-sheet", (src, el, mdctx) => renderSheet(src, el, mdctx, ctx));
+  plugin.registerMarkdownCodeBlockProcessor("ep-chart", (src, el, mdctx) => renderChart(src, el, mdctx, ctx));
   plugin.registerEditorExtension(inlineLivePreview(ctx));
 }
