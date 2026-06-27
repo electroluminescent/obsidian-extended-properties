@@ -9,6 +9,7 @@
 import { App, Notice, TFile } from "obsidian";
 import type { I18n } from "../i18n/i18n";
 import { getList, getNum, getStr } from "../utils/misc";
+import { conflictingKeys } from "./merge";
 
 /** How long after our own write a metadata event counts as an echo (ms). */
 const ECHO_WINDOW_MS = 600;
@@ -25,12 +26,24 @@ const CONFLICT_EPS_MS = 400;
  * another pane) while a queued frontmatter write was still pending. Built with
  * plain DOM so it needs no Obsidian element helpers.
  */
-function writeConflictNotice(i18n: I18n, fileName: string, onKeepMine: () => void, onTakeTheirs: () => void): void {
+function writeConflictNotice(
+  i18n: I18n,
+  fileName: string,
+  onKeepMine: () => void,
+  onTakeTheirs: () => void,
+  conflictKeys: string[] = []
+): void {
   const frag = document.createDocumentFragment();
   const msg = document.createElement("div");
   msg.className = "ep-conflict-msg";
   msg.textContent = i18n.t("conflict.message", { note: fileName });
   frag.appendChild(msg);
+  if (conflictKeys.length) {
+    const keys = document.createElement("div");
+    keys.className = "ep-conflict-keys";
+    keys.textContent = i18n.t("conflict.keys", { keys: conflictKeys.join(", ") });
+    frag.appendChild(keys);
+  }
   const row = document.createElement("div");
   row.className = "ep-conflict-actions";
   const mine = document.createElement("button");
@@ -81,6 +94,8 @@ export class NoteModel {
   private pendingKeys = new Map<string, Set<string>>();
   private writeTimers = new Map<string, number>();
   private batchBase = new Map<string, number>();
+  /** Frontmatter snapshot when each batch began — the ancestor for 3-way merge. */
+  private batchBaseFm = new Map<string, Record<string, unknown>>();
   private batchStart = new Map<string, number>();
   private conflictPaths = new Set<string>();
 
@@ -157,6 +172,7 @@ export class NoteModel {
       keys = new Set();
       this.pendingKeys.set(path, keys);
       this.batchBase.set(path, file.stat?.mtime ?? 0);
+      this.batchBaseFm.set(path, { ...((this.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown>) ?? {}) });
       this.batchStart.set(path, Date.now());
     }
     keys.add(key);
@@ -183,7 +199,19 @@ export class NoteModel {
     const guard = this.host.conflictGuard ? this.host.conflictGuard() : true;
     // The note changed on disk after our batch began, and it isn't our own echo.
     if (guard && base && cur - base > CONFLICT_EPS_MS && !this.isEcho(file)) {
-      this.promptConflict(file);
+      // Three-way merge: only the keys both sides changed differently are real
+      // conflicts. If none, write our keys onto their file — their other edits
+      // are preserved because we never touch keys we didn't change.
+      const theirs = (this.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown>) ?? {};
+      const baseFm = this.batchBaseFm.get(path) ?? {};
+      const conflicts = conflictingKeys(baseFm, theirs, this.raw, [...keys]);
+      if (conflicts.length === 0) {
+        const n = keys.size;
+        await this.applyWrites(file, [...keys]);
+        new Notice(this.i18n.t("conflict.merged", { note: file.basename, n: String(n) }));
+        return;
+      }
+      this.promptConflict(file, conflicts);
       return; // keys retained; the prompt decides
     }
     await this.applyWrites(file, [...keys]);
@@ -206,7 +234,7 @@ export class NoteModel {
     }
   }
 
-  private promptConflict(file: TFile): void {
+  private promptConflict(file: TFile, conflicts: string[] = []): void {
     const path = file.path;
     if (this.conflictPaths.has(path)) return;
     this.conflictPaths.add(path);
@@ -227,7 +255,8 @@ export class NoteModel {
         const af = this.app.vault.getAbstractFileByPath(path);
         if (af instanceof TFile) this.load(af);
         this.host.onFullChange();
-      }
+      },
+      conflicts
     );
   }
 
@@ -253,6 +282,7 @@ export class NoteModel {
     this.writeTimers.delete(path);
     this.pendingKeys.delete(path);
     this.batchBase.delete(path);
+    this.batchBaseFm.delete(path);
     this.batchStart.delete(path);
   }
 
@@ -310,6 +340,8 @@ export class NoteFacade {
   private pending = new Map<string, Map<string, unknown>>();
   /** File mtime captured when each pending batch began (conflict baseline). */
   private bases = new Map<string, number>();
+  /** Frontmatter snapshot when each batch began — the ancestor for 3-way merge. */
+  private baseFm = new Map<string, Record<string, unknown>>();
   /** When we last wrote each file, to ignore our own echo (ms). */
   private lastWriteAt = new Map<string, number>();
   /** Paths with an open conflict prompt (auto-flush suspended). */
@@ -347,6 +379,7 @@ export class NoteFacade {
       m = new Map();
       this.pending.set(file.path, m);
       this.bases.set(file.path, file.stat?.mtime ?? 0);
+      this.baseFm.set(file.path, { ...((this.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown>) ?? {}) });
     }
     m.set(key, value);
     if (this.conflicts.has(file.path)) return; // suspended until the user resolves
@@ -361,6 +394,7 @@ export class NoteFacade {
     if (!m || m.size === 0) {
       this.pending.delete(file.path);
       this.bases.delete(file.path);
+      this.baseFm.delete(file.path);
       return;
     }
     const base = this.bases.get(file.path) ?? 0;
@@ -368,6 +402,19 @@ export class NoteFacade {
     const guard = this.guard ? this.guard() : true;
     const echoed = Date.now() - (this.lastWriteAt.get(file.path) ?? 0) < ECHO_WINDOW_MS;
     if (guard && base && cur - base > CONFLICT_EPS_MS && !echoed) {
+      // Three-way merge (see NoteModel.flushFile): auto-merge unless both sides
+      // changed the same key differently.
+      const theirs = (this.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown>) ?? {};
+      const baseFm = this.baseFm.get(file.path) ?? {};
+      const mine: Record<string, unknown> = {};
+      for (const [k, v] of m) mine[k] = v;
+      const conflicts = conflictingKeys(baseFm, theirs, mine, [...m.keys()]);
+      if (conflicts.length === 0) {
+        const n = m.size;
+        this.write(file);
+        new Notice(this.i18n.t("conflict.merged", { note: file.basename, n: String(n) }));
+        return;
+      }
       this.conflicts.add(file.path);
       writeConflictNotice(
         this.i18n,
@@ -380,7 +427,9 @@ export class NoteFacade {
           this.conflicts.delete(file.path);
           this.pending.delete(file.path);
           this.bases.delete(file.path);
-        }
+          this.baseFm.delete(file.path);
+        },
+        conflicts
       );
       return;
     }
@@ -391,6 +440,7 @@ export class NoteFacade {
     const m = this.pending.get(file.path);
     if (!m) return;
     this.pending.delete(file.path);
+    this.baseFm.delete(file.path);
     this.lastWriteAt.set(file.path, Date.now());
     this.bases.set(file.path, file.stat?.mtime ?? 0);
     this.app.fileManager

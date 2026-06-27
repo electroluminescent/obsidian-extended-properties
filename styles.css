@@ -749,6 +749,11 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-conflict-msg { margin-bottom: 8px; }
 .ep-conflict-actions { display: flex; gap: 8px; }
 .ep-conflict-actions button { cursor: pointer; }
+.ep-conflict-keys { margin: 4px 0 8px; font-size: var(--font-ui-smaller); opacity: 0.8; }
+
+/* -- sensitive value encryption (L1) ---------------------------------------- */
+.ep-locked { opacity: 0.75; font-style: italic; }
+.ep-lock-badge { opacity: 0.6; font-size: 0.85em; }
 
 
 /* -- [[ note autocomplete --------------------------------------------------- */

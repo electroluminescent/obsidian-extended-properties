@@ -23,7 +23,7 @@ Two principles run through the code:
 
 | Path | Responsibility |
 | --- | --- |
-| `src/core/` | Data model (`model.ts`), registries (`registry.ts`), the influence engine (`influences.ts`), expression engine (`expr.ts`), validation (`validate.ts`), export/import (`transfer.ts`), note I/O (`note-model.ts`), vault-file layouts (`layout-store.ts`), settings normalize + migrations (`settings.ts`). No UI, no feature knowledge. |
+| `src/core/` | Data model (`model.ts`), registries (`registry.ts`), the influence engine (`influences.ts`), expression engine (`expr.ts`), validation (`validate.ts`), export/import (`transfer.ts`), note I/O (`note-model.ts`), three-way merge (`merge.ts`), vault-file layouts (`layout-store.ts`), config snapshots (`snapshot-store.ts`), value encryption (`secure.ts`), settings normalize + migrations (`settings.ts`). No UI, no feature knowledge. |
 | `src/ui/` | The sidebar `ItemView` (`view.ts`), the type table view (`table-view.ts`), renderers (`render/*`), menus (`menus/*`), settings tab (`settings-tab.ts`), and reusable components (`components/*`, including the popup helpers and the `[[`-autocomplete `suggest.ts`). |
 | `src/features/` | Optional modules — `rolling/` (dice + history + macros), `dnd5e/` (character-sheet templates/presets), `inline/` (`roll:` / `prop:` / `val:` / `vals:` and the `ep-sheet` block). Each owns a `strings.json`. |
 | `src/i18n/` | The localization service plus JSON dictionaries loaded through thin typed shims (`locales/en.json`). |
@@ -83,6 +83,18 @@ render and **win**, while `data.json` keeps a backup copy — so a sync conflict
 an ordinary file conflict, not a silent `data.json` overwrite. A debounced,
 echo-suppressed vault watcher reloads on external edits and skips a corrupt file
 with a notice rather than failing the plugin.
+
+The conflict path is a **field-level three-way merge** (`core/merge.ts`, pure and
+tested): each batch snapshots the ancestor frontmatter, so when the write lands
+against an externally-changed file only the keys both sides changed *differently*
+are real conflicts — everything else merges automatically and the prompt is the
+fallback, not the default. `core/snapshot-store.ts` writes timestamped
+configuration snapshots (types, layouts, derivations, settings) to a `snapshots/`
+folder for rollback, and `core/secure.ts` provides opt-in AES-256-GCM encryption
+of sensitive values: a pure crypto core (envelope + PBKDF2 + GCM, unit-tested
+under Node's Web Crypto) plus a session `SecretStore` that holds the passphrase
+in memory and caches decrypted values for synchronous, masked-until-unlocked
+display. Decryption always fails closed, so it can never corrupt a value.
 
 ## Settings, migrations & i18n
 

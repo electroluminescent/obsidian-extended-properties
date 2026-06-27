@@ -80,7 +80,7 @@ const HANDLED_KEYS: ReadonlySet<string> = new Set([
   "rollHistoryEnabled", "critRanges", "failOnOne", "modifierSuffix",
   "crossNote", "conflictGuard", "tableLayouts", "tableLastType",
   "schemaVersion", "soundUi", "soundDice", "soundCrit", "layoutVault",
-  "layoutVaultFolder", "appVersion",
+  "layoutVaultFolder", "appVersion", "snapshots", "snapshotKeep", "lastSnapshot",
 ]);
 
 /**
@@ -162,6 +162,10 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
     if (typeof data.layoutVaultFolder === "string" && data.layoutVaultFolder.trim())
       s.layoutVaultFolder = data.layoutVaultFolder.trim();
     if (typeof data.appVersion === "string") s.appVersion = data.appVersion;
+    if (data.snapshots === true) s.snapshots = true;
+    if (typeof data.snapshotKeep === "number" && data.snapshotKeep > 0)
+      s.snapshotKeep = Math.min(200, Math.floor(data.snapshotKeep));
+    if (typeof data.lastSnapshot === "number") s.lastSnapshot = data.lastSnapshot;
     // Carry-over guard: preserve any keys we don't explicitly handle above
     // (forward-compat settings from a newer version, or top-level keys written
     // by a third-party module) so user customizations are never lost on load.

@@ -257,6 +257,17 @@ export class EPSettingTab extends PluginSettingTab {
         });
       });
     new Setting(c)
+      .setName(t("settings.snapshots"))
+      .setDesc(t("settings.snapshotsDesc"))
+      .addToggle((tg) => {
+        tg.setValue(plugin.settings.snapshots === true).onChange((v) => {
+          plugin.settings.snapshots = v ? true : undefined;
+          save();
+        });
+      })
+      .addButton((b) => b.setButtonText(t("settings.snapshotSaveNow")).onClick(() => void plugin.saveSnapshot(true)))
+      .addButton((b) => b.setButtonText(t("settings.snapshotRestore")).onClick(() => void plugin.restoreSnapshotFlow()));
+    new Setting(c)
       .setName(t("settings.layoutVault"))
       .setDesc(t("settings.layoutVaultDesc"))
       .addToggle((tg) => {

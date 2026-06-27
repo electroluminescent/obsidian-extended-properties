@@ -11,8 +11,9 @@
  * set of *visible* entries would change (tracked by an "empty signature").
  */
 
-import { ItemView, TFile, WorkspaceLeaf } from "obsidian";
+import { ItemView, Notice, TFile, WorkspaceLeaf } from "obsidian";
 import type ExtendedPropertiesPlugin from "../main";
+import { isEnvelope } from "../core/secure";
 import type { ClusterFlags, ClusterOptions, ClusterRefs, EntryRenderCtx, ViewCtx } from "../core/context";
 import { Entry, Layout, Section } from "../core/model";
 import { ServiceHub, SectionTemplateDef } from "../core/registry";
@@ -31,7 +32,7 @@ import { PopupManager } from "./components/popups";
 import { renderLinkedText } from "./components/links";
 import { bindRename } from "./components/inline-edit";
 import { PropSuggest } from "./components/suggest";
-import { ConfirmModal, ExitEditModal } from "./modals/dialogs";
+import { ConfirmModal, ExitEditModal, TextPromptModal } from "./modals/dialogs";
 import { ColorPickerModal } from "./modals/color-picker";
 import { SectionOptionsModal } from "./modals/section-options";
 import { openEntryMenu } from "./menus/entry-menu";
@@ -158,6 +159,65 @@ export class SidebarView extends ItemView implements ViewCtx {
         openEntryMenu(ev, this, file, section, entry);
         return;
       }
+    }
+  }
+
+  // -- sensitive property encryption (L1) ----------------------------------
+
+  /** Synchronous plaintext for an encrypted value, if the session has it. */
+  secretReveal(envelope: string): string | null {
+    return this.plugin.secrets.reveal(envelope);
+  }
+
+  /** Ensure the session is unlocked, prompting for the passphrase if needed. */
+  private ensureUnlocked(): Promise<boolean> {
+    if (this.plugin.secrets.isUnlocked()) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      new TextPromptModal(this.app, this.i18n, this.i18n.t("secure.enterPass"), "", (v) => {
+        if (!v) {
+          resolve(false);
+          return;
+        }
+        this.plugin.secrets.unlock(v);
+        void this.plugin.primeSecrets();
+        resolve(true);
+      }).open();
+    });
+  }
+
+  /** Encrypt a property's current value in place (explicit, confirmed, warns about lockout). */
+  async encryptValueAt(file: TFile, key: string): Promise<void> {
+    if (isEnvelope(this.note.raw[key])) return; // already encrypted
+    const cur = this.note.str(key);
+    if (cur === "") {
+      new Notice(this.i18n.t("secure.empty"));
+      return;
+    }
+    if (!(await this.ensureUnlocked())) return;
+    new ConfirmModal(this.app, this.i18n, this.i18n.t("secure.encryptWarn"), () => {
+      void (async () => {
+        try {
+          const env = await this.plugin.secrets.encrypt(cur);
+          this.note.set(file, key, env);
+          new Notice(this.i18n.t("secure.encrypted"));
+        } catch (e) {
+          new Notice(this.i18n.t("secure.failed", { error: String(e) }));
+        }
+      })();
+    }).open();
+  }
+
+  /** Decrypt a property's value back to plaintext (non-destructive on a wrong passphrase). */
+  async decryptValueAt(file: TFile, key: string): Promise<void> {
+    const raw = this.note.raw[key];
+    if (!isEnvelope(raw)) return;
+    if (!(await this.ensureUnlocked())) return;
+    try {
+      const plain = await this.plugin.secrets.decrypt(raw);
+      this.note.set(file, key, plain);
+      new Notice(this.i18n.t("secure.decrypted"));
+    } catch {
+      new Notice(this.i18n.t("secure.wrongPass")); // no write — ciphertext preserved
     }
   }
 

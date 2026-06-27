@@ -146,6 +146,14 @@ export interface ViewCtx {
    */
   condVisible(showWhen?: string): boolean;
 
+  // -- sensitive property encryption (L1; optional — only the sidebar view) ----
+  /** Synchronous plaintext for an encrypted envelope value, if unlocked & primed. */
+  secretReveal?(envelope: string): string | null;
+  /** Encrypt a property's current value in place (explicit, confirmed). */
+  encryptValueAt?(file: TFile, key: string): void | Promise<void>;
+  /** Decrypt a property's value back to plaintext (non-destructive on failure). */
+  decryptValueAt?(file: TFile, key: string): void | Promise<void>;
+
   // -- structural operations -------------------------------------------
   removeEntry(section: Section, entry: Entry): void;
   /** Re-point a "prop" entry at a different key, resetting type-specifics. */

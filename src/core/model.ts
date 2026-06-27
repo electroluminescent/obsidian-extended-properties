@@ -307,6 +307,12 @@ export interface EPSettings {
    * of the schema-version migration table.
    */
   appVersion?: string;
+  /** Auto-write a config history snapshot on load when the last is stale (L1; opt-in). */
+  snapshots?: boolean;
+  /** How many config snapshots to keep (default 20). */
+  snapshotKeep?: number;
+  /** Timestamp (ms) of the last config snapshot taken. */
+  lastSnapshot?: number;
   /** Store layouts as vault files instead of only in data.json (D2; opt-in). */
   layoutVault?: boolean;
   /** Vault folder for layout files when `layoutVault` is on. */

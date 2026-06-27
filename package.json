@@ -1,6 +1,6 @@
 {
   "name": "obsidian-extended-properties",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Obsidian plugin: a configurable properties sidebar with derived numbers, dice rolling and per-type layouts.",
   "main": "main.js",
   "author": "electroluminescent",

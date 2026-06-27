@@ -1,9 +1,10 @@
 # Extended Properties — roadmap
 
-**Status: v3.0.0.** The original feature roadmap (milestones 1–6) is fully
-implemented. This document is now consolidated: it records what shipped — without
-the original per-feature planning notes or challenge analysis — and lays out a
-forward-looking roadmap for what comes next.
+**Status: v3.1.0.** The original feature roadmap (milestones 1–6) is fully
+implemented, and the first forward-roadmap item — **L1 (history & safe sync)** —
+shipped in v3.1.0. This document is consolidated: it records what shipped —
+without the original per-feature planning notes or challenge analysis — and lays
+out the remaining forward-looking roadmap.
 
 Legend: ✅ done · ◑ partial · ○ planned.
 
@@ -56,6 +57,20 @@ instead of dropping them on a load → save round-trip. Settings carry an
 `backups/` folder even when the schema is unchanged, so a release can always be
 rolled back. Together with D3's migration table and D2's vault-file layouts, this
 makes the data path safe to evolve.
+
+### Trust & safe sync (v3.1.0) ✅
+
+L1 shipped three data-safety features. **Config history snapshots** write a
+timestamped JSON of your types, layouts, derivations and settings to a
+`snapshots/` subfolder — a manual command, an optional daily auto-snapshot, a
+retention cap, and a restore picker that backs up the current settings first.
+**Field-level three-way merge** upgrades the D4 conflict guard: when an external
+edit and your edits touch *different* frontmatter keys they merge automatically,
+and the *Keep mine / Take theirs* prompt is reserved for keys both sides changed
+differently (now listed by name). **Opt-in value encryption** (`core/secure.ts`)
+encrypts a sensitive text property with AES-256-GCM under a session passphrase;
+the value is stored as a self-describing envelope, shown masked until unlocked,
+and a wrong passphrase fails closed — decryption is always non-destructive.
 
 ## Deprecations
 
@@ -201,21 +216,14 @@ milestones. Nothing here is committed; it is a design backlog.
 - **Steps.** ARIA audit pass → keyboard inline-edit → reduced-motion gate →
   high-contrast tokens → manual screen-reader checklist.
 
-#### L1 — History & safe sync ○
+#### L1 — History & safe sync ✅ (shipped in v3.1.0)
 
-- **What.** Layout and value history snapshots in the vault folder; upgrade the D4
-  conflict guard from *Keep mine / Take theirs* to an optional field-level 3-way
-  merge; opt-in encryption for properties marked sensitive.
-- **Considerations.** Reuse the D2 vault-file folder for layout snapshots;
-  field-level auto-merge only where edits don't overlap, falling back to the
-  existing prompt on a true conflict; encryption is per-property, opt-in, with a
-  user-supplied key — never silent.
-- **Barriers.** Snapshot storage growth (needs retention caps); merge UX and
-  correctness; encryption key management and lockout risk (must warn loudly).
-- **Touchpoints.** `core/layout-store.ts` (snapshots); `core/note-model.ts`
-  (merge); new `core/secure.ts`.
-- **Steps.** Layout snapshot + restore → field-level auto-merge → conflict
-  fallback → opt-in property encryption with explicit warnings.
+Delivered: config history snapshots + restore, field-level three-way merge for
+the conflict guard, and opt-in AES-256-GCM encryption of sensitive values (see
+the *Trust & safe sync* entry above). *Future extensions:* snapshotting note
+*values* (not just configuration); a full merge UI for the conflicts that today
+fall back to the keep-mine/take-theirs prompt; and decryption coverage for the
+inline `prop:`/`val:` chips (the sidebar masks/reveals today).
 
 ### Milestone 10 — Ecosystem (ongoing)
 
@@ -244,6 +252,6 @@ milestones. Nothing here is committed; it is a design backlog.
   engine).
 - **Milestone 8** (H1, H2) depends on a solid index — pull N1's per-file dirty
   marking forward if target vaults are large.
-- **Milestone 9** (N1, M1, L1): trust and scale — N1 underpins G1/H1 at scale, M1
-  finishes E1, L1 hardens D2/D4.
+- **Milestone 9** (N1, M1, L1): trust and scale — **L1 shipped in v3.1.0**; N1
+  underpins G1/H1 at scale and M1 finishes E1.
 - **Milestone 10** (K1) is ongoing; API v2 is purely additive over `apiVersion` 1.

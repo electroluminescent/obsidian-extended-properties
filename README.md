@@ -190,7 +190,11 @@ A complete D&D 5e character sheet built entirely as a feature module on top of t
 
 **Sound effects**: Optional Web Audio cues for clicks, dice rolls and crit/fail, with a master toggle, volume, and independent per-category toggles (UI / dice / crit). Roll-animation duration is configurable too.
 
-**Data safety**: Frontmatter writes are batched and debounced per file (so a held slider drag is one write, not a burst). An optional *Guard against edit conflicts* watches each file's modification time and, if a note changes on disk mid-write (sync, another pane), shows a *Keep mine / Take theirs* prompt instead of clobbering. Settings upgrades run through a versioned, idempotent migration runner, and the pre-upgrade `data.json` is snapshotted to the plugin's `backups/` folder (last 5 kept).
+**Data safety**: Frontmatter writes are batched and debounced per file (so a held slider drag is one write, not a burst). An optional *Guard against edit conflicts* watches each file's modification time and, if a note changes on disk mid-write (sync, another pane), performs a **field-level three-way merge** — your edits and the external edits are combined automatically when they touch different properties, and the *Keep mine / Take theirs* prompt only appears for properties both sides changed differently. Settings upgrades run through a versioned, idempotent migration runner, and the pre-upgrade `data.json` is snapshotted to the plugin's `backups/` folder (last 5 kept).
+
+**Configuration snapshots**: Save a timestamped snapshot of your types, layouts, derivations and settings to a `snapshots/` subfolder of the layout folder, and restore any snapshot later (a restore backs up your current settings first). Available from the command palette or the settings buttons, with an optional once-a-day auto-snapshot and a retention cap.
+
+**Encrypted (sensitive) properties**: Optionally encrypt a text property's value with AES-256-GCM under a session passphrase. Right-click the property and choose *Encrypt value*; it is stored as a self-describing envelope and shown as 🔒 until you *Unlock encrypted properties* with the same passphrase. The passphrase is held only in memory and never written anywhere — **if you lose it the value cannot be recovered** — and a wrong passphrase always fails safely, never overwriting the ciphertext.
 
 ## Theming
 
