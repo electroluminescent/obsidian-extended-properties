@@ -11,7 +11,7 @@ import { Notice, Plugin, TFile } from "obsidian";
 import { I18n } from "./i18n/i18n";
 import { coreEn } from "./i18n/locales/en";
 import type { EPSettings, Layout } from "./core/model";
-import { normalizeSettings } from "./core/settings";
+import { normalizeSettings, runSchemaMigrations } from "./core/settings";
 import { materializeShortForms, registerDerivations } from "./core/influences";
 import { FeatureModule, Registries } from "./core/registry";
 import { PropertyIndex } from "./core/property-index";
@@ -75,7 +75,11 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     this.rebuildRegistries();
     // Re-normalize so types missing a layout get the real default preset.
     this.settings = normalizeSettings(data, () => this.defaultLayout());
-    configureSound(this.settings.sound !== false, this.settings.soundVolume ?? 0.3);
+    configureSound(this.settings.sound !== false, this.settings.soundVolume ?? 0.3, {
+      ui: this.settings.soundUi !== false,
+      dice: this.settings.soundDice !== false,
+      crit: this.settings.soundCrit !== false,
+    });
     this.i18n.setLocale(this.settings.language);
     this.i18n.setOverrides(this.settings.stringOverrides);
 
@@ -99,7 +103,14 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       void this.saveData(this.settings);
     });
 
-    if (migrated) await this.saveSettings();
+    // -- D3: versioned schema migration + pre-migration backup --------------
+    const isFresh = !data || Object.keys(data as object).length === 0;
+    if (runSchemaMigrations(this.settings).changed) migrated = true;
+    if (migrated) {
+      // Snapshot data.json before persisting an upgrade (nothing to back up on a fresh vault).
+      if (!isFresh) await this.backupData(data);
+      await this.saveSettings();
+    }
 
     // -- view, ribbon, commands ---------------------------------------------
     this.registerView(VIEW_TYPE, (leaf) => new SidebarView(leaf, this));
@@ -277,9 +288,33 @@ export default class ExtendedPropertiesPlugin extends Plugin {
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
-    configureSound(this.settings.sound !== false, this.settings.soundVolume ?? 0.3);
+    configureSound(this.settings.sound !== false, this.settings.soundVolume ?? 0.3, {
+      ui: this.settings.soundUi !== false,
+      dice: this.settings.soundDice !== false,
+      crit: this.settings.soundCrit !== false,
+    });
     this.hide.update();
     this.syncMacroCommands();
+  }
+
+  /**
+   * Snapshot the pre-migration `data.json` to the plugin's `backups/` folder,
+   * keeping the most recent 5. Best-effort — a failure must never block load.
+   */
+  private async backupData(rawData: unknown): Promise<void> {
+    try {
+      if (!this.manifest.dir) return;
+      const dir = `${this.manifest.dir}/backups`;
+      const adapter = this.app.vault.adapter;
+      if (!(await adapter.exists(dir))) await adapter.mkdir(dir);
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      await adapter.write(`${dir}/data-${stamp}.json`, JSON.stringify(rawData, null, 2));
+      const listing = await adapter.list(dir);
+      const backups = listing.files.filter((f) => /data-.*\.json$/.test(f)).sort();
+      for (const old of backups.slice(0, Math.max(0, backups.length - 5))) await adapter.remove(old);
+    } catch (e) {
+      console.error("Extended Properties: settings backup failed", e);
+    }
   }
 
   ensureLayout(typeKey: string): Layout {

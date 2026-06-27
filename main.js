@@ -522,6 +522,12 @@ var coreEn = {
   "settings.soundDesc": "Subtle synthesized blips for clicks, dice rolls, and critical hits/fails.",
   "settings.soundVolume": "Sound volume",
   "settings.soundVolumeDesc": "Loudness of the sound effects (0 = silent).",
+  "settings.soundUi": "UI sounds",
+  "settings.soundUiDesc": "Clicks for steppers, edits, checkboxes and ratings.",
+  "settings.soundDice": "Dice sounds",
+  "settings.soundDiceDesc": "The tumble and settle of a roll.",
+  "settings.soundCrit": "Crit / fail sounds",
+  "settings.soundCritDesc": "The chime on a critical hit and the buzz on a critical fail.",
   "settings.failOnOne": "Fail on natural 1",
   "settings.failOnOneDesc": "Mark a roll red when every kept die of the first group shows 1.",
   "settings.critRangesDesc": "Crit threshold per die size \u2014 the lowest face that counts toward a crit (default = the die's maximum). E.g. set d20 to 19 for a 19\u201320 crit range.",
@@ -1595,12 +1601,60 @@ function normalizeSettings(data, defaultLayout) {
     if (data.conflictGuard === false) s.conflictGuard = false;
     if (data.tableLayouts && typeof data.tableLayouts === "object") s.tableLayouts = data.tableLayouts;
     if (typeof data.tableLastType === "string") s.tableLastType = data.tableLastType;
+    if (typeof data.schemaVersion === "number") s.schemaVersion = data.schemaVersion;
+    if (data.soundUi === false) s.soundUi = false;
+    if (data.soundDice === false) s.soundDice = false;
+    if (data.soundCrit === false) s.soundCrit = false;
   }
   for (const t of s.types) {
     const k = t.toLowerCase();
     if (!((_c = s.layouts[k]) == null ? void 0 : _c.sections)) s.layouts[k] = defaultLayout();
   }
   return s;
+}
+var CURRENT_SCHEMA = 1;
+var SCHEMA_MIGRATIONS = [
+  {
+    to: 1,
+    name: "dedupe-types-and-prune-orphan-tables",
+    run: (s) => {
+      let changed = false;
+      const seen = /* @__PURE__ */ new Set();
+      const deduped = s.types.filter((tp) => {
+        const k = tp.toLowerCase();
+        if (seen.has(k)) {
+          changed = true;
+          return false;
+        }
+        seen.add(k);
+        return true;
+      });
+      if (changed) s.types = deduped;
+      if (s.tableLayouts) {
+        for (const k of Object.keys(s.tableLayouts))
+          if (!seen.has(k.toLowerCase())) {
+            delete s.tableLayouts[k];
+            changed = true;
+          }
+      }
+      return changed;
+    }
+  }
+];
+function runSchemaMigrations(s, table = SCHEMA_MIGRATIONS) {
+  const from = typeof s.schemaVersion === "number" ? s.schemaVersion : 0;
+  let changed = false;
+  const ran = [];
+  for (const m of [...table].sort((a, b) => a.to - b.to)) {
+    if (m.to <= from) continue;
+    if (m.run(s)) changed = true;
+    ran.push(m.name);
+  }
+  if (s.schemaVersion !== CURRENT_SCHEMA) {
+    s.schemaVersion = CURRENT_SCHEMA;
+    if (from < CURRENT_SCHEMA) changed = true;
+  }
+  return { changed, from, to: CURRENT_SCHEMA, ran };
 }
 
 // src/core/registry.ts
@@ -2033,9 +2087,15 @@ var TextLinkSuggest = _TextLinkSuggest;
 var ctx = null;
 var enabled = false;
 var volume = 0.3;
-function configureSound(on, vol) {
+var cats = { ui: true, dice: true, crit: true };
+function configureSound(on, vol, categories) {
   enabled = on;
   volume = Math.max(0, Math.min(1, Number.isFinite(vol) ? vol : 0.3));
+  if (categories) {
+    cats.ui = categories.ui !== false;
+    cats.dice = categories.dice !== false;
+    cats.crit = categories.crit !== false;
+  }
 }
 function audio() {
   if (!enabled) return null;
@@ -2071,28 +2131,30 @@ function blip({ freq, type = "sine", dur = 0.06, gain = 1, sweep = 0 }, delay = 
 var sfx = {
   /** A faint click for steppers, value edits, ratings. */
   tick() {
-    blip({ freq: 520, type: "triangle", dur: 0.03, gain: 0.5 });
+    if (cats.ui) blip({ freq: 520, type: "triangle", dur: 0.03, gain: 0.5 });
   },
   /** A slightly brighter blip for checkbox/state toggles. */
   toggle() {
-    blip({ freq: 680, type: "triangle", dur: 0.045, gain: 0.6 });
+    if (cats.ui) blip({ freq: 680, type: "triangle", dur: 0.045, gain: 0.6 });
   },
   /** A soft tumble when a roll starts. */
   roll() {
-    blip({ freq: 300, type: "sawtooth", dur: 0.05, gain: 0.4, sweep: 140 });
+    if (cats.dice) blip({ freq: 300, type: "sawtooth", dur: 0.05, gain: 0.4, sweep: 140 });
   },
   /** A tiny tap as a die lands. */
   settle() {
-    blip({ freq: 430, type: "sine", dur: 0.025, gain: 0.3 });
+    if (cats.dice) blip({ freq: 430, type: "sine", dur: 0.025, gain: 0.3 });
   },
   /** A pleasant ascending chime for a critical hit. */
   crit() {
+    if (!cats.crit) return;
     blip({ freq: 660, type: "sine", dur: 0.12, gain: 0.85 }, 0);
     blip({ freq: 990, type: "sine", dur: 0.14, gain: 0.8 }, 0.08);
     blip({ freq: 1320, type: "sine", dur: 0.18, gain: 0.7 }, 0.16);
   },
   /** A low descending buzz for a critical fail. */
   fail() {
+    if (!cats.crit) return;
     blip({ freq: 220, type: "sawtooth", dur: 0.18, gain: 0.7, sweep: -110 }, 0);
     blip({ freq: 160, type: "square", dur: 0.16, gain: 0.45 }, 0.07);
   }
@@ -9175,15 +9237,33 @@ var EPSettingTab = class extends import_obsidian25.PluginSettingTab {
       tg.setValue(plugin.settings.sound !== false).onChange((v) => {
         plugin.settings.sound = v;
         save();
+        this.display();
       });
     });
-    new import_obsidian25.Setting(c).setName(t("settings.soundVolume")).setDesc(t("settings.soundVolumeDesc")).addSlider((sl) => {
-      var _a;
-      sl.setLimits(0, 1, 0.05).setValue((_a = plugin.settings.soundVolume) != null ? _a : 0.3).setDynamicTooltip().onChange((v) => {
-        plugin.settings.soundVolume = v;
-        save();
+    if (plugin.settings.sound !== false) {
+      new import_obsidian25.Setting(c).setName(t("settings.soundVolume")).setDesc(t("settings.soundVolumeDesc")).addSlider((sl) => {
+        var _a;
+        sl.setLimits(0, 1, 0.05).setValue((_a = plugin.settings.soundVolume) != null ? _a : 0.3).setDynamicTooltip().onChange((v) => {
+          plugin.settings.soundVolume = v;
+          save();
+        });
       });
-    });
+      const soundCat = (nameKey, descKey, get, set) => new import_obsidian25.Setting(c).setName(t(nameKey)).setDesc(t(descKey)).addToggle((tg) => {
+        tg.setValue(get()).onChange((v) => {
+          set(v);
+          save();
+        });
+      });
+      soundCat("settings.soundUi", "settings.soundUiDesc", () => plugin.settings.soundUi !== false, (v) => {
+        plugin.settings.soundUi = v ? void 0 : false;
+      });
+      soundCat("settings.soundDice", "settings.soundDiceDesc", () => plugin.settings.soundDice !== false, (v) => {
+        plugin.settings.soundDice = v ? void 0 : false;
+      });
+      soundCat("settings.soundCrit", "settings.soundCritDesc", () => plugin.settings.soundCrit !== false, (v) => {
+        plugin.settings.soundCrit = v ? void 0 : false;
+      });
+    }
     new import_obsidian25.Setting(c).setName(t("settings.failOnOne")).setDesc(t("settings.failOnOneDesc")).addToggle((tg) => {
       tg.setValue(plugin.settings.failOnOne !== false).onChange((v) => {
         plugin.settings.failOnOne = v;
@@ -12678,7 +12758,11 @@ var ExtendedPropertiesPlugin = class extends import_obsidian36.Plugin {
     this.settings = normalizeSettings(data, () => ({ version: 4, sections: [] }));
     this.rebuildRegistries();
     this.settings = normalizeSettings(data, () => this.defaultLayout());
-    configureSound(this.settings.sound !== false, (_a = this.settings.soundVolume) != null ? _a : 0.3);
+    configureSound(this.settings.sound !== false, (_a = this.settings.soundVolume) != null ? _a : 0.3, {
+      ui: this.settings.soundUi !== false,
+      dice: this.settings.soundDice !== false,
+      crit: this.settings.soundCrit !== false
+    });
     this.i18n.setLocale(this.settings.language);
     this.i18n.setOverrides(this.settings.stringOverrides);
     let migrated = false;
@@ -12695,7 +12779,12 @@ var ExtendedPropertiesPlugin = class extends import_obsidian36.Plugin {
     this.history = new HistoryService(this.settings, () => {
       void this.saveData(this.settings);
     });
-    if (migrated) await this.saveSettings();
+    const isFresh = !data || Object.keys(data).length === 0;
+    if (runSchemaMigrations(this.settings).changed) migrated = true;
+    if (migrated) {
+      if (!isFresh) await this.backupData(data);
+      await this.saveSettings();
+    }
     this.registerView(VIEW_TYPE, (leaf) => new SidebarView(leaf, this));
     this.addRibbonIcon("panel-right", this.i18n.t("command.openSidebar"), () => this.activateView());
     this.addCommand({
@@ -12853,9 +12942,32 @@ var ExtendedPropertiesPlugin = class extends import_obsidian36.Plugin {
   async saveSettings() {
     var _a;
     await this.saveData(this.settings);
-    configureSound(this.settings.sound !== false, (_a = this.settings.soundVolume) != null ? _a : 0.3);
+    configureSound(this.settings.sound !== false, (_a = this.settings.soundVolume) != null ? _a : 0.3, {
+      ui: this.settings.soundUi !== false,
+      dice: this.settings.soundDice !== false,
+      crit: this.settings.soundCrit !== false
+    });
     this.hide.update();
     this.syncMacroCommands();
+  }
+  /**
+   * Snapshot the pre-migration `data.json` to the plugin's `backups/` folder,
+   * keeping the most recent 5. Best-effort — a failure must never block load.
+   */
+  async backupData(rawData) {
+    try {
+      if (!this.manifest.dir) return;
+      const dir = `${this.manifest.dir}/backups`;
+      const adapter = this.app.vault.adapter;
+      if (!await adapter.exists(dir)) await adapter.mkdir(dir);
+      const stamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
+      await adapter.write(`${dir}/data-${stamp}.json`, JSON.stringify(rawData, null, 2));
+      const listing = await adapter.list(dir);
+      const backups = listing.files.filter((f) => /data-.*\.json$/.test(f)).sort();
+      for (const old of backups.slice(0, Math.max(0, backups.length - 5))) await adapter.remove(old);
+    } catch (e) {
+      console.error("Extended Properties: settings backup failed", e);
+    }
   }
   ensureLayout(typeKey) {
     var _a;

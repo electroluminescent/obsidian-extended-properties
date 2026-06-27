@@ -480,6 +480,12 @@ export const coreEn: StringDict = {
   "settings.soundDesc": "Subtle synthesized blips for clicks, dice rolls, and critical hits/fails.",
   "settings.soundVolume": "Sound volume",
   "settings.soundVolumeDesc": "Loudness of the sound effects (0 = silent).",
+  "settings.soundUi": "UI sounds",
+  "settings.soundUiDesc": "Clicks for steppers, edits, checkboxes and ratings.",
+  "settings.soundDice": "Dice sounds",
+  "settings.soundDiceDesc": "The tumble and settle of a roll.",
+  "settings.soundCrit": "Crit / fail sounds",
+  "settings.soundCritDesc": "The chime on a critical hit and the buzz on a critical fail.",
   "settings.failOnOne": "Fail on natural 1",
   "settings.failOnOneDesc": "Mark a roll red when every kept die of the first group shows 1.",
   "settings.critRangesDesc":

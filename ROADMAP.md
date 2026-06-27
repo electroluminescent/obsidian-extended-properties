@@ -6,7 +6,7 @@ The codebase's assets to protect throughout: the registry system (`src/core/regi
 
 ---
 
-## Status (v2.44.0)
+## Status (v2.45.0)
 
 Legend: ✅ done · ◑ partial · ○ planned.
 
@@ -27,8 +27,9 @@ Legend: ✅ done · ◑ partial · ○ planned.
 - ✅ **C2 — Conditional visibility.** `showWhen` on entries and sections — a boolean expression over the note's values (`Class == "Wizard"`, `Level >= 5`, with `&&`/`||`/`!`). The shared expression engine is now string-aware (case-insensitive equality, string/number truthiness) with a tested `evalCondition` entry point; entries/sections are hidden outside edit mode and shown dimmed inside it (so the condition stays reachable), and the view's empty-signature now folds in condition outcomes so a value that flips a condition re-renders precisely. Condition inputs with live parse feedback live in the entry and section options.
 - ✅ **B3 — Type table view.** A workspace view (`src/ui/table-view.ts`; "Open type table" command + ribbon) listing every note of a chosen type as rows with chosen properties as columns: type picker, column pick-list, text filter, click-to-sort headers (asc → desc → none), and drag-to-resize, persisted column widths. Rows click through to the note; cells render a compact, type-aware widget (checkbox, rating pips, colour swatch, internal link, image thumbnail, right-aligned numbers, list chips) and edit in place on double-click via `processFrontMatter`; rollable columns get a die button that rolls the cell value through the plugin roll service. Rows virtualize above 150 so a type with thousands of notes stays responsive. Column sets, sort and widths persist per type in `settings.tableLayouts`.
 - ✅ **D4 — Write batching & conflict handling.** Frontmatter writes are coalesced per file and debounced (~300ms, with a 1s max-wait so a held slider drag still flushes), replacing the per-`set` burst writes; the queue flushes on note-switch and view close. An mtime conflict guard snapshots the file's modification time when a batch begins and, if the note changed on disk (sync, another pane) before the write lands, shows a sticky *Keep mine / Take theirs* notice instead of clobbering — on both the view path (`NoteModel`) and the inline path (`NoteFacade`), each with echo-suppression so our own writes never self-trigger. Setting: *Guard against edit conflicts* (on by default). (Also fixed in passing: `tableLayouts`/`tableLastType` are now preserved by `normalizeSettings`, so B3 column choices persist across restarts.)
+- ✅ **D3 — Versioned migration table + backups.** `settings.schemaVersion` plus an ordered, idempotent migration runner (`runSchemaMigrations`, pure and unit-tested) that runs each step at most once and stamps the version; `normalizeSettings` still handles legacy shape-coercion ahead of it. Before persisting any upgrade the pre-migration `data.json` is snapshotted to `…/plugins/extended-properties/backups/` (last 5 kept) — cheap insurance on the plugin's most dangerous path; a fresh vault is stamped without a backup. The existing per-module `migrate()` hooks still run inside the same gated pass (converting each into a registered version step is an incremental follow-up).
 
-Also shipped: subtle Web Audio sound effects (clicks, dice rolls, crit/fail), with a settings toggle + volume; a configurable roll-animation duration with staggered dice/modifiers; a custom scroll-safe slider; and a default d20 for `roll:` with no dice term.
+Also shipped: subtle Web Audio sound effects (clicks, dice rolls, crit/fail), with a master toggle, volume and per-category (UI / dice / crit) toggles; a configurable roll-animation duration with staggered dice/modifiers; a custom scroll-safe slider; and a default d20 for `roll:` with no dice term.
 
 ### Deprecations
 
@@ -36,7 +37,7 @@ Also shipped: subtle Web Audio sound effects (clicks, dice rolls, crit/fail), wi
 
 ### Planned
 
-- ○ **D2** Layouts as vault files · ○ **D3** Versioned migration table + backups
+- ○ **D2** Layouts as vault files
 - ○ **E1** Keyboard & screen-reader support · ○ **E3** Theming surface
 - ○ **F2** Performance hardening · ○ **F4** i18n as data · ○ **F5** Public module API + legacy deprecation
 
@@ -46,7 +47,7 @@ Per-property unique short forms with name↔short-form interchangeability and au
 
 ### Milestone sequencing — progress
 
-- **Milestone 1 — Foundations:** ◑ (F1, D4 ✅; D3 ○)
+- **Milestone 1 — Foundations:** ✅ (F1, D3, D4 ✅)
 - **Milestone 2 — Expressions:** ✅ (A1, C1, C2 ✅)
 - **Milestone 3 — Rolling depth:** ✅ (A2, A3, A4)
 - **Milestone 4 — Notes integration:** ✅ (B1 incl. Live Preview, E2)
@@ -280,6 +281,8 @@ Per-property unique short forms with name↔short-form interchangeability and au
 5. Document conflict behavior.
 
 ### D3. Versioned migration table and automatic backups
+
+> ✅ **Implemented in v2.45.0** (`src/core/settings.ts`, `src/main.ts`). `schemaVersion` + a pure, unit-tested `runSchemaMigrations` (ordered steps, stamp-once); timestamped `data.json` backups to the plugin `backups/` folder (last 5) before any upgrade is persisted. Steps 1, 3 and 4 are done. Step 2 (folding each module's `migrate()` into the version table) is partial: the hooks still run within the gated pass — converting them is an incremental, low-risk follow-up since they're idempotent.
 
 **What.** Replace ad-hoc per-module `migrate()` sniffing with `settings.schemaVersion` and an ordered, tested migration list; snapshot `data.json` to a timestamped backup before any migration runs.
 

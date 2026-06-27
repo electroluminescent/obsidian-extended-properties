@@ -135,10 +135,91 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
     if (data.conflictGuard === false) s.conflictGuard = false;
     if (data.tableLayouts && typeof data.tableLayouts === "object") s.tableLayouts = data.tableLayouts;
     if (typeof data.tableLastType === "string") s.tableLastType = data.tableLastType;
+    if (typeof data.schemaVersion === "number") s.schemaVersion = data.schemaVersion;
+    if (data.soundUi === false) s.soundUi = false;
+    if (data.soundDice === false) s.soundDice = false;
+    if (data.soundCrit === false) s.soundCrit = false;
   }
   for (const t of s.types) {
     const k = t.toLowerCase();
     if (!s.layouts[k]?.sections) s.layouts[k] = defaultLayout();
   }
   return s;
+}
+
+
+// ---------------------------------------------------------------------------
+// Versioned schema migrations (roadmap D3)
+// ---------------------------------------------------------------------------
+
+/** Current settings schema version. Bump when adding a migration step below. */
+export const CURRENT_SCHEMA = 1;
+
+/** One ordered migration step: bring settings up to schema `to`. */
+export interface Migration {
+  to: number;
+  name: string;
+  /** Mutate `s` in place; return true if anything actually changed. */
+  run(s: EPSettings): boolean;
+}
+
+/**
+ * Ordered core migration steps. `normalizeSettings` still coerces legacy shapes
+ * (the pre-versioning "sniff"); these run after it for explicit, tested version
+ * transforms, and {@link runSchemaMigrations} stamps `schemaVersion` so each
+ * step runs at most once. Feature modules contribute their own steps via
+ * `FeatureModule.migrations`.
+ */
+export const SCHEMA_MIGRATIONS: Migration[] = [
+  {
+    to: 1,
+    name: "dedupe-types-and-prune-orphan-tables",
+    run: (s) => {
+      let changed = false;
+      // De-duplicate note types case-insensitively (keep the first spelling).
+      const seen = new Set<string>();
+      const deduped = s.types.filter((tp) => {
+        const k = tp.toLowerCase();
+        if (seen.has(k)) {
+          changed = true;
+          return false;
+        }
+        seen.add(k);
+        return true;
+      });
+      if (changed) s.types = deduped;
+      // Drop table views whose type no longer exists.
+      if (s.tableLayouts)
+        for (const k of Object.keys(s.tableLayouts))
+          if (!seen.has(k.toLowerCase())) {
+            delete s.tableLayouts[k];
+            changed = true;
+          }
+      return changed;
+    },
+  },
+];
+
+/**
+ * Run every step newer than `s.schemaVersion`, in order, then stamp the current
+ * version. Pure and idempotent — a second run is a no-op. `table` is injectable
+ * for tests and for folding in feature-module steps.
+ */
+export function runSchemaMigrations(
+  s: EPSettings,
+  table: Migration[] = SCHEMA_MIGRATIONS
+): { changed: boolean; from: number; to: number; ran: string[] } {
+  const from = typeof s.schemaVersion === "number" ? s.schemaVersion : 0;
+  let changed = false;
+  const ran: string[] = [];
+  for (const m of [...table].sort((a, b) => a.to - b.to)) {
+    if (m.to <= from) continue;
+    if (m.run(s)) changed = true;
+    ran.push(m.name);
+  }
+  if (s.schemaVersion !== CURRENT_SCHEMA) {
+    s.schemaVersion = CURRENT_SCHEMA;
+    if (from < CURRENT_SCHEMA) changed = true;
+  }
+  return { changed, from, to: CURRENT_SCHEMA, ran };
 }

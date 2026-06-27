@@ -11,11 +11,25 @@
 let ctx: AudioContext | null = null;
 let enabled = false;
 let volume = 0.3;
+/** Per-category enables (default on): UI clicks, dice rolls, crit/fail tones. */
+const cats = { ui: true, dice: true, crit: true };
+
+/** Categories that can be muted independently of the master toggle. */
+export interface SoundCategories {
+  ui?: boolean;
+  dice?: boolean;
+  crit?: boolean;
+}
 
 /** Apply the current settings (called on load and whenever they change). */
-export function configureSound(on: boolean, vol: number): void {
+export function configureSound(on: boolean, vol: number, categories?: SoundCategories): void {
   enabled = on;
   volume = Math.max(0, Math.min(1, Number.isFinite(vol) ? vol : 0.3));
+  if (categories) {
+    cats.ui = categories.ui !== false;
+    cats.dice = categories.dice !== false;
+    cats.crit = categories.crit !== false;
+  }
 }
 
 function audio(): AudioContext | null {
@@ -66,28 +80,30 @@ function blip({ freq, type = "sine", dur = 0.06, gain = 1, sweep = 0 }: Blip, de
 export const sfx = {
   /** A faint click for steppers, value edits, ratings. */
   tick(): void {
-    blip({ freq: 520, type: "triangle", dur: 0.03, gain: 0.5 });
+    if (cats.ui) blip({ freq: 520, type: "triangle", dur: 0.03, gain: 0.5 });
   },
   /** A slightly brighter blip for checkbox/state toggles. */
   toggle(): void {
-    blip({ freq: 680, type: "triangle", dur: 0.045, gain: 0.6 });
+    if (cats.ui) blip({ freq: 680, type: "triangle", dur: 0.045, gain: 0.6 });
   },
   /** A soft tumble when a roll starts. */
   roll(): void {
-    blip({ freq: 300, type: "sawtooth", dur: 0.05, gain: 0.4, sweep: 140 });
+    if (cats.dice) blip({ freq: 300, type: "sawtooth", dur: 0.05, gain: 0.4, sweep: 140 });
   },
   /** A tiny tap as a die lands. */
   settle(): void {
-    blip({ freq: 430, type: "sine", dur: 0.025, gain: 0.3 });
+    if (cats.dice) blip({ freq: 430, type: "sine", dur: 0.025, gain: 0.3 });
   },
   /** A pleasant ascending chime for a critical hit. */
   crit(): void {
+    if (!cats.crit) return;
     blip({ freq: 660, type: "sine", dur: 0.12, gain: 0.85 }, 0);
     blip({ freq: 990, type: "sine", dur: 0.14, gain: 0.8 }, 0.08);
     blip({ freq: 1320, type: "sine", dur: 0.18, gain: 0.7 }, 0.16);
   },
   /** A low descending buzz for a critical fail. */
   fail(): void {
+    if (!cats.crit) return;
     blip({ freq: 220, type: "sawtooth", dur: 0.18, gain: 0.7, sweep: -110 }, 0);
     blip({ freq: 160, type: "square", dur: 0.16, gain: 0.45 }, 0.07);
   },

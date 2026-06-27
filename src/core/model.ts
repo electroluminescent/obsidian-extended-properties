@@ -295,6 +295,12 @@ export interface EPSettings {
   sound?: boolean;
   /** Sound-effect volume, 0–1 (default 0.3). */
   soundVolume?: number;
+  /** Per-category sound toggles (default on): UI clicks, dice rolls, crit/fail. */
+  soundUi?: boolean;
+  soundDice?: boolean;
+  soundCrit?: boolean;
+  /** Settings schema version (roadmap D3); absent = pre-versioning. */
+  schemaVersion?: number;
   /** Persisted type-table views (roadmap B3), keyed by lower-cased type. */
   tableLayouts?: Record<string, TableLayout>;
   /** Last type opened in the table view (restored on reopen). */

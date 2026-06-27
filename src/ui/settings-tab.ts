@@ -338,20 +338,39 @@ export class EPSettingTab extends PluginSettingTab {
         tg.setValue(plugin.settings.sound !== false).onChange((v) => {
           plugin.settings.sound = v;
           save();
+          this.display();
         });
       });
-    new Setting(c)
-      .setName(t("settings.soundVolume"))
-      .setDesc(t("settings.soundVolumeDesc"))
-      .addSlider((sl) => {
-        sl.setLimits(0, 1, 0.05)
-          .setValue(plugin.settings.soundVolume ?? 0.3)
-          .setDynamicTooltip()
-          .onChange((v) => {
-            plugin.settings.soundVolume = v;
+    if (plugin.settings.sound !== false) {
+      new Setting(c)
+        .setName(t("settings.soundVolume"))
+        .setDesc(t("settings.soundVolumeDesc"))
+        .addSlider((sl) => {
+          sl.setLimits(0, 1, 0.05)
+            .setValue(plugin.settings.soundVolume ?? 0.3)
+            .setDynamicTooltip()
+            .onChange((v) => {
+              plugin.settings.soundVolume = v;
+              save();
+            });
+        });
+      const soundCat = (nameKey: string, descKey: string, get: () => boolean, set: (v: boolean) => void) =>
+        new Setting(c).setName(t(nameKey)).setDesc(t(descKey)).addToggle((tg) => {
+          tg.setValue(get()).onChange((v) => {
+            set(v);
             save();
           });
+        });
+      soundCat("settings.soundUi", "settings.soundUiDesc", () => plugin.settings.soundUi !== false, (v) => {
+        plugin.settings.soundUi = v ? undefined : false;
       });
+      soundCat("settings.soundDice", "settings.soundDiceDesc", () => plugin.settings.soundDice !== false, (v) => {
+        plugin.settings.soundDice = v ? undefined : false;
+      });
+      soundCat("settings.soundCrit", "settings.soundCritDesc", () => plugin.settings.soundCrit !== false, (v) => {
+        plugin.settings.soundCrit = v ? undefined : false;
+      });
+    }
     new Setting(c)
       .setName(t("settings.failOnOne"))
       .setDesc(t("settings.failOnOneDesc"))
