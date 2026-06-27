@@ -50,15 +50,29 @@ export class PopupManager {
 
   /** Dismiss when clicking outside the popups and their anchor. */
   private dismissOnOutsideClick(anchor: HTMLElement): void {
+    const cleanup = () => {
+      document.removeEventListener("mousedown", h);
+      document.removeEventListener("keydown", esc, true);
+    };
     const h = (e: MouseEvent) => {
       const t = e.target as HTMLElement;
       // Clicks inside Obsidian's own suggestion popup ([[ note autocomplete) must not dismiss us.
       if (t?.closest?.(".suggestion-container")) return;
       if (this.popups.some((p) => p.contains(t)) || anchor.contains(t)) return;
+      cleanup();
       this.closeAll();
-      document.removeEventListener("mousedown", h);
     };
-    window.setTimeout(() => document.addEventListener("mousedown", h), 0);
+    // Escape closes the popup (E1 keyboard accessibility).
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      cleanup();
+      this.closeAll();
+    };
+    window.setTimeout(() => {
+      document.addEventListener("mousedown", h);
+      document.addEventListener("keydown", esc, true);
+    }, 0);
   }
 
   // -- add-property menu --------------------------------------------------

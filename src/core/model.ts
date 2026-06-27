@@ -301,6 +301,10 @@ export interface EPSettings {
   soundCrit?: boolean;
   /** Settings schema version (roadmap D3); absent = pre-versioning. */
   schemaVersion?: number;
+  /** Store layouts as vault files instead of only in data.json (D2; opt-in). */
+  layoutVault?: boolean;
+  /** Vault folder for layout files when `layoutVault` is on. */
+  layoutVaultFolder?: string;
   /** Persisted type-table views (roadmap B3), keyed by lower-cased type. */
   tableLayouts?: Record<string, TableLayout>;
   /** Last type opened in the table view (restored on reopen). */

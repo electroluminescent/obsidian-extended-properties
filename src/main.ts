@@ -12,6 +12,7 @@ import { I18n } from "./i18n/i18n";
 import { coreEn } from "./i18n/locales/en";
 import type { EPSettings, Layout } from "./core/model";
 import { normalizeSettings, runSchemaMigrations } from "./core/settings";
+import { LayoutStore } from "./core/layout-store";
 import { materializeShortForms, registerDerivations } from "./core/influences";
 import { FeatureModule, Registries } from "./core/registry";
 import { PropertyIndex } from "./core/property-index";
@@ -50,6 +51,9 @@ export default class ExtendedPropertiesPlugin extends Plugin {
   api!: ExtendedPropertiesApi;
   /** Third-party feature modules registered through the public API. */
   private externalModules: FeatureModule[] = [];
+  /** Optional vault-file layout store (D2); created in onload. */
+  layoutStore?: LayoutStore;
+  private layoutReloadTimer = 0;
   props!: PropertyIndex;
   hide!: HideService;
   /** Plugin-level, persistent roll history shared by every view. */
@@ -117,6 +121,23 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       if (!isFresh) await this.backupData(data);
       await this.saveSettings();
     }
+
+    // -- D2: optional vault-file layout store --------------------------------
+    this.layoutStore = new LayoutStore(
+      this.app,
+      this.i18n,
+      () => this.settings.layoutVaultFolder ?? "_extended-properties",
+      (k) => this.settings.layouts[k],
+      (k) => this.typeNameFor(k)
+    );
+    if (this.settings.layoutVault === true) {
+      // Vault files are authoritative: load them over the data.json copies.
+      const fromFiles = await this.layoutStore.readAll();
+      for (const k of Object.keys(fromFiles)) this.settings.layouts[k] = fromFiles[k];
+    }
+    this.registerEvent(this.app.vault.on("modify", (f) => this.onLayoutFileEvent(f.path)));
+    this.registerEvent(this.app.vault.on("create", (f) => this.onLayoutFileEvent(f.path)));
+    this.registerEvent(this.app.vault.on("delete", (f) => this.onLayoutFileEvent(f.path)));
 
     // -- view, ribbon, commands ---------------------------------------------
     this.registerView(VIEW_TYPE, (leaf) => new SidebarView(leaf, this));
@@ -250,6 +271,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
   onunload(): void {
     // Persist any debounced roll-history writes before the plugin goes away.
     this.history?.flushNow();
+    this.layoutStore?.flushAll();
   }
 
   // -- rolling: history export & macro commands -------------------------------
@@ -345,6 +367,8 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     });
     this.hide.update();
     this.syncMacroCommands();
+    if (this.settings.layoutVault === true && this.layoutStore)
+      for (const t of this.settings.types) this.layoutStore.write(t);
   }
 
   /**
@@ -383,6 +407,46 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       const v = leaf.view;
       if (v instanceof SidebarView) v.render();
     }
+  }
+
+  // -- D2: vault-file layouts -------------------------------------------------
+
+  /** Display name for a lower-cased type key (falls back to the key). */
+  private typeNameFor(key: string): string {
+    return this.settings.types.find((t) => t.toLowerCase() === key) ?? key;
+  }
+
+  /** A vault file changed — if it's one of our layout files (not our echo), reload (debounced). */
+  private onLayoutFileEvent(path: string): void {
+    if (this.settings.layoutVault !== true || !this.layoutStore) return;
+    if (!this.layoutStore.owns(path) || this.layoutStore.isEcho(path)) return;
+    window.clearTimeout(this.layoutReloadTimer);
+    this.layoutReloadTimer = window.setTimeout(() => void this.reloadVaultLayouts(), 300);
+  }
+
+  /** Re-read layout files into memory (files win) and refresh open views. */
+  async reloadVaultLayouts(): Promise<void> {
+    if (!this.layoutStore) return;
+    const fromFiles = await this.layoutStore.readAll();
+    for (const k of Object.keys(fromFiles)) this.settings.layouts[k] = fromFiles[k];
+    await this.saveData(this.settings);
+    this.refreshViews();
+    new Notice(this.i18n.t("layoutStore.reloaded", { n: String(Object.keys(fromFiles).length) }));
+  }
+
+  /** Turn on vault-file storage, exporting current layouts to files. */
+  async enableLayoutVault(): Promise<void> {
+    this.settings.layoutVault = true;
+    await this.saveSettings();
+    if (this.layoutStore) await this.layoutStore.writeAll(this.settings.types);
+    new Notice(this.i18n.t("layoutStore.enabled"));
+  }
+
+  /** Turn off vault-file storage (layouts stay in data.json; the files remain). */
+  async disableLayoutVault(): Promise<void> {
+    this.settings.layoutVault = undefined;
+    await this.saveSettings();
+    new Notice(this.i18n.t("layoutStore.disabled"));
   }
 
   // -- view activation --------------------------------------------------------------

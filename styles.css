@@ -756,3 +756,9 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 
 /* -- skills type deprecation (F5) -------------------------------------------- */
 .ep-skills-deprecated { color: var(--text-warning); border: 1px solid var(--text-warning); border-radius: 6px; padding: 6px 8px; margin: 4px 0 8px; font-size: var(--font-ui-smaller); }
+
+
+/* -- E1: keyboard focus visibility + screen-reader helpers ------------------ */
+.ep-sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.ep-sidebar :focus-visible, .ep-table-view :focus-visible, .ep-popup :focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; border-radius: 4px; }
+.ep-entry:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: -1px; border-radius: 6px; }

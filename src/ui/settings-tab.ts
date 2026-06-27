@@ -66,6 +66,7 @@ export class EPSettingTab extends PluginSettingTab {
             .onClick(() => {
               plugin.settings.types = plugin.settings.types.filter((x) => x !== type);
               delete plugin.settings.layouts[type.toLowerCase()];
+              if (plugin.settings.layoutVault === true) void plugin.layoutStore?.remove(type);
               save();
               this.display();
             })
@@ -255,6 +256,32 @@ export class EPSettingTab extends PluginSettingTab {
           save();
         });
       });
+    new Setting(c)
+      .setName(t("settings.layoutVault"))
+      .setDesc(t("settings.layoutVaultDesc"))
+      .addToggle((tg) => {
+        tg.setValue(plugin.settings.layoutVault === true).onChange(async (v) => {
+          if (v) await plugin.enableLayoutVault();
+          else await plugin.disableLayoutVault();
+          this.display();
+        });
+      });
+    if (plugin.settings.layoutVault === true) {
+      new Setting(c)
+        .setName(t("settings.layoutVaultFolder"))
+        .setDesc(t("settings.layoutVaultFolderDesc"))
+        .addText((tx) =>
+          tx.setPlaceholder("_extended-properties")
+            .setValue(plugin.settings.layoutVaultFolder ?? "")
+            .onChange((v) => {
+              plugin.settings.layoutVaultFolder = v.trim() || undefined;
+              save();
+            })
+        )
+        .addButton((b) =>
+          b.setButtonText(t("settings.layoutVaultReload")).onClick(() => void plugin.reloadVaultLayouts())
+        );
+    }
     for (const key of Object.keys(plugin.settings.sourceAbbrs).sort((a, b) => a.localeCompare(b))) {
       new Setting(c)
         .setName(key)

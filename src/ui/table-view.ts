@@ -380,6 +380,7 @@ export class TableView extends ItemView {
     const btn = td.createEl("button", { cls: "ep-table-roll" });
     setIcon(btn, "dices");
     btn.setAttr("title", this.plugin.i18n.t("table.roll"));
+    btn.setAttr("aria-label", this.plugin.i18n.t("table.roll"));
     btn.onclick = (e) => {
       e.stopPropagation();
       try {

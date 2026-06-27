@@ -139,6 +139,9 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
     if (data.soundUi === false) s.soundUi = false;
     if (data.soundDice === false) s.soundDice = false;
     if (data.soundCrit === false) s.soundCrit = false;
+    if (data.layoutVault === true) s.layoutVault = true;
+    if (typeof data.layoutVaultFolder === "string" && data.layoutVaultFolder.trim())
+      s.layoutVaultFolder = data.layoutVaultFolder.trim();
   }
   for (const t of s.types) {
     const k = t.toLowerCase();

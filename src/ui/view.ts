@@ -34,6 +34,7 @@ import { PropSuggest } from "./components/suggest";
 import { ConfirmModal, ExitEditModal } from "./modals/dialogs";
 import { ColorPickerModal } from "./modals/color-picker";
 import { SectionOptionsModal } from "./modals/section-options";
+import { openEntryMenu } from "./menus/entry-menu";
 
 export const VIEW_TYPE = "extended-properties-character";
 
@@ -105,6 +106,59 @@ export class SidebarView extends ItemView implements ViewCtx {
 
   registerUpdater(fn: () => void): void {
     this.updaters.push(fn);
+  }
+
+  // -- keyboard navigation (E1) ----------------------------------------------
+
+  /** One roving tab-stop across entries; the rest are arrow-reachable only. */
+  private initRovingFocus(): void {
+    const entries = Array.from(this.content.querySelectorAll(".ep-entry")) as HTMLElement[];
+    entries.forEach((el, i) => (el.tabIndex = i === 0 ? 0 : -1));
+  }
+
+  /** Arrow/Home/End move focus between entries; Enter/Space opens the entry menu. */
+  private onSidebarKey(e: KeyboardEvent): void {
+    const target = e.target as HTMLElement | null;
+    if (!target || target.matches("input, textarea, select, [contenteditable='true']")) return;
+    const entry = target.closest(".ep-entry") as HTMLElement | null;
+    if (!entry || !this.content.contains(entry)) return;
+    const entries = Array.from(this.content.querySelectorAll(".ep-entry")) as HTMLElement[];
+    const i = entries.indexOf(entry);
+    if (i < 0) return;
+    const focusAt = (j: number) => {
+      const n = entries[Math.max(0, Math.min(entries.length - 1, j))];
+      if (!n) return;
+      entries.forEach((x) => (x.tabIndex = -1));
+      n.tabIndex = 0;
+      n.focus();
+    };
+    switch (e.key) {
+      case "ArrowDown": e.preventDefault(); focusAt(i + 1); break;
+      case "ArrowUp": e.preventDefault(); focusAt(i - 1); break;
+      case "Home": e.preventDefault(); focusAt(0); break;
+      case "End": e.preventDefault(); focusAt(entries.length - 1); break;
+      case "Enter":
+      case " ":
+        e.preventDefault();
+        this.openEntryMenuForElement(entry);
+        break;
+    }
+  }
+
+  /** Open an entry's context menu by keyboard, positioned at the entry. */
+  private openEntryMenuForElement(el: HTMLElement): void {
+    const file = this.app.workspace.getActiveFile();
+    if (!file) return;
+    const id = (el.getAttribute("data-ep-id") ?? "").replace(/^e:/, "");
+    for (const section of this.layout.sections) {
+      const entry = section.entries.find((x) => x.id === id);
+      if (entry) {
+        const r = el.getBoundingClientRect();
+        const ev = new MouseEvent("contextmenu", { clientX: r.left + 8, clientY: r.bottom, bubbles: true });
+        openEntryMenu(ev, this, file, section, entry);
+        return;
+      }
+    }
   }
 
   resolveType(entry: Entry): string {
@@ -351,6 +405,7 @@ export class SidebarView extends ItemView implements ViewCtx {
     });
     // Don't let a scroll/drag that ends on a control fire its tap (mobile).
     this.register(guardScrollTaps(this.content));
+    this.registerDomEvent(this.content, "keydown", (e) => this.onSidebarKey(e));
     this.render();
   }
 
@@ -769,6 +824,7 @@ export class SidebarView extends ItemView implements ViewCtx {
     for (const section of this.layout.sections)
       renderSection(section.sticky ? this.stickyZoneEl : flow, this, file, section, this.drag, host);
     this.lastEmptySig = this.emptySig();
+    this.initRovingFocus();
 
     container.scrollTop = prevScroll;
     requestAnimationFrame(() => {

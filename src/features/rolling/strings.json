@@ -2,6 +2,7 @@
   "roll.featureName": "Dice & rolls",
   "roll.featureDesc": "Roll buttons on properties, configurable dice (d2–d100 or custom), the roll log panel, and the skills data type.",
   "roll.roll": "Roll",
+  "roll.rollAria": "Roll {name}",
   "roll.rolls": "Rolls",
   "roll.checkLabel": "{name} check",
   "roll.tagAdvantage": "(adv)",

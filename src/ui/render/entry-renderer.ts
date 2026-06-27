@@ -61,6 +61,10 @@ export function renderEntry(
   const wide = isWide(view, entry);
   const wrap = grid.createDiv({ cls: wide ? "ep-entry ep-entry-block" : "ep-entry" });
   wrap.setAttr("data-ep-id", "e:" + entry.id);
+  // Keyboard a11y (E1): focusable group with a label; arrow-navigated by the view.
+  wrap.tabIndex = -1;
+  wrap.setAttr("role", "group");
+  wrap.setAttr("aria-label", (entry.alias as string) || entry.key || view.defaultLabelFor(entry));
   if (condOff) {
     wrap.addClass("ep-cond-off");
     wrap.setAttr("title", view.i18n.t("options.showWhenActive", { expr: entry.showWhen as string }));

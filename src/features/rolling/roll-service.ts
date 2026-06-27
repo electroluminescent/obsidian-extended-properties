@@ -19,6 +19,7 @@ import type { EPSettings, RollRecord } from "../../core/model";
 import type { ViewService } from "../../core/registry";
 import { abbrFor } from "../../core/influences";
 import { fmtMod, genId } from "../../utils/misc";
+import { announce } from "../../utils/a11y";
 import { DEFAULT_DICE, DiceSpec } from "../../utils/dice";
 import {
   CritRules, DiceNode, evalRoll, RollAst, RollEnv, RollResult, RollTerm, serializeRoll,
@@ -148,6 +149,7 @@ export class RollService implements ViewService {
       };
       this.history?.append(rec, redo);
       new Notice(brief, 4000);
+      announce(brief);
     };
 
     if (this.settings?.diceAnim) {

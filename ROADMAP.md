@@ -6,7 +6,7 @@ The codebase's assets to protect throughout: the registry system (`src/core/regi
 
 ---
 
-## Status (v2.49.0)
+## Status (v2.50.0)
 
 Legend: ✅ done · ◑ partial · ○ planned.
 
@@ -32,6 +32,8 @@ Legend: ✅ done · ◑ partial · ○ planned.
 - ✅ **E3 — Theming surface.** Plugin surfaces read their colours and sizes from `--ep-*` variables that fall back to the current Obsidian theme value, so themes and the Style Settings plugin can restyle Extended Properties without `!important`. A bundled Style Settings panel (`/* @settings */` in `styles.css`) exposes section accent, rating colour, chip background, section background, corner radius, section gap and a *Flat sections* toggle; the full variable set (sections, chips, ratings, typography) is documented in the README. Every token is wired as `var(--ep-x, <current value>)`, so an untouched theme renders identically.
 - ✅ **F4 — i18n as data.** Every UI dictionary is now a JSON data file — `src/i18n/locales/en.json` (core, 488 keys) and `src/features/<mod>/strings.json` (per module, 139 keys) — loaded through thin typed `.ts` shims, so strings can be diffed and translated without touching code. A `scripts/i18n-check.mjs` parity checker (run in CI and via `npm run i18n`) validates the English schema (balanced `{placeholder}` tokens, no stray braces) and diffs any added `<code>.json` locale against it: missing keys, unknown keys, placeholder drift. `CONTRIBUTING.md` documents the add-a-language workflow. (Also finished the German removal: the feature modules still registered a partial `de` dictionary — those registrations and the dead German feature strings are gone, shrinking the bundle.)
 - ✅ **F5 — Public module API & legacy deprecation.** The internal `FeatureModule` contract is now a frozen, versioned public API (`src/api.ts`, `apiVersion` 1) exposed on `window.ExtendedProperties` and the plugin's `.api`: third-party plugins call `register(module)` to add value types, entry kinds, derivations, locale strings and more. External modules are incorporated into the registries (idempotent by id, error-isolated, built-in ids reserved, rejected if they need a newer API) and open views refresh; `ARCHITECTURE.md` documents the surface with a ~20-line example. The legacy record-based **skills** value type now shows a deprecation notice in its options (its one-click *Convert to properties* converter already shipped), ahead of removal in a future major. Three dead `dnd5e` stubs (`entry-kinds`, `numeric-addon`, `roll-service`) were deleted. *Remaining (deferred to the announced major):* the actual skills-type removal with a read-only fallback for unconverted data.
+- ✅ **D2 — Layouts as vault files.** An opt-in mode (`src/core/layout-store.ts`) stores each note type's layout as one JSON file in a configurable vault folder, so configuration syncs / diffs / shares with the vault. `settings.layouts` stays the in-memory source of truth, the files win on load, and `data.json` keeps a backup copy — so sync conflicts become ordinary file conflicts instead of silent `data.json` clobbering. Files load asynchronously before first render; a debounced, echo-suppressed vault watcher reloads on external edits; per-file validation skips a corrupt file (with a notice) rather than failing the plugin. Settings expose a toggle, folder field and *Reload from files* button; enabling exports current layouts, disabling reabsorbs them.
+- ✅ **E1 — Keyboard navigation & screen-reader support.** Sidebar entries form a roving-tabindex group: ↑/↓/Home/End move focus and Enter/Space opens the focused entry's context menu, so reorder/edit/remove (the drag alternative) are keyboard-reachable. Visible `:focus-visible` rings across the sidebar, table and popups; custom popups close on Escape; roll buttons carry `aria-label`s; and a shared polite `aria-live` region (`utils/a11y.ts`) announces roll totals. (Exhaustive ARIA on every stepper/slider/toggle is a follow-up; the native controls already expose roles.)
 
 Also shipped: subtle Web Audio sound effects (clicks, dice rolls, crit/fail), with a master toggle, volume and per-category (UI / dice / crit) toggles; a configurable roll-animation duration with staggered dice/modifiers; a custom scroll-safe slider; and a default d20 for `roll:` with no dice term.
 
@@ -41,8 +43,7 @@ Also shipped: subtle Web Audio sound effects (clicks, dice rolls, crit/fail), wi
 
 ### Planned
 
-- ○ **D2** Layouts as vault files
-- ○ **E1** Keyboard & screen-reader support
+_All roadmap items are implemented as of **v2.50.0**._ Remaining work is incremental: fold each feature module's `migrate()` into the D3 version table, the deferred skills-type removal (F5 step 5), exhaustive ARIA over every minor control, and new feature ideas.
 
 ### Shipped beyond the original plan
 
@@ -55,7 +56,9 @@ Per-property unique short forms with name↔short-form interchangeability and au
 - **Milestone 3 — Rolling depth:** ✅ (A2, A3, A4)
 - **Milestone 4 — Notes integration:** ✅ (B1 incl. Live Preview, E2)
 - **Milestone 5 — Scale:** ✅ (B2, B3, F2 ✅)
-- **Milestone 6 — Ecosystem:** ◑ (C3, D1, F3, E3, F4, F5 ✅; D2 ○) · German locale removed (English-only; see Deprecations)
+- **Milestone 6 — Ecosystem:** ✅ (C3, D1, F3, E3, F4, F5, D2 ✅) · keyboard & screen-reader support (E1) ✅ · German locale removed (English-only; see Deprecations)
+
+**All six milestones are complete.**
 
 ---
 
@@ -268,6 +271,8 @@ Per-property unique short forms with name↔short-form interchangeability and au
 
 ### D2. Layouts as vault files (optional)
 
+> ✅ **Implemented in v2.50.0** (`src/core/layout-store.ts`, `src/main.ts`, `src/ui/settings-tab.ts`). Opt-in toggle; one JSON file per type in a configurable folder; async files-win load; debounced echo-suppressed vault watcher → reload → re-render; per-file validation; enable/disable (export / reabsorb) and a reload button. `data.json` retains a backup copy rather than being fully emptied — a deliberate safety choice over the strict "only plugin settings" wording.
+
 **What.** An opt-in mode storing layouts/types as JSON files in a vault folder so configuration syncs, diffs and shares with the vault; `data.json` keeps only plugin-level settings.
 
 **Considerations.** Opt-in, never forced: many users want config invisible. On enable, write current layouts out; on load, vault files win over `data.json` copies. Sync conflicts become the user's familiar file-conflict problem instead of silent data.json clobbering — that is a feature.
@@ -324,6 +329,8 @@ Per-property unique short forms with name↔short-form interchangeability and au
 ## E. UX and accessibility
 
 ### E1. Keyboard navigation and screen-reader support
+
+> ✅ **Implemented in v2.50.0** (`src/ui/view.ts`, `entry-renderer.ts`, `components/popups.ts`, `utils/a11y.ts`, `styles.css`). Roving-tabindex arrow navigation over entries with Enter/Space → context menu (keyboard reorder/edit/remove); `:focus-visible` rings; Escape closes custom popups; `aria-label`s on roll buttons; a polite `aria-live` region announces roll totals. Steps 1–5 are covered at the structural level; exhaustive ARIA on every minor control (each stepper/slider/toggle) remains an incremental follow-up.
 
 **What.** Full keyboard operation (tab/arrows between entries, Enter to edit, Escape consistent everywhere, visible focus rings) and ARIA semantics (roles on toggles, labels bound to inputs, `aria-live` announcement of roll totals).
 
