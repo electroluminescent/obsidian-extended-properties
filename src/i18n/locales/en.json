@@ -400,6 +400,8 @@
   "settings.diceHeading": "Dice",
   "settings.diceAnim": "Roll animation",
   "settings.diceAnimDesc": "Tumble the rolled dice in 3D before settling; the modifier and total animate in afterwards, and the notice/log appear only once the roll resolves. Click the overlay to skip a roll.",
+  "settings.diceStyle": "Dice animation style",
+  "settings.diceStyleDesc": "How each die animates while rolling: classic cycling numbers, a spinning icon, or a tumbling 3D cube.",
   "settings.diceAnimRolls": "Rolls before settling",
   "settings.diceAnimRollsDesc": "How many times the dice faces cycle before the result settles.",
   "settings.diceAnimMs": "Animation duration (seconds)",

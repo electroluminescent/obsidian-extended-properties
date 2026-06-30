@@ -3,8 +3,10 @@ node_modules/
 .DS_Store
 Thumbs.db
 
-# Vault-local plugin runtime data — not part of the plugin source.
+# Vault-local plugin runtime data — never part of the plugin source or a release.
+# Shipping these would overwrite a user's settings/layouts on update.
 data.json
+backups/
 
 # The built bundle is attached to GitHub Releases by the release workflow and
 # is committed here for manual / BRAT installs. Uncomment to keep it out of

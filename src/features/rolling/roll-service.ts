@@ -161,6 +161,7 @@ export class RollService implements ViewService {
           total,
           spins: this.settings.diceAnimRolls ?? 10,
           durationMs: this.settings.diceAnimMs ?? 1500,
+          style: this.settings.diceAnimStyle ?? "classic",
           tone: res.tone,
           stay: opts.stay || this.settings.diceAnimStay === true,
           block: this.settings.diceAnimBlock !== false,

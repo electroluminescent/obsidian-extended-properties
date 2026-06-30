@@ -17,6 +17,7 @@ import { ConfirmModal, TextPromptModal } from "./modals/dialogs";
 import { ImportModal } from "./modals/transfer-modal";
 import { packType } from "../core/transfer";
 import { segsToText, textToSegs } from "../features/rolling/macros";
+import { DICE_STYLES } from "../features/rolling/dice-styles";
 
 /** Max override rows rendered at once (the list is searchable). */
 const OVERRIDE_ROW_LIMIT = 25;
@@ -336,6 +337,16 @@ export class EPSettingTab extends PluginSettingTab {
       .addToggle((tg) => {
         tg.setValue(plugin.settings.diceAnim).onChange((v) => {
           plugin.settings.diceAnim = v;
+          save();
+        });
+      });
+    new Setting(c)
+      .setName(t("settings.diceStyle"))
+      .setDesc(t("settings.diceStyleDesc"))
+      .addDropdown((dd) => {
+        for (const st of DICE_STYLES) dd.addOption(st.id, st.name(i18n));
+        dd.setValue(plugin.settings.diceAnimStyle ?? "classic").onChange((v) => {
+          plugin.settings.diceAnimStyle = v;
           save();
         });
       });

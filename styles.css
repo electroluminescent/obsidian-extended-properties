@@ -503,7 +503,7 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 .ep-roll-label { font-weight: 700; }
 /* one clipped row; the track inside slides left as dice settle (see dice-anim.ts) */
 .ep-roll-dice { display: flex; overflow: hidden; position: relative; max-width: 420px; }
-.ep-roll-dice-track { display: flex; flex: 0 0 auto; flex-wrap: nowrap; gap: 14px; margin: auto; perspective: 480px; transition: transform .35s cubic-bezier(.22, .61, .36, 1); will-change: transform; }
+.ep-roll-dice-track { display: flex; flex: 0 0 auto; flex-wrap: nowrap; gap: 14px; margin: auto; transition: transform .35s cubic-bezier(.22, .61, .36, 1); will-change: transform; }
 /* once anything has scrolled, fade dice out as they cross the left edge of the node */
 .ep-roll-dice.ep-overflow { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 32px, #000 100%); mask-image: linear-gradient(to right, transparent 0, #000 32px, #000 100%); }
 @media (prefers-reduced-motion: reduce) { .ep-roll-dice-track { transition: none; } }
@@ -521,11 +521,48 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 .ep-roll-sum .ep-roll-total.ep-in { opacity: 1; animation: ep-pop .25s ease; }
 @media (prefers-reduced-motion: reduce) { .ep-roll-die.ep-rolling, .ep-roll-die.ep-settled, .ep-roll-overlay { animation: none; } }
 
+/* modular dice animation styles: spin + 3d cube, plus card resize */
+.ep-roll-die.ep-spin .ep-roll-die-ico { opacity: 0.6; animation: ep-spin .5s linear infinite; }
+.ep-roll-die.ep-spin .ep-roll-die-num { opacity: 0; }
+@keyframes ep-spin { to { transform: rotate(360deg); } }
+/* each 3D die is a self-contained perspective scene (flat container + perspective),
+   so dice never share a vanishing point and don't stretch when off-centre in the row */
+.ep-roll-die.ep-die3d { perspective: 520px; transform-style: flat; }
+.ep-cube { position: relative; width: 64px; height: 64px; transform-style: preserve-3d; transition: transform .14s linear; }
+.ep-cube.ep-cube-land { transition: transform .45s cubic-bezier(.2, .8, .3, 1); }
+.ep-cube-face { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.3em; font-variant-numeric: tabular-nums; color: var(--text-normal); background: var(--background-secondary); border: 2px solid var(--ep-accent-default, var(--text-accent)); border-radius: 10px; box-shadow: inset 0 0 12px rgba(0, 0, 0, .25); }
+.ep-cube-front { transform: translateZ(32px); }
+.ep-cube-back { transform: rotateY(180deg) translateZ(32px); }
+.ep-cube-right { transform: rotateY(90deg) translateZ(32px); }
+.ep-cube-left { transform: rotateY(-90deg) translateZ(32px); }
+.ep-cube-top { transform: rotateX(90deg) translateZ(32px); }
+.ep-cube-bottom { transform: rotateX(-90deg) translateZ(32px); }
+/* generic polyhedron solid (d4/d8/d10/d12/d20 — faces placed via matrix3d) */
+.ep-solid { position: relative; width: 64px; height: 64px; transform-style: preserve-3d; transition: transform .14s linear; }
+.ep-solid.ep-solid-land { transition: transform .5s cubic-bezier(.2, .8, .3, 1); }
+.ep-solid-face { position: absolute; inset: 0; }
+/* edge layer (full polygon) shows as an outline behind the inset fill layer */
+.ep-solid-edge { position: absolute; inset: 0; background: var(--text-faint); }
+.ep-solid-fill { position: absolute; inset: 0; background: var(--background-secondary); box-shadow: inset 0 0 10px rgba(0, 0, 0, .25); }
+/* number sits above the clipped layers (never clipped) and is rotated per face */
+.ep-solid-num { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.05em; font-variant-numeric: tabular-nums; color: var(--text-faint); }
+/* the face the die landed on (facing up) is highlighted; the rest stay dim grey */
+.ep-solid-face.ep-solid-on .ep-solid-edge { background: var(--ep-accent-default, var(--text-accent)); }
+.ep-solid-face.ep-solid-on .ep-solid-num { color: var(--text-normal); }
+/* card grows smoothly as result rows are added (native size interpolation) */
+.ep-roll-layer { interpolate-size: allow-keywords; }
+.ep-roll-box { transition: width .2s ease-out, height .2s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .ep-roll-die.ep-spin .ep-roll-die-ico { animation: none; }
+  .ep-cube, .ep-cube.ep-cube-land, .ep-solid, .ep-solid.ep-solid-land { transition: none; }
+}
+
 /* round 26 additions — pinnable roll cards, value chain, fading decorations */
 /* non-blocking layer hosting (possibly several) roll cards */
 .ep-roll-layer { position: fixed; inset: 0; z-index: var(--layer-notice, 60); display: flex; overflow-y: auto; pointer-events: none; }
 /* centered, vertically scrollable card host (margin auto = center while small) */
-.ep-roll-cards { margin: auto; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: center; padding: 24px 24px 150px; }
+/* cards lay out in a single horizontal row; scroll left to reach previous rolls */
+.ep-roll-cards { margin: auto; display: flex; flex-wrap: nowrap; gap: 16px; align-items: center; justify-content: flex-start; padding: 32px 24px 120px; overflow-x: auto; overflow-y: hidden; max-width: 100vw; pointer-events: auto; }
 .ep-roll-layer .ep-roll-box { pointer-events: auto; cursor: pointer; animation: ep-fade .15s ease; }
 .ep-roll-layer .ep-roll-box.ep-closing { animation: ep-pop-out .15s ease forwards; pointer-events: none; }
 .ep-roll-box.ep-pinned { border-color: var(--interactive-accent); box-shadow: 0 0 0 2px var(--interactive-accent), 0 18px 48px rgba(0, 0, 0, 0.5); }

@@ -29,6 +29,7 @@ import { formatDice } from "../../utils/dice";
 import { diceIconId } from "../../ui/render/dice-icons";
 import { fmtMod } from "../../utils/misc";
 import { sfx } from "../../utils/sound";
+import { DieView, pickDiceStyle } from "./dice-styles";
 
 /** Safety cap — every realistic roll renders all its dice (the row scrolls
  * through them); only absurd pools are capped to bound the DOM. */
@@ -68,6 +69,8 @@ export interface RollAnimJob {
   stay: boolean;
   /** Dim the background and block interaction while cards are up. */
   block: boolean;
+  /** Per-die animation style id (see dice-styles.ts); defaults to classic. */
+  style?: string;
   /** Re-run the roll that produced this card ("reroll" in the menu). */
   reroll?: () => void;
 }
@@ -220,7 +223,8 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
   pending++;
   sfx.roll();
   const token = {};
-  const box = cardsHost(job.block).createDiv({ cls: "ep-roll-box" });
+  const host = cardsHost(job.block);
+  const box = host.createDiv({ cls: "ep-roll-box" });
   box.createDiv({ cls: "ep-roll-label", text: job.label });
   const diceRow = box.createDiv({ cls: "ep-roll-dice" });
   // Dice live on a sliding track inside the clipped row: a single line that
@@ -228,18 +232,24 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
   // edge instead of wrapping onto a second row.
   const diceTrack = diceRow.createDiv({ cls: "ep-roll-dice-track" });
   const chain = box.createDiv({ cls: "ep-roll-chain" });
+  // The card's size animates via CSS (interpolate-size + a height/width
+  // transition on .ep-roll-box) so new result rows expand it smoothly and
+  // immediately, without per-frame JS reflow.
+  // Keep the newest card in view; previous rolls scroll off to the left.
+  requestAnimationFrame(() => {
+    host.scrollLeft = host.scrollWidth;
+  });
 
   // Flatten the groups into one die sequence (each die keeps its group).
   const flat: { grp: RollAnimGroup; idx: number }[] = [];
   for (const grp of job.groups) grp.faces.forEach((_, idx) => flat.push({ grp, idx }));
+  const style = pickDiceStyle(job.style);
   const shown = Math.min(flat.length, MAX_DICE_SHOWN);
-  const dies: { el: HTMLElement; num: HTMLElement; sides: number }[] = [];
+  const dies: { el: HTMLElement; view: DieView; sides: number }[] = [];
   for (let i = 0; i < shown; i++) {
-    const el = diceTrack.createDiv({ cls: "ep-roll-die ep-rolling" });
-    const ic = el.createDiv({ cls: "ep-roll-die-ico" });
-    setIcon(ic, diceIconId(flat[i].grp.sides));
-    const num = el.createDiv({ cls: "ep-roll-die-num" });
-    dies.push({ el, num, sides: flat[i].grp.sides });
+    const sides = flat[i].grp.sides;
+    const el = diceTrack.createDiv({ cls: "ep-roll-die" });
+    dies.push({ el, view: style.create(el, sides), sides });
   }
 
   /**
@@ -367,10 +377,8 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     const dropped = grp.dropped[idx];
     if (i < dies.length) {
       sfx.settle();
-      dies[i].el.removeClass("ep-rolling");
-      dies[i].el.addClass("ep-settled");
+      dies[i].view.settle(grp.faces[idx], dropped);
       if (dropped) dies[i].el.addClass("ep-roll-drop");
-      dies[i].num.setText(String(grp.faces[idx]));
       // Keep the next (still-tumbling) die parked at the right edge, so you
       // watch each die roll there and the just-settled ones slide off the left.
       conveyor(i + 1 < dies.length ? i + 1 : i);
@@ -401,7 +409,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     for (let i = 0; i < dies.length; i++) {
       if (settled[i]) continue;
       rolling = true;
-      dies[i].num.setText(String(1 + Math.floor(Math.random() * dies[i].sides)));
+      dies[i].view.tick();
     }
     if (!rolling) window.clearInterval(interval);
   }, TICK_MS);

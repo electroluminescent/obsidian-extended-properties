@@ -291,6 +291,8 @@ export interface EPSettings {
   diceAnimRolls: number;
   /** Total roll-animation duration in ms (dice + modifiers stagger within it). */
   diceAnimMs?: number;
+  /** Per-die roll animation style id: "classic" | "spin" | "3d" (default classic). */
+  diceAnimStyle?: string;
   /** Play subtle UI / dice / crit sound effects (default on). */
   sound?: boolean;
   /** Sound-effect volume, 0–1 (default 0.3). */
