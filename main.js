@@ -2996,9 +2996,9 @@ function buildCluster(head, flags, o, bindOpen) {
   const cl = head.createDiv({ cls: "ep-cluster" });
   const cols = [];
   for (const _ of flags.before) cols.push("auto");
-  if (flags.steppers) cols.push("20px");
+  if (flags.steppers) cols.push("var(--ep-step-col, 20px)");
   cols.push("minmax(2.1em, auto)");
-  if (flags.steppers) cols.push("20px");
+  if (flags.steppers) cols.push("var(--ep-step-col, 20px)");
   for (const _ of flags.after) cols.push("auto");
   cl.style.gridTemplateColumns = cols.join(" ");
   const cells = {};

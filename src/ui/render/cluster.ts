@@ -49,9 +49,12 @@ export function buildCluster(
   // Column template mirrors the slot order.
   const cols: string[] = [];
   for (const _ of flags.before) cols.push("auto");
-  if (flags.steppers) cols.push("20px");
+  // The stepper columns track the button size via a CSS var so the larger
+  // mobile touch targets (body.is-mobile) get a wider column instead of
+  // overflowing a fixed 20px cell and overlapping the value.
+  if (flags.steppers) cols.push("var(--ep-step-col, 20px)");
   cols.push("minmax(2.1em, auto)");
-  if (flags.steppers) cols.push("20px");
+  if (flags.steppers) cols.push("var(--ep-step-col, 20px)");
   for (const _ of flags.after) cols.push("auto");
   cl.style.gridTemplateColumns = cols.join(" ");
 

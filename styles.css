@@ -704,6 +704,8 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 /* E2: mobile bottom-sheet modals + larger touch targets */
 .ep-mobile-sheet { position: fixed !important; left: 0 !important; right: 0 !important; bottom: 0 !important; top: auto !important; width: 100% !important; max-width: 100% !important; max-height: 88vh; margin: 0 !important; border-radius: 14px 14px 0 0; }
 .ep-mobile-sheet .modal-content, .ep-mobile-sheet .vertical-tab-content-container { max-height: 80vh; overflow-y: auto; }
+/* widen the cluster's stepper columns to fit the larger mobile touch targets (else they overlap the value) */
+body.is-mobile { --ep-step-col: 30px; }
 body.is-mobile .ep-step-btn { min-width: 30px; min-height: 30px; }
 body.is-mobile .ep-roll-btn { min-height: 30px; padding: 0 10px; }
 body.is-mobile .ep-rating-pip { width: 1.4em; height: 1.4em; }
