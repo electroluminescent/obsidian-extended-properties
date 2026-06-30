@@ -72,9 +72,16 @@ export function getList(raw: Record<string, unknown>, key: string): string[] {
   return [String(v)];
 }
 
-/** Replace all of `target`'s own keys with the contents of a JSON snapshot. */
+/** Replace all of `target`'s own keys with the contents of a JSON snapshot.
+ *  A corrupt snapshot leaves the target unchanged rather than throwing. */
 export function restoreFromSnapshot(target: Record<string, unknown>, snapshot: string): void {
-  const value = JSON.parse(snapshot);
+  let value: unknown;
+  try {
+    value = JSON.parse(snapshot);
+  } catch {
+    return;
+  }
+  if (!value || typeof value !== "object") return;
   for (const k of Object.keys(target)) delete target[k];
   Object.assign(target, value);
 }

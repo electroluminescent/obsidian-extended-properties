@@ -87,7 +87,15 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     this.i18n.register("en", coreEn, "English");
     // German was removed in v2.41.0 (English-only; see ROADMAP "Deprecations").
     // The locale mechanism stays intact so a data-driven locale can return (F4).
-    const data = await this.loadData();
+    let data: unknown = null;
+    try {
+      data = await this.loadData();
+    } catch (e) {
+      // A corrupt data.json must never brick the plugin: fall back to defaults,
+      // but preserve the unreadable file so the user can recover it.
+      console.error("Extended Properties: data.json is unreadable; starting from defaults", e);
+      await this.backupCorruptData();
+    }
     this.settings = normalizeSettings(data, () => ({ version: 4, sections: [] }));
     this.rebuildRegistries();
     // Re-normalize so types missing a layout get the real default preset.
@@ -439,6 +447,23 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       for (const old of backups.slice(0, Math.max(0, backups.length - 5))) await adapter.remove(old);
     } catch (e) {
       console.error("Extended Properties: settings backup failed", e);
+    }
+  }
+
+  /** Copy an unreadable `data.json` aside (raw, not re-serialized) before defaults overwrite it. */
+  private async backupCorruptData(): Promise<void> {
+    try {
+      if (!this.manifest.dir) return;
+      const adapter = this.app.vault.adapter;
+      const path = `${this.manifest.dir}/data.json`;
+      if (!(await adapter.exists(path))) return;
+      const raw = await adapter.read(path);
+      const dir = `${this.manifest.dir}/backups`;
+      if (!(await adapter.exists(dir))) await adapter.mkdir(dir);
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      await adapter.write(`${dir}/data-corrupt-${stamp}.json`, raw);
+    } catch (e) {
+      console.error("Extended Properties: could not back up corrupt data.json", e);
     }
   }
 

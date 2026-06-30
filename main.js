@@ -1076,7 +1076,13 @@ function getList(raw, key) {
   return [String(v)];
 }
 function restoreFromSnapshot(target, snapshot) {
-  const value = JSON.parse(snapshot);
+  let value;
+  try {
+    value = JSON.parse(snapshot);
+  } catch (e) {
+    return;
+  }
+  if (!value || typeof value !== "object") return;
   for (const k of Object.keys(target)) delete target[k];
   Object.assign(target, value);
 }
@@ -13166,17 +13172,21 @@ function processInline(el, mdctx, ctx2) {
     const kind = m[1].toLowerCase();
     const opt = ((_b = m[2]) != null ? _b : "").trim();
     const body = m[3].trim();
-    if (kind === "roll") {
-      code.replaceWith(makeRollChip(ctx2, file, body, opt));
-    } else if (kind === "spark" || kind === "bar" || kind === "radar" || kind === "progress") {
-      const span = createSpan();
-      code.replaceWith(span);
-      mdctx.addChild(new ChartInline(span, ctx2, file, kind, body));
-    } else {
-      const span = createSpan();
-      code.replaceWith(span);
-      const child = kind === "val" ? new ValInline(span, ctx2, file, body) : kind === "vals" ? new ValsInline(span, ctx2, file, body) : new PropInline(span, ctx2, file, body);
-      mdctx.addChild(child);
+    try {
+      if (kind === "roll") {
+        code.replaceWith(makeRollChip(ctx2, file, body, opt));
+      } else if (kind === "spark" || kind === "bar" || kind === "radar" || kind === "progress") {
+        const span = createSpan();
+        code.replaceWith(span);
+        mdctx.addChild(new ChartInline(span, ctx2, file, kind, body));
+      } else {
+        const span = createSpan();
+        code.replaceWith(span);
+        const child = kind === "val" ? new ValInline(span, ctx2, file, body) : kind === "vals" ? new ValsInline(span, ctx2, file, body) : new PropInline(span, ctx2, file, body);
+        mdctx.addChild(child);
+      }
+    } catch (e) {
+      console.error("Extended Properties: inline render failed", e);
     }
   }
 }
@@ -13485,14 +13495,21 @@ function renderChartSpec(parent, ctx2, file, spec) {
 }
 function makeChartEl(ctx2, file, kind, body) {
   const chip = createSpan({ cls: "ep-inline-chart" });
-  let spec;
-  if (kind === "progress") {
-    const [v, m] = body.split("/").map((s) => s.trim());
-    spec = { kind: "progress", refs: [], value: v, max: m };
-  } else {
-    spec = { kind, refs: body.split(",").map((s) => s.trim()).filter(Boolean) };
+  try {
+    let spec;
+    if (kind === "progress") {
+      const [v, m] = body.split("/").map((s) => s.trim());
+      spec = { kind: "progress", refs: [], value: v, max: m };
+    } else {
+      spec = { kind, refs: body.split(",").map((s) => s.trim()).filter(Boolean) };
+    }
+    renderChartSpec(chip, ctx2, file, spec);
+  } catch (e) {
+    console.error("Extended Properties: chart render failed", e);
+    chip.empty();
+    chip.addClass("ep-chart-err");
+    chip.setText(ctx2.i18n.t("inline.chartInvalid"));
   }
-  renderChartSpec(chip, ctx2, file, spec);
   return chip;
 }
 var ChartInline = class extends import_obsidian39.MarkdownRenderChild {
@@ -13871,7 +13888,13 @@ var ExtendedPropertiesPlugin = class extends import_obsidian41.Plugin {
     this.props = new PropertyIndex(this.app);
     registerDiceIcons();
     this.i18n.register("en", coreEn, "English");
-    const data = await this.loadData();
+    let data = null;
+    try {
+      data = await this.loadData();
+    } catch (e) {
+      console.error("Extended Properties: data.json is unreadable; starting from defaults", e);
+      await this.backupCorruptData();
+    }
     this.settings = normalizeSettings(data, () => ({ version: 4, sections: [] }));
     this.rebuildRegistries();
     this.settings = normalizeSettings(data, () => this.defaultLayout());
@@ -14184,6 +14207,22 @@ var ExtendedPropertiesPlugin = class extends import_obsidian41.Plugin {
       for (const old of backups.slice(0, Math.max(0, backups.length - 5))) await adapter.remove(old);
     } catch (e) {
       console.error("Extended Properties: settings backup failed", e);
+    }
+  }
+  /** Copy an unreadable `data.json` aside (raw, not re-serialized) before defaults overwrite it. */
+  async backupCorruptData() {
+    try {
+      if (!this.manifest.dir) return;
+      const adapter = this.app.vault.adapter;
+      const path = `${this.manifest.dir}/data.json`;
+      if (!await adapter.exists(path)) return;
+      const raw = await adapter.read(path);
+      const dir = `${this.manifest.dir}/backups`;
+      if (!await adapter.exists(dir)) await adapter.mkdir(dir);
+      const stamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
+      await adapter.write(`${dir}/data-corrupt-${stamp}.json`, raw);
+    } catch (e) {
+      console.error("Extended Properties: could not back up corrupt data.json", e);
     }
   }
   // -- L1: config snapshots & sensitive-value encryption -------------------

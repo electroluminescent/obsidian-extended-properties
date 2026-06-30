@@ -80,22 +80,27 @@ export function processInline(el: HTMLElement, mdctx: MarkdownPostProcessorConte
     const kind = m[1].toLowerCase();
     const opt = (m[2] ?? "").trim();
     const body = m[3].trim();
-    if (kind === "roll") {
-      code.replaceWith(makeRollChip(ctx, file, body, opt));
-    } else if (kind === "spark" || kind === "bar" || kind === "radar" || kind === "progress") {
-      const span = createSpan();
-      code.replaceWith(span);
-      mdctx.addChild(new ChartInline(span, ctx, file, kind, body));
-    } else {
-      const span = createSpan();
-      code.replaceWith(span);
-      const child =
-        kind === "val"
-          ? new ValInline(span, ctx, file, body)
-          : kind === "vals"
-            ? new ValsInline(span, ctx, file, body)
-            : new PropInline(span, ctx, file, body);
-      mdctx.addChild(child);
+    // One malformed token must not break the rest of the note's rendering.
+    try {
+      if (kind === "roll") {
+        code.replaceWith(makeRollChip(ctx, file, body, opt));
+      } else if (kind === "spark" || kind === "bar" || kind === "radar" || kind === "progress") {
+        const span = createSpan();
+        code.replaceWith(span);
+        mdctx.addChild(new ChartInline(span, ctx, file, kind, body));
+      } else {
+        const span = createSpan();
+        code.replaceWith(span);
+        const child =
+          kind === "val"
+            ? new ValInline(span, ctx, file, body)
+            : kind === "vals"
+              ? new ValsInline(span, ctx, file, body)
+              : new PropInline(span, ctx, file, body);
+        mdctx.addChild(child);
+      }
+    } catch (e) {
+      console.error("Extended Properties: inline render failed", e);
     }
   }
 }
@@ -469,14 +474,21 @@ function renderChartSpec(parent: HTMLElement, ctx: InlineCtx, file: TFile, spec:
 /** Build an inline chart chip from a token kind + body. */
 export function makeChartEl(ctx: InlineCtx, file: TFile, kind: string, body: string): HTMLElement {
   const chip = createSpan({ cls: "ep-inline-chart" });
-  let spec: ChartSpec;
-  if (kind === "progress") {
-    const [v, m] = body.split("/").map((s) => s.trim());
-    spec = { kind: "progress", refs: [], value: v, max: m };
-  } else {
-    spec = { kind: kind as ChartKind, refs: body.split(",").map((s) => s.trim()).filter(Boolean) };
+  try {
+    let spec: ChartSpec;
+    if (kind === "progress") {
+      const [v, m] = body.split("/").map((s) => s.trim());
+      spec = { kind: "progress", refs: [], value: v, max: m };
+    } else {
+      spec = { kind: kind as ChartKind, refs: body.split(",").map((s) => s.trim()).filter(Boolean) };
+    }
+    renderChartSpec(chip, ctx, file, spec);
+  } catch (e) {
+    console.error("Extended Properties: chart render failed", e);
+    chip.empty();
+    chip.addClass("ep-chart-err");
+    chip.setText(ctx.i18n.t("inline.chartInvalid"));
   }
-  renderChartSpec(chip, ctx, file, spec);
   return chip;
 }
 
