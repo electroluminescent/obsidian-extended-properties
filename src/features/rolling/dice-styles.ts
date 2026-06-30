@@ -96,15 +96,18 @@ const cube3d: DiceStyle = {
     // Supersample (anti-alias) factor: build the solid SS× larger so each face's
     // clip-path rasterizes at SS× resolution, then scale the whole solid back
     // down by 1/SS — the GPU minifies the clipped faces with linear filtering,
-    // smoothing the otherwise-jagged polygon edges. The scale composes into the
-    // 3D transform and the SS× geometry depth cancels it, so perspective is
-    // unchanged. SS = 1 reproduces the original (no extra layers).
+    // smoothing the otherwise-jagged polygon edges. This MUST be scale3d (a
+    // uniform 3D scale): a 2D scale() leaves z at the SS× depth, stretching the
+    // solid and doubling the perspective foreshortening. With scale3d the SS×
+    // geometry depth cancels too, so perspective and shape are unchanged. SS = 1
+    // reproduces the original (no extra layers).
     const SS = ss && ss > 1 ? Math.floor(ss) : 1;
     const solid = buildSolid(sides, SS);
     if (!solid) return classicView(el, sides);
     el.addClass("ep-die3d");
     const wrap = el.createDiv({ cls: "ep-solid" });
-    const sc = SS > 1 ? `scale(${(1 / SS).toFixed(4)}) ` : "";
+    const k = (1 / SS).toFixed(4);
+    const sc = SS > 1 ? `scale3d(${k}, ${k}, ${k}) ` : "";
     if (SS > 1) {
       // The face box (and its clip-path coords) are SS× big; size the stage to
       // match and pre-apply the downscale so it never flashes at full size.

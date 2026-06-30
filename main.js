@@ -9892,19 +9892,20 @@ var cube3d = {
     if (!solid) return classicView(el, sides);
     el.addClass("ep-die3d");
     const wrap = el.createDiv({ cls: "ep-solid" });
-    const sc = SS > 1 ? `scale(${(1 / SS).toFixed(4)}) ` : "";
+    const k = (1 / SS).toFixed(4);
+    const sc = SS > 1 ? `scale3d(${k}, ${k}, ${k}) ` : "";
     if (SS > 1) {
       wrap.style.width = wrap.style.height = `${BOX * SS}px`;
       wrap.style.transform = sc.trim();
     }
-    const faceEls = solid.map((f, k) => {
+    const faceEls = solid.map((f, k2) => {
       const fe = wrap.createDiv({ cls: "ep-solid-face" });
       fe.style.transform = f.place;
       const edge = fe.createDiv({ cls: "ep-solid-edge" });
       edge.style.clipPath = f.clip;
       const fill = fe.createDiv({ cls: "ep-solid-fill" });
       fill.style.clipPath = f.clipInner;
-      const num = fe.createDiv({ cls: "ep-solid-num", text: String(k + 1) });
+      const num = fe.createDiv({ cls: "ep-solid-num", text: String(k2 + 1) });
       if (SS > 1) num.style.fontSize = `${(1.05 * SS).toFixed(3)}em`;
       num.style.transform = `rotate(${f.numRot.toFixed(1)}deg)`;
       return fe;
