@@ -49,7 +49,7 @@ export function defaultSettings(): EPSettings {
     diceAnimRolls: 10,
     diceAnimMs: 1500,
     diceAnimStyle: "classic",
-    dice3dAA: true,
+    dice3dAA: false,
     sound: true,
     soundVolume: 0.3,
     diceAnimStay: false,

@@ -492,7 +492,7 @@ var en_default = {
   "settings.diceStyle": "Dice animation style",
   "settings.diceStyleDesc": "How each die animates while rolling: classic cycling numbers, a spinning icon, or a tumbling 3D cube.",
   "settings.diceAa": "Anti-alias 3D dice",
-  "settings.diceAaDesc": "Supersample the 3D dice (render at 2\xD7 and scale down) so the polyhedron edges look smooth instead of jagged. Only affects the 3D style; a little more GPU work while rolling.",
+  "settings.diceAaDesc": "Supersampling the 3D dice currently distorts them, so this option is temporarily disabled.",
   "settings.diceAnimRolls": "Rolls before settling",
   "settings.diceAnimRollsDesc": "How many times the dice faces cycle before the result settles.",
   "settings.diceAnimMs": "Animation duration (seconds)",
@@ -1552,7 +1552,7 @@ function defaultSettings() {
     diceAnimRolls: 10,
     diceAnimMs: 1500,
     diceAnimStyle: "classic",
-    dice3dAA: true,
+    dice3dAA: false,
     sound: true,
     soundVolume: 0.3,
     diceAnimStay: false,
@@ -10193,10 +10193,7 @@ var EPSettingTab = class extends import_obsidian29.PluginSettingTab {
       });
     });
     new import_obsidian29.Setting(c).setName(t("settings.diceAa")).setDesc(t("settings.diceAaDesc")).addToggle((tg) => {
-      tg.setValue(plugin.settings.dice3dAA !== false).onChange((v) => {
-        plugin.settings.dice3dAA = v;
-        save();
-      });
+      tg.setValue(false).setDisabled(true);
     });
     new import_obsidian29.Setting(c).setName(t("settings.diceAnimMs")).setDesc(t("settings.diceAnimMsDesc")).addSlider((sl) => {
       var _a;
@@ -10759,6 +10756,7 @@ var import_obsidian32 = require("obsidian");
 var MAX_DICE_SHOWN = 200;
 var TICK_MS = 80;
 var AA_SS = 2;
+var AA_LOCKED = true;
 var layer = null;
 var summaryEl = null;
 var summarySig = "";
@@ -10901,7 +10899,7 @@ function playRollAnimation(job, i18n, done) {
   const flat = [];
   for (const grp of job.groups) grp.faces.forEach((_, idx) => flat.push({ grp, idx }));
   const style = pickDiceStyle(job.style);
-  const aaSS = job.aa === false ? 1 : AA_SS;
+  const aaSS = AA_LOCKED || job.aa === false ? 1 : AA_SS;
   const shown = Math.min(flat.length, MAX_DICE_SHOWN);
   const dies = [];
   for (let i = 0; i < shown; i++) {

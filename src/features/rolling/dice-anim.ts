@@ -38,6 +38,9 @@ const MAX_DICE_SHOWN = 200;
 const TICK_MS = 80;
 /** 3D-dice supersample factor when anti-aliasing is on (2× ≈ 4 samples/pixel). */
 const AA_SS = 2;
+/** Anti-aliasing is temporarily LOCKED OFF: the supersampled render distorts the
+ *  dice. Set to false (and re-enable the settings toggle) to restore the feature. */
+const AA_LOCKED = true;
 
 /** One labeled summand of a roll (a modifier term, the override, …). */
 export interface RollPart {
@@ -248,7 +251,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
   const flat: { grp: RollAnimGroup; idx: number }[] = [];
   for (const grp of job.groups) grp.faces.forEach((_, idx) => flat.push({ grp, idx }));
   const style = pickDiceStyle(job.style);
-  const aaSS = job.aa === false ? 1 : AA_SS; // supersample 3D dice unless AA is off
+  const aaSS = AA_LOCKED || job.aa === false ? 1 : AA_SS; // AA locked off for now
   const shown = Math.min(flat.length, MAX_DICE_SHOWN);
   const dies: { el: HTMLElement; view: DieView; sides: number }[] = [];
   for (let i = 0; i < shown; i++) {

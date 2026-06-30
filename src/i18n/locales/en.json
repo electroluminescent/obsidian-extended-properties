@@ -403,7 +403,7 @@
   "settings.diceStyle": "Dice animation style",
   "settings.diceStyleDesc": "How each die animates while rolling: classic cycling numbers, a spinning icon, or a tumbling 3D cube.",
   "settings.diceAa": "Anti-alias 3D dice",
-  "settings.diceAaDesc": "Supersample the 3D dice (render at 2× and scale down) so the polyhedron edges look smooth instead of jagged. Only affects the 3D style; a little more GPU work while rolling.",
+  "settings.diceAaDesc": "Supersampling the 3D dice currently distorts them, so this option is temporarily disabled.",
   "settings.diceAnimRolls": "Rolls before settling",
   "settings.diceAnimRollsDesc": "How many times the dice faces cycle before the result settles.",
   "settings.diceAnimMs": "Animation duration (seconds)",

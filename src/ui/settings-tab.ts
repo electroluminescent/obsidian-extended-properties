@@ -354,10 +354,9 @@ export class EPSettingTab extends PluginSettingTab {
       .setName(t("settings.diceAa"))
       .setDesc(t("settings.diceAaDesc"))
       .addToggle((tg) => {
-        tg.setValue(plugin.settings.dice3dAA !== false).onChange((v) => {
-          plugin.settings.dice3dAA = v;
-          save();
-        });
+        // Temporarily locked off: supersampling distorts the dice
+        // (see AA_LOCKED in dice-anim.ts). Disabled until that is fixed.
+        tg.setValue(false).setDisabled(true);
       });
     new Setting(c)
       .setName(t("settings.diceAnimMs"))
