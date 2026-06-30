@@ -491,6 +491,8 @@ var en_default = {
   "settings.diceAnimDesc": "Tumble the rolled dice in 3D before settling; the modifier and total animate in afterwards, and the notice/log appear only once the roll resolves. Click the overlay to skip a roll.",
   "settings.diceStyle": "Dice animation style",
   "settings.diceStyleDesc": "How each die animates while rolling: classic cycling numbers, a spinning icon, or a tumbling 3D cube.",
+  "settings.diceAa": "Anti-alias 3D dice",
+  "settings.diceAaDesc": "Supersample the 3D dice (render at 2\xD7 and scale down) so the polyhedron edges look smooth instead of jagged. Only affects the 3D style; a little more GPU work while rolling.",
   "settings.diceAnimRolls": "Rolls before settling",
   "settings.diceAnimRollsDesc": "How many times the dice faces cycle before the result settles.",
   "settings.diceAnimMs": "Animation duration (seconds)",
@@ -1550,6 +1552,7 @@ function defaultSettings() {
     diceAnimRolls: 10,
     diceAnimMs: 1500,
     diceAnimStyle: "classic",
+    dice3dAA: true,
     sound: true,
     soundVolume: 0.3,
     diceAnimStay: false,
@@ -1583,6 +1586,7 @@ var HANDLED_KEYS = /* @__PURE__ */ new Set([
   "diceAnimRolls",
   "diceAnimMs",
   "diceAnimStyle",
+  "dice3dAA",
   "sound",
   "soundVolume",
   "diceAnimStay",
@@ -1640,6 +1644,7 @@ function normalizeSettings(data, defaultLayout) {
     if (typeof data.diceAnimMs === "number" && data.diceAnimMs >= 300)
       s.diceAnimMs = Math.min(1e4, Math.floor(data.diceAnimMs));
     if (typeof data.diceAnimStyle === "string") s.diceAnimStyle = data.diceAnimStyle;
+    if (data.dice3dAA === false) s.dice3dAA = false;
     if (data.sound === false) s.sound = false;
     if (typeof data.soundVolume === "number" && data.soundVolume >= 0)
       s.soundVolume = Math.min(1, data.soundVolume);
@@ -9795,7 +9800,10 @@ function orderAround(face) {
 function f3(x) {
   return Math.abs(x) < 1e-6 ? "0" : x.toFixed(4);
 }
-function makeFace(face) {
+function makeFace(face, ss) {
+  const scale = SCALE * ss;
+  const box = BOX * ss;
+  const gap = GAP * ss;
   const c = mean(face);
   let n = norm(cross(sub(face[1], face[0]), sub(face[2], face[0])));
   if (dot(n, c) < 0) n = [-n[0], -n[1], -n[2]];
@@ -9803,19 +9811,19 @@ function makeFace(face) {
   const p = [n[0] * d0, n[1] * d0, n[2] * d0];
   const right = norm(sub(face[0], p));
   const up = cross(n, right);
-  const place = `matrix3d(${f3(right[0])},${f3(right[1])},${f3(right[2])},0,${f3(up[0])},${f3(up[1])},${f3(up[2])},0,${f3(n[0])},${f3(n[1])},${f3(n[2])},0,${f3(p[0] * SCALE)},${f3(p[1] * SCALE)},${f3(p[2] * SCALE)},1)`;
+  const place = `matrix3d(${f3(right[0])},${f3(right[1])},${f3(right[2])},0,${f3(up[0])},${f3(up[1])},${f3(up[2])},0,${f3(n[0])},${f3(n[1])},${f3(n[2])},0,${f3(p[0] * scale)},${f3(p[1] * scale)},${f3(p[2] * scale)},1)`;
   const land = `matrix3d(${f3(right[0])},${f3(up[0])},${f3(n[0])},0,${f3(right[1])},${f3(up[1])},${f3(n[1])},0,${f3(right[2])},${f3(up[2])},${f3(n[2])},0,0,0,0,1)`;
-  const mid = BOX / 2;
+  const mid = box / 2;
   const px = face.map((v) => {
     const dd = sub(v, p);
-    return [mid + dot(dd, right) * SCALE, mid + dot(dd, up) * SCALE];
+    return [mid + dot(dd, right) * scale, mid + dot(dd, up) * scale];
   });
   const poly = (pts) => `polygon(${pts.map((p2) => `${p2[0].toFixed(1)}px ${p2[1].toFixed(1)}px`).join(", ")})`;
   const inner = px.map(([x, y]) => {
     const dx = x - mid;
     const dy = y - mid;
     const m = Math.hypot(dx, dy) || 1;
-    const f = Math.max(0, 1 - GAP / m);
+    const f = Math.max(0, 1 - gap / m);
     return [mid + dx * f, mid + dy * f];
   });
   const feat = numberFeature(face);
@@ -9825,13 +9833,13 @@ function makeFace(face) {
   const landUp = -90 - Math.atan2(fy, fx) * 180 / Math.PI;
   return { place, land, clip: poly(px), clipInner: poly(inner), n, sidesOfFace: face.length, numRot, landUp };
 }
-function buildSolid(sides) {
+function buildSolid(sides, ss = 1) {
   const def = SOLIDS[sides];
   if (!def) return null;
   const maxR = Math.max(...def.verts.map((v) => len(v))) || 1;
   const verts = def.verts.map((v) => [v[0] / maxR, v[1] / maxR, v[2] / maxR]);
   const faces = def.faces ? def.faces.map((idx) => orderAround(idx.map((i) => verts[i]))) : hullFaces(verts);
-  return faces.map(makeFace);
+  return faces.map((f) => makeFace(f, ss));
 }
 var SOLID_SIDES = Object.keys(SOLIDS).map(Number);
 
@@ -9878,11 +9886,17 @@ var spin = {
 var cube3d = {
   id: "3d",
   name: (i) => i.t("roll.style.threeD"),
-  create(el, sides) {
-    const solid = buildSolid(sides);
+  create(el, sides, ss) {
+    const SS = ss && ss > 1 ? Math.floor(ss) : 1;
+    const solid = buildSolid(sides, SS);
     if (!solid) return classicView(el, sides);
     el.addClass("ep-die3d");
     const wrap = el.createDiv({ cls: "ep-solid" });
+    const sc = SS > 1 ? `scale(${(1 / SS).toFixed(4)}) ` : "";
+    if (SS > 1) {
+      wrap.style.width = wrap.style.height = `${BOX * SS}px`;
+      wrap.style.transform = sc.trim();
+    }
     const faceEls = solid.map((f, k) => {
       const fe = wrap.createDiv({ cls: "ep-solid-face" });
       fe.style.transform = f.place;
@@ -9891,19 +9905,20 @@ var cube3d = {
       const fill = fe.createDiv({ cls: "ep-solid-fill" });
       fill.style.clipPath = f.clipInner;
       const num = fe.createDiv({ cls: "ep-solid-num", text: String(k + 1) });
+      if (SS > 1) num.style.fontSize = `${(1.05 * SS).toFixed(3)}em`;
       num.style.transform = `rotate(${f.numRot.toFixed(1)}deg)`;
       return fe;
     });
     return {
       tick: () => {
         const r = () => Math.floor(Math.random() * 360);
-        wrap.style.transform = `rotateX(${r()}deg) rotateY(${r()}deg) rotateZ(${r()}deg)`;
+        wrap.style.transform = `${sc}rotateX(${r()}deg) rotateY(${r()}deg) rotateZ(${r()}deg)`;
       },
       settle: (v) => {
         var _a;
         const idx = v >= 1 && v <= solid.length ? v - 1 : 0;
         wrap.addClass("ep-solid-land");
-        wrap.style.transform = `rotateZ(${solid[idx].landUp.toFixed(1)}deg) ${solid[idx].land}`;
+        wrap.style.transform = `${sc}rotateZ(${solid[idx].landUp.toFixed(1)}deg) ${solid[idx].land}`;
         (_a = faceEls[idx]) == null ? void 0 : _a.addClass("ep-solid-on");
         el.addClass("ep-settled");
       }
@@ -10173,6 +10188,12 @@ var EPSettingTab = class extends import_obsidian29.PluginSettingTab {
       for (const st of DICE_STYLES) dd.addOption(st.id, st.name(i18n));
       dd.setValue((_a = plugin.settings.diceAnimStyle) != null ? _a : "classic").onChange((v) => {
         plugin.settings.diceAnimStyle = v;
+        save();
+      });
+    });
+    new import_obsidian29.Setting(c).setName(t("settings.diceAa")).setDesc(t("settings.diceAaDesc")).addToggle((tg) => {
+      tg.setValue(plugin.settings.dice3dAA !== false).onChange((v) => {
+        plugin.settings.dice3dAA = v;
         save();
       });
     });
@@ -10736,6 +10757,7 @@ function rollFace(sides, karmic) {
 var import_obsidian32 = require("obsidian");
 var MAX_DICE_SHOWN = 200;
 var TICK_MS = 80;
+var AA_SS = 2;
 var layer = null;
 var summaryEl = null;
 var summarySig = "";
@@ -10878,12 +10900,13 @@ function playRollAnimation(job, i18n, done) {
   const flat = [];
   for (const grp of job.groups) grp.faces.forEach((_, idx) => flat.push({ grp, idx }));
   const style = pickDiceStyle(job.style);
+  const aaSS = job.aa === false ? 1 : AA_SS;
   const shown = Math.min(flat.length, MAX_DICE_SHOWN);
   const dies = [];
   for (let i = 0; i < shown; i++) {
     const sides = flat[i].grp.sides;
     const el = diceTrack.createDiv({ cls: "ep-roll-die" });
-    dies.push({ el, view: style.create(el, sides), sides });
+    dies.push({ el, view: style.create(el, sides, aaSS), sides });
   }
   const conveyor = (i) => {
     if (i < 0 || i >= dies.length) return;
@@ -11118,6 +11141,7 @@ var RollService = class {
           spins: (_g = this.settings.diceAnimRolls) != null ? _g : 10,
           durationMs: (_h = this.settings.diceAnimMs) != null ? _h : 1500,
           style: (_i = this.settings.diceAnimStyle) != null ? _i : "classic",
+          aa: this.settings.dice3dAA !== false,
           tone: res.tone,
           stay: opts.stay || this.settings.diceAnimStay === true,
           block: this.settings.diceAnimBlock !== false,

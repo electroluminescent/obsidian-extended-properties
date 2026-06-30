@@ -36,6 +36,8 @@ import { DieView, pickDiceStyle } from "./dice-styles";
 const MAX_DICE_SHOWN = 200;
 /** Milliseconds between face cycles while tumbling. */
 const TICK_MS = 80;
+/** 3D-dice supersample factor when anti-aliasing is on (2× ≈ 4 samples/pixel). */
+const AA_SS = 2;
 
 /** One labeled summand of a roll (a modifier term, the override, …). */
 export interface RollPart {
@@ -71,6 +73,8 @@ export interface RollAnimJob {
   block: boolean;
   /** Per-die animation style id (see dice-styles.ts); defaults to classic. */
   style?: string;
+  /** Anti-alias (supersample) the 3D dice for smoother edges; default on. */
+  aa?: boolean;
   /** Re-run the roll that produced this card ("reroll" in the menu). */
   reroll?: () => void;
 }
@@ -244,12 +248,13 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
   const flat: { grp: RollAnimGroup; idx: number }[] = [];
   for (const grp of job.groups) grp.faces.forEach((_, idx) => flat.push({ grp, idx }));
   const style = pickDiceStyle(job.style);
+  const aaSS = job.aa === false ? 1 : AA_SS; // supersample 3D dice unless AA is off
   const shown = Math.min(flat.length, MAX_DICE_SHOWN);
   const dies: { el: HTMLElement; view: DieView; sides: number }[] = [];
   for (let i = 0; i < shown; i++) {
     const sides = flat[i].grp.sides;
     const el = diceTrack.createDiv({ cls: "ep-roll-die" });
-    dies.push({ el, view: style.create(el, sides), sides });
+    dies.push({ el, view: style.create(el, sides, aaSS), sides });
   }
 
   /**

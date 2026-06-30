@@ -23,7 +23,7 @@ const PHI = (1 + Math.sqrt(5)) / 2;
  * every die ends up the same on-screen size (~2·SCALE across). */
 const SCALE = 28;
 /** Face element box size in px (clip-path coords are relative to it). */
-const BOX = 64;
+export const BOX = 64;
 /** Edge ring thickness in px (gap between a face's fill and its outline). */
 const GAP = 3;
 
@@ -202,7 +202,13 @@ function f3(x: number): string {
   return Math.abs(x) < 1e-6 ? "0" : x.toFixed(4);
 }
 
-function makeFace(face: V3[]): PolyFace {
+function makeFace(face: V3[], ss: number): PolyFace {
+  // Supersample factor: emit the face SS× larger (px scale + box + gap) so its
+  // clip-path is rasterized at SS× resolution; dice-styles scales the solid back
+  // down, and the GPU minifies the clipped faces — anti-aliasing the edges.
+  const scale = SCALE * ss;
+  const box = BOX * ss;
+  const gap = GAP * ss;
   const c = mean(face);
   // True outward face normal. The centroid direction is NOT the normal for kite
   // faces (d10) — using it left the d10 mis-assembled. Take it from two edges.
@@ -220,21 +226,21 @@ function makeFace(face: V3[]): PolyFace {
     `matrix3d(${f3(right[0])},${f3(right[1])},${f3(right[2])},0,` +
     `${f3(up[0])},${f3(up[1])},${f3(up[2])},0,` +
     `${f3(n[0])},${f3(n[1])},${f3(n[2])},0,` +
-    `${f3(p[0] * SCALE)},${f3(p[1] * SCALE)},${f3(p[2] * SCALE)},1)`;
+    `${f3(p[0] * scale)},${f3(p[1] * scale)},${f3(p[2] * scale)},1)`;
   // land = transpose of the rotation (its inverse): rotating the solid by this
   // maps the face to identity → front, centred (since p lies on the normal).
   const land =
     `matrix3d(${f3(right[0])},${f3(up[0])},${f3(n[0])},0,` +
     `${f3(right[1])},${f3(up[1])},${f3(n[1])},0,` +
     `${f3(right[2])},${f3(up[2])},${f3(n[2])},0,0,0,0,1)`;
-  const mid = BOX / 2;
+  const mid = box / 2;
   // The placement matrix maps the element's local +Y axis onto `up`, so the
   // clip-path Y is `mid + (…·up)` — NOT minus. With minus each face's outline is
   // reflected; that's invisible for regular polygons (their reference axis is a
   // symmetry axis) but mis-shapes the d10's kite faces, so the d10 never tiled.
   const px = face.map((v) => {
     const dd = sub(v, p);
-    return [mid + dot(dd, right) * SCALE, mid + dot(dd, up) * SCALE] as [number, number];
+    return [mid + dot(dd, right) * scale, mid + dot(dd, up) * scale] as [number, number];
   });
   const poly = (pts: [number, number][]): string =>
     `polygon(${pts.map((p) => `${p[0].toFixed(1)}px ${p[1].toFixed(1)}px`).join(", ")})`;
@@ -244,7 +250,7 @@ function makeFace(face: V3[]): PolyFace {
     const dx = x - mid;
     const dy = y - mid;
     const m = Math.hypot(dx, dy) || 1;
-    const f = Math.max(0, 1 - GAP / m);
+    const f = Math.max(0, 1 - gap / m);
     return [mid + dx * f, mid + dy * f];
   });
   // Rotate the digit so its top points at the face feature. atan2(fx, -fy) maps
@@ -261,7 +267,7 @@ function makeFace(face: V3[]): PolyFace {
 }
 
 /** Build the faces for a die of `sides`, or null if there is no defined solid. */
-export function buildSolid(sides: number): PolyFace[] | null {
+export function buildSolid(sides: number, ss = 1): PolyFace[] | null {
   const def = SOLIDS[sides];
   if (!def) return null;
   // Normalize to circumradius 1 so every die renders at the same on-screen size.
@@ -270,7 +276,7 @@ export function buildSolid(sides: number): PolyFace[] | null {
   const faces = def.faces
     ? def.faces.map((idx) => orderAround(idx.map((i) => verts[i])))
     : hullFaces(verts);
-  return faces.map(makeFace);
+  return faces.map((f) => makeFace(f, ss));
 }
 
 /** Die sizes that have a true 3D solid (others fall back to a cube). */

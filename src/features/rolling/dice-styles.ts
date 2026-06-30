@@ -15,7 +15,7 @@
 import { setIcon } from "obsidian";
 import type { I18n } from "../../i18n/i18n";
 import { diceIconId } from "../../ui/render/dice-icons";
-import { buildSolid } from "../../utils/polyhedra";
+import { buildSolid, BOX } from "../../utils/polyhedra";
 
 /** Live controller for one animated die. */
 export interface DieView {
@@ -29,8 +29,9 @@ export interface DieView {
 export interface DiceStyle {
   id: string;
   name: (i18n: I18n) => string;
-  /** Build the die's contents into `el` (already classed `ep-roll-die`). */
-  create(el: HTMLElement, sides: number): DieView;
+  /** Build the die's contents into `el` (already classed `ep-roll-die`).
+   *  `ss` is the 3D supersample (anti-alias) factor — 1 = off; only 3D uses it. */
+  create(el: HTMLElement, sides: number, ss?: number): DieView;
 }
 
 const rnd = (sides: number): number => 1 + Math.floor(Math.random() * Math.max(1, sides));
@@ -91,11 +92,25 @@ const spin: DiceStyle = {
 const cube3d: DiceStyle = {
   id: "3d",
   name: (i) => i.t("roll.style.threeD"),
-  create(el, sides) {
-    const solid = buildSolid(sides);
+  create(el, sides, ss) {
+    // Supersample (anti-alias) factor: build the solid SS× larger so each face's
+    // clip-path rasterizes at SS× resolution, then scale the whole solid back
+    // down by 1/SS — the GPU minifies the clipped faces with linear filtering,
+    // smoothing the otherwise-jagged polygon edges. The scale composes into the
+    // 3D transform and the SS× geometry depth cancels it, so perspective is
+    // unchanged. SS = 1 reproduces the original (no extra layers).
+    const SS = ss && ss > 1 ? Math.floor(ss) : 1;
+    const solid = buildSolid(sides, SS);
     if (!solid) return classicView(el, sides);
     el.addClass("ep-die3d");
     const wrap = el.createDiv({ cls: "ep-solid" });
+    const sc = SS > 1 ? `scale(${(1 / SS).toFixed(4)}) ` : "";
+    if (SS > 1) {
+      // The face box (and its clip-path coords) are SS× big; size the stage to
+      // match and pre-apply the downscale so it never flashes at full size.
+      wrap.style.width = wrap.style.height = `${BOX * SS}px`;
+      wrap.style.transform = sc.trim();
+    }
     const faceEls = solid.map((f, k) => {
       const fe = wrap.createDiv({ cls: "ep-solid-face" });
       fe.style.transform = f.place;
@@ -106,20 +121,22 @@ const cube3d: DiceStyle = {
       // The number is a sibling of the (clipped) fill so it's never clipped, and
       // rotated so its top points at the face's pointiest vertex / edge midpoint.
       const num = fe.createDiv({ cls: "ep-solid-num", text: String(k + 1) });
+      // em resolves before the 1/SS downscale, so size the digit SS× to keep it.
+      if (SS > 1) num.style.fontSize = `${(1.05 * SS).toFixed(3)}em`;
       num.style.transform = `rotate(${f.numRot.toFixed(1)}deg)`;
       return fe;
     });
     return {
       tick: () => {
         const r = (): number => Math.floor(Math.random() * 360);
-        wrap.style.transform = `rotateX(${r()}deg) rotateY(${r()}deg) rotateZ(${r()}deg)`;
+        wrap.style.transform = `${sc}rotateX(${r()}deg) rotateY(${r()}deg) rotateZ(${r()}deg)`;
       },
       settle: (v) => {
         const idx = v >= 1 && v <= solid.length ? v - 1 : 0;
         wrap.addClass("ep-solid-land");
         // land orients the result face to the front; the rotateZ then makes its
         // number read upright.
-        wrap.style.transform = `rotateZ(${solid[idx].landUp.toFixed(1)}deg) ${solid[idx].land}`;
+        wrap.style.transform = `${sc}rotateZ(${solid[idx].landUp.toFixed(1)}deg) ${solid[idx].land}`;
         faceEls[idx]?.addClass("ep-solid-on"); // brighten the landed face
         el.addClass("ep-settled");
       },

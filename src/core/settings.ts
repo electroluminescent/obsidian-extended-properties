@@ -49,6 +49,7 @@ export function defaultSettings(): EPSettings {
     diceAnimRolls: 10,
     diceAnimMs: 1500,
     diceAnimStyle: "classic",
+    dice3dAA: true,
     sound: true,
     soundVolume: 0.3,
     diceAnimStay: false,
@@ -75,7 +76,7 @@ export function defaultSettings(): EPSettings {
 const HANDLED_KEYS: ReadonlySet<string> = new Set([
   "types", "layouts", "layout", "hideShown", "defaults", "manualHide",
   "propMenu", "language", "stringOverrides", "features", "derivations",
-  "sourceAbbrs", "modDepth", "diceAnim", "diceAnimRolls", "diceAnimMs", "diceAnimStyle",
+  "sourceAbbrs", "modDepth", "diceAnim", "diceAnimRolls", "diceAnimMs", "diceAnimStyle", "dice3dAA",
   "sound", "soundVolume", "diceAnimStay", "diceAnimBlock", "karmicRolls",
   "modsOffProp", "macros", "rollHistory", "rollHistoryLimit",
   "rollHistoryEnabled", "critRanges", "failOnOne", "modifierSuffix",
@@ -118,6 +119,7 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
     if (typeof data.diceAnimMs === "number" && data.diceAnimMs >= 300)
       s.diceAnimMs = Math.min(10000, Math.floor(data.diceAnimMs));
     if (typeof data.diceAnimStyle === "string") s.diceAnimStyle = data.diceAnimStyle;
+    if (data.dice3dAA === false) s.dice3dAA = false;
     if (data.sound === false) s.sound = false;
     if (typeof data.soundVolume === "number" && data.soundVolume >= 0)
       s.soundVolume = Math.min(1, data.soundVolume);

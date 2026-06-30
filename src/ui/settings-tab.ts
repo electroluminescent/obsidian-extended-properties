@@ -351,6 +351,15 @@ export class EPSettingTab extends PluginSettingTab {
         });
       });
     new Setting(c)
+      .setName(t("settings.diceAa"))
+      .setDesc(t("settings.diceAaDesc"))
+      .addToggle((tg) => {
+        tg.setValue(plugin.settings.dice3dAA !== false).onChange((v) => {
+          plugin.settings.dice3dAA = v;
+          save();
+        });
+      });
+    new Setting(c)
       .setName(t("settings.diceAnimMs"))
       .setDesc(t("settings.diceAnimMsDesc"))
       .addSlider((sl) => {

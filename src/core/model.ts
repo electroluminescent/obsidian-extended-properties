@@ -293,6 +293,8 @@ export interface EPSettings {
   diceAnimMs?: number;
   /** Per-die roll animation style id: "classic" | "spin" | "3d" (default classic). */
   diceAnimStyle?: string;
+  /** Anti-alias (supersample) the 3D dice for smoother edges (default on). */
+  dice3dAA?: boolean;
   /** Play subtle UI / dice / crit sound effects (default on). */
   sound?: boolean;
   /** Sound-effect volume, 0–1 (default 0.3). */
