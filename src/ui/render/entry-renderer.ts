@@ -76,6 +76,7 @@ export function renderEntry(
   if (view.editMode) {
     grip = head.createSpan({ cls: "ep-grip", text: "⠿" });
     grip.setAttr("title", view.i18n.t("entry.dragHint"));
+    grip.setAttr("aria-hidden", "true"); // mouse-drag affordance; keyboard reorders via the entry menu
   }
   if (entry.icon) {
     const ic = head.createSpan({ cls: "ep-picon" });
@@ -101,10 +102,20 @@ export function renderEntry(
   longPressContextMenu(wrap); // touch parity for the entry menu
   if (view.editMode) {
     const menuBtn = head.createSpan({ cls: "ep-menu-btn", text: "⋯" });
+    menuBtn.setAttr("role", "button");
+    menuBtn.tabIndex = 0;
+    menuBtn.setAttr("aria-label", view.i18n.t("a11y.entryMenu"));
     menuBtn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
       openEntryMenu(e as MouseEvent, view, file, section, entry);
+    };
+    menuBtn.onkeydown = (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        const r = menuBtn.getBoundingClientRect();
+        openEntryMenu(new MouseEvent("contextmenu", { clientX: r.left, clientY: r.bottom }), view, file, section, entry);
+      }
     };
     if (grip) drag.attachEntry(wrap, grip, section, entry);
   }

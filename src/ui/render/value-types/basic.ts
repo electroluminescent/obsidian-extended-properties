@@ -34,12 +34,21 @@ export const checkboxType: ValueTypeDef = {
     cb.type = "checkbox";
     cb.addClass("ep-prof");
     cb.checked = isChecked(ctx, key);
+    cb.setAttr("aria-label", view.defaultLabelFor(entry)); // native checkbox needs a name
     if (view.editMode) {
       cb.onchange = () => { sfx.toggle(); view.note.set(file, key, cb.checked); };
     } else {
       cb.setAttr("title", view.i18n.t("hint.dblToggle"));
       cb.onclick = (e) => e.preventDefault();
       cb.ondblclick = () => { sfx.toggle(); view.note.set(file, key, !isChecked(ctx, key)); };
+      // Keyboard parity in locked mode (click is prevented to stop stray toggles).
+      cb.onkeydown = (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          sfx.toggle();
+          view.note.set(file, key, !isChecked(ctx, key));
+        }
+      };
     }
     view.registerUpdater(() => {
       cb.checked = isChecked(ctx, key);
@@ -72,7 +81,14 @@ function buildList(ctx: EntryRenderCtx, holder: HTMLElement, showAdd: boolean): 
     const cv = chip.createSpan();
     view.renderLinks(cv, item);
     const x = chip.createSpan({ cls: "ep-chip-x", text: "×" });
-    x.onclick = () => view.note.set(file, key, current.filter((i) => i !== item));
+    x.setAttr("role", "button");
+    x.tabIndex = 0;
+    x.setAttr("aria-label", view.i18n.t("a11y.removeItem", { item }));
+    const removeItem = () => view.note.set(file, key, current.filter((i) => i !== item));
+    x.onclick = removeItem;
+    x.onkeydown = (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); removeItem(); }
+    };
   }
   if (showAdd) {
     const addb = list.createEl("button", { cls: "ep-mini-btn ep-list-addbtn", text: view.i18n.t("list.add") });

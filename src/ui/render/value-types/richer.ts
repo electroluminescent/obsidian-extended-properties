@@ -45,22 +45,45 @@ export const ratingType: ValueTypeDef = {
     const icon = (entry.ratingIcon as string) || "star";
     const v = ctx.head.createDiv({ cls: "ep-val-right ep-rating" });
     if (entry.valueColor) v.style.color = entry.valueColor as string;
+    // Accessible as a slider (M1): focusable, arrow-keys change the value, and
+    // the pips themselves are decorative (aria-hidden) — the container conveys it.
+    v.setAttr("role", "slider");
+    v.tabIndex = 0;
+    v.setAttr("aria-label", view.i18n.t("a11y.rating", { name: view.defaultLabelFor(entry) }));
+    v.setAttr("aria-valuemin", "0");
+    v.setAttr("aria-valuemax", String(max));
+    const setRating = (n: number) => view.note.set(file, key, Math.max(0, Math.min(max, n)));
     const draw = () => {
       v.empty();
       const cur = Math.round(view.note.num(key, 0));
+      v.setAttr("aria-valuenow", String(cur));
+      v.setAttr("aria-valuetext", view.i18n.t("a11y.ratingValue", { value: cur, max }));
       for (let i = 1; i <= max; i++) {
         const pip = v.createSpan({ cls: "ep-rating-pip" + (i <= cur ? " is-on" : "") });
         setIcon(pip, icon);
+        pip.setAttr("aria-hidden", "true");
         pip.onclick = (e) => {
           e.preventDefault();
           e.stopPropagation();
           sfx.tick();
           // Click the current highest pip to clear it (toggle down).
-          view.note.set(file, key, i === cur ? i - 1 : i);
+          setRating(i === cur ? i - 1 : i);
         };
       }
     };
     draw();
+    v.addEventListener("keydown", (e: KeyboardEvent) => {
+      const cur = Math.round(view.note.num(key, 0));
+      let n = cur;
+      if (e.key === "ArrowRight" || e.key === "ArrowUp") n = cur + 1;
+      else if (e.key === "ArrowLeft" || e.key === "ArrowDown") n = cur - 1;
+      else if (e.key === "Home") n = 0;
+      else if (e.key === "End") n = max;
+      else return;
+      e.preventDefault();
+      sfx.tick();
+      setRating(n);
+    });
     view.registerUpdater(draw);
   },
 

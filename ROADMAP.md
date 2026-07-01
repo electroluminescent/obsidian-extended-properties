@@ -1,12 +1,13 @@
 # Extended Properties — roadmap
 
-**Status: v3.5.5.** The original feature roadmap (milestones 1–6) is fully
-implemented, and forward-roadmap items **L1 (history & safe sync, v3.1.0)** and
-**G2 (inline charts & sparklines, v3.2.0)** have shipped. Releases v3.3.0–v3.5.5
-added the 3D-dice presentation plus a run of roll, mobile and robustness polish
-(see *Dice presentation & polish* below). This document is consolidated: it
-records what shipped — without the original per-feature planning notes or
-challenge analysis — and lays out the remaining forward-looking roadmap.
+**Status: v3.6.0.** The original feature roadmap (milestones 1–6) is fully
+implemented, and forward-roadmap items **L1 (history & safe sync, v3.1.0)**,
+**G2 (inline charts & sparklines, v3.2.0)** and **M1 (accessibility completion,
+v3.6.0)** have shipped. Releases v3.3.0–v3.5.5 added the 3D-dice presentation plus
+a run of roll, mobile and robustness polish (see *Dice presentation & polish*
+below). This document is consolidated: it records what shipped — without the
+original per-feature planning notes or challenge analysis — and lays out the
+remaining forward-looking roadmap.
 
 Legend: ✅ done · ◑ partial · ○ planned.
 
@@ -230,21 +231,23 @@ type configuration in `ui/table-view.ts`.
 - **Steps.** Per-file dirty index → aggregate memoization + invalidation →
   benchmark fixture → optional worker behind a vault-size threshold.
 
-#### M1 — Accessibility completion ○
+#### M1 — Accessibility completion ✅ (shipped in v3.6.0)
 
-- **What.** Finish what E1 started: exhaustive ARIA roles/labels on every stepper,
-  slider and toggle; full keyboard *editing* (not just opening the context menu);
-  `prefers-reduced-motion` honoured by the dice animation (shipped in v3.5.4);
-  high-contrast theme tokens.
-- **Considerations.** Builds directly on E1's roving focus and live region; map
-  each custom control to a native role/name; reduced-motion simply skips the
-  animation and commits immediately.
-- **Barriers.** No screen reader in CI — needs a documented manual pass; Obsidian's
-  own embedded controls have their own a11y quirks to work around.
-- **Touchpoints.** `ui/render/*`; `features/rolling/*`; `utils/a11y.ts`;
-  `styles.css`.
-- **Steps.** ARIA audit pass → keyboard inline-edit → reduced-motion gate →
-  high-contrast tokens → manual screen-reader checklist.
+Delivered every step. **ARIA audit:** each custom control maps to a native role
+and name — editable value cells are focusable `role="button"`s, the rating is a
+`role="slider"` (arrow keys + Home/End), the custom slider keeps its slider
+value semantics, native checkboxes carry accessible names, list chips expose a
+labelled *Remove* button, section titles are `aria-expanded` disclosures, and the
+entry `⋯` menu, steppers and roll buttons are labelled. **Keyboard editing:**
+values open with Enter/Space (not only via the context menu), the checkbox toggles
+from the keyboard even in locked mode, and rating/slider adjust with the arrows.
+**Reduced motion:** honoured across the roll / spin / collapse animations (the 3D
+die lands without the spin). **High contrast:** a `forced-colors: active` block
+plus broader `:focus-visible` rings ensure no state is conveyed by colour alone
+under Windows High Contrast. **Manual pass:** the screen-reader / keyboard test
+checklist lives in [ACCESSIBILITY.md](ACCESSIBILITY.md). *Future:* an in-entry
+arrow-key composite (fewer Tab stops on dense sheets) and a full high-contrast
+theme preset.
 
 #### L1 — History & safe sync ✅ (shipped in v3.1.0)
 
@@ -282,6 +285,7 @@ inline `prop:`/`val:` chips (the sidebar masks/reveals today).
   index, the table cell renderers, the expression engine).
 - **Milestone 8** (H1, H2) depends on a solid index — pull N1's per-file dirty
   marking forward if target vaults are large.
-- **Milestone 9** (N1, M1, L1): trust and scale — **L1 shipped in v3.1.0**; N1
-  underpins G1/H1 at scale and M1 finishes E1.
+- **Milestone 9** (N1, M1, L1): trust and scale — **L1 shipped in v3.1.0** and
+  **M1 (accessibility completion) shipped in v3.6.0**; N1 (index scale) underpins
+  G1/H1 and remains the open item.
 - **Milestone 10** (K1) is ongoing; API v2 is purely additive over `apiVersion` 1.

@@ -76,6 +76,7 @@ export function buildCluster(
   if (flags.steppers) {
     if (o.steppers && editable) {
       const dec = cl.createEl("button", { cls: "ep-step-btn", text: "−" });
+      dec.setAttr("aria-label", "Decrease value");
       dec.onclick = () => {
         sfx.tick();
         const cur = o.get!();
@@ -99,6 +100,7 @@ export function buildCluster(
   if (flags.steppers) {
     if (o.steppers && editable) {
       const inc = cl.createEl("button", { cls: "ep-step-btn", text: "+" });
+      inc.setAttr("aria-label", "Increase value");
       inc.onclick = () => {
         sfx.tick();
         const cur = o.get!();

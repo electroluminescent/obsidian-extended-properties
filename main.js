@@ -113,6 +113,12 @@ var en_default = {
   "hint.clickEdit": "Click to edit",
   "hint.dblEdit": "Double-click to edit",
   "hint.dblToggle": "Double-click to toggle",
+  "a11y.editValue": "Edit value",
+  "a11y.rating": "{name} rating",
+  "a11y.ratingValue": "{value} of {max}",
+  "a11y.removeItem": "Remove {item}",
+  "a11y.toggleSection": "Toggle section {name}",
+  "a11y.entryMenu": "Entry options",
   "section.namePlaceholder": "Section",
   "section.newName": "New section",
   "section.untitled": "Untitled",
@@ -3016,6 +3022,7 @@ function buildCluster(head, flags, o, bindOpen) {
   if (flags.steppers) {
     if (o.steppers && editable) {
       const dec = cl.createEl("button", { cls: "ep-step-btn", text: "\u2212" });
+      dec.setAttr("aria-label", "Decrease value");
       dec.onclick = () => {
         sfx.tick();
         const cur = o.get();
@@ -3038,6 +3045,7 @@ function buildCluster(head, flags, o, bindOpen) {
   if (flags.steppers) {
     if (o.steppers && editable) {
       const inc = cl.createEl("button", { cls: "ep-step-btn", text: "+" });
+      inc.setAttr("aria-label", "Increase value");
       inc.onclick = () => {
         sfx.tick();
         const cur = o.get();
@@ -3959,6 +3967,7 @@ var checkboxType = {
     cb.type = "checkbox";
     cb.addClass("ep-prof");
     cb.checked = isChecked(ctx2, key);
+    cb.setAttr("aria-label", view.defaultLabelFor(entry));
     if (view.editMode) {
       cb.onchange = () => {
         sfx.toggle();
@@ -3970,6 +3979,13 @@ var checkboxType = {
       cb.ondblclick = () => {
         sfx.toggle();
         view.note.set(file, key, !isChecked(ctx2, key));
+      };
+      cb.onkeydown = (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          sfx.toggle();
+          view.note.set(file, key, !isChecked(ctx2, key));
+        }
       };
     }
     view.registerUpdater(() => {
@@ -3996,7 +4012,17 @@ function buildList(ctx2, holder, showAdd) {
     const cv = chip.createSpan();
     view.renderLinks(cv, item);
     const x = chip.createSpan({ cls: "ep-chip-x", text: "\xD7" });
-    x.onclick = () => view.note.set(file, key, current.filter((i) => i !== item));
+    x.setAttr("role", "button");
+    x.tabIndex = 0;
+    x.setAttr("aria-label", view.i18n.t("a11y.removeItem", { item }));
+    const removeItem = () => view.note.set(file, key, current.filter((i) => i !== item));
+    x.onclick = removeItem;
+    x.onkeydown = (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        removeItem();
+      }
+    };
   }
   if (showAdd) {
     const addb = list.createEl("button", { cls: "ep-mini-btn ep-list-addbtn", text: view.i18n.t("list.add") });
@@ -4295,21 +4321,42 @@ var ratingType = {
     const icon = entry.ratingIcon || "star";
     const v = ctx2.head.createDiv({ cls: "ep-val-right ep-rating" });
     if (entry.valueColor) v.style.color = entry.valueColor;
+    v.setAttr("role", "slider");
+    v.tabIndex = 0;
+    v.setAttr("aria-label", view.i18n.t("a11y.rating", { name: view.defaultLabelFor(entry) }));
+    v.setAttr("aria-valuemin", "0");
+    v.setAttr("aria-valuemax", String(max));
+    const setRating = (n) => view.note.set(file, key, Math.max(0, Math.min(max, n)));
     const draw = () => {
       v.empty();
       const cur = Math.round(view.note.num(key, 0));
+      v.setAttr("aria-valuenow", String(cur));
+      v.setAttr("aria-valuetext", view.i18n.t("a11y.ratingValue", { value: cur, max }));
       for (let i = 1; i <= max; i++) {
         const pip = v.createSpan({ cls: "ep-rating-pip" + (i <= cur ? " is-on" : "") });
         (0, import_obsidian12.setIcon)(pip, icon);
+        pip.setAttr("aria-hidden", "true");
         pip.onclick = (e) => {
           e.preventDefault();
           e.stopPropagation();
           sfx.tick();
-          view.note.set(file, key, i === cur ? i - 1 : i);
+          setRating(i === cur ? i - 1 : i);
         };
       }
     };
     draw();
+    v.addEventListener("keydown", (e) => {
+      const cur = Math.round(view.note.num(key, 0));
+      let n = cur;
+      if (e.key === "ArrowRight" || e.key === "ArrowUp") n = cur + 1;
+      else if (e.key === "ArrowLeft" || e.key === "ArrowDown") n = cur - 1;
+      else if (e.key === "Home") n = 0;
+      else if (e.key === "End") n = max;
+      else return;
+      e.preventDefault();
+      sfx.tick();
+      setRating(n);
+    });
     view.registerUpdater(draw);
   },
   renderOptions(octx) {
@@ -5445,6 +5492,7 @@ function renderEntry(grid, view, file, section, entry, flags, drag) {
   if (view.editMode) {
     grip = head.createSpan({ cls: "ep-grip", text: "\u283F" });
     grip.setAttr("title", view.i18n.t("entry.dragHint"));
+    grip.setAttr("aria-hidden", "true");
   }
   if (entry.icon) {
     const ic = head.createSpan({ cls: "ep-picon" });
@@ -5467,10 +5515,20 @@ function renderEntry(grid, view, file, section, entry, flags, drag) {
   longPressContextMenu(wrap);
   if (view.editMode) {
     const menuBtn = head.createSpan({ cls: "ep-menu-btn", text: "\u22EF" });
+    menuBtn.setAttr("role", "button");
+    menuBtn.tabIndex = 0;
+    menuBtn.setAttr("aria-label", view.i18n.t("a11y.entryMenu"));
     menuBtn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
       openEntryMenu(e, view, file, section, entry);
+    };
+    menuBtn.onkeydown = (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        const r = menuBtn.getBoundingClientRect();
+        openEntryMenu(new MouseEvent("contextmenu", { clientX: r.left, clientY: r.bottom }), view, file, section, entry);
+      }
     };
     if (grip) drag.attachEntry(wrap, grip, section, entry);
   }
@@ -7413,7 +7471,21 @@ function renderSection(parent, view, file, section, drag, host) {
   if (collapsible) {
     collapseWrap.style.overflow = "hidden";
     if (section.collapsed) collapseWrap.style.height = "0px";
-    sum.onclick = () => toggleSection(view, section, det, collapseWrap, host);
+    sum.setAttr("role", "button");
+    sum.tabIndex = 0;
+    sum.setAttr("aria-label", t("a11y.toggleSection", { name: section.title }));
+    sum.setAttr("aria-expanded", String(!section.collapsed));
+    const toggle = () => {
+      toggleSection(view, section, det, collapseWrap, host);
+      sum.setAttr("aria-expanded", String(!section.collapsed));
+    };
+    sum.onclick = toggle;
+    sum.addEventListener("keydown", (e) => {
+      if ((e.key === "Enter" || e.key === " ") && e.target === sum) {
+        e.preventDefault();
+        toggle();
+      }
+    });
   }
 }
 function toggleSection(view, section, det, wrap, host) {
@@ -8178,6 +8250,15 @@ var SidebarView = class extends import_obsidian25.ItemView {
   }
   bindOpen(el, open, markEditable = true) {
     if (markEditable) el.addClass("ep-editable");
+    el.tabIndex = 0;
+    el.setAttr("role", "button");
+    el.setAttr("aria-label", this.i18n.t("a11y.editValue"));
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        open();
+      }
+    });
     if (this.editMode) {
       el.setAttr("title", this.i18n.t("hint.clickEdit"));
       el.onclick = (e) => {
@@ -12953,7 +13034,16 @@ var InlineViewCtx = class {
   bindOpen(el, open, markEditable = true) {
     if (markEditable) el.addClass("ep-editable");
     el.setAttr("title", this.i18n.t("hint.dblEdit"));
+    el.tabIndex = 0;
+    el.setAttr("role", "button");
+    el.setAttr("aria-label", this.i18n.t("a11y.editValue"));
     el.ondblclick = () => open();
+    el.onkeydown = (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        open();
+      }
+    };
   }
   renderLinks(el, text) {
     renderLinkedText(this.app, el, text, this.note.path || "");

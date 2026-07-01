@@ -829,3 +829,23 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .ep-sidebar :focus-visible, .ep-table-view :focus-visible, .ep-popup :focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; border-radius: 4px; }
 .ep-entry:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: -1px; border-radius: 6px; }
+
+/* -- M1: focus visibility for the newly keyboard-operable controls ---------- */
+.ep-rating:focus-visible, .ep-section-title:focus-visible, .ep-chip-x:focus-visible,
+.ep-editable:focus-visible, .ep-menu-btn:focus-visible, .ep-roll-box:focus-visible,
+.ep-step-btn:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; border-radius: 4px; }
+
+/* -- M1: high-contrast / forced-colors mode -------------------------------- */
+/* Controls that convey state via background or accent colour also get a visible
+   border/outline in Windows High Contrast (forced-colors), where those colours
+   are overridden by the system palette, so state stays perceivable. */
+@media (forced-colors: active) {
+  .ep-section, .ep-chip, .ep-swatch, .ep-roll-box, .ep-cube-face, .ep-solid-edge,
+  .ep-step-btn, .ep-mode-btn, .ep-tool-btn, .ep-edit-toggle { border: 1px solid CanvasText; }
+  /* selected / active / on states must not rely on colour alone */
+  .ep-mode-btn.is-active, .ep-edit-toggle.is-active, .ep-roll-box.ep-pinned,
+  .ep-rating-pip.is-on, .ep-solid-face.ep-solid-on .ep-solid-edge { outline: 2px solid Highlight; outline-offset: -2px; }
+  .ep-rating-pip { forced-color-adjust: auto; }
+  .ep-sidebar :focus-visible, .ep-table-view :focus-visible, .ep-popup :focus-visible,
+  .ep-entry:focus-visible, .ep-rating:focus-visible, .ep-section-title:focus-visible { outline: 2px solid Highlight; outline-offset: 1px; }
+}

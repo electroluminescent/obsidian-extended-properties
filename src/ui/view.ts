@@ -289,6 +289,18 @@ export class SidebarView extends ItemView implements ViewCtx {
 
   bindOpen(el: HTMLElement, open: () => void, markEditable = true): void {
     if (markEditable) el.addClass("ep-editable");
+    // Keyboard a11y (M1): editable value cells are operable, not just clickable
+    // — focusable, announced as a button, and opened with Enter/Space. This
+    // matches the slider knob's existing focusable-control pattern.
+    el.tabIndex = 0;
+    el.setAttr("role", "button");
+    el.setAttr("aria-label", this.i18n.t("a11y.editValue"));
+    el.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        open();
+      }
+    });
     if (this.editMode) {
       el.setAttr("title", this.i18n.t("hint.clickEdit"));
       el.onclick = (e) => {

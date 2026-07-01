@@ -263,7 +263,23 @@ export function renderSection(
   if (collapsible) {
     collapseWrap.style.overflow = "hidden";
     if (section.collapsed) collapseWrap.style.height = "0px";
-    sum.onclick = () => toggleSection(view, section, det, collapseWrap, host);
+    // Accessible disclosure (M1): the title bar is a keyboard-operable button
+    // that reports its expanded/collapsed state.
+    sum.setAttr("role", "button");
+    sum.tabIndex = 0;
+    sum.setAttr("aria-label", t("a11y.toggleSection", { name: section.title }));
+    sum.setAttr("aria-expanded", String(!section.collapsed));
+    const toggle = () => {
+      toggleSection(view, section, det, collapseWrap, host);
+      sum.setAttr("aria-expanded", String(!section.collapsed));
+    };
+    sum.onclick = toggle;
+    sum.addEventListener("keydown", (e: KeyboardEvent) => {
+      if ((e.key === "Enter" || e.key === " ") && e.target === sum) {
+        e.preventDefault();
+        toggle();
+      }
+    });
   }
 }
 

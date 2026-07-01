@@ -155,7 +155,17 @@ class InlineViewCtx implements ViewCtx {
   bindOpen(el: HTMLElement, open: () => void, markEditable = true): void {
     if (markEditable) el.addClass("ep-editable");
     el.setAttr("title", this.i18n.t("hint.dblEdit"));
+    // Keyboard a11y (M1): inline editable values are operable, not just clickable.
+    el.tabIndex = 0;
+    el.setAttr("role", "button");
+    el.setAttr("aria-label", this.i18n.t("a11y.editValue"));
     el.ondblclick = () => open();
+    el.onkeydown = (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        open();
+      }
+    };
   }
   renderLinks(el: HTMLElement, text: string): void {
     renderLinkedText(this.app, el, text, this.note.path || "");
