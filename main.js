@@ -11145,7 +11145,7 @@ var RollService = class {
     const notation = serializeRoll(ast);
     const brief = `${label}${tag}: ${total}`;
     const redo = (_e = opts.reroll) != null ? _e : () => this.rollAst(label, ast, opts);
-    const commit2 = () => {
+    const commit2 = (silent = false) => {
       var _a2, _b2, _c2, _d2;
       const file = (_a2 = this.app) == null ? void 0 : _a2.workspace.getActiveFile();
       const rec = {
@@ -11162,7 +11162,7 @@ var RollService = class {
         dice: notation
       };
       (_d2 = this.history) == null ? void 0 : _d2.append(rec, redo);
-      new import_obsidian33.Notice(brief, 4e3);
+      if (!silent) new import_obsidian33.Notice(brief, 4e3);
       announce(brief);
     };
     if ((_f = this.settings) == null ? void 0 : _f.diceAnim) {
@@ -11182,7 +11182,8 @@ var RollService = class {
           reroll: redo
         },
         this.i18n,
-        commit2
+        () => commit2(true)
+        // the roll card is the result display; no extra Notice
       );
     } else {
       sfx.roll();

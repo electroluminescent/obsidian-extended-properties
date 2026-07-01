@@ -132,7 +132,7 @@ export class RollService implements ViewService {
     const brief = `${label}${tag}: ${total}`;
     const redo = opts.reroll ?? (() => this.rollAst(label, ast, opts));
 
-    const commit = () => {
+    const commit = (silent = false) => {
       const file = this.app?.workspace.getActiveFile();
       const rec: RollRecord = {
         id: genId(),
@@ -148,7 +148,9 @@ export class RollService implements ViewService {
         dice: notation,
       };
       this.history?.append(rec, redo);
-      new Notice(brief, 4000);
+      // The roll dialog already shows the result on-screen, so suppress the
+      // redundant Notice when it's enabled (the announce stays for a11y).
+      if (!silent) new Notice(brief, 4000);
       announce(brief);
     };
 
@@ -169,7 +171,7 @@ export class RollService implements ViewService {
           reroll: redo,
         },
         this.i18n,
-        commit
+        () => commit(true) // the roll card is the result display; no extra Notice
       );
     } else {
       sfx.roll();
