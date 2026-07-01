@@ -15,15 +15,63 @@ function linkTarget(raw: string): string {
   return (m ? m[1] : raw).trim();
 }
 
+interface FileSnap {
+  file: TFile;
+  fm: Record<string, unknown> | undefined;
+}
+
 export class PropertyIndex {
   constructor(private app: App) {}
+
+  /**
+   * Per-file frontmatter snapshot cache. Every query above used to call
+   * `vault.getMarkdownFiles()` + `metadataCache.getFileCache()` fresh, which
+   * means a single cross-note `sum()/avg()/prop()` reference re-scanned the
+   * whole vault synchronously on every sidebar render. The cache is built
+   * lazily on first read and kept in sync by {@link invalidateFile} /
+   * {@link invalidateAll}, which `main.ts` wires to the vault's modify,
+   * delete, rename and `metadataCache.changed` events.
+   */
+  private cache: Map<string, FileSnap> | null = null;
+
+  private snapshots(): FileSnap[] {
+    if (!this.cache) {
+      this.cache = new Map();
+      for (const f of this.app.vault.getMarkdownFiles()) {
+        this.cache.set(f.path, {
+          file: f,
+          fm: this.app.metadataCache.getFileCache(f)?.frontmatter as Record<string, unknown> | undefined,
+        });
+      }
+    }
+    return [...this.cache.values()];
+  }
+
+  /** Refresh one file's cached frontmatter (called on modify/rename/metadata-changed). */
+  invalidateFile(file: TFile, oldPath?: string): void {
+    if (!this.cache) return;
+    if (oldPath && oldPath !== file.path) this.cache.delete(oldPath);
+    this.cache.set(file.path, {
+      file,
+      fm: this.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined,
+    });
+  }
+
+  /** Drop one file (called on delete). */
+  invalidatePath(path: string): void {
+    this.cache?.delete(path);
+  }
+
+  /** Drop the whole cache — cheap escape hatch, rebuilt lazily on next read. */
+  invalidateAll(): void {
+    this.cache = null;
+  }
 
   /** Numeric values of `key` across every note whose `Type` includes `typeKey`. */
   valuesByType(typeKey: string, key: string): number[] {
     const want = typeKey.trim().toLowerCase();
     const out: number[] = [];
-    for (const f of this.app.vault.getMarkdownFiles()) {
-      const fm = this.app.metadataCache.getFileCache(f)?.frontmatter as Record<string, unknown> | undefined;
+    for (const { fm } of this.snapshots()) {
       if (!fm) continue;
       const tv = getCI(fm, "Type");
       const types = Array.isArray(tv)
@@ -71,8 +119,7 @@ export class PropertyIndex {
       /* fall through to the scan */
     }
     if (names.size === 0) {
-      for (const f of this.app.vault.getMarkdownFiles().slice(0, 1000)) {
-        const fm = this.app.metadataCache.getFileCache(f)?.frontmatter;
+      for (const { fm } of this.snapshots().slice(0, 1000)) {
         if (fm) for (const k of Object.keys(fm)) names.add(k);
       }
     }
@@ -83,8 +130,8 @@ export class PropertyIndex {
   numberRange(key: string): { min: number; max: number } | null {
     let min = Infinity;
     let max = -Infinity;
-    for (const f of this.app.vault.getMarkdownFiles()) {
-      const v = this.app.metadataCache.getFileCache(f)?.frontmatter?.[key];
+    for (const { fm } of this.snapshots()) {
+      const v = fm?.[key];
       if (v === null || v === undefined || v === "") continue;
       const n = Number(v);
       if (!Number.isFinite(n)) continue;
@@ -97,8 +144,8 @@ export class PropertyIndex {
   /** Distinct values used for `key` anywhere in the vault, sorted. */
   valuesFor(key: string): string[] {
     const set = new Set<string>();
-    for (const f of this.app.vault.getMarkdownFiles()) {
-      const v = this.app.metadataCache.getFileCache(f)?.frontmatter?.[key];
+    for (const { fm } of this.snapshots()) {
+      const v = fm?.[key];
       if (Array.isArray(v)) v.forEach((x) => set.add(String(x)));
       else if (v !== undefined && v !== null && v !== "") set.add(String(v));
     }
@@ -108,12 +155,12 @@ export class PropertyIndex {
   /** Basenames of notes whose `key` contains `value`. */
   notesWithValue(key: string, value: string): string[] {
     const out: string[] = [];
-    for (const f of this.app.vault.getMarkdownFiles()) {
-      const v = this.app.metadataCache.getFileCache(f)?.frontmatter?.[key];
+    for (const { file, fm } of this.snapshots()) {
+      const v = fm?.[key];
       const has = Array.isArray(v)
         ? v.some((x) => String(x) === value)
         : v !== undefined && v !== null && String(v) === value;
-      if (has) out.push(f.basename);
+      if (has) out.push(file.basename);
     }
     return out;
   }

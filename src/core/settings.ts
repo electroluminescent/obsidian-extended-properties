@@ -83,6 +83,7 @@ const HANDLED_KEYS: ReadonlySet<string> = new Set([
   "crossNote", "conflictGuard", "tableLayouts", "tableLastType",
   "schemaVersion", "soundUi", "soundDice", "soundCrit", "layoutVault",
   "layoutVaultFolder", "appVersion", "snapshots", "snapshotKeep", "lastSnapshot",
+  "inlineEntries",
 ]);
 
 /**
@@ -157,6 +158,16 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
     if (data.crossNote === false) s.crossNote = false;
     if (data.conflictGuard === false) s.conflictGuard = false;
     if (data.tableLayouts && typeof data.tableLayouts === "object") s.tableLayouts = data.tableLayouts;
+    // Inline `ep-sheet` entries keyed by block id — validate the shape so a
+    // corrupt/foreign value can't crash the inline renderer (it only ever
+    // reads `Entry`-shaped objects out of this map).
+    if (data.inlineEntries && typeof data.inlineEntries === "object") {
+      const clean: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(data.inlineEntries as Record<string, unknown>)) {
+        if (v && typeof v === "object" && typeof (v as Record<string, unknown>).kind === "string") clean[k] = v;
+      }
+      s.inlineEntries = clean as EPSettings["inlineEntries"];
+    }
     if (typeof data.tableLastType === "string") s.tableLastType = data.tableLastType;
     if (typeof data.schemaVersion === "number") s.schemaVersion = data.schemaVersion;
     if (data.soundUi === false) s.soundUi = false;

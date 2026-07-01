@@ -265,6 +265,17 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     this.registerEvent(this.app.metadataCache.on("changed", (file) => refresh(file)));
     this.registerEvent(this.app.workspace.on("file-open", () => void this.primeSecrets()));
 
+    // Keep the cross-note PropertyIndex cache (perf: avoids a full vault
+    // scan on every sum()/avg()/prop() render) in sync with the vault.
+    this.registerEvent(this.app.metadataCache.on("changed", (file) => this.props.invalidateFile(file)));
+    this.registerEvent(this.app.vault.on("delete", (file) => this.props.invalidatePath(file.path)));
+    this.registerEvent(
+      this.app.vault.on("rename", (file, oldPath) => {
+        if (file instanceof TFile) this.props.invalidateFile(file, oldPath);
+        else this.props.invalidatePath(oldPath);
+      })
+    );
+
     // -- Obsidian properties-panel menus -----------------------------------------
     const host = { app: this.app, i18n: this.i18n, settings: this.settings, hide: this.hide };
     this.registerDomEvent(
