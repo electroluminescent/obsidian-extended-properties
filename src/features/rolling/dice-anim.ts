@@ -402,6 +402,12 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
   const budget = Math.max(300, Math.min(10000, job.durationMs || 1500));
   const count = flat.length + job.parts.length; // staggered items before the total
   const step = budget / (count + 1);
+  // Styles that own their whole motion (the 3D die's single decelerating spin)
+  // start now and land exactly at their settle time; others tumble via tick().
+  for (let i = 0; i < dies.length; i++) {
+    const { grp, idx } = flat[i];
+    dies[i].view.roll?.(grp.faces[idx], Math.round((i + 1) * step));
+  }
   flat.forEach((_, i) => later(() => settleDie(i), Math.round((i + 1) * step)));
   job.parts.forEach((part, p) =>
     later(() => addCell("+", fmtMod(part.value), part.label), Math.round((flat.length + p + 1) * step))

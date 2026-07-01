@@ -9910,16 +9910,47 @@ var cube3d = {
       num.style.transform = `rotate(${f.numRot.toFixed(1)}deg)`;
       return fe;
     });
+    const idxOf = (v) => v >= 1 && v <= solid.length ? v - 1 : 0;
+    const landed = (idx) => `${sc}rotateZ(${solid[idx].landUp.toFixed(1)}deg) ${solid[idx].land}`;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     return {
+      // The motion is one continuous decelerating spin kicked off by roll();
+      // there's nothing to update per frame (no more jarring re-orientations).
       tick: () => {
-        const r = () => Math.floor(Math.random() * 360);
-        wrap.style.transform = `${sc}rotateX(${r()}deg) rotateY(${r()}deg) rotateZ(${r()}deg)`;
+      },
+      roll: (v, durationMs) => {
+        const idx = idxOf(v);
+        const ax = Math.random() * 2 - 1;
+        const ay = Math.random() * 2 - 1;
+        const az = (Math.random() * 2 - 1) * 0.35;
+        const L = Math.hypot(ax, ay, az) || 1;
+        const pre = `${sc}rotate3d(${(ax / L).toFixed(3)}, ${(ay / L).toFixed(3)}, ${(az / L).toFixed(3)}, `;
+        const post = `deg) rotateZ(${solid[idx].landUp.toFixed(1)}deg) ${solid[idx].land}`;
+        const tf = (ang) => `${pre}${ang}${post}`;
+        const end = tf(0);
+        if (reduce) {
+          wrap.style.transform = end;
+          return;
+        }
+        const spins = 3 + Math.floor(Math.random() * 2);
+        const dur = Math.max(450, Math.min(1600, durationMs || 700));
+        wrap.style.transform = tf(360 * spins);
+        wrap.animate(
+          [
+            // Decelerate quickly from the wound-up spin down onto the face…
+            { transform: tf(360 * spins), offset: 0, easing: "cubic-bezier(.12,.75,.16,1)" },
+            // …carry a touch past it (the bounce)…
+            { transform: tf(-9), offset: 0.86, easing: "cubic-bezier(.33,0,.5,1)" },
+            // …then settle back exactly on the face.
+            { transform: end, offset: 1 }
+          ],
+          { duration: dur, fill: "forwards" }
+        );
       },
       settle: (v) => {
         var _a;
-        const idx = v >= 1 && v <= solid.length ? v - 1 : 0;
-        wrap.addClass("ep-solid-land");
-        wrap.style.transform = `${sc}rotateZ(${solid[idx].landUp.toFixed(1)}deg) ${solid[idx].land}`;
+        const idx = idxOf(v);
+        wrap.style.transform = landed(idx);
         (_a = faceEls[idx]) == null ? void 0 : _a.addClass("ep-solid-on");
         el.addClass("ep-settled");
       }
@@ -10879,7 +10910,7 @@ function updateSummary(i18n) {
   apply(false);
 }
 function playRollAnimation(job, i18n, done) {
-  var _a, _b;
+  var _a, _b, _c, _d;
   if ((_b = (_a = window.matchMedia) == null ? void 0 : _a.call(window, "(prefers-reduced-motion: reduce)")) == null ? void 0 : _b.matches) {
     done();
     return;
@@ -11029,6 +11060,10 @@ function playRollAnimation(job, i18n, done) {
   const budget = Math.max(300, Math.min(1e4, job.durationMs || 1500));
   const count = flat.length + job.parts.length;
   const step = budget / (count + 1);
+  for (let i = 0; i < dies.length; i++) {
+    const { grp, idx } = flat[i];
+    (_d = (_c = dies[i].view).roll) == null ? void 0 : _d.call(_c, grp.faces[idx], Math.round((i + 1) * step));
+  }
   flat.forEach((_, i) => later(() => settleDie(i), Math.round((i + 1) * step)));
   job.parts.forEach(
     (part, p) => later(() => addCell("+", fmtMod(part.value), part.label), Math.round((flat.length + p + 1) * step))
