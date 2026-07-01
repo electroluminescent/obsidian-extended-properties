@@ -36,6 +36,10 @@ the full project zip attached. Review the draft, then publish it.
 
 > The build artifact `main.js` is committed to the repo as well, so manual and BRAT
 > installs work straight from the latest release.
+>
+> Vault-local `data.json` is git-ignored (along with `backups/`), so it is never
+> tracked or shipped in a release — an update can't overwrite a user's live
+> settings and layouts.
 
 ## 3. Install paths (also in the README)
 

@@ -1,10 +1,12 @@
 # Extended Properties — roadmap
 
-**Status: v3.2.0.** The original feature roadmap (milestones 1–6) is fully
+**Status: v3.5.5.** The original feature roadmap (milestones 1–6) is fully
 implemented, and forward-roadmap items **L1 (history & safe sync, v3.1.0)** and
-**G2 (inline charts & sparklines, v3.2.0)** have shipped. This document is
-consolidated: it records what shipped — without the original per-feature planning
-notes or challenge analysis — and lays out the remaining forward-looking roadmap.
+**G2 (inline charts & sparklines, v3.2.0)** have shipped. Releases v3.3.0–v3.5.5
+added the 3D-dice presentation plus a run of roll, mobile and robustness polish
+(see *Dice presentation & polish* below). This document is consolidated: it
+records what shipped — without the original per-feature planning notes or
+challenge analysis — and lays out the remaining forward-looking roadmap.
 
 Legend: ✅ done · ◑ partial · ○ planned.
 
@@ -84,6 +86,31 @@ and `` `progress: HP / MaxHP` `` — and an `ep-chart` code block takes a small
 resolve through the existing engine, so short forms, modifier suffixes and
 cross-note references work. *Deferred:* a chart cell in the type table view
 (needs per-column type config) remains a follow-up.
+
+### Dice presentation & polish (v3.3.0–v3.5.5) ✅
+
+The 3D dice roll grew from an idea into real geometry. `utils/polyhedra.ts`
+(pure, unit-tested) builds the standard solids — tetrahedron (d4), cube (d6),
+octahedron (d8), pentagonal trapezohedron (d10), dodecahedron (d12) and
+icosahedron (d20) — via convex-hull face extraction, emitting per-face
+`place` / `land` / `clip` matrices so a die lands with the result face front and
+upright. The roll animation is **modular** (`features/rolling/dice-styles.ts`):
+classic cycling numbers, a spinning icon, or the 3D solid, selectable in
+Settings → Dice. The 3D die plays **one continuous decelerating spin on a single
+axis** that overshoots the landing slightly (a bounce) before settling, and
+honours `prefers-reduced-motion`.
+
+Alongside it: rolls resolve in an on-screen **dialog** that *replaces* the result
+Notice while enabled (history and the a11y announce are kept); on mobile the roll
+cards **wrap into as many columns as fit the screen and scroll vertically**
+instead of one horizontal row, and the numeric `−`/`+` steppers get a wider grid
+column so the larger mobile touch targets no longer overlap. A supersampling
+anti-alias path for the 3D dice exists but is currently **disabled** (it distorted
+the dice under CSS 3D; the toggle is locked off pending a different approach).
+Robustness passes hardened the data path — a corrupt `data.json` now falls back to
+defaults and is backed up rather than bricking load, snapshot / inline-render
+parsing is guarded, and vault-local `data.json` is no longer tracked in git or
+shipped in release zips, so an update can never overwrite live settings.
 
 ## Deprecations
 
@@ -207,8 +234,8 @@ type configuration in `ui/table-view.ts`.
 
 - **What.** Finish what E1 started: exhaustive ARIA roles/labels on every stepper,
   slider and toggle; full keyboard *editing* (not just opening the context menu);
-  `prefers-reduced-motion` honoured by the dice animation; high-contrast theme
-  tokens.
+  `prefers-reduced-motion` honoured by the dice animation (shipped in v3.5.4);
+  high-contrast theme tokens.
 - **Considerations.** Builds directly on E1's roving focus and live region; map
   each custom control to a native role/name; reduced-motion simply skips the
   animation and commits immediately.

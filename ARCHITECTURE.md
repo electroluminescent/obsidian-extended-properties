@@ -25,9 +25,9 @@ Two principles run through the code:
 | --- | --- |
 | `src/core/` | Data model (`model.ts`), registries (`registry.ts`), the influence engine (`influences.ts`), expression engine (`expr.ts`), validation (`validate.ts`), export/import (`transfer.ts`), note I/O (`note-model.ts`), three-way merge (`merge.ts`), vault-file layouts (`layout-store.ts`), config snapshots (`snapshot-store.ts`), value encryption (`secure.ts`), settings normalize + migrations (`settings.ts`). No UI, no feature knowledge. |
 | `src/ui/` | The sidebar `ItemView` (`view.ts`), the type table view (`table-view.ts`), renderers (`render/*`), menus (`menus/*`), settings tab (`settings-tab.ts`), and reusable components (`components/*`, including the popup helpers and the `[[`-autocomplete `suggest.ts`). |
-| `src/features/` | Optional modules — `rolling/` (dice + history + macros), `dnd5e/` (character-sheet templates/presets), `inline/` (`roll:` / `prop:` / `val:` / `vals:` and the `ep-sheet` block). Each owns a `strings.json`. |
+| `src/features/` | Optional modules — `rolling/` (dice + history + macros, plus the modular roll-animation styles and the 3D-polyhedra dice: `dice-styles.ts`, `dice-anim.ts`), `dnd5e/` (character-sheet templates/presets), `inline/` (`roll:` / `prop:` / `val:` / `vals:` and the `ep-sheet` block). Each owns a `strings.json`. |
 | `src/i18n/` | The localization service plus JSON dictionaries loaded through thin typed shims (`locales/en.json`). |
-| `src/utils/` | Obsidian-free helpers: `dice.ts`, `dice-expr.ts`, colour math, formula parsing, `sound.ts`, `a11y.ts`, chart geometry (`chart.ts`). |
+| `src/utils/` | Obsidian-free helpers: `dice.ts`, `dice-expr.ts`, colour math, formula parsing, `sound.ts`, `a11y.ts`, chart geometry (`chart.ts`), and the 3D-dice polyhedra geometry (`polyhedra.ts`, unit-tested). |
 | `src/api.ts` | The frozen public surface (see below). |
 | `scripts/i18n-check.mjs` | Locale key-parity checker (CI + `npm run i18n`). |
 | `tests/` | Vitest specs over the pure modules + a golden settings-migration fixture. |
