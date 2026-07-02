@@ -15,7 +15,7 @@ import { ItemView, Notice, TFile, WorkspaceLeaf } from "obsidian";
 import type ExtendedPropertiesPlugin from "../main";
 import { isEnvelope } from "../core/secure";
 import type { ClusterFlags, ClusterOptions, ClusterRefs, EntryRenderCtx, ViewCtx } from "../core/context";
-import { Entry, Layout, Section } from "../core/model";
+import { Entry, Layout, Section, sectionPin } from "../core/model";
 import { ServiceHub, SectionTemplateDef } from "../core/registry";
 import { NoteModel } from "../core/note-model";
 import { influenceSources, VaultAccess } from "../core/influences";
@@ -54,6 +54,7 @@ export class SidebarView extends ItemView implements ViewCtx {
   private sectionEls: Record<string, HTMLElement> = {};
   private headerEl: HTMLElement | null = null;
   private stickyZoneEl: HTMLElement | null = null;
+  private footerZoneEl: HTMLElement | null = null;
   private flowEl: HTMLElement | null = null;
   private resizeObs: ResizeObserver | null = null;
   private lastEmptySig = "";
@@ -754,6 +755,12 @@ export class SidebarView extends ItemView implements ViewCtx {
 
   private reflowSticky(): void {
     if (this.headerEl && this.stickyZoneEl) this.stickyZoneEl.style.top = this.headerEl.offsetHeight + "px";
+    // Cap both pinned zones so they can never swallow the view: past ~a third
+    // of the view height each zone scrolls internally, which keeps every
+    // pinned item reachable at any window size (see .ep-sticky-zone /
+    // .ep-footer-zone in styles.css).
+    const cap = Math.max(90, Math.floor(this.content.clientHeight * 0.34));
+    this.content.style.setProperty("--ep-zone-max", cap + "px");
     this.content.style.setProperty("--ep-sticky-top", this.stickyTopPx() + "px");
   }
 
@@ -799,6 +806,7 @@ export class SidebarView extends ItemView implements ViewCtx {
     const animate = this.modeAnim;
     const oldFlowH = animate && this.flowEl ? this.flowEl.offsetHeight : 0;
     const oldZoneH = animate && this.stickyZoneEl ? this.stickyZoneEl.offsetHeight : 0;
+    const oldFootH = animate && this.footerZoneEl ? this.footerZoneEl.offsetHeight : 0;
     container.empty();
     container.addClass("ep-sidebar");
     container.toggleClass("ep-editing", this.editMode);
@@ -881,7 +889,7 @@ export class SidebarView extends ItemView implements ViewCtx {
           title: t("section.newName"),
           columns: d.sectionColumns,
           transparent: d.sectionTransparent,
-          sticky: d.sectionSticky,
+          pin: d.sectionSticky ? "header" : undefined,
           size: d.sectionSize,
           collapsible: d.sectionCollapsible,
           dividers: d.sectionDividers,
@@ -912,12 +920,16 @@ export class SidebarView extends ItemView implements ViewCtx {
     this.stickyZoneEl = container.createDiv({ cls: "ep-sticky-zone" });
     const flow = container.createDiv({ cls: "ep-flow" });
     this.flowEl = flow;
+    this.footerZoneEl = container.createDiv({ cls: "ep-footer-zone" });
     const host = {
       registerSectionEl: (id: string, el: HTMLElement) => (this.sectionEls[id] = el),
       reflowSticky: () => this.reflowSticky(),
     };
-    for (const section of this.layout.sections)
-      renderSection(section.sticky ? this.stickyZoneEl : flow, this, file, section, this.drag, host);
+    for (const section of this.layout.sections) {
+      const pin = sectionPin(section);
+      const zone = pin === "header" ? this.stickyZoneEl : pin === "footer" ? this.footerZoneEl : flow;
+      renderSection(zone, this, file, section, this.drag, host);
+    }
     this.lastEmptySig = this.emptySig();
     this.initRovingFocus();
 
@@ -931,12 +943,14 @@ export class SidebarView extends ItemView implements ViewCtx {
       this.resizeObs.disconnect();
       if (this.headerEl) this.resizeObs.observe(this.headerEl);
       if (this.stickyZoneEl) this.resizeObs.observe(this.stickyZoneEl);
+      if (this.footerZoneEl) this.resizeObs.observe(this.footerZoneEl);
       if (this.flowEl) this.resizeObs.observe(this.flowEl);
     }
     if (animate)
       requestAnimationFrame(() => {
         this.animateHeight(this.flowEl, oldFlowH);
         this.animateHeight(this.stickyZoneEl, oldZoneH);
+        this.animateHeight(this.footerZoneEl, oldFootH);
       });
   }
 

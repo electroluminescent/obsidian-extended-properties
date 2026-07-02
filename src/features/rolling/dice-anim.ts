@@ -25,11 +25,22 @@
 
 import { Menu, setIcon } from "obsidian";
 import type { I18n } from "../../i18n/i18n";
+import type { EPSettings } from "../../core/model";
 import { formatDice } from "../../utils/dice";
 import { diceIconId } from "../../ui/render/dice-icons";
 import { fmtMod } from "../../utils/misc";
 import { sfx } from "../../utils/sound";
-import { DieView, pickDiceStyle } from "./dice-styles";
+import { DICE_STYLES, DieView, pickDiceStyle } from "./dice-styles";
+
+/**
+ * Live plugin settings + persist callback for the summary's expandable
+ * settings panel (mirrors `configureSound`). Wired once in `main.ts`; the
+ * panel is simply omitted when not configured.
+ */
+let uiCtx: { settings: EPSettings; save: () => void } | null = null;
+export function configureRollUi(settings: EPSettings, save: () => void): void {
+  uiCtx = { settings, save };
+}
 
 /** Safety cap — every realistic roll renders all its dice (the row scrolls
  * through them); only absurd pools are capped to bound the DOM. */
@@ -86,6 +97,8 @@ let layer: HTMLElement | null = null;
 let summaryEl: HTMLElement | null = null;
 let summarySig = "";
 let summaryIndex = 0;
+/** Whether the summary's settings panel is expanded (kept across rebuilds). */
+let summaryOpen = false;
 /** Close handlers of all live cards, for dismiss-all. */
 const closers = new Set<() => void>();
 /** Resolved, still-visible rolls (feed the bottom summary window). */
@@ -122,6 +135,45 @@ function dropBox(box: HTMLElement): void {
   }
 }
 
+/**
+ * Capture the positions of the cards that stay, returning a player that
+ * FLIP-slides them into the space a dismissed card freed (mirrors the
+ * summary's mini-die animation).
+ */
+function prepareCardFlip(closing: HTMLElement): () => void {
+  const host = closing.parentElement;
+  if (!host) return () => undefined;
+  const firsts = (Array.from(host.children) as HTMLElement[])
+    .filter((el) => el !== closing && el.classList.contains("ep-roll-box"))
+    .map((el) => ({ el, rect: el.getBoundingClientRect() }));
+  return () => {
+    for (const { el, rect } of firsts) {
+      const now = el.getBoundingClientRect();
+      const dx = rect.left - now.left;
+      const dy = rect.top - now.top;
+      if (!dx && !dy) continue;
+      el.style.transition = "none";
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+      requestAnimationFrame(() => {
+        el.style.transition = "transform .18s ease";
+        el.style.transform = "";
+        window.setTimeout(() => (el.style.transition = ""), 240);
+      });
+    }
+  };
+}
+
+/** Keep the cards clear of the summary dialog: measure it into the layer's
+ * bottom reserve (an expanded settings panel pushes the cards up with it). */
+function measureReserve(): void {
+  if (!layer) return;
+  if (summaryEl && summaryEl.isConnected) {
+    layer.style.setProperty("--ep-roll-reserve", Math.max(150, summaryEl.offsetHeight + 32) + "px");
+  } else {
+    layer.style.removeProperty("--ep-roll-reserve");
+  }
+}
+
 /** Bottom-center window: dismiss-all plus the result-distribution slider. */
 function updateSummary(i18n: I18n): void {
   if (!layer) return;
@@ -129,6 +181,7 @@ function updateSummary(i18n: I18n): void {
     summaryEl?.remove();
     summaryEl = null;
     summarySig = "";
+    measureReserve();
     return;
   }
   const rolls = [...lives.values()];
@@ -219,6 +272,100 @@ function updateSummary(i18n: I18n): void {
     apply(true);
   };
   apply(false);
+  renderSummarySettings(summaryEl, i18n);
+  requestAnimationFrame(measureReserve);
+}
+
+/**
+ * Expandable roll-settings panel inside the summary dialog. Compact,
+ * label-per-control grid; every control is a native element (keyboard and
+ * screen-reader operable). On mobile the expanded summary may take up to
+ * half the screen and scrolls internally — the layer's measured bottom
+ * reserve keeps the dice cards visible above it.
+ */
+let rsId = 0;
+function renderSummarySettings(host: HTMLElement, i18n: I18n): void {
+  if (!uiCtx) return;
+  const { settings, save } = uiCtx;
+  const wrap = host.createDiv({ cls: "ep-roll-sum-settings" });
+  wrap.toggleClass("ep-open", summaryOpen);
+  const tog = wrap.createEl("button", { cls: "ep-roll-sum-toggle" });
+  tog.setAttr("aria-expanded", String(summaryOpen));
+  const chev = tog.createSpan({ cls: "ep-chev" });
+  setIcon(chev, "chevron-right");
+  chev.toggleClass("ep-open", summaryOpen);
+  tog.createSpan({ text: i18n.t("roll.summary.settings") });
+  const body = wrap.createDiv({ cls: "ep-roll-sum-body" });
+  tog.onclick = () => {
+    summaryOpen = !summaryOpen;
+    wrap.toggleClass("ep-open", summaryOpen);
+    chev.toggleClass("ep-open", summaryOpen);
+    tog.setAttr("aria-expanded", String(summaryOpen));
+    host.toggleClass("ep-sum-open", summaryOpen);
+    requestAnimationFrame(measureReserve);
+  };
+  host.toggleClass("ep-sum-open", summaryOpen);
+
+  const labelled = <T extends HTMLElement>(text: string, make: () => T): T => {
+    const id = "ep-rs-" + ++rsId;
+    const lab = body.createEl("label", { text });
+    lab.htmlFor = id;
+    const el = make();
+    el.id = id;
+    return el;
+  };
+
+  // Animation style.
+  const styleSel = labelled(i18n.t("settings.diceStyle"), () => body.createEl("select"));
+  for (const st of DICE_STYLES) {
+    const o = styleSel.createEl("option", { text: st.name(i18n) });
+    o.value = st.id;
+  }
+  styleSel.value = settings.diceAnimStyle ?? "classic";
+  styleSel.onchange = () => {
+    settings.diceAnimStyle = styleSel.value;
+    save();
+  };
+
+  // Animation duration.
+  const dur = labelled(i18n.t("settings.diceAnimMs"), () => body.createEl("input"));
+  dur.type = "range";
+  dur.min = "300";
+  dur.max = "5000";
+  dur.step = "100";
+  dur.value = String(settings.diceAnimMs ?? 1500);
+  dur.onchange = () => {
+    settings.diceAnimMs = Math.round(Number(dur.value) || 1500);
+    save();
+  };
+
+  // Keep cards on screen.
+  const stay = labelled(i18n.t("settings.diceAnimStay"), () => body.createEl("input"));
+  stay.type = "checkbox";
+  stay.checked = settings.diceAnimStay;
+  stay.onchange = () => {
+    settings.diceAnimStay = stay.checked;
+    save();
+  };
+
+  // Dim / block the background (applies to the current layer immediately).
+  const block = labelled(i18n.t("settings.diceAnimBlock"), () => body.createEl("input"));
+  block.type = "checkbox";
+  block.checked = settings.diceAnimBlock !== false;
+  block.onchange = () => {
+    settings.diceAnimBlock = block.checked;
+    layer?.toggleClass("ep-roll-block", block.checked);
+    save();
+  };
+
+  // Sound effects.
+  const snd = labelled(i18n.t("settings.sound"), () => body.createEl("input"));
+  snd.type = "checkbox";
+  snd.checked = settings.sound !== false;
+  snd.onchange = () => {
+    settings.sound = snd.checked;
+    save();
+  };
 }
 
 export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void): void {
@@ -239,9 +386,9 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
   // edge instead of wrapping onto a second row.
   const diceTrack = diceRow.createDiv({ cls: "ep-roll-dice-track" });
   const chain = box.createDiv({ cls: "ep-roll-chain" });
-  // The card's size animates via CSS (interpolate-size + a height/width
-  // transition on .ep-roll-box) so new result rows expand it smoothly and
-  // immediately, without per-frame JS reflow.
+  // Card growth is FLIP-animated in addCell: content-driven auto→auto size
+  // changes don't fire CSS transitions, so each appended chain cell measures
+  // the card before/after and animates between the two sizes explicitly.
   // Keep the newest card in view; previous rolls scroll off to the left.
   requestAnimationFrame(() => {
     host.scrollLeft = host.scrollWidth;
@@ -290,7 +437,12 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     window.clearInterval(interval);
     for (const id of timers) window.clearTimeout(id);
     box.addClass("ep-closing");
-    window.setTimeout(() => dropBox(box), 160);
+    window.setTimeout(() => {
+      // Remaining cards slide into the freed space (FLIP).
+      const play = prepareCardFlip(box);
+      dropBox(box);
+      play();
+    }, 160);
     updateSummary(i18n);
   };
   closers.add(close);
@@ -349,12 +501,45 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     menu.showAtMouseEvent(ev);
   };
 
-  /** Append one value (+ small origin label) to the addition chain. */
+  /**
+   * Append one value (+ small origin label) to the addition chain, FLIP-
+   * animating the card's size: a new row (a die value, a modifier term, the
+   * total) can widen and heighten the card, and auto→auto growth fires no
+   * CSS transition on its own. Works mid-animation too — the "before" size
+   * is read from the live rect, so rapid successive rows chain smoothly.
+   */
+  let sizeTimer = 0;
   const addCell = (op: string | null, valueText: string, labelText: string, cls = ""): void => {
+    const before = box.getBoundingClientRect();
     if (op) chain.createSpan({ cls: "ep-roll-op", text: op });
     const cell = chain.createDiv({ cls: "ep-roll-cell" + (cls ? " " + cls : "") });
     cell.createDiv({ cls: "ep-roll-cellval", text: valueText });
     cell.createDiv({ cls: "ep-roll-celllab", text: labelText });
+    // Measure the natural size with the new row in place…
+    box.style.transition = "none";
+    box.style.width = "";
+    box.style.height = "";
+    const w = box.offsetWidth;
+    const h = box.offsetHeight;
+    if (Math.abs(w - before.width) >= 1 || Math.abs(h - before.height) >= 1) {
+      // …then animate from the current (possibly mid-transition) size to it.
+      box.style.overflow = "hidden";
+      box.style.width = before.width + "px";
+      box.style.height = before.height + "px";
+      void box.offsetWidth;
+      box.style.transition = "width .2s ease-out, height .2s ease-out";
+      box.style.width = w + "px";
+      box.style.height = h + "px";
+      window.clearTimeout(sizeTimer);
+      sizeTimer = window.setTimeout(() => {
+        box.style.transition = "";
+        box.style.width = "";
+        box.style.height = "";
+        box.style.overflow = "";
+      }, 230);
+    } else {
+      box.style.transition = "";
+    }
     requestAnimationFrame(() => cell.addClass("ep-in"));
   };
 

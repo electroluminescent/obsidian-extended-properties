@@ -11,14 +11,14 @@
 import { Menu, setIcon } from "obsidian";
 import type { TFile } from "obsidian";
 import type { ClusterFlags, ViewCtx } from "../../core/context";
-import { Section, sectionMode } from "../../core/model";
+import { Section, sectionMode, sectionPin } from "../../core/model";
 import * as ops from "../../core/layout-ops";
 import { emptyFlags, mergeNeeds } from "./cluster";
 import { renderEntry, isHiddenEntry } from "./entry-renderer";
 import { openSectionMenu } from "../menus/section-menu";
 import { bindRename } from "../components/inline-edit";
 import type { DragController } from "../drag";
-import type { LayoutMode } from "../../core/model";
+import type { LayoutMode, SectionPin } from "../../core/model";
 
 /** Row-height presets → max rows shown before the section scrolls. */
 const SIZE_ROWS: Record<string, number> = { s: 4, m: 8, l: 12 };
@@ -94,7 +94,7 @@ export function renderSection(
   host.registerSectionEl(section.id, det);
   if (view.editMode && section.showWhen && !view.condVisible(section.showWhen)) det.addClass("ep-cond-off");
   det.setAttr("data-ep-id", "s:" + section.id);
-  if (!section.sticky) det.addClass("ep-flow-section");
+  if (sectionPin(section) === "body") det.addClass("ep-flow-section");
   if (section.transparent) det.addClass("ep-transparent");
   if (section.accent) det.style.setProperty("--ep-accent", section.accent);
   if (section.controlColor) det.style.setProperty("--ep-control", section.controlColor);
@@ -154,15 +154,19 @@ export function renderSection(
       view.saveLayout();
       view.rerender();
     };
-    // Sticky pin.
+    // Pin-zone cycler: body → header → footer (mirrors the layout cycler).
+    const pin = sectionPin(section);
     const pinBtn = sum.createSpan({ cls: "ep-icon-btn" });
-    setIcon(pinBtn, "pin");
-    pinBtn.setAttr("title", section.sticky ? t("section.unpinHint") : t("section.pinHint"));
-    if (section.sticky) pinBtn.addClass("is-active");
+    setIcon(pinBtn, pin === "header" ? "arrow-up-to-line" : pin === "footer" ? "arrow-down-to-line" : "pin");
+    pinBtn.setAttr("title", t("section.pinCycleHint", { zone: t("pin." + pin) }));
+    if (pin !== "body") pinBtn.addClass("is-active");
     pinBtn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      section.sticky = !section.sticky;
+      const order: SectionPin[] = ["body", "header", "footer"];
+      const next = order[(order.indexOf(pin) + 1) % order.length];
+      section.pin = next === "body" ? undefined : next;
+      section.sticky = undefined; // superseded legacy flag
       view.saveLayout();
       view.rerender();
     };

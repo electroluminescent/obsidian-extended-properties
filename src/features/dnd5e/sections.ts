@@ -128,7 +128,7 @@ const builders: Record<string, (i18n: I18n) => Section> = {
     title: i18n.t("dnd.tpl.contents"),
     columns: 2,
     layoutMode: "columns",
-    sticky: true,
+    pin: "header",
     collapsible: true,
     entries: [{ id: genId(), kind: "toc" }, { id: genId(), kind: "rolls" }],
   }),

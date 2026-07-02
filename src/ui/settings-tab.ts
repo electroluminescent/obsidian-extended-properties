@@ -136,7 +136,7 @@ export class EPSettingTab extends PluginSettingTab {
         });
       });
     toggleRow(t("sectionOptions.transparent"), () => d.sectionTransparent, (v) => (d.sectionTransparent = v));
-    toggleRow(t("sectionOptions.sticky"), () => d.sectionSticky, (v) => (d.sectionSticky = v));
+    toggleRow(t("sectionOptions.pinDefault"), () => d.sectionSticky, (v) => (d.sectionSticky = v));
     toggleRow(t("sectionOptions.collapsible"), () => d.sectionCollapsible, (v) => (d.sectionCollapsible = v));
     toggleRow(t("settings.entryDividers"), () => d.sectionDividers, (v) => (d.sectionDividers = v));
     new Setting(c).setName(t("sectionOptions.height")).addDropdown((dd) => {

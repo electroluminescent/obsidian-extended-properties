@@ -21,6 +21,9 @@ export type SectionSize = "s" | "m" | "l" | "unlimited";
 /** How a section arranges its entries. */
 export type LayoutMode = "list" | "columns" | "grid";
 
+/** Where a section is pinned while the sidebar scrolls. */
+export type SectionPin = "header" | "body" | "footer";
+
 /** Generic, feature-agnostic fields of a sidebar entry. */
 export interface EntryBase {
   /** Stable id used for drag & drop and FLIP animations. */
@@ -125,8 +128,16 @@ export interface Section {
   controlColor?: string;
   titleSize?: number;
   transparent?: boolean;
-  /** Pin into the sticky zone below the header. */
+  /** Legacy boolean pin (pre-pin-zones): true = pinned below the header. */
   sticky?: boolean;
+  /**
+   * Pin zone: "header" sticks below the title bar, "footer" sticks above the
+   * view's bottom edge, "body"/unset scrolls normally. Wins over the legacy
+   * `sticky` flag (resolve via {@link sectionPin}). Both zones cap their
+   * height and scroll internally, so pinning many sections can never make
+   * content unreachable on a small window.
+   */
+  pin?: SectionPin;
   /** Height preset; scrolls internally when limited. */
   size?: SectionSize;
   icon?: string;
@@ -148,6 +159,11 @@ export interface Section {
 /** Resolve the effective layout mode of a section (legacy fallback). */
 export function sectionMode(section: Section): LayoutMode {
   return section.layoutMode ?? (section.columns > 1 ? "columns" : "list");
+}
+
+/** Resolve a section's effective pin zone (legacy `sticky` fallback). */
+export function sectionPin(section: Section): SectionPin {
+  return section.pin ?? (section.sticky ? "header" : "body");
 }
 
 /** A full sidebar layout. One layout exists per note type. */

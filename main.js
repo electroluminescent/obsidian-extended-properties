@@ -125,8 +125,10 @@ var en_default = {
   "section.renameHint": "Click to rename",
   "section.dragHint": "Drag to reorder section",
   "section.layoutHint": "Layout: {mode} (click to cycle)",
-  "section.pinHint": "Pin to top (sticky)",
-  "section.unpinHint": "Pinned (sticky) \u2014 click to unpin",
+  "section.pinCycleHint": "Pin: {zone} (click to cycle)",
+  "pin.body": "Body (not pinned)",
+  "pin.header": "Header (pinned to top)",
+  "pin.footer": "Footer (pinned to bottom)",
   "section.optionsHint": "Section options",
   "layout.list": "list",
   "layout.columns": "columns",
@@ -418,7 +420,9 @@ var en_default = {
   "sectionOptions.rows": "Rows",
   "sectionOptions.rowsDesc": "Grid only",
   "sectionOptions.transparent": "Transparent",
-  "sectionOptions.sticky": "Sticky",
+  "sectionOptions.pin": "Pin",
+  "sectionOptions.pinDesc": "Header pins to the top of the sidebar, Footer to the bottom. Pinned zones cap their height and scroll internally, so nothing becomes unreachable on a small window.",
+  "sectionOptions.pinDefault": "Pin new sections to the header",
   "sectionOptions.height": "Height",
   "sectionOptions.heightDesc": "Scrolls within the section if limited",
   "sectionOptions.colorsHeading": "Colors",
@@ -458,6 +462,7 @@ var en_default = {
   "table.noTypes": "No note types are configured yet. Add one in the plugin settings to see its notes here.",
   "table.removeColumn": "Remove column",
   "table.resize": "Resize {name} column",
+  "roll.summary.settings": "Roll settings",
   "table.roll": "Roll this property",
   "table.rollFailed": "Rolling is unavailable.",
   "table.truncated": "Showing first {shown} of {total} \u2014 narrow the filter to see more.",
@@ -639,6 +644,10 @@ function ext(entry) {
 function sectionMode(section) {
   var _a;
   return (_a = section.layoutMode) != null ? _a : section.columns > 1 ? "columns" : "list";
+}
+function sectionPin(section) {
+  var _a;
+  return (_a = section.pin) != null ? _a : section.sticky ? "header" : "body";
 }
 var LAYOUT_VERSION = 4;
 
@@ -7014,9 +7023,14 @@ var SectionOptionsModal = class extends import_obsidian22.Modal {
         this.changed();
       });
     });
-    new import_obsidian22.Setting(c).setName(t("sectionOptions.sticky")).addToggle((tg) => {
-      tg.setValue(!!s.sticky).onChange((v) => {
-        s.sticky = v || void 0;
+    new import_obsidian22.Setting(c).setName(t("sectionOptions.pin")).setDesc(t("sectionOptions.pinDesc")).addDropdown((d) => {
+      d.addOption("body", t("pin.body"));
+      d.addOption("header", t("pin.header"));
+      d.addOption("footer", t("pin.footer"));
+      d.setValue(sectionPin(s));
+      d.onChange((v) => {
+        s.pin = v === "body" ? void 0 : v;
+        s.sticky = void 0;
         this.changed();
       });
     });
@@ -7433,7 +7447,7 @@ function renderSection(parent, view, file, section, drag, host) {
   host.registerSectionEl(section.id, det);
   if (view.editMode && section.showWhen && !view.condVisible(section.showWhen)) det.addClass("ep-cond-off");
   det.setAttr("data-ep-id", "s:" + section.id);
-  if (!section.sticky) det.addClass("ep-flow-section");
+  if (sectionPin(section) === "body") det.addClass("ep-flow-section");
   if (section.transparent) det.addClass("ep-transparent");
   if (section.accent) det.style.setProperty("--ep-accent", section.accent);
   if (section.controlColor) det.style.setProperty("--ep-control", section.controlColor);
@@ -7489,14 +7503,18 @@ function renderSection(parent, view, file, section, drag, host) {
       view.saveLayout();
       view.rerender();
     };
+    const pin = sectionPin(section);
     const pinBtn = sum.createSpan({ cls: "ep-icon-btn" });
-    (0, import_obsidian24.setIcon)(pinBtn, "pin");
-    pinBtn.setAttr("title", section.sticky ? t("section.unpinHint") : t("section.pinHint"));
-    if (section.sticky) pinBtn.addClass("is-active");
+    (0, import_obsidian24.setIcon)(pinBtn, pin === "header" ? "arrow-up-to-line" : pin === "footer" ? "arrow-down-to-line" : "pin");
+    pinBtn.setAttr("title", t("section.pinCycleHint", { zone: t("pin." + pin) }));
+    if (pin !== "body") pinBtn.addClass("is-active");
     pinBtn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      section.sticky = !section.sticky;
+      const order = ["body", "header", "footer"];
+      const next = order[(order.indexOf(pin) + 1) % order.length];
+      section.pin = next === "body" ? void 0 : next;
+      section.sticky = void 0;
       view.saveLayout();
       view.rerender();
     };
@@ -8118,6 +8136,7 @@ var SidebarView = class extends import_obsidian25.ItemView {
     this.sectionEls = {};
     this.headerEl = null;
     this.stickyZoneEl = null;
+    this.footerZoneEl = null;
     this.flowEl = null;
     this.resizeObs = null;
     this.lastEmptySig = "";
@@ -8764,6 +8783,8 @@ var SidebarView = class extends import_obsidian25.ItemView {
   }
   reflowSticky() {
     if (this.headerEl && this.stickyZoneEl) this.stickyZoneEl.style.top = this.headerEl.offsetHeight + "px";
+    const cap = Math.max(90, Math.floor(this.content.clientHeight * 0.34));
+    this.content.style.setProperty("--ep-zone-max", cap + "px");
     this.content.style.setProperty("--ep-sticky-top", this.stickyTopPx() + "px");
   }
   /** Animate a container's height change (edit-mode transitions). */
@@ -8806,6 +8827,7 @@ var SidebarView = class extends import_obsidian25.ItemView {
     const animate = this.modeAnim;
     const oldFlowH = animate && this.flowEl ? this.flowEl.offsetHeight : 0;
     const oldZoneH = animate && this.stickyZoneEl ? this.stickyZoneEl.offsetHeight : 0;
+    const oldFootH = animate && this.footerZoneEl ? this.footerZoneEl.offsetHeight : 0;
     container.empty();
     container.addClass("ep-sidebar");
     container.toggleClass("ep-editing", this.editMode);
@@ -8879,7 +8901,7 @@ var SidebarView = class extends import_obsidian25.ItemView {
           title: t("section.newName"),
           columns: d.sectionColumns,
           transparent: d.sectionTransparent,
-          sticky: d.sectionSticky,
+          pin: d.sectionSticky ? "header" : void 0,
           size: d.sectionSize,
           collapsible: d.sectionCollapsible,
           dividers: d.sectionDividers,
@@ -8908,12 +8930,16 @@ var SidebarView = class extends import_obsidian25.ItemView {
     this.stickyZoneEl = container.createDiv({ cls: "ep-sticky-zone" });
     const flow = container.createDiv({ cls: "ep-flow" });
     this.flowEl = flow;
+    this.footerZoneEl = container.createDiv({ cls: "ep-footer-zone" });
     const host = {
       registerSectionEl: (id, el) => this.sectionEls[id] = el,
       reflowSticky: () => this.reflowSticky()
     };
-    for (const section of this.layout.sections)
-      renderSection(section.sticky ? this.stickyZoneEl : flow, this, file, section, this.drag, host);
+    for (const section of this.layout.sections) {
+      const pin = sectionPin(section);
+      const zone = pin === "header" ? this.stickyZoneEl : pin === "footer" ? this.footerZoneEl : flow;
+      renderSection(zone, this, file, section, this.drag, host);
+    }
     this.lastEmptySig = this.emptySig();
     this.initRovingFocus();
     container.scrollTop = prevScroll;
@@ -8925,12 +8951,14 @@ var SidebarView = class extends import_obsidian25.ItemView {
       this.resizeObs.disconnect();
       if (this.headerEl) this.resizeObs.observe(this.headerEl);
       if (this.stickyZoneEl) this.resizeObs.observe(this.stickyZoneEl);
+      if (this.footerZoneEl) this.resizeObs.observe(this.footerZoneEl);
       if (this.flowEl) this.resizeObs.observe(this.flowEl);
     }
     if (animate)
       requestAnimationFrame(() => {
         this.animateHeight(this.flowEl, oldFlowH);
         this.animateHeight(this.stickyZoneEl, oldZoneH);
+        this.animateHeight(this.footerZoneEl, oldFootH);
       });
   }
   /** Add a template section, or offer to reset it when it already exists. */
@@ -10318,7 +10346,7 @@ var EPSettingTab = class extends import_obsidian29.PluginSettingTab {
       });
     });
     toggleRow(t("sectionOptions.transparent"), () => d.sectionTransparent, (v) => d.sectionTransparent = v);
-    toggleRow(t("sectionOptions.sticky"), () => d.sectionSticky, (v) => d.sectionSticky = v);
+    toggleRow(t("sectionOptions.pinDefault"), () => d.sectionSticky, (v) => d.sectionSticky = v);
     toggleRow(t("sectionOptions.collapsible"), () => d.sectionCollapsible, (v) => d.sectionCollapsible = v);
     toggleRow(t("settings.entryDividers"), () => d.sectionDividers, (v) => d.sectionDividers = v);
     new import_obsidian29.Setting(c).setName(t("sectionOptions.height")).addDropdown((dd) => {
@@ -11038,6 +11066,10 @@ function rollFace(sides, karmic) {
 
 // src/features/rolling/dice-anim.ts
 var import_obsidian32 = require("obsidian");
+var uiCtx = null;
+function configureRollUi(settings, save) {
+  uiCtx = { settings, save };
+}
 var MAX_DICE_SHOWN = 200;
 var TICK_MS = 80;
 var AA_SS = 2;
@@ -11046,6 +11078,7 @@ var layer = null;
 var summaryEl = null;
 var summarySig = "";
 var summaryIndex = 0;
+var summaryOpen = false;
 var closers = /* @__PURE__ */ new Set();
 var lives = /* @__PURE__ */ new Map();
 var pending = 0;
@@ -11074,12 +11107,41 @@ function dropBox(box) {
     summarySig = "";
   }
 }
+function prepareCardFlip(closing) {
+  const host = closing.parentElement;
+  if (!host) return () => void 0;
+  const firsts = Array.from(host.children).filter((el) => el !== closing && el.classList.contains("ep-roll-box")).map((el) => ({ el, rect: el.getBoundingClientRect() }));
+  return () => {
+    for (const { el, rect } of firsts) {
+      const now = el.getBoundingClientRect();
+      const dx = rect.left - now.left;
+      const dy = rect.top - now.top;
+      if (!dx && !dy) continue;
+      el.style.transition = "none";
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+      requestAnimationFrame(() => {
+        el.style.transition = "transform .18s ease";
+        el.style.transform = "";
+        window.setTimeout(() => el.style.transition = "", 240);
+      });
+    }
+  };
+}
+function measureReserve() {
+  if (!layer) return;
+  if (summaryEl && summaryEl.isConnected) {
+    layer.style.setProperty("--ep-roll-reserve", Math.max(150, summaryEl.offsetHeight + 32) + "px");
+  } else {
+    layer.style.removeProperty("--ep-roll-reserve");
+  }
+}
 function updateSummary(i18n) {
   if (!layer) return;
   if (pending > 0 || lives.size === 0) {
     summaryEl == null ? void 0 : summaryEl.remove();
     summaryEl = null;
     summarySig = "";
+    measureReserve();
     return;
   }
   const rolls = [...lives.values()];
@@ -11162,6 +11224,82 @@ function updateSummary(i18n) {
     apply(true);
   };
   apply(false);
+  renderSummarySettings(summaryEl, i18n);
+  requestAnimationFrame(measureReserve);
+}
+var rsId = 0;
+function renderSummarySettings(host, i18n) {
+  var _a, _b;
+  if (!uiCtx) return;
+  const { settings, save } = uiCtx;
+  const wrap = host.createDiv({ cls: "ep-roll-sum-settings" });
+  wrap.toggleClass("ep-open", summaryOpen);
+  const tog = wrap.createEl("button", { cls: "ep-roll-sum-toggle" });
+  tog.setAttr("aria-expanded", String(summaryOpen));
+  const chev = tog.createSpan({ cls: "ep-chev" });
+  (0, import_obsidian32.setIcon)(chev, "chevron-right");
+  chev.toggleClass("ep-open", summaryOpen);
+  tog.createSpan({ text: i18n.t("roll.summary.settings") });
+  const body = wrap.createDiv({ cls: "ep-roll-sum-body" });
+  tog.onclick = () => {
+    summaryOpen = !summaryOpen;
+    wrap.toggleClass("ep-open", summaryOpen);
+    chev.toggleClass("ep-open", summaryOpen);
+    tog.setAttr("aria-expanded", String(summaryOpen));
+    host.toggleClass("ep-sum-open", summaryOpen);
+    requestAnimationFrame(measureReserve);
+  };
+  host.toggleClass("ep-sum-open", summaryOpen);
+  const labelled = (text, make) => {
+    const id = "ep-rs-" + ++rsId;
+    const lab = body.createEl("label", { text });
+    lab.htmlFor = id;
+    const el = make();
+    el.id = id;
+    return el;
+  };
+  const styleSel = labelled(i18n.t("settings.diceStyle"), () => body.createEl("select"));
+  for (const st of DICE_STYLES) {
+    const o = styleSel.createEl("option", { text: st.name(i18n) });
+    o.value = st.id;
+  }
+  styleSel.value = (_a = settings.diceAnimStyle) != null ? _a : "classic";
+  styleSel.onchange = () => {
+    settings.diceAnimStyle = styleSel.value;
+    save();
+  };
+  const dur = labelled(i18n.t("settings.diceAnimMs"), () => body.createEl("input"));
+  dur.type = "range";
+  dur.min = "300";
+  dur.max = "5000";
+  dur.step = "100";
+  dur.value = String((_b = settings.diceAnimMs) != null ? _b : 1500);
+  dur.onchange = () => {
+    settings.diceAnimMs = Math.round(Number(dur.value) || 1500);
+    save();
+  };
+  const stay = labelled(i18n.t("settings.diceAnimStay"), () => body.createEl("input"));
+  stay.type = "checkbox";
+  stay.checked = settings.diceAnimStay;
+  stay.onchange = () => {
+    settings.diceAnimStay = stay.checked;
+    save();
+  };
+  const block = labelled(i18n.t("settings.diceAnimBlock"), () => body.createEl("input"));
+  block.type = "checkbox";
+  block.checked = settings.diceAnimBlock !== false;
+  block.onchange = () => {
+    settings.diceAnimBlock = block.checked;
+    layer == null ? void 0 : layer.toggleClass("ep-roll-block", block.checked);
+    save();
+  };
+  const snd = labelled(i18n.t("settings.sound"), () => body.createEl("input"));
+  snd.type = "checkbox";
+  snd.checked = settings.sound !== false;
+  snd.onchange = () => {
+    settings.sound = snd.checked;
+    save();
+  };
 }
 function playRollAnimation(job, i18n, done) {
   var _a, _b, _c, _d;
@@ -11214,7 +11352,11 @@ function playRollAnimation(job, i18n, done) {
     window.clearInterval(interval);
     for (const id of timers) window.clearTimeout(id);
     box.addClass("ep-closing");
-    window.setTimeout(() => dropBox(box), 160);
+    window.setTimeout(() => {
+      const play = prepareCardFlip(box);
+      dropBox(box);
+      play();
+    }, 160);
     updateSummary(i18n);
   };
   closers.add(close);
@@ -11272,11 +11414,36 @@ function playRollAnimation(job, i18n, done) {
     menu.addItem((mi) => mi.setTitle(i18n.t("roll.closeAll")).setIcon("x-circle").onClick(closeAllRolls));
     menu.showAtMouseEvent(ev);
   };
+  let sizeTimer = 0;
   const addCell = (op, valueText, labelText, cls = "") => {
+    const before = box.getBoundingClientRect();
     if (op) chain.createSpan({ cls: "ep-roll-op", text: op });
     const cell = chain.createDiv({ cls: "ep-roll-cell" + (cls ? " " + cls : "") });
     cell.createDiv({ cls: "ep-roll-cellval", text: valueText });
     cell.createDiv({ cls: "ep-roll-celllab", text: labelText });
+    box.style.transition = "none";
+    box.style.width = "";
+    box.style.height = "";
+    const w = box.offsetWidth;
+    const h = box.offsetHeight;
+    if (Math.abs(w - before.width) >= 1 || Math.abs(h - before.height) >= 1) {
+      box.style.overflow = "hidden";
+      box.style.width = before.width + "px";
+      box.style.height = before.height + "px";
+      void box.offsetWidth;
+      box.style.transition = "width .2s ease-out, height .2s ease-out";
+      box.style.width = w + "px";
+      box.style.height = h + "px";
+      window.clearTimeout(sizeTimer);
+      sizeTimer = window.setTimeout(() => {
+        box.style.transition = "";
+        box.style.width = "";
+        box.style.height = "";
+        box.style.overflow = "";
+      }, 230);
+    } else {
+      box.style.transition = "";
+    }
     requestAnimationFrame(() => cell.addClass("ep-in"));
   };
   const resolve = () => {
@@ -12826,7 +12993,7 @@ var builders = {
     title: i18n.t("dnd.tpl.contents"),
     columns: 2,
     layoutMode: "columns",
-    sticky: true,
+    pin: "header",
     collapsible: true,
     entries: [{ id: genId(), kind: "toc" }, { id: genId(), kind: "rolls" }]
   }),
@@ -14264,6 +14431,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian41.Plugin {
     });
     this.i18n.setLocale(this.settings.language);
     this.i18n.setOverrides(this.settings.stringOverrides);
+    configureRollUi(this.settings, () => void this.saveSettings());
     let migrated = false;
     for (const mod of FEATURE_MODULES) {
       if (this.settings.features[mod.id] !== false && ((_b = mod.migrate) == null ? void 0 : _b.call(mod, this.settings))) migrated = true;

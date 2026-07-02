@@ -15,7 +15,7 @@
 
 import { Modal, Setting, TFile } from "obsidian";
 import type { OptionsCtx, ViewCtx } from "../../core/context";
-import { Entry, LayoutMode, Section, SectionSize, sectionMode } from "../../core/model";
+import { Entry, LayoutMode, Section, SectionPin, SectionSize, sectionMode, sectionPin } from "../../core/model";
 import { restoreFromSnapshot } from "../../utils/misc";
 import { addColorSetting, addIconSetting } from "../components/setting-helpers";
 import { asMobileSheet } from "../components/long-press";
@@ -599,12 +599,20 @@ export class SectionOptionsModal extends Modal {
         this.changed();
       });
     });
-    new Setting(c).setName(t("sectionOptions.sticky")).addToggle((tg) => {
-      tg.setValue(!!s.sticky).onChange((v) => {
-        s.sticky = v || undefined;
-        this.changed();
+    new Setting(c)
+      .setName(t("sectionOptions.pin"))
+      .setDesc(t("sectionOptions.pinDesc"))
+      .addDropdown((d) => {
+        d.addOption("body", t("pin.body"));
+        d.addOption("header", t("pin.header"));
+        d.addOption("footer", t("pin.footer"));
+        d.setValue(sectionPin(s));
+        d.onChange((v) => {
+          s.pin = v === "body" ? undefined : (v as SectionPin);
+          s.sticky = undefined; // superseded legacy flag
+          this.changed();
+        });
       });
-    });
     new Setting(c)
       .setName(t("sectionOptions.height"))
       .setDesc(t("sectionOptions.heightDesc"))

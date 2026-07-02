@@ -32,6 +32,7 @@ import { augmentPropsMenu, showPropMenu } from "./ui/menus/prop-panel-menu";
 import { rollingModule } from "./features/rolling/index";
 import { dnd5eModule } from "./features/dnd5e/index";
 import { HistoryService, type HistoryStore } from "./features/rolling/history";
+import { configureRollUi } from "./features/rolling/dice-anim";
 import { RollService } from "./features/rolling/roll-service";
 import { runMacro } from "./features/rolling/macros";
 import { inlineModule, registerInline } from "./features/inline/index";
@@ -113,6 +114,8 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     });
     this.i18n.setLocale(this.settings.language);
     this.i18n.setOverrides(this.settings.stringOverrides);
+    // The roll summary's expandable settings panel edits live settings.
+    configureRollUi(this.settings, () => void this.saveSettings());
 
     // Let enabled feature modules upgrade settings written by old versions.
     let migrated = false;
