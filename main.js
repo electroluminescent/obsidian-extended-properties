@@ -127,7 +127,7 @@ var en_default = {
   "section.layoutHint": "Layout: {mode} (click to cycle)",
   "entry.typeHint": "Change data type (applies to this property everywhere)",
   "options.unit": "Unit",
-  "options.unitDesc": "Optional suffix shown beside the name (e.g. kg, ft, %).",
+  "options.unitDesc": "Optional suffix shown after the value (e.g. kg, ft, %).",
   "options.listHeading": "List",
   "options.listAlign": "Alignment",
   "options.listAlignDesc": "How the list items are arranged across the row.",
@@ -3235,7 +3235,7 @@ function clusterNeeds(kind, ref) {
   return { steppers: flags.steppers, before: flags.before, after: flags.after };
 }
 function render(kind, ctx2) {
-  var _a;
+  var _a, _b;
   const { view, file, entry } = ctx2;
   const key = entry.key;
   const isFormula = kind === "formula";
@@ -3261,6 +3261,12 @@ function render(kind, ctx2) {
   });
   if (entry.valueColor) refs.val.style.color = entry.valueColor;
   if (entry.valueSize) refs.val.style.fontSize = entry.valueSize + "px";
+  const unit = ((_b = entry.unit) != null ? _b : "").trim();
+  const setVal = (v) => {
+    refs.val.setText(fmtNum(v));
+    if (unit) refs.val.createSpan({ cls: "ep-unit-hint", text: unit });
+  };
+  if (unit) setVal(get());
   const curve = entry.sliderCurve;
   const span = max - min;
   const toValue = (x) => {
@@ -3300,7 +3306,7 @@ function render(kind, ctx2) {
       if (!isFormula && entry.clamp) out = clamp(out, min, max);
       pending2 = fmt(out);
       place(pending2);
-      refs.val.setText(fmtNum(pending2));
+      setVal(pending2);
       for (const a of addons) (_a2 = a.onPreview) == null ? void 0 : _a2.call(a, ctx2, refs.cells, pending2);
     };
     knob.addEventListener("pointerdown", (e) => {
@@ -3353,7 +3359,7 @@ function render(kind, ctx2) {
   checkValid();
   view.registerUpdater(() => {
     const v = view.note.num(key, 0);
-    refs.val.setText(fmtNum(v));
+    setVal(v);
     syncKnob == null ? void 0 : syncKnob();
     checkValid();
   });
@@ -8820,9 +8826,6 @@ var SidebarView = class extends import_obsidian26.ItemView {
       span.addClass("ep-clickname");
       span.onclick = () => this.highlight(span);
     }
-    const unit = typeof entry.unit === "string" ? entry.unit.trim() : "";
-    if (entry.kind === "prop" && unit && this.resolveType(entry) !== "unit")
-      span.createSpan({ cls: "ep-unit-hint", text: unit });
     if (entry.kind === "prop" && entry.showType !== false) {
       const typeId = this.resolveType(entry);
       const def = this.registries.valueTypes.get(typeId);
@@ -8872,7 +8875,7 @@ var SidebarView = class extends import_obsidian26.ItemView {
   responsivePass() {
     var _a;
     const SLACK = 1.5 * (parseFloat(getComputedStyle(this.content).fontSize) || 16);
-    const TIERS = [".ep-type-hint", ".ep-unit-hint", ".ep-dice-tag", ".ep-denote", ".ep-tog-cell", ".ep-mod-badge"];
+    const TIERS = [".ep-type-hint", ".ep-dice-tag", ".ep-denote", ".ep-tog-cell", ".ep-mod-badge"];
     const mode = this.editMode ? "e" : "v";
     for (const el of this.content.findAll(".ep-section")) {
       const sec = el;

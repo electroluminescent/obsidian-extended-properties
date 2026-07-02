@@ -107,6 +107,16 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
   if (entry.valueColor) refs.val.style.color = entry.valueColor;
   if (entry.valueSize) refs.val.style.fontSize = entry.valueSize + "px";
 
+  // Optional unit suffix, rendered as a muted tag right after the value
+  // (same `entry.unit` field the dedicated unit value type uses). Every
+  // place that rewrites the value text re-appends it via setVal.
+  const unit = ((entry.unit as string) ?? "").trim();
+  const setVal = (v: number): void => {
+    refs.val.setText(fmtNum(v));
+    if (unit) refs.val.createSpan({ cls: "ep-unit-hint", text: unit });
+  };
+  if (unit) setVal(get());
+
   // Optional slider (always present for formula entries). The slider
   // position maps through the configured curve (linear / root / exp);
   // formula entries map through their expression instead.
@@ -154,7 +164,7 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
       if (!isFormula && entry.clamp) out = clamp(out, min, max);
       pending = fmt(out);
       place(pending); // knob snaps to the (rounded) value's position
-      refs.val.setText(fmtNum(pending));
+      setVal(pending);
       for (const a of addons) a.onPreview?.(ctx, refs.cells, pending);
     };
     knob.addEventListener("pointerdown", (e) => {
@@ -202,7 +212,7 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
   checkValid();
   view.registerUpdater(() => {
     const v = view.note.num(key, 0);
-    refs.val.setText(fmtNum(v));
+    setVal(v);
     syncKnob?.();
     checkValid();
   });
