@@ -436,6 +436,28 @@ export class NoteFacade {
     this.write(file);
   }
 
+  /**
+   * Force-write every pending batch immediately (plugin unload). Mirrors
+   * {@link NoteModel.flushPending}: writes land without the conflict check —
+   * there is no one left to prompt — except files with an open conflict
+   * prompt, which stay suspended for the user's decision.
+   */
+  flushAll(): void {
+    for (const path of [...this.pending.keys()]) {
+      if (this.conflicts.has(path)) continue;
+      const t = this.timers.get(path);
+      if (t) window.clearTimeout(t);
+      this.timers.delete(path);
+      const af = this.app.vault.getAbstractFileByPath(path);
+      if (af instanceof TFile) this.write(af);
+      else {
+        this.pending.delete(path);
+        this.bases.delete(path);
+        this.baseFm.delete(path);
+      }
+    }
+  }
+
   private write(file: TFile): void {
     const m = this.pending.get(file.path);
     if (!m) return;

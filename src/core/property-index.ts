@@ -15,6 +15,16 @@ function linkTarget(raw: string): string {
   return (m ? m[1] : raw).trim();
 }
 
+/** The `Type` values of a frontmatter block, lower-cased. */
+function typesOf(fm: Record<string, unknown>): string[] {
+  const tv = getCI(fm, "Type");
+  return Array.isArray(tv)
+    ? tv.map((x) => String(x).toLowerCase())
+    : tv === undefined || tv === null
+      ? []
+      : [String(tv).toLowerCase()];
+}
+
 interface FileSnap {
   file: TFile;
   fm: Record<string, unknown> | undefined;
@@ -72,16 +82,24 @@ export class PropertyIndex {
     const want = typeKey.trim().toLowerCase();
     const out: number[] = [];
     for (const { fm } of this.snapshots()) {
-      if (!fm) continue;
-      const tv = getCI(fm, "Type");
-      const types = Array.isArray(tv)
-        ? tv.map((x) => String(x).toLowerCase())
-        : tv === undefined || tv === null
-          ? []
-          : [String(tv).toLowerCase()];
-      if (!types.includes(want)) continue;
+      if (!fm || !typesOf(fm).includes(want)) continue;
       const n = parseNumeric(getCI(fm, key));
       if (n !== null) out.push(n);
+    }
+    return out;
+  }
+
+  /**
+   * Files (with their cached frontmatter) whose `Type` includes `typeKey` —
+   * the row projection the type table view renders. Served from the snapshot
+   * cache so a table render never re-scans the vault.
+   */
+  rowsByType(typeKey: string): { file: TFile; fm: Record<string, unknown> }[] {
+    const want = typeKey.trim().toLowerCase();
+    const out: { file: TFile; fm: Record<string, unknown> }[] = [];
+    if (!want) return out;
+    for (const { file, fm } of this.snapshots()) {
+      if (fm && typesOf(fm).includes(want)) out.push({ file, fm });
     }
     return out;
   }

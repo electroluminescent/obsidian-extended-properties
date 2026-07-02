@@ -1619,7 +1619,8 @@ var HANDLED_KEYS = /* @__PURE__ */ new Set([
   "appVersion",
   "snapshots",
   "snapshotKeep",
-  "lastSnapshot"
+  "lastSnapshot",
+  "inlineEntries"
 ]);
 function normalizeSettings(data, defaultLayout) {
   var _a, _b, _c;
@@ -1686,6 +1687,13 @@ function normalizeSettings(data, defaultLayout) {
     if (data.crossNote === false) s.crossNote = false;
     if (data.conflictGuard === false) s.conflictGuard = false;
     if (data.tableLayouts && typeof data.tableLayouts === "object") s.tableLayouts = data.tableLayouts;
+    if (data.inlineEntries && typeof data.inlineEntries === "object") {
+      const clean = {};
+      for (const [k, v] of Object.entries(data.inlineEntries)) {
+        if (v && typeof v === "object" && typeof v.kind === "string") clean[k] = v;
+      }
+      s.inlineEntries = clean;
+    }
     if (typeof data.tableLastType === "string") s.tableLastType = data.tableLastType;
     if (typeof data.schemaVersion === "number") s.schemaVersion = data.schemaVersion;
     if (data.soundUi === false) s.soundUi = false;
@@ -2158,23 +2166,78 @@ function linkTarget(raw) {
   const m = /\[\[([^\]|#]+)/.exec(raw);
   return (m ? m[1] : raw).trim();
 }
+function typesOf(fm) {
+  const tv = getCI(fm, "Type");
+  return Array.isArray(tv) ? tv.map((x) => String(x).toLowerCase()) : tv === void 0 || tv === null ? [] : [String(tv).toLowerCase()];
+}
 var PropertyIndex = class {
   constructor(app) {
     this.app = app;
+    /**
+     * Per-file frontmatter snapshot cache. Every query above used to call
+     * `vault.getMarkdownFiles()` + `metadataCache.getFileCache()` fresh, which
+     * means a single cross-note `sum()/avg()/prop()` reference re-scanned the
+     * whole vault synchronously on every sidebar render. The cache is built
+     * lazily on first read and kept in sync by {@link invalidateFile} /
+     * {@link invalidateAll}, which `main.ts` wires to the vault's modify,
+     * delete, rename and `metadataCache.changed` events.
+     */
+    this.cache = null;
+  }
+  snapshots() {
+    var _a;
+    if (!this.cache) {
+      this.cache = /* @__PURE__ */ new Map();
+      for (const f of this.app.vault.getMarkdownFiles()) {
+        this.cache.set(f.path, {
+          file: f,
+          fm: (_a = this.app.metadataCache.getFileCache(f)) == null ? void 0 : _a.frontmatter
+        });
+      }
+    }
+    return [...this.cache.values()];
+  }
+  /** Refresh one file's cached frontmatter (called on modify/rename/metadata-changed). */
+  invalidateFile(file, oldPath) {
+    var _a;
+    if (!this.cache) return;
+    if (oldPath && oldPath !== file.path) this.cache.delete(oldPath);
+    this.cache.set(file.path, {
+      file,
+      fm: (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter
+    });
+  }
+  /** Drop one file (called on delete). */
+  invalidatePath(path) {
+    var _a;
+    (_a = this.cache) == null ? void 0 : _a.delete(path);
+  }
+  /** Drop the whole cache — cheap escape hatch, rebuilt lazily on next read. */
+  invalidateAll() {
+    this.cache = null;
   }
   /** Numeric values of `key` across every note whose `Type` includes `typeKey`. */
   valuesByType(typeKey, key) {
-    var _a;
     const want = typeKey.trim().toLowerCase();
     const out = [];
-    for (const f of this.app.vault.getMarkdownFiles()) {
-      const fm = (_a = this.app.metadataCache.getFileCache(f)) == null ? void 0 : _a.frontmatter;
-      if (!fm) continue;
-      const tv = getCI(fm, "Type");
-      const types = Array.isArray(tv) ? tv.map((x) => String(x).toLowerCase()) : tv === void 0 || tv === null ? [] : [String(tv).toLowerCase()];
-      if (!types.includes(want)) continue;
+    for (const { fm } of this.snapshots()) {
+      if (!fm || !typesOf(fm).includes(want)) continue;
       const n = parseNumeric(getCI(fm, key));
       if (n !== null) out.push(n);
+    }
+    return out;
+  }
+  /**
+   * Files (with their cached frontmatter) whose `Type` includes `typeKey` —
+   * the row projection the type table view renders. Served from the snapshot
+   * cache so a table render never re-scans the vault.
+   */
+  rowsByType(typeKey) {
+    const want = typeKey.trim().toLowerCase();
+    const out = [];
+    if (!want) return out;
+    for (const { file, fm } of this.snapshots()) {
+      if (fm && typesOf(fm).includes(want)) out.push({ file, fm });
     }
     return out;
   }
@@ -2198,7 +2261,7 @@ var PropertyIndex = class {
    * falls back to scanning frontmatter of up to 1000 notes.
    */
   knownProps() {
-    var _a, _b, _c, _d, _e, _f;
+    var _a, _b, _c, _d, _e;
     const names = /* @__PURE__ */ new Set();
     try {
       const mc = this.app.metadataCache;
@@ -2209,8 +2272,7 @@ var PropertyIndex = class {
     } catch (e) {
     }
     if (names.size === 0) {
-      for (const f of this.app.vault.getMarkdownFiles().slice(0, 1e3)) {
-        const fm = (_f = this.app.metadataCache.getFileCache(f)) == null ? void 0 : _f.frontmatter;
+      for (const { fm } of this.snapshots().slice(0, 1e3)) {
         if (fm) for (const k of Object.keys(fm)) names.add(k);
       }
     }
@@ -2218,11 +2280,10 @@ var PropertyIndex = class {
   }
   /** Smallest and largest numeric value of `key` across all notes. */
   numberRange(key) {
-    var _a, _b;
     let min = Infinity;
     let max = -Infinity;
-    for (const f of this.app.vault.getMarkdownFiles()) {
-      const v = (_b = (_a = this.app.metadataCache.getFileCache(f)) == null ? void 0 : _a.frontmatter) == null ? void 0 : _b[key];
+    for (const { fm } of this.snapshots()) {
+      const v = fm == null ? void 0 : fm[key];
       if (v === null || v === void 0 || v === "") continue;
       const n = Number(v);
       if (!Number.isFinite(n)) continue;
@@ -2233,10 +2294,9 @@ var PropertyIndex = class {
   }
   /** Distinct values used for `key` anywhere in the vault, sorted. */
   valuesFor(key) {
-    var _a, _b;
     const set = /* @__PURE__ */ new Set();
-    for (const f of this.app.vault.getMarkdownFiles()) {
-      const v = (_b = (_a = this.app.metadataCache.getFileCache(f)) == null ? void 0 : _a.frontmatter) == null ? void 0 : _b[key];
+    for (const { fm } of this.snapshots()) {
+      const v = fm == null ? void 0 : fm[key];
       if (Array.isArray(v)) v.forEach((x) => set.add(String(x)));
       else if (v !== void 0 && v !== null && v !== "") set.add(String(v));
     }
@@ -2244,12 +2304,11 @@ var PropertyIndex = class {
   }
   /** Basenames of notes whose `key` contains `value`. */
   notesWithValue(key, value) {
-    var _a, _b;
     const out = [];
-    for (const f of this.app.vault.getMarkdownFiles()) {
-      const v = (_b = (_a = this.app.metadataCache.getFileCache(f)) == null ? void 0 : _a.frontmatter) == null ? void 0 : _b[key];
+    for (const { file, fm } of this.snapshots()) {
+      const v = fm == null ? void 0 : fm[key];
       const has = Array.isArray(v) ? v.some((x) => String(x) === value) : v !== void 0 && v !== null && String(v) === value;
-      if (has) out.push(f.basename);
+      if (has) out.push(file.basename);
     }
     return out;
   }
@@ -5196,6 +5255,27 @@ var NoteFacade = class {
       return;
     }
     this.write(file);
+  }
+  /**
+   * Force-write every pending batch immediately (plugin unload). Mirrors
+   * {@link NoteModel.flushPending}: writes land without the conflict check —
+   * there is no one left to prompt — except files with an open conflict
+   * prompt, which stay suspended for the user's decision.
+   */
+  flushAll() {
+    for (const path of [...this.pending.keys()]) {
+      if (this.conflicts.has(path)) continue;
+      const t = this.timers.get(path);
+      if (t) window.clearTimeout(t);
+      this.timers.delete(path);
+      const af = this.app.vault.getAbstractFileByPath(path);
+      if (af instanceof import_obsidian14.TFile) this.write(af);
+      else {
+        this.pending.delete(path);
+        this.bases.delete(path);
+        this.baseFm.delete(path);
+      }
+    }
   }
   write(file) {
     var _a, _b;
@@ -8875,6 +8955,8 @@ var TableView = class extends import_obsidian26.ItemView {
     this.plugin = plugin;
     this.typeKey = "";
     this.filter = "";
+    /** Paths rendered as rows of the current type (refresh scoping). */
+    this.shownPaths = /* @__PURE__ */ new Set();
     /** Active virtualization scroll listener, cleaned up between renders. */
     this.scrollEl = null;
     this.scrollFn = null;
@@ -8895,8 +8977,19 @@ var TableView = class extends import_obsidian26.ItemView {
     this.typeKey = remembered != null ? remembered : "";
     this.render();
   }
-  /** Re-render on external metadata / workspace changes. */
-  refresh() {
+  /**
+   * Re-render on external metadata / workspace changes. When the changed file
+   * is known, skip the rebuild unless that file is a row of the shown type —
+   * or was one before the change (so losing the type removes the row).
+   */
+  refresh(file) {
+    var _a;
+    if (file && !this.shownPaths.has(file.path)) {
+      const fm = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter;
+      const tv = fm ? getCI(fm, "Type") : void 0;
+      const types = Array.isArray(tv) ? tv.map((x) => String(x).toLowerCase()) : tv === void 0 || tv === null ? [] : [String(tv).toLowerCase()];
+      if (!types.includes(this.typeKey.trim().toLowerCase())) return;
+    }
     this.render();
   }
   get body() {
@@ -8904,18 +8997,7 @@ var TableView = class extends import_obsidian26.ItemView {
   }
   // -- data ------------------------------------------------------------------
   rows(typeKey) {
-    var _a;
-    const want = typeKey.trim().toLowerCase();
-    if (!want) return [];
-    const out = [];
-    for (const f of this.app.vault.getMarkdownFiles()) {
-      const fm = (_a = this.app.metadataCache.getFileCache(f)) == null ? void 0 : _a.frontmatter;
-      if (!fm) continue;
-      const tv = getCI(fm, "Type");
-      const types = Array.isArray(tv) ? tv.map((x) => String(x).toLowerCase()) : tv === void 0 || tv === null ? [] : [String(tv).toLowerCase()];
-      if (types.includes(want)) out.push({ file: f, fm });
-    }
-    return out;
+    return this.plugin.props.rowsByType(typeKey);
   }
   layoutFor(typeKey) {
     const s = this.plugin.settings;
@@ -9020,6 +9102,7 @@ var TableView = class extends import_obsidian26.ItemView {
     const layout = this.layoutFor(this.typeKey);
     const cols = layout.columns;
     const rows = this.rows(this.typeKey);
+    this.shownPaths = new Set(rows.map((r) => r.file.path));
     const metas = this.colMetas(cols, rows);
     let data = rows;
     const q = this.filter.trim().toLowerCase();
@@ -9098,7 +9181,7 @@ var TableView = class extends import_obsidian26.ItemView {
       cb.checked = raw === true || raw === "true";
       cb.onclick = (e) => {
         e.stopPropagation();
-        void this.writeRaw(file, m.key, cb.checked);
+        this.plugin.facade.set(file, m.key, cb.checked);
       };
       return;
     }
@@ -9187,8 +9270,11 @@ var TableView = class extends import_obsidian26.ItemView {
       const finish = (save) => {
         if (done) return;
         done = true;
-        if (save && input.value !== cur) void this.writeCellText(file, key, input.value);
-        else this.render();
+        if (save && input.value !== cur) {
+          this.writeCellText(file, key, input.value);
+          td.empty();
+          td.createSpan({ text: input.value.trim() });
+        } else this.render();
       };
       input.onblur = () => setTimeout(() => finish(true), 150);
       input.onkeydown = (e) => {
@@ -9202,22 +9288,20 @@ var TableView = class extends import_obsidian26.ItemView {
       };
     };
   }
-  async writeCellText(file, key, value) {
+  /**
+   * Write a cell edit through the plugin's shared {@link NoteFacade} — the
+   * same batched, conflict-guarded, merge-aware path the sidebar and inline
+   * chips use — never a raw `processFrontMatter`. Empty clears the key;
+   * numeric-looking text is stored as a number.
+   */
+  writeCellText(file, key, value) {
     const v = value.trim();
-    await this.app.fileManager.processFrontMatter(file, (fm) => {
-      if (v === "") {
-        delete fm[key];
-        return;
-      }
-      const n = Number(v);
-      fm[key] = Number.isFinite(n) && String(n) === v ? n : value;
-    });
-    this.render();
-  }
-  async writeRaw(file, key, value) {
-    await this.app.fileManager.processFrontMatter(file, (fm) => {
-      fm[key] = value;
-    });
+    if (v === "") {
+      this.plugin.facade.set(file, key, void 0);
+      return;
+    }
+    const n = Number(v);
+    this.plugin.facade.set(file, key, Number.isFinite(n) && String(n) === v ? n : value);
   }
   /** Resolve an image property value to a displayable URL (best effort). */
   resolveImage(src, file) {
@@ -14163,18 +14247,27 @@ var ExtendedPropertiesPlugin = class extends import_obsidian41.Plugin {
       });
     }
     this.syncMacroCommands();
+    this.facade = new NoteFacade(this.app, this.i18n, () => this.settings.conflictGuard !== false);
     registerInline(this, {
       app: this.app,
       i18n: this.i18n,
       settings: this.settings,
       registries: this.registries,
-      facade: new NoteFacade(this.app, this.i18n, () => this.settings.conflictGuard !== false),
+      facade: this.facade,
       roll: this.rollService(),
       props: this.props,
       hide: this.hide,
       history: this.history,
       save: () => this.saveSettings()
     });
+    this.registerEvent(this.app.metadataCache.on("changed", (file) => this.props.invalidateFile(file)));
+    this.registerEvent(this.app.vault.on("delete", (file) => this.props.invalidatePath(file.path)));
+    this.registerEvent(
+      this.app.vault.on("rename", (file, oldPath) => {
+        if (file instanceof import_obsidian41.TFile) this.props.invalidateFile(file, oldPath);
+        else this.props.invalidatePath(oldPath);
+      })
+    );
     const refresh = (file) => {
       for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE)) {
         const v = leaf.view;
@@ -14182,7 +14275,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian41.Plugin {
       }
       for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_TABLE)) {
         const v = leaf.view;
-        if (v instanceof TableView) v.refresh();
+        if (v instanceof TableView) v.refresh(file);
       }
     };
     this.registerEvent(this.app.workspace.on("active-leaf-change", () => refresh()));
@@ -14248,9 +14341,10 @@ var ExtendedPropertiesPlugin = class extends import_obsidian41.Plugin {
     this.refreshViews();
   }
   onunload() {
-    var _a, _b;
+    var _a, _b, _c;
     (_a = this.history) == null ? void 0 : _a.flushNow();
     (_b = this.layoutStore) == null ? void 0 : _b.flushAll();
+    (_c = this.facade) == null ? void 0 : _c.flushAll();
   }
   // -- rolling: history export & macro commands -------------------------------
   /** Lazily-created roll service for view-less rolls (macro commands). */

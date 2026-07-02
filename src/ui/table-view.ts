@@ -10,7 +10,12 @@
  * die button that rolls via the plugin roll service. Rows virtualize so a type
  * with thousands of notes stays responsive.
  *
- * Data is a projection over the metadata cache, not a new store.
+ * Data is a projection over the metadata cache, not a new store: rows are read
+ * through the plugin-wide {@link PropertyIndex} snapshot cache (never a fresh
+ * vault scan), refreshes are skipped for files that are not — and were not —
+ * rows of the shown type, and cell edits write through the plugin's shared
+ * {@link NoteFacade} so they get the same batching, conflict guard and
+ * three-way merge as the sidebar and inline chips.
  */
 
 import { ItemView, Menu, Notice, setIcon, TFile, WorkspaceLeaf } from "obsidian";
@@ -59,6 +64,8 @@ function linkTarget(raw: string): string {
 export class TableView extends ItemView {
   private typeKey = "";
   private filter = "";
+  /** Paths rendered as rows of the current type (refresh scoping). */
+  private shownPaths = new Set<string>();
   /** Active virtualization scroll listener, cleaned up between renders. */
   private scrollEl: HTMLElement | null = null;
   private scrollFn: (() => void) | null = null;
@@ -87,8 +94,22 @@ export class TableView extends ItemView {
     this.render();
   }
 
-  /** Re-render on external metadata / workspace changes. */
-  refresh(): void {
+  /**
+   * Re-render on external metadata / workspace changes. When the changed file
+   * is known, skip the rebuild unless that file is a row of the shown type —
+   * or was one before the change (so losing the type removes the row).
+   */
+  refresh(file?: TFile): void {
+    if (file && !this.shownPaths.has(file.path)) {
+      const fm = this.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined;
+      const tv = fm ? getCI(fm, "Type") : undefined;
+      const types = Array.isArray(tv)
+        ? tv.map((x) => String(x).toLowerCase())
+        : tv === undefined || tv === null
+          ? []
+          : [String(tv).toLowerCase()];
+      if (!types.includes(this.typeKey.trim().toLowerCase())) return;
+    }
     this.render();
   }
 
@@ -99,21 +120,9 @@ export class TableView extends ItemView {
   // -- data ------------------------------------------------------------------
 
   private rows(typeKey: string): Row[] {
-    const want = typeKey.trim().toLowerCase();
-    if (!want) return [];
-    const out: Row[] = [];
-    for (const f of this.app.vault.getMarkdownFiles()) {
-      const fm = this.app.metadataCache.getFileCache(f)?.frontmatter as Record<string, unknown> | undefined;
-      if (!fm) continue;
-      const tv = getCI(fm, "Type");
-      const types = Array.isArray(tv)
-        ? tv.map((x) => String(x).toLowerCase())
-        : tv === undefined || tv === null
-          ? []
-          : [String(tv).toLowerCase()];
-      if (types.includes(want)) out.push({ file: f, fm });
-    }
-    return out;
+    // Served from the PropertyIndex snapshot cache — a render (or a filter
+    // keystroke) never re-scans every markdown file in the vault.
+    return this.plugin.props.rowsByType(typeKey);
   }
 
   private layoutFor(typeKey: string): TableLayout {
@@ -227,6 +236,7 @@ export class TableView extends ItemView {
     const layout = this.layoutFor(this.typeKey);
     const cols = layout.columns;
     const rows = this.rows(this.typeKey);
+    this.shownPaths = new Set(rows.map((r) => r.file.path));
     const metas = this.colMetas(cols, rows);
 
     let data = rows;
@@ -319,7 +329,7 @@ export class TableView extends ItemView {
       cb.checked = raw === true || raw === "true";
       cb.onclick = (e) => {
         e.stopPropagation();
-        void this.writeRaw(file, m.key, cb.checked);
+        this.plugin.facade.set(file, m.key, cb.checked);
       };
       return;
     }
@@ -409,8 +419,13 @@ export class TableView extends ItemView {
       const finish = (save: boolean) => {
         if (done) return;
         done = true;
-        if (save && input.value !== cur) void this.writeCellText(file, key, input.value);
-        else this.render();
+        if (save && input.value !== cur) {
+          this.writeCellText(file, key, input.value);
+          // Optimistic: show the typed text now; the queued write's metadata
+          // event re-renders the row with full type-aware formatting.
+          td.empty();
+          td.createSpan({ text: input.value.trim() });
+        } else this.render();
       };
       // Delay so a suggestion click can land before the blur commits.
       input.onblur = () => setTimeout(() => finish(true), 150);
@@ -426,23 +441,20 @@ export class TableView extends ItemView {
     };
   }
 
-  private async writeCellText(file: TFile, key: string, value: string): Promise<void> {
+  /**
+   * Write a cell edit through the plugin's shared {@link NoteFacade} — the
+   * same batched, conflict-guarded, merge-aware path the sidebar and inline
+   * chips use — never a raw `processFrontMatter`. Empty clears the key;
+   * numeric-looking text is stored as a number.
+   */
+  private writeCellText(file: TFile, key: string, value: string): void {
     const v = value.trim();
-    await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
-      if (v === "") {
-        delete fm[key];
-        return;
-      }
-      const n = Number(v);
-      fm[key] = Number.isFinite(n) && String(n) === v ? n : value;
-    });
-    this.render();
-  }
-
-  private async writeRaw(file: TFile, key: string, value: unknown): Promise<void> {
-    await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
-      fm[key] = value;
-    });
+    if (v === "") {
+      this.plugin.facade.set(file, key, undefined);
+      return;
+    }
+    const n = Number(v);
+    this.plugin.facade.set(file, key, Number.isFinite(n) && String(n) === v ? n : value);
   }
 
   /** Resolve an image property value to a displayable URL (best effort). */

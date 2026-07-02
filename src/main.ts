@@ -63,6 +63,12 @@ export default class ExtendedPropertiesPlugin extends Plugin {
   readonly secrets = new SecretStore();
   props!: PropertyIndex;
   hide!: HideService;
+  /**
+   * Shared safe write path for view-less frontmatter writes (inline chips,
+   * table cells): batched, conflict-guarded, merge-aware. Flushed on unload
+   * so a write sitting in the debounce window is never lost.
+   */
+  facade!: NoteFacade;
   /** Plugin-level, persistent roll history shared by every view. */
   history!: HistoryService;
   /** View-less roll service for macro commands (created on first use). */
@@ -236,18 +242,32 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     this.syncMacroCommands();
 
     // -- inline rolls & properties in note bodies (reading mode) ------------------
+    this.facade = new NoteFacade(this.app, this.i18n, () => this.settings.conflictGuard !== false);
     registerInline(this, {
       app: this.app,
       i18n: this.i18n,
       settings: this.settings,
       registries: this.registries,
-      facade: new NoteFacade(this.app, this.i18n, () => this.settings.conflictGuard !== false),
+      facade: this.facade,
       roll: this.rollService(),
       props: this.props,
       hide: this.hide,
       history: this.history,
       save: () => this.saveSettings(),
     });
+
+    // Keep the cross-note PropertyIndex cache (perf: avoids a full vault
+    // scan on every sum()/avg()/prop() render) in sync with the vault.
+    // Registered BEFORE the view-refresh handlers below: views read through
+    // this cache, so a changed file must invalidate before any view re-renders.
+    this.registerEvent(this.app.metadataCache.on("changed", (file) => this.props.invalidateFile(file)));
+    this.registerEvent(this.app.vault.on("delete", (file) => this.props.invalidatePath(file.path)));
+    this.registerEvent(
+      this.app.vault.on("rename", (file, oldPath) => {
+        if (file instanceof TFile) this.props.invalidateFile(file, oldPath);
+        else this.props.invalidatePath(oldPath);
+      })
+    );
 
     // -- view refresh on workspace / metadata events ---------------------------
     const refresh = (file?: TFile) => {
@@ -257,24 +277,13 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       }
       for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_TABLE)) {
         const v = leaf.view;
-        if (v instanceof TableView) v.refresh();
+        if (v instanceof TableView) v.refresh(file);
       }
     };
     this.registerEvent(this.app.workspace.on("active-leaf-change", () => refresh()));
     this.registerEvent(this.app.workspace.on("file-open", () => refresh()));
     this.registerEvent(this.app.metadataCache.on("changed", (file) => refresh(file)));
     this.registerEvent(this.app.workspace.on("file-open", () => void this.primeSecrets()));
-
-    // Keep the cross-note PropertyIndex cache (perf: avoids a full vault
-    // scan on every sum()/avg()/prop() render) in sync with the vault.
-    this.registerEvent(this.app.metadataCache.on("changed", (file) => this.props.invalidateFile(file)));
-    this.registerEvent(this.app.vault.on("delete", (file) => this.props.invalidatePath(file.path)));
-    this.registerEvent(
-      this.app.vault.on("rename", (file, oldPath) => {
-        if (file instanceof TFile) this.props.invalidateFile(file, oldPath);
-        else this.props.invalidatePath(oldPath);
-      })
-    );
 
     // -- Obsidian properties-panel menus -----------------------------------------
     const host = { app: this.app, i18n: this.i18n, settings: this.settings, hide: this.hide };
@@ -342,6 +351,8 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     // Persist any debounced roll-history writes before the plugin goes away.
     this.history?.flushNow();
     this.layoutStore?.flushAll();
+    // Inline-chip / table-cell writes still in the debounce window.
+    this.facade?.flushAll();
   }
 
   // -- rolling: history export & macro commands -------------------------------
