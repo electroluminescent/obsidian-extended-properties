@@ -226,6 +226,18 @@ function renderOptions(kind: NumericKind, octx: OptionsCtx): void {
         changed();
       });
     });
+    // Optional unit suffix — rendered as a muted tag beside the property
+    // name, the way the data-type hint appears (same `unit` field the
+    // dedicated unit value type uses, so converting between types keeps it).
+    new Setting(c)
+      .setName(t("options.unit"))
+      .setDesc(t("options.unitDesc"))
+      .addText((tx) => {
+        tx.setValue((entry.unit as string) ?? "").onChange((v) => {
+          entry.unit = v.trim() || undefined;
+          changed();
+        });
+      });
   }
   new Setting(c).setName(t("options.sliderCurve")).addDropdown((d) => {
     d.addOption("linear", t("options.curveLinear"));

@@ -69,7 +69,16 @@ export interface EntryBase {
   /** Formula value type: expression mapping slider position → value. */
   formula?: string;
 
+  /**
+   * Optional unit ("kg", "ft", "%"). On number/decimal entries it renders as
+   * a muted tag beside the property name (like the data-type hint); the
+   * "unit" value type shows the same field beside the value instead.
+   */
+  unit?: string;
+
   // -- other value-type options --------------------------------------------
+  /** List chips alignment: "center" | "right" (unset = left). */
+  listAlign?: string;
   /** Image value type: height preset. */
   size?: SectionSize;
   iframeScale?: number;

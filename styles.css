@@ -468,7 +468,12 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 .ep-num.ep-num-join { text-align: left; }
 .ep-num.ep-overridden { text-decoration: underline dotted; }
 /* datatype hint beside labels (auto-removed when space is tight) */
-.ep-line-name .ep-type-hint { font-style: italic; font-size: 0.78em; color: var(--text-faint); margin-left: 5px; font-weight: 400; }
+.ep-line-name .ep-type-hint, .ep-line-name .ep-unit-hint { font-style: italic; font-size: 0.78em; color: var(--text-faint); margin-left: 5px; font-weight: 400; }
+/* The unit reads as data, not chrome — slightly stronger than the type hint. */
+.ep-line-name .ep-unit-hint { color: var(--text-muted); font-style: normal; }
+/* List chip alignment (per-entry option; left is the default flex start). */
+.ep-list-holder.ep-align-center .ep-list { justify-content: center; }
+.ep-list-holder.ep-align-right .ep-list { justify-content: flex-end; }
 /* tabs in the section options modal */
 .ep-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0 4px; }
 .ep-tab { padding: 2px 10px; font-size: var(--font-ui-smaller); cursor: pointer; border-radius: 10px; background: var(--background-modifier-hover); color: var(--text-muted); user-select: none; }
@@ -600,12 +605,12 @@ body.is-mobile .ep-roll-cards { margin: 0; width: 100%; max-height: 100%; flex-w
 .ep-rollmenu-count { display: flex; align-items: center; gap: 8px; font-size: var(--font-ui-smaller); }
 .ep-rollmenu-count .ep-edit-input { width: 4.5em; }
 /* decorations fade out (label and value always keep their room) */
-.ep-type-hint, .ep-entry-head .ep-denote, .ep-entry-head .ep-dice-tag { max-width: 16em; transition: max-width .25s ease, opacity .25s ease; }
+.ep-type-hint, .ep-unit-hint, .ep-entry-head .ep-denote, .ep-entry-head .ep-dice-tag { max-width: 16em; transition: max-width .25s ease, opacity .25s ease; }
 .ep-squeezed { display: inline-flex !important; max-width: 0 !important; opacity: 0 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; pointer-events: none !important; }
 .ep-measuring .ep-squeezed { display: none !important; }
-.ep-measuring .ep-type-hint, .ep-measuring .ep-denote, .ep-measuring .ep-dice-tag { transition: none !important; }
+.ep-measuring .ep-type-hint, .ep-measuring .ep-unit-hint, .ep-measuring .ep-denote, .ep-measuring .ep-dice-tag { transition: none !important; }
 @media (prefers-reduced-motion: reduce) {
-  .ep-roll-chain .ep-roll-cell, .ep-type-hint, .ep-entry-head .ep-denote, .ep-entry-head .ep-dice-tag { transition: none; }
+  .ep-roll-chain .ep-roll-cell, .ep-type-hint, .ep-unit-hint, .ep-entry-head .ep-denote, .ep-entry-head .ep-dice-tag { transition: none; }
 }
 
 /* round 27 additions — priority squeezing, dropped dice, close-all, dice roller */

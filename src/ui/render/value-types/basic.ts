@@ -6,6 +6,7 @@
  * - color: swatch + hex text opening the multi-space color picker.
  */
 
+import { Setting } from "obsidian";
 import type { EntryRenderCtx } from "../../../core/context";
 import type { ValueTypeDef } from "../../../core/registry";
 import { hexToRgb } from "../../../utils/color";
@@ -106,6 +107,8 @@ export const listType: ValueTypeDef = {
   render(ctx) {
     const { view, entry } = ctx;
     const holder = ctx.extra.createDiv({ cls: "ep-list-holder" });
+    const align = (entry.listAlign as string) || "";
+    if (align === "center" || align === "right") holder.addClass("ep-align-" + align);
     if (entry.valueSize) holder.style.fontSize = entry.valueSize + "px";
     if (entry.valueColor) holder.style.color = entry.valueColor;
     const key = entry.key as string;
@@ -127,6 +130,25 @@ export const listType: ValueTypeDef = {
         view.openListValuePicker(pos.x, pos.y, key)
       )
     );
+  },
+
+  renderOptions(octx) {
+    const { view, entry, container: c, changed } = octx;
+    const t = view.i18n.t.bind(view.i18n);
+    c.createEl("h4", { text: t("options.listHeading") });
+    new Setting(c)
+      .setName(t("options.listAlign"))
+      .setDesc(t("options.listAlignDesc"))
+      .addDropdown((d) => {
+        d.addOption("left", t("align.left"));
+        d.addOption("center", t("align.center"));
+        d.addOption("right", t("align.right"));
+        d.setValue((entry.listAlign as string) || "left");
+        d.onChange((v) => {
+          entry.listAlign = v === "left" ? undefined : v;
+          changed();
+        });
+      });
   },
 };
 

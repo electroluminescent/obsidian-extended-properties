@@ -414,6 +414,9 @@ export class SidebarView extends ItemView implements ViewCtx {
     entry.max = undefined;
     entry.clamp = undefined;
     entry.formula = undefined;
+    entry.unit = undefined;
+    entry.unitFactor = undefined;
+    entry.listAlign = undefined;
     // Feature-owned fields (roll config, modifier chains, …) are cleared by
     // their owners — see ClusterAddon.onRename.
     for (const addon of this.registries.clusterAddons.all()) {
@@ -661,6 +664,13 @@ export class SidebarView extends ItemView implements ViewCtx {
       span.onclick = () => this.highlight(span);
     }
 
+    // Optional unit suffix beside the name, styled like the data-type hint.
+    // (The dedicated "unit" value type already shows entry.unit at the value,
+    // so it is skipped here to avoid showing it twice.)
+    const unit = typeof entry.unit === "string" ? entry.unit.trim() : "";
+    if (entry.kind === "prop" && unit && this.resolveType(entry) !== "unit")
+      span.createSpan({ cls: "ep-unit-hint", text: unit });
+
     // Data-type hint beside the label. Visibility is decided dynamically by
     // the responsive pass (and the per-entry "Show data type" toggle).
     if (entry.kind === "prop" && entry.showType !== false) {
@@ -721,7 +731,7 @@ export class SidebarView extends ItemView implements ViewCtx {
     // highest and are never hidden; then (descending importance) the
     // modifier total, toggle checkboxes, modifier chain, dice, data type —
     // so the data type vanishes first and the modifier badge last.
-    const TIERS = [".ep-type-hint", ".ep-dice-tag", ".ep-denote", ".ep-tog-cell", ".ep-mod-badge"];
+    const TIERS = [".ep-type-hint", ".ep-unit-hint", ".ep-dice-tag", ".ep-denote", ".ep-tog-cell", ".ep-mod-badge"];
     const mode = this.editMode ? "e" : "v";
     for (const el of this.content.findAll(".ep-section")) {
       const sec = el as HTMLElement;
