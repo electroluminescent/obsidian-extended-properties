@@ -210,14 +210,18 @@ Sizes are rough: **S** fits a patch/point release, **M** a minor release,
 
 ### Release mapping (indicative, not committed)
 
-- **v3.9.x** — Milestone 12 (N2, F6, N1 completion).
+- **v3.9.0** — shipped between the re-plan and Milestone 12: user-driven UI
+  work (section pin zones — header / body / footer with capped, internally
+  scrolling zones — plus the roll-screen overhaul: centered cards, dismissal
+  reflow and growth animations, and the summary's expandable settings panel).
+- **v3.10.x** — Milestone 12 (N2, F6, N1 completion).
 - **v4.0.0** — Milestone 13 (G1 query blocks + G3 chart cells) — the flagship
   release; the shared-renderer extraction is the largest internal refactor
   since the registry split, which is what earns the major.
 - **v4.1.x** — Milestone 14 (H1, H2).
 - **v4.2.x** — Milestone 15 (L2).
 - Milestone 16 items (M2, R1) ride whichever train has room; Milestone 17
-  runs continuously, with P1 targeted right after v3.9.
+  runs continuously, with P1 targeted right after v3.10.
 
 ### Risk register (cross-cutting)
 
@@ -235,7 +239,7 @@ Likelihood/impact: L low · M medium · H high.
 | Community-review friction | P1 | M | M | Pre-submission self-review: the `window.ExtendedProperties` global, the two private-API call sites and command naming are the likely flags — prepare rationale or alternatives before submitting. |
 | Single-locale i18n debt | non-English users | L | L | The locale *mechanism* and parity checker are kept (F4); community dictionaries can slot back in without code changes. |
 
-### Milestone 12 — Foundations: measure, test, finish the index ○ (target v3.9)
+### Milestone 12 — Foundations: measure, test, finish the index ○ (target v3.10)
 
 **Goal.** Turn the two things the v3.7.0–v3.8.0 audits could only check by
 reading code — performance and the Obsidian seam — into things a failing check
@@ -578,20 +582,21 @@ editor without forking.
   value-type editor hook → publish a module template repo → bump `apiVersion`
   to 2 only when a breaking change forces it.
 
-### Suggested sequencing
+### Deliberately not planned
 
-- **Milestone 7** (G1, G2): **G2 shipped in v3.2.0**; G1 (query blocks) remains —
-  highest visible value and built almost entirely on what already exists (the
-  index, the table cell renderers, the expression engine).
-- **Milestone 8** (H1, H2) depends on a solid index — pull N1's per-file dirty
-  marking forward if target vaults are large.
-- **Milestone 9** (N1, M1, L1): trust and scale — **L1 shipped in v3.1.0** and
-  **M1 (accessibility completion) shipped in v3.6.0**; N1 (index scale) underpins
-  G1/H1 and remains the open item.
-- **Milestone 10** (K1) is ongoing; API v2 is purely additive over `apiVersion` 1.
-- **Milestone 11** (N2, F6, G3, L2, R1, M2): do **N2 and F6 first** — they are
-  cheap, they de-risk everything else (N2 is the acceptance gate for N1's
-  memoization and therefore for G1/H1 at scale; F6 protects exactly the data
-  paths L2 will touch), and they pay for themselves on the next audit. G3 pairs
-  naturally with G1's renderer extraction. R1 and M2 are independent polish that
-  can slot in anywhere.
+Boundaries, so the backlog stays a plan rather than a wish list:
+
+- **A full query DSL.** G1 stays a declarative block schema with a handful of
+  keys; Dataview owns the free-grammar space, and the differentiator here is
+  typed, *editable* cells.
+- **Sandboxing third-party modules.** Obsidian does not sandbox plugins, so
+  pretending modules are contained would be security theatre — K1 documents
+  the full-trust model loudly instead.
+- **A WYSIWYG layout designer** beyond the existing drag & drop, templates and
+  options modals.
+- **Note-body storage.** Frontmatter stays the single data home; the plugin
+  reads bodies never, writes them only for explicit exports (roll history) and
+  H2's opt-in scaffolding.
+- **Multi-writer real-time sync.** The three-way merge, snapshots and (L2)
+  value history are the collaboration story; live co-editing is Obsidian's
+  problem, not a plugin's.
