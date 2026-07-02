@@ -62,7 +62,11 @@ const classic: DiceStyle = {
   create: (el, sides) => classicView(el, sides),
 };
 
-/** Spin: the die icon spins (number hidden) and reveals the result on landing. */
+/**
+ * Spin: the die icon spins while a number is always shown, cycling random
+ * faces — fast at first, then slowing (the 3D die's deceleration feel) until
+ * the timeline lands it on the real result.
+ */
 const spin: DiceStyle = {
   id: "spin",
   name: (i) => i.t("roll.style.spin"),
@@ -70,12 +74,31 @@ const spin: DiceStyle = {
     el.addClass("ep-spin");
     const ico = el.createDiv({ cls: "ep-roll-die-ico" });
     setIcon(ico, diceIconId(sides));
-    const num = el.createDiv({ cls: "ep-roll-die-num" });
+    const num = el.createDiv({ cls: "ep-roll-die-num", text: String(rnd(sides)) });
+    let timer = 0;
+    let done = false;
+    let owned = false; // roll() drives the cycle; tick() is only the fallback
     return {
       tick: () => {
-        /* the spin is CSS-driven; nothing to update per frame */
+        if (!owned && !done) num.setText(String(rnd(sides)));
+      },
+      roll: (_v, durationMs) => {
+        owned = true;
+        const dur = Math.max(300, durationMs || 700);
+        const t0 = performance.now();
+        const step = (): void => {
+          if (done) return;
+          num.setText(String(rnd(sides)));
+          const p = Math.min(1, (performance.now() - t0) / dur);
+          if (p >= 1) return; // settle() lands the real value
+          // Gap between face swaps grows quadratically: ~55 ms → ~285 ms.
+          timer = window.setTimeout(step, 55 + 230 * p * p);
+        };
+        step();
       },
       settle: (v) => {
+        done = true;
+        window.clearTimeout(timer);
         el.removeClass("ep-spin");
         el.addClass("ep-settled");
         num.setText(String(v));

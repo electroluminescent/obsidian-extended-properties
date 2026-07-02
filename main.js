@@ -10153,11 +10153,30 @@ var spin = {
     el.addClass("ep-spin");
     const ico = el.createDiv({ cls: "ep-roll-die-ico" });
     (0, import_obsidian28.setIcon)(ico, diceIconId(sides));
-    const num = el.createDiv({ cls: "ep-roll-die-num" });
+    const num = el.createDiv({ cls: "ep-roll-die-num", text: String(rnd(sides)) });
+    let timer = 0;
+    let done = false;
+    let owned = false;
     return {
       tick: () => {
+        if (!owned && !done) num.setText(String(rnd(sides)));
+      },
+      roll: (_v, durationMs) => {
+        owned = true;
+        const dur = Math.max(300, durationMs || 700);
+        const t0 = performance.now();
+        const step = () => {
+          if (done) return;
+          num.setText(String(rnd(sides)));
+          const p = Math.min(1, (performance.now() - t0) / dur);
+          if (p >= 1) return;
+          timer = window.setTimeout(step, 55 + 230 * p * p);
+        };
+        step();
       },
       settle: (v) => {
+        done = true;
+        window.clearTimeout(timer);
         el.removeClass("ep-spin");
         el.addClass("ep-settled");
         num.setText(String(v));
@@ -11152,8 +11171,10 @@ function updateSummary(i18n) {
     summaryIndex = Math.floor((uniq.length - 1) / 2);
   }
   summaryIndex = Math.max(0, Math.min(uniq.length - 1, summaryIndex));
+  const isNew = !summaryEl;
   summaryEl == null ? void 0 : summaryEl.remove();
   summaryEl = layer.createDiv({ cls: "ep-roll-summary" });
+  if (isNew) summaryEl.addClass("ep-sum-in");
   const top = summaryEl.createDiv({ cls: "ep-roll-sum-top" });
   const valEl = top.createSpan({ cls: "ep-roll-sum-val" });
   const rerollAll = top.createEl("button", { cls: "ep-roll-sum-dismiss", text: i18n.t("roll.rerollAll") });
@@ -11424,9 +11445,11 @@ function playRollAnimation(job, i18n, done) {
     box.style.transition = "none";
     box.style.width = "";
     box.style.height = "";
+    chain.style.width = "";
     const w = box.offsetWidth;
     const h = box.offsetHeight;
     if (Math.abs(w - before.width) >= 1 || Math.abs(h - before.height) >= 1) {
+      chain.style.width = chain.offsetWidth + "px";
       box.style.overflow = "hidden";
       box.style.width = before.width + "px";
       box.style.height = before.height + "px";
@@ -11440,6 +11463,7 @@ function playRollAnimation(job, i18n, done) {
         box.style.width = "";
         box.style.height = "";
         box.style.overflow = "";
+        chain.style.width = "";
       }, 230);
     } else {
       box.style.transition = "";

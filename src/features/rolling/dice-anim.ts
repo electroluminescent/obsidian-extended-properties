@@ -194,8 +194,12 @@ function updateSummary(i18n: I18n): void {
   }
   summaryIndex = Math.max(0, Math.min(uniq.length - 1, summaryIndex));
 
+  // Animate only the first appearance — rebuilds (slider moves, a new roll
+  // joining) replace the element in place without re-popping.
+  const isNew = !summaryEl;
   summaryEl?.remove();
   summaryEl = layer.createDiv({ cls: "ep-roll-summary" });
+  if (isNew) summaryEl.addClass("ep-sum-in");
   const top = summaryEl.createDiv({ cls: "ep-roll-sum-top" });
   const valEl = top.createSpan({ cls: "ep-roll-sum-val" });
   const rerollAll = top.createEl("button", { cls: "ep-roll-sum-dismiss", text: i18n.t("roll.rerollAll") });
@@ -519,10 +523,16 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     box.style.transition = "none";
     box.style.width = "";
     box.style.height = "";
+    chain.style.width = "";
     const w = box.offsetWidth;
     const h = box.offsetHeight;
     if (Math.abs(w - before.width) >= 1 || Math.abs(h - before.height) >= 1) {
-      // …then animate from the current (possibly mid-transition) size to it.
+      // …freeze the chain at its FINAL laid-out width, so the new cell never
+      // wraps onto a temporary extra line while the box is still narrow (the
+      // old behaviour: wrap → widen → un-wrap → shrink, a visible jolt). The
+      // clipped box simply reveals the final layout as it grows…
+      chain.style.width = chain.offsetWidth + "px";
+      // …and animate from the current (possibly mid-transition) size to it.
       box.style.overflow = "hidden";
       box.style.width = before.width + "px";
       box.style.height = before.height + "px";
@@ -536,6 +546,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
         box.style.width = "";
         box.style.height = "";
         box.style.overflow = "";
+        chain.style.width = "";
       }, 230);
     } else {
       box.style.transition = "";

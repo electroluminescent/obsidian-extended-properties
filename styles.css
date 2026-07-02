@@ -532,8 +532,9 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 @media (prefers-reduced-motion: reduce) { .ep-roll-die.ep-rolling, .ep-roll-die.ep-settled, .ep-roll-overlay { animation: none; } }
 
 /* modular dice animation styles: spin + 3d cube, plus card resize */
-.ep-roll-die.ep-spin .ep-roll-die-ico { opacity: 0.6; animation: ep-spin .5s linear infinite; }
-.ep-roll-die.ep-spin .ep-roll-die-num { opacity: 0; }
+.ep-roll-die.ep-spin .ep-roll-die-ico { opacity: 0.35; animation: ep-spin .5s linear infinite; }
+/* The number stays visible while spinning — it cycles random faces (JS-paced,
+   decelerating) instead of hiding until the landing. */
 @keyframes ep-spin { to { transform: rotate(360deg); } }
 /* each 3D die is a self-contained perspective scene (flat container + perspective),
    so dice never share a vanishing point and don't stretch when off-centre in the row */
@@ -646,6 +647,13 @@ body.is-mobile .ep-roll-cards { margin: 0; width: 100%; max-height: 100%; flex-w
 .ep-roll-layer.ep-roll-block { pointer-events: auto; background: rgba(0, 0, 0, 0.55); }
 /* bottom-center window: dismiss-all + the result-distribution slider */
 .ep-roll-summary { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 12px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5); max-width: min(92vw, 480px); max-height: 40vh; overflow-y: auto; overscroll-behavior: contain; }
+/* The dialog slides up + fades on its first appearance. */
+.ep-roll-summary.ep-sum-in { animation: ep-sum-in .28s cubic-bezier(.2, .8, .3, 1); }
+@keyframes ep-sum-in {
+  from { opacity: 0; transform: translate(-50%, 26px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .ep-roll-summary.ep-sum-in { animation: none; } }
 /* Expanded settings on mobile: up to half the screen, scrollable, with the
    (reserve-pushed) dice cards staying visible above the panel. */
 body.is-mobile .ep-roll-summary { max-width: 96vw; }
