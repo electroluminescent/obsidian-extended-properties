@@ -136,15 +136,15 @@ function dropBox(box: HTMLElement): void {
 }
 
 /**
- * Capture the positions of the cards that stay, returning a player that
- * FLIP-slides them into the space a dismissed card freed (mirrors the
- * summary's mini-die animation).
+ * Capture the positions of the existing cards, returning a player that
+ * FLIP-slides them to wherever layout moved them — into the space a
+ * dismissed card freed, or aside to re-center around a newly added one
+ * (mirrors the summary's mini-die animation).
  */
-function prepareCardFlip(closing: HTMLElement): () => void {
-  const host = closing.parentElement;
+function prepareCardFlip(host: HTMLElement | null, except?: HTMLElement): () => void {
   if (!host) return () => undefined;
   const firsts = (Array.from(host.children) as HTMLElement[])
-    .filter((el) => el !== closing && el.classList.contains("ep-roll-box"))
+    .filter((el) => el !== except && el.classList.contains("ep-roll-box"))
     .map((el) => ({ el, rect: el.getBoundingClientRect() }));
   return () => {
     for (const { el, rect } of firsts) {
@@ -195,8 +195,10 @@ function updateSummary(i18n: I18n): void {
   summaryIndex = Math.max(0, Math.min(uniq.length - 1, summaryIndex));
 
   // Animate only the first appearance — rebuilds (slider moves, a new roll
-  // joining) replace the element in place without re-popping.
+  // joining) replace the element in place without re-popping; their size
+  // change is FLIP-animated below instead.
   const isNew = !summaryEl;
+  const prevRect = summaryEl && summaryEl.isConnected ? summaryEl.getBoundingClientRect() : null;
   summaryEl?.remove();
   summaryEl = layer.createDiv({ cls: "ep-roll-summary" });
   if (isNew) summaryEl.addClass("ep-sum-in");
@@ -277,6 +279,31 @@ function updateSummary(i18n: I18n): void {
   };
   apply(false);
   renderSummarySettings(summaryEl, i18n);
+  // A rebuilt dialog with different content jumps in size — animate the
+  // rebuilt element from the previous width/height instead (bottom-fixed and
+  // centered, so it grows upward and outward symmetrically).
+  if (prevRect) {
+    const el = summaryEl;
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    if (Math.abs(w - prevRect.width) >= 1 || Math.abs(h - prevRect.height) >= 1) {
+      el.style.transition = "none";
+      el.style.overflow = "hidden";
+      el.style.width = prevRect.width + "px";
+      el.style.height = prevRect.height + "px";
+      void el.offsetWidth;
+      el.style.transition = "width .2s ease-out, height .2s ease-out";
+      el.style.width = w + "px";
+      el.style.height = h + "px";
+      window.setTimeout(() => {
+        el.style.transition = "";
+        el.style.width = "";
+        el.style.height = "";
+        el.style.overflow = "";
+        measureReserve(); // re-measure at the settled size
+      }, 230);
+    }
+  }
   requestAnimationFrame(measureReserve);
 }
 
@@ -299,14 +326,22 @@ function renderSummarySettings(host: HTMLElement, i18n: I18n): void {
   setIcon(chev, "chevron-right");
   chev.toggleClass("ep-open", summaryOpen);
   tog.createSpan({ text: i18n.t("roll.summary.settings") });
-  const body = wrap.createDiv({ cls: "ep-roll-sum-body" });
+  // Accordion: a 0fr↔1fr grid row transition animates the open/close (the
+  // clip layer hides the collapsing content and, via `visibility`, keeps the
+  // hidden controls out of the tab order).
+  const acc = wrap.createDiv({ cls: "ep-roll-sum-acc" });
+  const clip = acc.createDiv({ cls: "ep-roll-sum-clip" });
+  const body = clip.createDiv({ cls: "ep-roll-sum-body" });
   tog.onclick = () => {
     summaryOpen = !summaryOpen;
     wrap.toggleClass("ep-open", summaryOpen);
     chev.toggleClass("ep-open", summaryOpen);
     tog.setAttr("aria-expanded", String(summaryOpen));
     host.toggleClass("ep-sum-open", summaryOpen);
+    // Track the dialog while it animates, then land on the exact height.
     requestAnimationFrame(measureReserve);
+    window.setTimeout(measureReserve, 120);
+    window.setTimeout(measureReserve, 260);
   };
   host.toggleClass("ep-sum-open", summaryOpen);
 
@@ -382,6 +417,9 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
   sfx.roll();
   const token = {};
   const host = cardsHost(job.block);
+  // Existing cards shift aside as the centered row re-centers around the
+  // newcomer — slide them there instead of jumping (FLIP).
+  const playJoin = prepareCardFlip(host);
   const box = host.createDiv({ cls: "ep-roll-box" });
   box.createDiv({ cls: "ep-roll-label", text: job.label });
   const diceRow = box.createDiv({ cls: "ep-roll-dice" });
@@ -410,6 +448,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     const el = diceTrack.createDiv({ cls: "ep-roll-die" });
     dies.push({ el, view: style.create(el, sides, aaSS), sides });
   }
+  playJoin(); // the new card is fully laid out — slide the others aside
 
   /**
    * Single-row conveyor: slide the track so die `i`'s right edge sits at the
@@ -443,7 +482,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     box.addClass("ep-closing");
     window.setTimeout(() => {
       // Remaining cards slide into the freed space (FLIP).
-      const play = prepareCardFlip(box);
+      const play = prepareCardFlip(box.parentElement, box);
       dropBox(box);
       play();
     }, 160);

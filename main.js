@@ -11126,10 +11126,9 @@ function dropBox(box) {
     summarySig = "";
   }
 }
-function prepareCardFlip(closing) {
-  const host = closing.parentElement;
+function prepareCardFlip(host, except) {
   if (!host) return () => void 0;
-  const firsts = Array.from(host.children).filter((el) => el !== closing && el.classList.contains("ep-roll-box")).map((el) => ({ el, rect: el.getBoundingClientRect() }));
+  const firsts = Array.from(host.children).filter((el) => el !== except && el.classList.contains("ep-roll-box")).map((el) => ({ el, rect: el.getBoundingClientRect() }));
   return () => {
     for (const { el, rect } of firsts) {
       const now = el.getBoundingClientRect();
@@ -11172,6 +11171,7 @@ function updateSummary(i18n) {
   }
   summaryIndex = Math.max(0, Math.min(uniq.length - 1, summaryIndex));
   const isNew = !summaryEl;
+  const prevRect = summaryEl && summaryEl.isConnected ? summaryEl.getBoundingClientRect() : null;
   summaryEl == null ? void 0 : summaryEl.remove();
   summaryEl = layer.createDiv({ cls: "ep-roll-summary" });
   if (isNew) summaryEl.addClass("ep-sum-in");
@@ -11246,6 +11246,28 @@ function updateSummary(i18n) {
   };
   apply(false);
   renderSummarySettings(summaryEl, i18n);
+  if (prevRect) {
+    const el = summaryEl;
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    if (Math.abs(w - prevRect.width) >= 1 || Math.abs(h - prevRect.height) >= 1) {
+      el.style.transition = "none";
+      el.style.overflow = "hidden";
+      el.style.width = prevRect.width + "px";
+      el.style.height = prevRect.height + "px";
+      void el.offsetWidth;
+      el.style.transition = "width .2s ease-out, height .2s ease-out";
+      el.style.width = w + "px";
+      el.style.height = h + "px";
+      window.setTimeout(() => {
+        el.style.transition = "";
+        el.style.width = "";
+        el.style.height = "";
+        el.style.overflow = "";
+        measureReserve();
+      }, 230);
+    }
+  }
   requestAnimationFrame(measureReserve);
 }
 var rsId = 0;
@@ -11261,7 +11283,9 @@ function renderSummarySettings(host, i18n) {
   (0, import_obsidian32.setIcon)(chev, "chevron-right");
   chev.toggleClass("ep-open", summaryOpen);
   tog.createSpan({ text: i18n.t("roll.summary.settings") });
-  const body = wrap.createDiv({ cls: "ep-roll-sum-body" });
+  const acc = wrap.createDiv({ cls: "ep-roll-sum-acc" });
+  const clip = acc.createDiv({ cls: "ep-roll-sum-clip" });
+  const body = clip.createDiv({ cls: "ep-roll-sum-body" });
   tog.onclick = () => {
     summaryOpen = !summaryOpen;
     wrap.toggleClass("ep-open", summaryOpen);
@@ -11269,6 +11293,8 @@ function renderSummarySettings(host, i18n) {
     tog.setAttr("aria-expanded", String(summaryOpen));
     host.toggleClass("ep-sum-open", summaryOpen);
     requestAnimationFrame(measureReserve);
+    window.setTimeout(measureReserve, 120);
+    window.setTimeout(measureReserve, 260);
   };
   host.toggleClass("ep-sum-open", summaryOpen);
   const labelled = (text, make) => {
@@ -11332,6 +11358,7 @@ function playRollAnimation(job, i18n, done) {
   sfx.roll();
   const token = {};
   const host = cardsHost(job.block);
+  const playJoin = prepareCardFlip(host);
   const box = host.createDiv({ cls: "ep-roll-box" });
   box.createDiv({ cls: "ep-roll-label", text: job.label });
   const diceRow = box.createDiv({ cls: "ep-roll-dice" });
@@ -11351,6 +11378,7 @@ function playRollAnimation(job, i18n, done) {
     const el = diceTrack.createDiv({ cls: "ep-roll-die" });
     dies.push({ el, view: style.create(el, sides, aaSS), sides });
   }
+  playJoin();
   const conveyor = (i) => {
     if (i < 0 || i >= dies.length) return;
     const cw = diceRow.clientWidth;
@@ -11374,7 +11402,7 @@ function playRollAnimation(job, i18n, done) {
     for (const id of timers) window.clearTimeout(id);
     box.addClass("ep-closing");
     window.setTimeout(() => {
-      const play = prepareCardFlip(box);
+      const play = prepareCardFlip(box.parentElement, box);
       dropBox(box);
       play();
     }, 160);

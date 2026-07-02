@@ -573,7 +573,8 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 /* Cards center on the screen; --ep-roll-reserve keeps them clear of the
    bottom summary dialog (measured live in dice-anim.ts, so an expanded
    settings panel pushes the cards up rather than under it). */
-.ep-roll-layer { position: fixed; inset: 0; z-index: var(--layer-notice, 60); display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; pointer-events: none; padding-bottom: var(--ep-roll-reserve, 150px); }
+.ep-roll-layer { position: fixed; inset: 0; z-index: var(--layer-notice, 60); display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; pointer-events: none; padding-bottom: var(--ep-roll-reserve, 150px); transition: padding-bottom .25s ease; }
+@media (prefers-reduced-motion: reduce) { .ep-roll-layer { transition: none; } }
 /* centered, vertically scrollable card host (margin auto = center while small) */
 /* cards lay out in a single horizontal row; scroll left to reach previous rolls */
 .ep-roll-cards { margin: 0; display: flex; flex-wrap: nowrap; gap: 16px; align-items: center; justify-content: flex-start; padding: 24px; overflow-x: auto; overflow-y: auto; max-width: 100vw; max-height: 100%; pointer-events: auto; }
@@ -664,8 +665,14 @@ body.is-mobile .ep-roll-summary.ep-sum-open { max-height: 50vh; }
 .ep-roll-sum-toggle:hover { color: var(--text-normal); }
 .ep-roll-sum-toggle .ep-chev { display: inline-flex; transition: transform .15s ease; }
 .ep-roll-sum-toggle .ep-chev.ep-open { transform: rotate(90deg); }
-.ep-roll-sum-body { display: none; width: 100%; grid-template-columns: auto 1fr; align-items: center; gap: 8px 12px; padding: 6px 4px 2px; border-top: 1px solid var(--background-modifier-border); }
-.ep-roll-sum-settings.ep-open .ep-roll-sum-body { display: grid; }
+/* Accordion: the grid row interpolates 0fr↔1fr, so opening/closing the panel
+   animates the dialog's height instead of jumping. */
+.ep-roll-sum-acc { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .22s ease; width: 100%; }
+.ep-roll-sum-settings.ep-open .ep-roll-sum-acc { grid-template-rows: 1fr; }
+.ep-roll-sum-clip { overflow: hidden; min-height: 0; visibility: hidden; transition: visibility 0s .22s; }
+.ep-roll-sum-settings.ep-open .ep-roll-sum-clip { visibility: visible; transition: visibility 0s; }
+.ep-roll-sum-body { display: grid; width: 100%; grid-template-columns: auto 1fr; align-items: center; gap: 8px 12px; padding: 6px 4px 2px; border-top: 1px solid var(--background-modifier-border); }
+@media (prefers-reduced-motion: reduce) { .ep-roll-sum-acc { transition: none; } }
 .ep-roll-sum-body label { font-size: var(--font-ui-smaller); color: var(--text-muted); white-space: nowrap; }
 .ep-roll-sum-body select, .ep-roll-sum-body input[type="range"] { width: 100%; min-height: 24px; }
 .ep-roll-sum-row { display: contents; }
