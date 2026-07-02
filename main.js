@@ -11446,10 +11446,11 @@ function playRollAnimation(job, i18n, done) {
     box.style.width = "";
     box.style.height = "";
     chain.style.width = "";
-    const w = box.offsetWidth;
-    const h = box.offsetHeight;
+    const nat = box.getBoundingClientRect();
+    const w = nat.width;
+    const h = nat.height;
     if (Math.abs(w - before.width) >= 1 || Math.abs(h - before.height) >= 1) {
-      chain.style.width = chain.offsetWidth + "px";
+      chain.style.width = Math.ceil(chain.getBoundingClientRect().width) + 1 + "px";
       box.style.overflow = "hidden";
       box.style.width = before.width + "px";
       box.style.height = before.height + "px";

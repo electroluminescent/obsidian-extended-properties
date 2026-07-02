@@ -524,14 +524,20 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     box.style.width = "";
     box.style.height = "";
     chain.style.width = "";
-    const w = box.offsetWidth;
-    const h = box.offsetHeight;
+    const nat = box.getBoundingClientRect();
+    const w = nat.width;
+    const h = nat.height;
     if (Math.abs(w - before.width) >= 1 || Math.abs(h - before.height) >= 1) {
       // …freeze the chain at its FINAL laid-out width, so the new cell never
       // wraps onto a temporary extra line while the box is still narrow (the
       // old behaviour: wrap → widen → un-wrap → shrink, a visible jolt). The
-      // clipped box simply reveals the final layout as it grows…
-      chain.style.width = chain.offsetWidth + "px";
+      // width must be measured fractionally and rounded UP (+1 safety):
+      // offsetWidth rounds down, and a frozen width even half a pixel short
+      // re-wraps the newest cell — the exact jolt this freeze prevents. A
+      // cell only ever starts a new line when the current one is truly full
+      // (the chain's max-width), never because of the animation. The clipped
+      // box then simply reveals the final layout as it grows…
+      chain.style.width = Math.ceil(chain.getBoundingClientRect().width) + 1 + "px";
       // …and animate from the current (possibly mid-transition) size to it.
       box.style.overflow = "hidden";
       box.style.width = before.width + "px";
