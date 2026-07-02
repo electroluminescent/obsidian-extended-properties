@@ -307,24 +307,34 @@ export class NoteModel {
     this.undo.clear();
   }
 
-  /** Write all captured original values back to their files. */
-  revertUndo(): void {
+  /**
+   * Write all captured original values back to their files. Resolves when
+   * every write has landed (or failed with a notice), so callers can reload
+   * afterwards. Deliberately NOT stamped as our own write: the metadata
+   * echo is what refreshes the view once the cache reflects the revert.
+   */
+  async revertUndo(): Promise<void> {
     const byFile = new Map<string, { key: string; old: unknown }[]>();
     for (const { path, key, old } of this.undo.values()) {
       if (!byFile.has(path)) byFile.set(path, []);
       byFile.get(path)!.push({ key, old });
     }
-    for (const [path, changes] of byFile) {
-      const f = this.app.vault.getAbstractFileByPath(path);
-      if (f instanceof TFile) {
-        this.app.fileManager.processFrontMatter(f, (fm) => {
-          for (const { key, old } of changes) {
-            if (old === undefined) delete fm[key];
-            else fm[key] = old;
-          }
-        });
-      }
-    }
+    await Promise.all(
+      [...byFile].map(async ([path, changes]) => {
+        const f = this.app.vault.getAbstractFileByPath(path);
+        if (!(f instanceof TFile)) return;
+        try {
+          await this.app.fileManager.processFrontMatter(f, (fm) => {
+            for (const { key, old } of changes) {
+              if (old === undefined) delete fm[key];
+              else fm[key] = old;
+            }
+          });
+        } catch (err) {
+          new Notice(this.i18n.t("notice.saveFailed", { error: String(err) }));
+        }
+      })
+    );
   }
 }
 

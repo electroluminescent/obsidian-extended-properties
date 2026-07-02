@@ -368,6 +368,7 @@
   "table.count": "{n} notes",
   "table.noTypes": "No note types are configured yet. Add one in the plugin settings to see its notes here.",
   "table.removeColumn": "Remove column",
+  "table.resize": "Resize {name} column",
   "table.roll": "Roll this property",
   "table.rollFailed": "Rolling is unavailable.",
   "table.truncated": "Showing first {shown} of {total} \u2014 narrow the filter to see more.",

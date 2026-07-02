@@ -10,7 +10,7 @@
 import { Notice, Plugin, TFile } from "obsidian";
 import { I18n } from "./i18n/i18n";
 import { coreEn } from "./i18n/locales/en";
-import type { EPSettings, Layout } from "./core/model";
+import type { EPSettings, Layout, RollRecord } from "./core/model";
 import { normalizeSettings, runSchemaMigrations } from "./core/settings";
 import { LayoutStore } from "./core/layout-store";
 import { SnapshotStore } from "./core/snapshot-store";
@@ -31,7 +31,7 @@ import { SnapshotPickerModal } from "./ui/modals/snapshot-picker";
 import { augmentPropsMenu, showPropMenu } from "./ui/menus/prop-panel-menu";
 import { rollingModule } from "./features/rolling/index";
 import { dnd5eModule } from "./features/dnd5e/index";
-import { HistoryService } from "./features/rolling/history";
+import { HistoryService, type HistoryStore } from "./features/rolling/history";
 import { RollService } from "./features/rolling/roll-service";
 import { runMacro } from "./features/rolling/macros";
 import { inlineModule, registerInline } from "./features/inline/index";
@@ -129,10 +129,16 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     });
     this.register(this.hide.install());
 
-    // Plugin-level roll history (shared by all views; persists across reloads).
-    this.history = new HistoryService(this.settings, () => {
-      void this.saveData(this.settings);
-    });
+    // Plugin-level roll history (shared by all views; persists across reloads
+    // in its own roll-history.json — see historyStore below).
+    this.history = new HistoryService(
+      this.settings,
+      () => {
+        void this.saveData(this.settings);
+      },
+      this.historyStore()
+    );
+    await this.history.init();
 
     // -- D3: versioned schema migration + pre-migration backup --------------
     const isFresh = !data || Object.keys(data as object).length === 0;
@@ -390,6 +396,37 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       });
       this.macroCmdIds.push(cmdId);
     }
+  }
+
+  /**
+   * File-backed roll-history store: `roll-history.json` next to `data.json`,
+   * so a settings save never reserializes hundreds of roll records and a
+   * roll never rewrites the whole configuration. Best-effort — errors are
+   * logged, never thrown into the roll path.
+   */
+  private historyStore(): HistoryStore | undefined {
+    const dir = this.manifest.dir;
+    if (!dir) return undefined;
+    const path = `${dir}/roll-history.json`;
+    const adapter = this.app.vault.adapter;
+    return {
+      async load() {
+        if (!(await adapter.exists(path))) return [];
+        const raw: unknown = JSON.parse(await adapter.read(path));
+        return Array.isArray(raw)
+          ? raw.filter(
+              (r): r is RollRecord => !!r && typeof r === "object" && typeof (r as { id?: unknown }).id === "string"
+            )
+          : [];
+      },
+      async save(records) {
+        try {
+          await adapter.write(path, JSON.stringify(records));
+        } catch (e) {
+          console.error("Extended Properties: roll history save failed", e);
+        }
+      },
+    };
   }
 
   /** Export the roll history to a new note as a Markdown table. */

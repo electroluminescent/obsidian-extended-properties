@@ -6,15 +6,25 @@
  * the single plugin instance) sees the same log, and so it survives note
  * switches and reloads. Views subscribe; the roll service only appends.
  *
- * Records are serializable (no closures) and live in `settings.rollHistory`.
+ * Records are serializable (no closures) and live in their own store — a
+ * `roll-history.json` next to `data.json` (see {@link HistoryStore}) — so a
+ * settings save never reserializes hundreds of roll records and a roll never
+ * rewrites the whole configuration. Older vaults that still carry records in
+ * `settings.rollHistory` are migrated once on {@link HistoryService.init}.
  * Writes are debounced so a burst of rolls (e.g. a multi-roll) doesn't thrash
- * `data.json`/sync; the flush also runs immediately on clear and on unload.
+ * the file/sync; the flush also runs immediately on clear and on unload.
  * The in-session "re-roll" closures are kept in a side map keyed by record id
  * — they exist only for rolls made this session, never persisted.
  */
 
 import type { I18n } from "../../i18n/i18n";
 import type { EPSettings, RollRecord } from "../../core/model";
+
+/** Where persisted roll records live (a JSON file next to data.json). */
+export interface HistoryStore {
+  load(): Promise<RollRecord[]>;
+  save(records: RollRecord[]): void | Promise<void>;
+}
 
 /** Default cap when the setting is missing/invalid. */
 const DEFAULT_LIMIT = 500;
@@ -30,10 +40,42 @@ export class HistoryService {
   private flushTimer = 0;
   private dirty = false;
 
-  constructor(private settings: EPSettings, private save: () => void) {
-    const stored = Array.isArray(settings.rollHistory) ? settings.rollHistory : [];
-    this.entries = stored.map((r) => ({ ...r }));
+  constructor(
+    private settings: EPSettings,
+    private save: () => void,
+    private store?: HistoryStore
+  ) {}
+
+  /**
+   * Load persisted records. Any legacy copy still in `settings.rollHistory`
+   * is merged in and migrated to the store once (deduplicated by id), so the
+   * history stops living inside `data.json`. Without a store (tests, missing
+   * plugin dir) the legacy settings key remains the backing storage.
+   */
+  async init(): Promise<void> {
+    let stored: RollRecord[] = [];
+    if (this.store) {
+      try {
+        stored = await this.store.load();
+      } catch (e) {
+        console.error("Extended Properties: roll history load failed", e);
+      }
+    }
+    const legacy = Array.isArray(this.settings.rollHistory) ? this.settings.rollHistory : [];
+    const seen = new Set<string>();
+    this.entries = [...stored, ...legacy]
+      .filter((r) => !!r && typeof r.id === "string" && !seen.has(r.id) && (seen.add(r.id), true))
+      .map((r) => ({ ...r }))
+      .sort((a, b) => b.time - a.time);
     this.prune();
+    if (this.store && legacy.length) {
+      // One-time migration out of data.json.
+      this.settings.rollHistory = [];
+      this.dirty = true;
+      this.flushNow();
+      this.save();
+    }
+    this.emit();
   }
 
   private enabled(): boolean {
@@ -91,9 +133,12 @@ export class HistoryService {
       this.dirty = true;
       this.flushNow();
     } else {
-      this.settings.rollHistory = [];
       this.dirty = false;
-      this.save();
+      if (this.store) void this.store.save([]);
+      else {
+        this.settings.rollHistory = [];
+        this.save();
+      }
     }
   }
 
@@ -141,8 +186,12 @@ export class HistoryService {
   private flush(): void {
     if (!this.dirty) return;
     this.dirty = false;
-    this.settings.rollHistory = this.enabled() ? this.entries.slice(0, this.limit()) : [];
-    this.save();
+    const out = this.enabled() ? this.entries.slice(0, this.limit()) : [];
+    if (this.store) void this.store.save(out);
+    else {
+      this.settings.rollHistory = out;
+      this.save();
+    }
   }
 
   /** Render the history (optionally one note's) as a Markdown table document. */

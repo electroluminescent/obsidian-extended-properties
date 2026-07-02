@@ -163,6 +163,13 @@ export const modifierAddon: ClusterAddon = {
     return { before };
   },
 
+  onRename(entry) {
+    const e = ext<ModExt>(entry);
+    e.mods = undefined;
+    e.rollOverride = undefined;
+    e.showMod = undefined;
+  },
+
   fillSlots(ctx: EntryRenderCtx) {
     const view = ctx.view;
     const e = ext<ModExt>(ctx.entry);

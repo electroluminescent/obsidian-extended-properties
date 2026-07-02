@@ -457,6 +457,7 @@ var en_default = {
   "table.count": "{n} notes",
   "table.noTypes": "No note types are configured yet. Add one in the plugin settings to see its notes here.",
   "table.removeColumn": "Remove column",
+  "table.resize": "Resize {name} column",
   "table.roll": "Roll this property",
   "table.rollFailed": "Rolling is unavailable.",
   "table.truncated": "Showing first {shown} of {total} \u2014 narrow the filter to see more.",
@@ -1622,16 +1623,33 @@ var HANDLED_KEYS = /* @__PURE__ */ new Set([
   "lastSnapshot",
   "inlineEntries"
 ]);
+function cleanTypes(raw) {
+  return Array.isArray(raw) ? raw.filter((t) => typeof t === "string" && t.trim() !== "") : [];
+}
+function cleanLayouts(raw) {
+  const out = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [k, l] of Object.entries(raw)) {
+    if (!l || typeof l !== "object" || !Array.isArray(l.sections)) continue;
+    const lay = l;
+    const sections = lay.sections.filter((sec) => !!sec && typeof sec === "object" && !Array.isArray(sec)).map((sec) => ({
+      ...sec,
+      entries: Array.isArray(sec.entries) ? sec.entries.filter((e) => !!e && typeof e === "object" && !Array.isArray(e)) : []
+    }));
+    out[k] = { ...lay, sections };
+  }
+  return out;
+}
 function normalizeSettings(data, defaultLayout) {
   var _a, _b, _c;
   const s = defaultSettings();
   if (data) {
     if (data.layouts && data.types) {
-      s.types = data.types;
-      s.layouts = data.layouts;
+      s.types = cleanTypes(data.types);
+      s.layouts = cleanLayouts(data.layouts);
     } else if ((_b = (_a = data.layout) == null ? void 0 : _a.sections) == null ? void 0 : _b.length) {
       s.types = ["Character"];
-      s.layouts = { character: data.layout };
+      s.layouts = cleanLayouts({ character: data.layout });
     }
     if (typeof data.hideShown === "boolean") s.hideShown = data.hideShown;
     if (data.defaults) s.defaults = { ...DEFAULT_DEFAULTS, ...data.defaults };
@@ -2195,7 +2213,7 @@ var PropertyIndex = class {
         });
       }
     }
-    return [...this.cache.values()];
+    return this.cache.values();
   }
   /** Refresh one file's cached frontmatter (called on modify/rename/metadata-changed). */
   invalidateFile(file, oldPath) {
@@ -2272,7 +2290,9 @@ var PropertyIndex = class {
     } catch (e) {
     }
     if (names.size === 0) {
-      for (const { fm } of this.snapshots().slice(0, 1e3)) {
+      let scanned = 0;
+      for (const { fm } of this.snapshots()) {
+        if (++scanned > 1e3) break;
         if (fm) for (const k of Object.keys(fm)) names.add(k);
       }
     }
@@ -3529,6 +3549,12 @@ var modifierAddon = {
     const isDerived = ref.view.resolveType(ref.entry) === "derived";
     if (ext(ref.entry).showMod && !isDerived) before.push({ id: "mod", cls: "ep-mod-badge" });
     return { before };
+  },
+  onRename(entry) {
+    const e = ext(entry);
+    e.mods = void 0;
+    e.rollOverride = void 0;
+    e.showMod = void 0;
   },
   fillSlots(ctx2) {
     const view = ctx2.view;
@@ -5137,24 +5163,34 @@ var NoteModel = class {
   clearUndo() {
     this.undo.clear();
   }
-  /** Write all captured original values back to their files. */
-  revertUndo() {
+  /**
+   * Write all captured original values back to their files. Resolves when
+   * every write has landed (or failed with a notice), so callers can reload
+   * afterwards. Deliberately NOT stamped as our own write: the metadata
+   * echo is what refreshes the view once the cache reflects the revert.
+   */
+  async revertUndo() {
     const byFile = /* @__PURE__ */ new Map();
     for (const { path, key, old } of this.undo.values()) {
       if (!byFile.has(path)) byFile.set(path, []);
       byFile.get(path).push({ key, old });
     }
-    for (const [path, changes] of byFile) {
-      const f = this.app.vault.getAbstractFileByPath(path);
-      if (f instanceof import_obsidian14.TFile) {
-        this.app.fileManager.processFrontMatter(f, (fm) => {
-          for (const { key, old } of changes) {
-            if (old === void 0) delete fm[key];
-            else fm[key] = old;
-          }
-        });
-      }
-    }
+    await Promise.all(
+      [...byFile].map(async ([path, changes]) => {
+        const f = this.app.vault.getAbstractFileByPath(path);
+        if (!(f instanceof import_obsidian14.TFile)) return;
+        try {
+          await this.app.fileManager.processFrontMatter(f, (fm) => {
+            for (const { key, old } of changes) {
+              if (old === void 0) delete fm[key];
+              else fm[key] = old;
+            }
+          });
+        } catch (err) {
+          new import_obsidian14.Notice(this.i18n.t("notice.saveFailed", { error: String(err) }));
+        }
+      })
+    );
   }
 };
 var NoteFacade = class {
@@ -8087,6 +8123,13 @@ var SidebarView = class extends import_obsidian25.ItemView {
     this.lastEmptySig = "";
     /** Parsed `showWhen` ASTs, keyed by expression text (null = unparseable). */
     this.condCache = /* @__PURE__ */ new Map();
+    /**
+     * Evaluated `showWhen` results for the current pass, keyed by expression
+     * text. `emptySig` and the render both evaluate the same conditions; this
+     * cache makes each condition evaluate once per pass. Cleared whenever note
+     * values may have changed (render, refreshValues, maybeRefresh).
+     */
+    this.condVals = /* @__PURE__ */ new Map();
     /** Responsive-pass signature per section id — skip re-measuring unchanged ones (F2). */
     this.respSig = /* @__PURE__ */ new Map();
     this.hlTimer = 0;
@@ -8139,6 +8182,7 @@ var SidebarView = class extends import_obsidian25.ItemView {
     this.render();
   }
   refreshValues() {
+    this.condVals.clear();
     for (const u of this.updaters) {
       try {
         u();
@@ -8285,14 +8329,20 @@ var SidebarView = class extends import_obsidian25.ItemView {
   condVisible(showWhen) {
     const expr = (showWhen != null ? showWhen : "").trim();
     if (!expr) return true;
+    const hit = this.condVals.get(expr);
+    if (hit !== void 0) return hit;
     let ast = this.condCache.get(expr);
     if (ast === void 0) {
       ast = parseExpr(expr);
       this.condCache.set(expr, ast);
     }
-    if (!ast) return true;
-    const r = evalCondition(ast, this.condEnv());
-    return r === void 0 ? true : r;
+    let vis = true;
+    if (ast) {
+      const r = evalCondition(ast, this.condEnv());
+      if (r !== void 0) vis = r;
+    }
+    this.condVals.set(expr, vis);
+    return vis;
   }
   /** Expression env resolving names against the active note's frontmatter. */
   condEnv() {
@@ -8409,6 +8459,7 @@ var SidebarView = class extends import_obsidian25.ItemView {
     }
   }
   renameKey(entry, newKey) {
+    var _a;
     newKey = newKey.trim();
     if (!newKey || newKey === entry.key) return;
     entry.key = newKey;
@@ -8416,17 +8467,18 @@ var SidebarView = class extends import_obsidian25.ItemView {
     entry.slider = void 0;
     entry.sliderCurve = void 0;
     entry.steppers = void 0;
-    entry.roll = void 0;
-    entry.showMod = void 0;
     entry.showChain = void 0;
     entry.showDice = void 0;
-    entry.mods = void 0;
-    entry.rollOverride = void 0;
-    entry.dice = void 0;
     entry.min = void 0;
     entry.max = void 0;
     entry.clamp = void 0;
     entry.formula = void 0;
+    for (const addon of this.registries.clusterAddons.all()) {
+      try {
+        (_a = addon.onRename) == null ? void 0 : _a.call(addon, entry);
+      } catch (e) {
+      }
+    }
     entry.dataType = this.deriveType(newKey);
     this.saveLayout();
     this.render();
@@ -8522,6 +8574,7 @@ var SidebarView = class extends import_obsidian25.ItemView {
    * of our own write), in-place value refresh, or full re-render.
    */
   maybeRefresh(file) {
+    this.condVals.clear();
     const active = this.app.workspace.getActiveFile();
     if (!active) {
       this.note.path = null;
@@ -8586,10 +8639,11 @@ var SidebarView = class extends import_obsidian25.ItemView {
           this.settings.layouts[this.activeTypeKey] = JSON.parse(this.layoutSnapshot);
           this.plugin.saveSettings();
         }
-        this.note.revertUndo();
-        const active = this.app.workspace.getActiveFile();
-        if (active) this.note.load(active);
-        finish();
+        void this.note.revertUndo().then(() => {
+          const active = this.app.workspace.getActiveFile();
+          if (active) this.note.load(active);
+          finish();
+        });
       }
     ).open();
   }
@@ -8764,6 +8818,7 @@ var SidebarView = class extends import_obsidian25.ItemView {
     this.updaters = [];
     this.sectionEls = {};
     this.respSig.clear();
+    this.condVals.clear();
     const file = this.app.workspace.getActiveFile();
     if (!file) {
       this.note.path = null;
@@ -9161,10 +9216,18 @@ var TableView = class extends import_obsidian26.ItemView {
     const tr = tbody.createEl("tr");
     const nameTd = tr.createEl("td", { cls: "ep-table-name" });
     const a = nameTd.createEl("a", { text: r.file.basename, cls: "ep-table-link" });
+    const open = () => void this.app.workspace.getLeaf(false).openFile(r.file);
     a.onclick = (e) => {
       e.preventDefault();
-      void this.app.workspace.getLeaf(false).openFile(r.file);
+      open();
     };
+    a.tabIndex = 0;
+    a.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        open();
+      }
+    });
     for (const m of metas) {
       const td = tr.createEl("td", { cls: "ep-table-cell" });
       this.renderValue(td, r.file, r.fm, m);
@@ -9254,7 +9317,16 @@ var TableView = class extends import_obsidian26.ItemView {
   }
   bindCellEdit(td, file, key) {
     td.addClass("ep-editable-cell");
-    td.ondblclick = () => {
+    td.tabIndex = 0;
+    td.setAttr("role", "button");
+    td.setAttr("aria-label", this.plugin.i18n.t("a11y.editValue"));
+    td.addEventListener("keydown", (e) => {
+      if (e.target === td && (e.key === "Enter" || e.key === " ")) {
+        e.preventDefault();
+        start();
+      }
+    });
+    const start = () => {
       var _a, _b;
       const fm = (_b = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter) != null ? _b : {};
       const cur = fmtCell(getCI(fm, key));
@@ -9287,6 +9359,7 @@ var TableView = class extends import_obsidian26.ItemView {
         }
       };
     };
+    td.ondblclick = start;
   }
   /**
    * Write a cell edit through the plugin's shared {@link NoteFacade} — the
@@ -9319,7 +9392,7 @@ var TableView = class extends import_obsidian26.ItemView {
   headerCell(tr, key, label, layout, meta) {
     var _a, _b;
     const th = tr.createEl("th", { cls: "ep-table-col ep-sortable" });
-    th.createSpan({ cls: "ep-th-label", text: label });
+    th.createEl("button", { cls: "ep-th-label", text: label });
     if (meta) {
       const w = (_a = layout.widths) == null ? void 0 : _a[key];
       if (w && w > 0) {
@@ -9330,8 +9403,9 @@ var TableView = class extends import_obsidian26.ItemView {
       th.addClass("ep-table-namecol");
     }
     const sort = layout.sort;
-    if (((_b = sort == null ? void 0 : sort.key) != null ? _b : "") === key && (sort || key === ""))
-      th.addClass((sort == null ? void 0 : sort.dir) === "desc" ? "ep-sort-desc" : "ep-sort-asc");
+    const sorted = ((_b = sort == null ? void 0 : sort.key) != null ? _b : "") === key && (sort || key === "");
+    if (sorted) th.addClass((sort == null ? void 0 : sort.dir) === "desc" ? "ep-sort-desc" : "ep-sort-asc");
+    th.setAttr("aria-sort", sorted ? (sort == null ? void 0 : sort.dir) === "desc" ? "descending" : "ascending" : "none");
     th.onclick = () => {
       var _a2;
       const cur = layout.sort;
@@ -9357,6 +9431,21 @@ var TableView = class extends import_obsidian26.ItemView {
   }
   attachResize(th, key, layout) {
     const grip = th.createSpan({ cls: "ep-col-resize" });
+    grip.tabIndex = 0;
+    grip.setAttr("role", "separator");
+    grip.setAttr("aria-orientation", "vertical");
+    grip.setAttr("aria-label", this.plugin.i18n.t("table.resize", { name: key }));
+    grip.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      e.preventDefault();
+      e.stopPropagation();
+      const w = Math.max(48, th.offsetWidth + (e.key === "ArrowRight" ? 8 : -8));
+      th.style.width = w + "px";
+      th.style.minWidth = w + "px";
+      if (!layout.widths) layout.widths = {};
+      layout.widths[key] = w;
+      void this.plugin.saveSettings();
+    });
     grip.onclick = (e) => e.stopPropagation();
     grip.onpointerdown = (e) => {
       e.preventDefault();
@@ -11876,6 +11965,11 @@ var rollAddon = {
   needs() {
     return { after: [{ id: "roll", cls: "ep-roll-cell" }] };
   },
+  onRename(entry) {
+    const e = ext(entry);
+    e.roll = void 0;
+    e.dice = void 0;
+  },
   fillSlots(ctx2, num) {
     const view = ctx2.view;
     const e = ext(ctx2.entry);
@@ -12882,9 +12976,10 @@ var dnd5eModule = {
 var DEFAULT_LIMIT = 500;
 var FLUSH_MS = 1500;
 var HistoryService = class {
-  constructor(settings, save) {
+  constructor(settings, save, store) {
     this.settings = settings;
     this.save = save;
+    this.store = store;
     /** Most-recent-first. The source of truth the panel renders from. */
     this.entries = [];
     /** id → re-roll closure (this session only; not persisted). */
@@ -12892,9 +12987,33 @@ var HistoryService = class {
     this.listeners = /* @__PURE__ */ new Set();
     this.flushTimer = 0;
     this.dirty = false;
-    const stored = Array.isArray(settings.rollHistory) ? settings.rollHistory : [];
-    this.entries = stored.map((r) => ({ ...r }));
+  }
+  /**
+   * Load persisted records. Any legacy copy still in `settings.rollHistory`
+   * is merged in and migrated to the store once (deduplicated by id), so the
+   * history stops living inside `data.json`. Without a store (tests, missing
+   * plugin dir) the legacy settings key remains the backing storage.
+   */
+  async init() {
+    let stored = [];
+    if (this.store) {
+      try {
+        stored = await this.store.load();
+      } catch (e) {
+        console.error("Extended Properties: roll history load failed", e);
+      }
+    }
+    const legacy = Array.isArray(this.settings.rollHistory) ? this.settings.rollHistory : [];
+    const seen = /* @__PURE__ */ new Set();
+    this.entries = [...stored, ...legacy].filter((r) => !!r && typeof r.id === "string" && !seen.has(r.id) && (seen.add(r.id), true)).map((r) => ({ ...r })).sort((a, b) => b.time - a.time);
     this.prune();
+    if (this.store && legacy.length) {
+      this.settings.rollHistory = [];
+      this.dirty = true;
+      this.flushNow();
+      this.save();
+    }
+    this.emit();
   }
   enabled() {
     return this.settings.rollHistoryEnabled !== false;
@@ -12944,9 +13063,12 @@ var HistoryService = class {
       this.dirty = true;
       this.flushNow();
     } else {
-      this.settings.rollHistory = [];
       this.dirty = false;
-      this.save();
+      if (this.store) void this.store.save([]);
+      else {
+        this.settings.rollHistory = [];
+        this.save();
+      }
     }
   }
   /** React to the limit setting changing: prune now and persist. */
@@ -12987,8 +13109,12 @@ var HistoryService = class {
   flush() {
     if (!this.dirty) return;
     this.dirty = false;
-    this.settings.rollHistory = this.enabled() ? this.entries.slice(0, this.limit()) : [];
-    this.save();
+    const out = this.enabled() ? this.entries.slice(0, this.limit()) : [];
+    if (this.store) void this.store.save(out);
+    else {
+      this.settings.rollHistory = out;
+      this.save();
+    }
   }
   /** Render the history (optionally one note's) as a Markdown table document. */
   exportMarkdown(i18n, note) {
@@ -14149,9 +14275,14 @@ var ExtendedPropertiesPlugin = class extends import_obsidian41.Plugin {
       refreshViews: () => this.refreshViews()
     });
     this.register(this.hide.install());
-    this.history = new HistoryService(this.settings, () => {
-      void this.saveData(this.settings);
-    });
+    this.history = new HistoryService(
+      this.settings,
+      () => {
+        void this.saveData(this.settings);
+      },
+      this.historyStore()
+    );
+    await this.history.init();
     const isFresh = !data || Object.keys(data).length === 0;
     if (runSchemaMigrations(this.settings).changed) migrated = true;
     if (this.settings.appVersion !== this.manifest.version) {
@@ -14378,6 +14509,34 @@ var ExtendedPropertiesPlugin = class extends import_obsidian41.Plugin {
       });
       this.macroCmdIds.push(cmdId);
     }
+  }
+  /**
+   * File-backed roll-history store: `roll-history.json` next to `data.json`,
+   * so a settings save never reserializes hundreds of roll records and a
+   * roll never rewrites the whole configuration. Best-effort — errors are
+   * logged, never thrown into the roll path.
+   */
+  historyStore() {
+    const dir = this.manifest.dir;
+    if (!dir) return void 0;
+    const path = `${dir}/roll-history.json`;
+    const adapter = this.app.vault.adapter;
+    return {
+      async load() {
+        if (!await adapter.exists(path)) return [];
+        const raw = JSON.parse(await adapter.read(path));
+        return Array.isArray(raw) ? raw.filter(
+          (r) => !!r && typeof r === "object" && typeof r.id === "string"
+        ) : [];
+      },
+      async save(records) {
+        try {
+          await adapter.write(path, JSON.stringify(records));
+        } catch (e) {
+          console.error("Extended Properties: roll history save failed", e);
+        }
+      }
+    };
   }
   /** Export the roll history to a new note as a Markdown table. */
   async exportRollHistory() {

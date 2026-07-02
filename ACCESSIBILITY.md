@@ -29,6 +29,11 @@ checklist** to run before a release, plus a summary of the support that ships.
     toggled by `Enter`/`Space`.
   - **Roll buttons**, the **entry `⋯` menu**, and table-view controls carry
     `aria-label`s.
+- **Type table view.** Header sort is a real button (`Enter`/`Space`) and the
+  column carries `aria-sort`; editable cells are `role="button"` and open their
+  editor with `Enter`/`Space`; column-resize grips are focusable separators
+  resized with `←`/`→`; note links and per-cell roll buttons are
+  keyboard-reachable.
 - **Live announcements.** A shared polite `aria-live` region (`utils/a11y.ts`)
   announces roll totals, since the roll card is otherwise purely visual.
 - **Reduced motion.** `prefers-reduced-motion: reduce` disables the tumble, roll,

@@ -42,6 +42,12 @@ export const rollAddon: ClusterAddon = {
     return { after: [{ id: "roll", cls: "ep-roll-cell" }] };
   },
 
+  onRename(entry) {
+    const e = ext<RollExt>(entry);
+    e.roll = undefined;
+    e.dice = undefined;
+  },
+
   fillSlots(ctx: EntryRenderCtx, num: NumericAccess) {
     const view = ctx.view;
     const e = ext<RollExt>(ctx.entry);

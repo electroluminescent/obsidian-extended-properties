@@ -40,6 +40,47 @@ describe("normalizeSettings", () => {
     expect(s.derivations).toEqual([]);
   });
 
+  it("drops malformed types and layout structures (structural validation)", () => {
+    const s = normalizeSettings(
+      {
+        types: ["Character", 7, null, "  ", "Beast"],
+        layouts: {
+          character: {
+            version: 4,
+            sections: [
+              {
+                id: "a",
+                title: "T",
+                columns: 1,
+                entries: [{ id: "e", kind: "prop", key: "Str" }, "junk", null, 5],
+              },
+              "junk",
+              null,
+            ],
+          },
+          beast: "not a layout",
+          orphan: { noSections: true },
+        },
+      },
+      layout
+    );
+    expect(s.types).toEqual(["Character", "Beast"]);
+    expect(s.layouts.character.sections).toHaveLength(1);
+    expect(s.layouts.character.sections[0].entries).toHaveLength(1);
+    expect(s.layouts.character.sections[0].entries[0].key).toBe("Str");
+    // Invalid layout dropped; the declared type still gets a fresh default.
+    expect(s.layouts.beast.sections).toEqual([]);
+    expect((s.layouts as Record<string, unknown>).orphan).toBeUndefined();
+  });
+
+  it("coerces a section without entries to an empty entries array", () => {
+    const s = normalizeSettings(
+      { types: ["X"], layouts: { x: { version: 4, sections: [{ id: "s", title: "S", columns: 1 }] } } },
+      layout
+    );
+    expect(s.layouts.x.sections[0].entries).toEqual([]);
+  });
+
   it("preserves unknown / forward-compat keys and appVersion (carry-over)", () => {
     const s = normalizeSettings(
       {

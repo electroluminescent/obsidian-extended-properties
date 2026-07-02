@@ -86,6 +86,38 @@ const HANDLED_KEYS: ReadonlySet<string> = new Set([
   "inlineEntries",
 ]);
 
+/** Coerce a persisted `types` value to a clean list of non-empty strings. */
+function cleanTypes(raw: unknown): string[] {
+  return Array.isArray(raw) ? raw.filter((t): t is string => typeof t === "string" && t.trim() !== "") : [];
+}
+
+/**
+ * Structural validation for persisted layouts — the largest user-authored
+ * blob in `data.json`, and until now the least checked one (`inlineEntries`
+ * got the same treatment in v3.7.0). A layout must be an object with a
+ * `sections` array; sections must be objects (a missing `entries` becomes an
+ * empty array); entries must be plain objects. All unrecognized fields are
+ * preserved untouched, keeping the forward-compatibility guarantee.
+ */
+function cleanLayouts(raw: unknown): Record<string, Layout> {
+  const out: Record<string, Layout> = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [k, l] of Object.entries(raw as Record<string, unknown>)) {
+    if (!l || typeof l !== "object" || !Array.isArray((l as Record<string, unknown>).sections)) continue;
+    const lay = l as unknown as Layout;
+    const sections = lay.sections
+      .filter((sec) => !!sec && typeof sec === "object" && !Array.isArray(sec))
+      .map((sec) => ({
+        ...sec,
+        entries: Array.isArray(sec.entries)
+          ? sec.entries.filter((e) => !!e && typeof e === "object" && !Array.isArray(e))
+          : [],
+      }));
+    out[k] = { ...lay, sections };
+  }
+  return out;
+}
+
 /**
  * Merge persisted `data` (any historical shape, possibly null) into a valid
  * settings object.
@@ -94,12 +126,12 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
   const s = defaultSettings();
   if (data) {
     if (data.layouts && data.types) {
-      s.types = data.types;
-      s.layouts = data.layouts;
+      s.types = cleanTypes(data.types);
+      s.layouts = cleanLayouts(data.layouts);
     } else if (data.layout?.sections?.length) {
       // v1 stored a single layout for the "Character" type.
       s.types = ["Character"];
-      s.layouts = { character: data.layout };
+      s.layouts = cleanLayouts({ character: data.layout });
     }
     if (typeof data.hideShown === "boolean") s.hideShown = data.hideShown;
     if (data.defaults) s.defaults = { ...DEFAULT_DEFAULTS, ...data.defaults };

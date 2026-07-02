@@ -59,6 +59,13 @@ export class SidebarView extends ItemView implements ViewCtx {
   private lastEmptySig = "";
   /** Parsed `showWhen` ASTs, keyed by expression text (null = unparseable). */
   private condCache = new Map<string, ExprNode | null>();
+  /**
+   * Evaluated `showWhen` results for the current pass, keyed by expression
+   * text. `emptySig` and the render both evaluate the same conditions; this
+   * cache makes each condition evaluate once per pass. Cleared whenever note
+   * values may have changed (render, refreshValues, maybeRefresh).
+   */
+  private condVals = new Map<string, boolean>();
   /** Responsive-pass signature per section id — skip re-measuring unchanged ones (F2). */
   private respSig = new Map<string, string>();
   private hlTimer = 0;
@@ -95,6 +102,7 @@ export class SidebarView extends ItemView implements ViewCtx {
   rerender(): void { this.render(); }
 
   refreshValues(): void {
+    this.condVals.clear(); // note values may have changed
     for (const u of this.updaters) {
       try { u(); } catch { /* a single broken updater must not kill the pass */ }
     }
@@ -240,14 +248,20 @@ export class SidebarView extends ItemView implements ViewCtx {
   condVisible(showWhen?: string): boolean {
     const expr = (showWhen ?? "").trim();
     if (!expr) return true;
+    const hit = this.condVals.get(expr);
+    if (hit !== undefined) return hit;
     let ast = this.condCache.get(expr);
     if (ast === undefined) {
       ast = parseExpr(expr);
       this.condCache.set(expr, ast);
     }
-    if (!ast) return true; // unparseable conditions never hide (non-blocking)
-    const r = evalCondition(ast, this.condEnv());
-    return r === undefined ? true : r; // unresolved reference → visible
+    let vis = true; // unparseable/unresolved conditions never hide (non-blocking)
+    if (ast) {
+      const r = evalCondition(ast, this.condEnv());
+      if (r !== undefined) vis = r;
+    }
+    this.condVals.set(expr, vis);
+    return vis;
   }
 
   /** Expression env resolving names against the active note's frontmatter. */
@@ -381,22 +395,26 @@ export class SidebarView extends ItemView implements ViewCtx {
     newKey = newKey.trim();
     if (!newKey || newKey === entry.key) return;
     entry.key = newKey;
-    // Type-specific settings rarely survive a key change meaningfully.
+    // Core (EntryBase) settings rarely survive a key change meaningfully.
     entry.alias = undefined;
     entry.slider = undefined;
     entry.sliderCurve = undefined;
     entry.steppers = undefined;
-    entry.roll = undefined;
-    entry.showMod = undefined;
     entry.showChain = undefined;
     entry.showDice = undefined;
-    entry.mods = undefined;
-    entry.rollOverride = undefined;
-    entry.dice = undefined;
     entry.min = undefined;
     entry.max = undefined;
     entry.clamp = undefined;
     entry.formula = undefined;
+    // Feature-owned fields (roll config, modifier chains, …) are cleared by
+    // their owners — see ClusterAddon.onRename.
+    for (const addon of this.registries.clusterAddons.all()) {
+      try {
+        addon.onRename?.(entry);
+      } catch {
+        /* one addon must not break the rename */
+      }
+    }
     entry.dataType = this.deriveType(newKey);
     this.saveLayout();
     this.render();
@@ -497,6 +515,7 @@ export class SidebarView extends ItemView implements ViewCtx {
    * of our own write), in-place value refresh, or full re-render.
    */
   maybeRefresh(file?: TFile): void {
+    this.condVals.clear(); // fresh event — note values may have changed
     const active = this.app.workspace.getActiveFile();
     if (!active) {
       this.note.path = null;
@@ -567,10 +586,13 @@ export class SidebarView extends ItemView implements ViewCtx {
           this.settings.layouts[this.activeTypeKey] = JSON.parse(this.layoutSnapshot);
           this.plugin.saveSettings();
         }
-        this.note.revertUndo();
-        const active = this.app.workspace.getActiveFile();
-        if (active) this.note.load(active);
-        finish();
+        // Reload only after every revert write has landed; the metadata echo
+        // then reconciles the view once the cache catches up.
+        void this.note.revertUndo().then(() => {
+          const active = this.app.workspace.getActiveFile();
+          if (active) this.note.load(active);
+          finish();
+        });
       }
     ).open();
   }
@@ -789,6 +811,7 @@ export class SidebarView extends ItemView implements ViewCtx {
     this.updaters = [];
     this.sectionEls = {};
     this.respSig.clear(); // DOM is rebuilt — drop the responsive-pass cache
+    this.condVals.clear();
 
     const file = this.app.workspace.getActiveFile();
     if (!file) {

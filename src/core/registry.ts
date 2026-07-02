@@ -129,6 +129,14 @@ export interface ClusterAddon {
   onPreview?(ctx: EntryRenderCtx, cells: Record<string, HTMLElement>, value: number): void;
   /** Contribute rows to the entry-options modal. */
   renderOptions?(ctx: OptionsCtx): void;
+  /**
+   * Clear the fields this addon persists on an entry when the entry is
+   * re-pointed at a different property key (per-key configuration rarely
+   * survives a re-point meaningfully). Keeps feature-owned fields out of
+   * the core view — the view calls every addon's hook instead of knowing
+   * the field names.
+   */
+  onRename?(entry: Entry): void;
 }
 
 // ---------------------------------------------------------------------------

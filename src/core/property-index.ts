@@ -44,7 +44,7 @@ export class PropertyIndex {
    */
   private cache: Map<string, FileSnap> | null = null;
 
-  private snapshots(): FileSnap[] {
+  private snapshots(): Iterable<FileSnap> {
     if (!this.cache) {
       this.cache = new Map();
       for (const f of this.app.vault.getMarkdownFiles()) {
@@ -54,7 +54,9 @@ export class PropertyIndex {
         });
       }
     }
-    return [...this.cache.values()];
+    // An iterator, not a copied array — queries run per render, so avoiding
+    // the per-call allocation matters on large vaults.
+    return this.cache.values();
   }
 
   /** Refresh one file's cached frontmatter (called on modify/rename/metadata-changed). */
@@ -137,7 +139,9 @@ export class PropertyIndex {
       /* fall through to the scan */
     }
     if (names.size === 0) {
-      for (const { fm } of this.snapshots().slice(0, 1000)) {
+      let scanned = 0;
+      for (const { fm } of this.snapshots()) {
+        if (++scanned > 1000) break;
         if (fm) for (const k of Object.keys(fm)) names.add(k);
       }
     }

@@ -335,7 +335,12 @@ export interface EPSettings {
   modsOffProp: string;
   /** Saved reusable rolls ("custom roll objects"), available on the roll screen and as commands. */
   macros: RollMacro[];
-  /** Durable roll history (most-recent-first); pruned to {@link rollHistoryLimit}. */
+  /**
+   * Durable roll history (most-recent-first); pruned to {@link rollHistoryLimit}.
+   * Since v3.8.0 records live in the plugin's own `roll-history.json` (see
+   * `HistoryStore`); this key is migrated once on load and stays empty after,
+   * so settings saves stop reserializing hundreds of records.
+   */
   rollHistory: RollRecord[];
   /** Maximum stored history entries before FIFO pruning. */
   rollHistoryLimit: number;

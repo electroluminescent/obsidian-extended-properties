@@ -307,10 +307,19 @@ export class TableView extends ItemView {
     const tr = tbody.createEl("tr");
     const nameTd = tr.createEl("td", { cls: "ep-table-name" });
     const a = nameTd.createEl("a", { text: r.file.basename, cls: "ep-table-link" });
+    const open = () => void this.app.workspace.getLeaf(false).openFile(r.file);
     a.onclick = (e) => {
       e.preventDefault();
-      void this.app.workspace.getLeaf(false).openFile(r.file);
+      open();
     };
+    // An href-less anchor is not focusable — make the note link keyboard-reachable.
+    a.tabIndex = 0;
+    a.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        open();
+      }
+    });
     for (const m of metas) {
       const td = tr.createEl("td", { cls: "ep-table-cell" });
       this.renderValue(td, r.file, r.fm, m);
@@ -404,7 +413,18 @@ export class TableView extends ItemView {
 
   private bindCellEdit(td: HTMLElement, file: TFile, key: string): void {
     td.addClass("ep-editable-cell");
-    td.ondblclick = () => {
+    // Keyboard a11y: cells open their editor with Enter/Space, matching the
+    // sidebar's editable-value pattern (mouse: double-click).
+    td.tabIndex = 0;
+    td.setAttr("role", "button");
+    td.setAttr("aria-label", this.plugin.i18n.t("a11y.editValue"));
+    td.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.target === td && (e.key === "Enter" || e.key === " ")) {
+        e.preventDefault();
+        start();
+      }
+    });
+    const start = () => {
       const fm = (this.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown>) ?? {};
       const cur = fmtCell(getCI(fm, key));
       const input = createEl("input", { cls: "ep-table-edit" });
@@ -439,6 +459,7 @@ export class TableView extends ItemView {
         }
       };
     };
+    td.ondblclick = start;
   }
 
   /**
@@ -474,7 +495,9 @@ export class TableView extends ItemView {
 
   private headerCell(tr: HTMLElement, key: string, label: string, layout: TableLayout, meta: ColMeta | null): void {
     const th = tr.createEl("th", { cls: "ep-table-col ep-sortable" });
-    th.createSpan({ cls: "ep-th-label", text: label });
+    // A real <button> so header sort is keyboard-operable (Enter/Space fire a
+    // click, which bubbles to the th handler below — one code path for both).
+    th.createEl("button", { cls: "ep-th-label", text: label });
     if (meta) {
       const w = layout.widths?.[key];
       if (w && w > 0) {
@@ -485,8 +508,9 @@ export class TableView extends ItemView {
       th.addClass("ep-table-namecol");
     }
     const sort = layout.sort;
-    if ((sort?.key ?? "") === key && (sort || key === ""))
-      th.addClass(sort?.dir === "desc" ? "ep-sort-desc" : "ep-sort-asc");
+    const sorted = (sort?.key ?? "") === key && (sort || key === "");
+    if (sorted) th.addClass(sort?.dir === "desc" ? "ep-sort-desc" : "ep-sort-asc");
+    th.setAttr("aria-sort", sorted ? (sort?.dir === "desc" ? "descending" : "ascending") : "none");
     th.onclick = () => {
       const cur = layout.sort;
       if (cur && (cur.key ?? "") === key) layout.sort = cur.dir === "asc" ? { key, dir: "desc" } : undefined;
@@ -512,6 +536,22 @@ export class TableView extends ItemView {
 
   private attachResize(th: HTMLElement, key: string, layout: TableLayout): void {
     const grip = th.createSpan({ cls: "ep-col-resize" });
+    // Keyboard a11y: the grip is a focusable separator; ←/→ resize in steps.
+    grip.tabIndex = 0;
+    grip.setAttr("role", "separator");
+    grip.setAttr("aria-orientation", "vertical");
+    grip.setAttr("aria-label", this.plugin.i18n.t("table.resize", { name: key }));
+    grip.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      e.preventDefault();
+      e.stopPropagation();
+      const w = Math.max(48, th.offsetWidth + (e.key === "ArrowRight" ? 8 : -8));
+      th.style.width = w + "px";
+      th.style.minWidth = w + "px";
+      if (!layout.widths) layout.widths = {};
+      layout.widths[key] = w;
+      void this.plugin.saveSettings();
+    });
     grip.onclick = (e) => e.stopPropagation();
     grip.onpointerdown = (e) => {
       e.preventDefault();

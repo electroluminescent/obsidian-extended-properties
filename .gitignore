@@ -6,6 +6,7 @@ Thumbs.db
 # Vault-local plugin runtime data — never part of the plugin source or a release.
 # Shipping these would overwrite a user's settings/layouts on update.
 data.json
+roll-history.json
 backups/
 
 # The built bundle is attached to GitHub Releases by the release workflow and
