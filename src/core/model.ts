@@ -376,4 +376,12 @@ export interface EPSettings {
    * `link/key` for cross-note). Lets inline cards carry sliders/rolls/etc.
    */
   inlineEntries?: Record<string, Entry>;
+  /**
+   * Vault-wide property data types, keyed by lower-cased property key (v3.10:
+   * a property renders as one type in every note-Type layout, matching
+   * Obsidian's one-type-per-key model). Authoritative for the *type*;
+   * presentation options stay per-entry. Kept in sync with `entry.dataType`
+   * by `setSharedDataType` and the schema-2 migration.
+   */
+  propTypes?: Record<string, string>;
 }

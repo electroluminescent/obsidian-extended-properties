@@ -36,6 +36,7 @@
   "section.renameHint": "Click to rename",
   "section.dragHint": "Drag to reorder section",
   "section.layoutHint": "Layout: {mode} (click to cycle)",
+  "entry.typeHint": "Change data type (applies to this property everywhere)",
   "section.pinCycleHint": "Pin: {zone} (click to cycle)",
   "pin.body": "Body (not pinned)",
   "pin.header": "Header (pinned to top)",

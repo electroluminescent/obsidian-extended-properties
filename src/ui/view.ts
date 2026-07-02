@@ -11,7 +11,7 @@
  * set of *visible* entries would change (tracked by an "empty signature").
  */
 
-import { ItemView, Notice, TFile, WorkspaceLeaf } from "obsidian";
+import { ItemView, Menu, Notice, TFile, WorkspaceLeaf } from "obsidian";
 import type ExtendedPropertiesPlugin from "../main";
 import { isEnvelope } from "../core/secure";
 import type { ClusterFlags, ClusterOptions, ClusterRefs, EntryRenderCtx, ViewCtx } from "../core/context";
@@ -231,11 +231,18 @@ export class SidebarView extends ItemView implements ViewCtx {
   }
 
   resolveType(entry: Entry): string {
+    // The shared per-key map wins (data types are vault-wide since v3.10);
+    // entry.dataType is kept in sync by setSharedDataType but may be stale
+    // on entries written by older versions or third-party modules.
+    const shared = entry.key ? this.settings.propTypes?.[entry.key.toLowerCase()] : undefined;
+    if (shared) return shared;
     if (entry.dataType) return entry.dataType;
     return this.deriveType(entry.key ?? "");
   }
 
   deriveType(key: string): string {
+    const shared = this.settings.propTypes?.[key.toLowerCase()];
+    if (shared) return shared;
     const assigned = this.props.obsidianType(key);
     if (assigned) return assigned;
     const v = this.note.raw[key];
@@ -659,7 +666,43 @@ export class SidebarView extends ItemView implements ViewCtx {
     if (entry.kind === "prop" && entry.showType !== false) {
       const typeId = this.resolveType(entry);
       const def = this.registries.valueTypes.get(typeId);
-      span.createSpan({ cls: "ep-type-hint", text: def ? def.name(this.i18n) : typeId });
+      const hint = span.createSpan({ cls: "ep-type-hint", text: def ? def.name(this.i18n) : typeId });
+      // Edit mode: the hint is a quick data-type switcher (vault-wide — the
+      // shared setter re-stamps every layout showing this key).
+      if (this.editMode) {
+        hint.addClass("ep-editable");
+        hint.tabIndex = 0;
+        hint.setAttr("role", "button");
+        hint.setAttr("title", this.i18n.t("entry.typeHint"));
+        hint.setAttr("aria-label", this.i18n.t("entry.typeHint"));
+        const openTypeMenu = (x: number, y: number): void => {
+          const menu = new Menu();
+          for (const vt of this.registries.valueTypes.all()) {
+            menu.addItem((mi) =>
+              mi.setTitle(vt.name(this.i18n)).setChecked(vt.id === typeId).onClick(() => {
+                if (entry.key) ops.setSharedDataType(this.settings, entry.key, vt.id);
+                entry.dataType = vt.id;
+                this.saveLayout();
+                this.render();
+              })
+            );
+          }
+          menu.showAtPosition({ x, y });
+        };
+        hint.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          openTypeMenu(e.clientX, e.clientY);
+        };
+        hint.addEventListener("keydown", (e: KeyboardEvent) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            e.stopPropagation();
+            const r = hint.getBoundingClientRect();
+            openTypeMenu(r.left, r.bottom + 2);
+          }
+        });
+      }
     }
   }
 

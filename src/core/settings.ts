@@ -6,7 +6,7 @@
  * populated, current `EPSettings`.
  */
 
-import type { Defaults, EPSettings, Layout } from "./model";
+import type { Defaults, Entry, EPSettings, Layout } from "./model";
 import { defaultDerivations } from "./influences";
 
 export const DEFAULT_DEFAULTS: Defaults = {
@@ -83,7 +83,7 @@ const HANDLED_KEYS: ReadonlySet<string> = new Set([
   "crossNote", "conflictGuard", "tableLayouts", "tableLastType",
   "schemaVersion", "soundUi", "soundDice", "soundCrit", "layoutVault",
   "layoutVaultFolder", "appVersion", "snapshots", "snapshotKeep", "lastSnapshot",
-  "inlineEntries",
+  "inlineEntries", "propTypes",
 ]);
 
 /** Coerce a persisted `types` value to a clean list of non-empty strings. */
@@ -200,6 +200,14 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
       }
       s.inlineEntries = clean as EPSettings["inlineEntries"];
     }
+    // Shared per-key data types: keep only string → string pairs.
+    if (data.propTypes && typeof data.propTypes === "object") {
+      const clean: Record<string, string> = {};
+      for (const [k, v] of Object.entries(data.propTypes as Record<string, unknown>)) {
+        if (typeof v === "string" && v) clean[k.toLowerCase()] = v;
+      }
+      if (Object.keys(clean).length) s.propTypes = clean;
+    }
     if (typeof data.tableLastType === "string") s.tableLastType = data.tableLastType;
     if (typeof data.schemaVersion === "number") s.schemaVersion = data.schemaVersion;
     if (data.soundUi === false) s.soundUi = false;
@@ -232,7 +240,7 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
 // ---------------------------------------------------------------------------
 
 /** Current settings schema version. Bump when adding a migration step below. */
-export const CURRENT_SCHEMA = 1;
+export const CURRENT_SCHEMA = 2;
 
 /** One ordered migration step: bring settings up to schema `to`. */
 export interface Migration {
@@ -274,6 +282,42 @@ export const SCHEMA_MIGRATIONS: Migration[] = [
             delete s.tableLayouts[k];
             changed = true;
           }
+      return changed;
+    },
+  },
+  {
+    to: 2,
+    name: "unify-property-datatypes",
+    run: (s) => {
+      // Data types become per-property (vault-wide) instead of per-layout:
+      // seed `propTypes` from the layouts (first explicit dataType per key
+      // wins), then re-stamp every explicitly-typed entry so all layouts
+      // agree. Entries with no dataType keep auto-deriving — they resolve
+      // through the shared map at render time.
+      let changed = false;
+      const map: Record<string, string> = { ...(s.propTypes ?? {}) };
+      const each = (fn: (e: Entry) => void): void => {
+        for (const lk of Object.keys(s.layouts ?? {}))
+          for (const sec of s.layouts[lk].sections ?? [])
+            for (const e of sec.entries ?? []) fn(e);
+      };
+      each((e) => {
+        if (e.kind !== "prop" || !e.key || typeof e.dataType !== "string") return;
+        const kl = e.key.toLowerCase();
+        if (!map[kl]) map[kl] = e.dataType;
+      });
+      each((e) => {
+        if (e.kind !== "prop" || !e.key || e.dataType === undefined) return;
+        const want = map[e.key.toLowerCase()];
+        if (want && e.dataType !== want) {
+          e.dataType = want;
+          changed = true;
+        }
+      });
+      if (Object.keys(map).length && JSON.stringify(map) !== JSON.stringify(s.propTypes ?? {})) {
+        s.propTypes = map;
+        changed = true;
+      }
       return changed;
     },
   },

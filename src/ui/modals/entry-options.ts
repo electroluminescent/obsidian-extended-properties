@@ -20,6 +20,7 @@ import type { OptionsCtx, ViewCtx } from "../../core/context";
 import type { Entry, Section } from "../../core/model";
 import type { Constraints } from "../../core/validate";
 import { parseExpr } from "../../core/expr";
+import { setSharedDataType } from "../../core/layout-ops";
 import { restoreFromSnapshot } from "../../utils/misc";
 import { addColorSetting, addIconSetting, ColorHost } from "../components/setting-helpers";
 import { PropSuggest } from "../components/suggest";
@@ -151,6 +152,9 @@ export function renderEntryOptionsBody(
         for (const def of view.registries.valueTypes.all()) d.addOption(def.id, def.name(view.i18n));
         d.setValue(cur);
         d.onChange((v) => {
+          // Data types are shared per property key (vault-wide): re-stamp
+          // every layout and inline entry showing this key.
+          if (e.key) setSharedDataType(view.settings, e.key, v);
           e.dataType = v;
           changed();
           redraw();

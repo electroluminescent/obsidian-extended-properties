@@ -125,6 +125,7 @@ var en_default = {
   "section.renameHint": "Click to rename",
   "section.dragHint": "Drag to reorder section",
   "section.layoutHint": "Layout: {mode} (click to cycle)",
+  "entry.typeHint": "Change data type (applies to this property everywhere)",
   "section.pinCycleHint": "Pin: {zone} (click to cycle)",
   "pin.body": "Body (not pinned)",
   "pin.header": "Header (pinned to top)",
@@ -1630,7 +1631,8 @@ var HANDLED_KEYS = /* @__PURE__ */ new Set([
   "snapshots",
   "snapshotKeep",
   "lastSnapshot",
-  "inlineEntries"
+  "inlineEntries",
+  "propTypes"
 ]);
 function cleanTypes(raw) {
   return Array.isArray(raw) ? raw.filter((t) => typeof t === "string" && t.trim() !== "") : [];
@@ -1721,6 +1723,13 @@ function normalizeSettings(data, defaultLayout) {
       }
       s.inlineEntries = clean;
     }
+    if (data.propTypes && typeof data.propTypes === "object") {
+      const clean = {};
+      for (const [k, v] of Object.entries(data.propTypes)) {
+        if (typeof v === "string" && v) clean[k.toLowerCase()] = v;
+      }
+      if (Object.keys(clean).length) s.propTypes = clean;
+    }
     if (typeof data.tableLastType === "string") s.tableLastType = data.tableLastType;
     if (typeof data.schemaVersion === "number") s.schemaVersion = data.schemaVersion;
     if (data.soundUi === false) s.soundUi = false;
@@ -1743,7 +1752,7 @@ function normalizeSettings(data, defaultLayout) {
   }
   return s;
 }
-var CURRENT_SCHEMA = 1;
+var CURRENT_SCHEMA = 2;
 var SCHEMA_MIGRATIONS = [
   {
     to: 1,
@@ -1767,6 +1776,39 @@ var SCHEMA_MIGRATIONS = [
             delete s.tableLayouts[k];
             changed = true;
           }
+      }
+      return changed;
+    }
+  },
+  {
+    to: 2,
+    name: "unify-property-datatypes",
+    run: (s) => {
+      var _a, _b;
+      let changed = false;
+      const map = { ...(_a = s.propTypes) != null ? _a : {} };
+      const each = (fn) => {
+        var _a2, _b2, _c;
+        for (const lk of Object.keys((_a2 = s.layouts) != null ? _a2 : {}))
+          for (const sec of (_b2 = s.layouts[lk].sections) != null ? _b2 : [])
+            for (const e of (_c = sec.entries) != null ? _c : []) fn(e);
+      };
+      each((e) => {
+        if (e.kind !== "prop" || !e.key || typeof e.dataType !== "string") return;
+        const kl = e.key.toLowerCase();
+        if (!map[kl]) map[kl] = e.dataType;
+      });
+      each((e) => {
+        if (e.kind !== "prop" || !e.key || e.dataType === void 0) return;
+        const want = map[e.key.toLowerCase()];
+        if (want && e.dataType !== want) {
+          e.dataType = want;
+          changed = true;
+        }
+      });
+      if (Object.keys(map).length && JSON.stringify(map) !== JSON.stringify((_b = s.propTypes) != null ? _b : {})) {
+        s.propTypes = map;
+        changed = true;
       }
       return changed;
     }
@@ -4637,6 +4679,21 @@ var datetimeType = {
 var import_obsidian13 = require("obsidian");
 
 // src/core/layout-ops.ts
+function setSharedDataType(settings, key, typeId) {
+  var _a, _b, _c, _d, _e;
+  const kl = key.trim().toLowerCase();
+  if (!kl || !typeId) return;
+  if (!settings.propTypes) settings.propTypes = {};
+  settings.propTypes[kl] = typeId;
+  for (const lk of Object.keys((_a = settings.layouts) != null ? _a : {}))
+    for (const s of (_b = settings.layouts[lk].sections) != null ? _b : [])
+      for (const e of (_c = s.entries) != null ? _c : [])
+        if (e.kind === "prop" && e.key && e.key.toLowerCase() === kl) e.dataType = typeId;
+  for (const k of Object.keys((_d = settings.inlineEntries) != null ? _d : {})) {
+    const e = (_e = settings.inlineEntries) == null ? void 0 : _e[k];
+    if (e && e.kind === "prop" && e.key && e.key.toLowerCase() === kl) e.dataType = typeId;
+  }
+}
 function blankEntry() {
   return { id: genId(), kind: "blank" };
 }
@@ -6358,6 +6415,7 @@ function renderEntryOptionsBody(octx, onDone, onRemoved, opts = {}) {
       for (const def of view.registries.valueTypes.all()) d.addOption(def.id, def.name(view.i18n));
       d.setValue(cur);
       d.onChange((v) => {
+        if (e.key) setSharedDataType(view.settings, e.key, v);
         e.dataType = v;
         changed();
         redraw();
@@ -8331,11 +8389,16 @@ var SidebarView = class extends import_obsidian25.ItemView {
     }
   }
   resolveType(entry) {
-    var _a;
+    var _a, _b;
+    const shared = entry.key ? (_a = this.settings.propTypes) == null ? void 0 : _a[entry.key.toLowerCase()] : void 0;
+    if (shared) return shared;
     if (entry.dataType) return entry.dataType;
-    return this.deriveType((_a = entry.key) != null ? _a : "");
+    return this.deriveType((_b = entry.key) != null ? _b : "");
   }
   deriveType(key) {
+    var _a;
+    const shared = (_a = this.settings.propTypes) == null ? void 0 : _a[key.toLowerCase()];
+    if (shared) return shared;
     const assigned = this.props.obsidianType(key);
     if (assigned) return assigned;
     const v = this.note.raw[key];
@@ -8722,7 +8785,41 @@ var SidebarView = class extends import_obsidian25.ItemView {
     if (entry.kind === "prop" && entry.showType !== false) {
       const typeId = this.resolveType(entry);
       const def = this.registries.valueTypes.get(typeId);
-      span.createSpan({ cls: "ep-type-hint", text: def ? def.name(this.i18n) : typeId });
+      const hint = span.createSpan({ cls: "ep-type-hint", text: def ? def.name(this.i18n) : typeId });
+      if (this.editMode) {
+        hint.addClass("ep-editable");
+        hint.tabIndex = 0;
+        hint.setAttr("role", "button");
+        hint.setAttr("title", this.i18n.t("entry.typeHint"));
+        hint.setAttr("aria-label", this.i18n.t("entry.typeHint"));
+        const openTypeMenu = (x, y) => {
+          const menu = new import_obsidian25.Menu();
+          for (const vt of this.registries.valueTypes.all()) {
+            menu.addItem(
+              (mi) => mi.setTitle(vt.name(this.i18n)).setChecked(vt.id === typeId).onClick(() => {
+                if (entry.key) setSharedDataType(this.settings, entry.key, vt.id);
+                entry.dataType = vt.id;
+                this.saveLayout();
+                this.render();
+              })
+            );
+          }
+          menu.showAtPosition({ x, y });
+        };
+        hint.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          openTypeMenu(e.clientX, e.clientY);
+        };
+        hint.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            e.stopPropagation();
+            const r = hint.getBoundingClientRect();
+            openTypeMenu(r.left, r.bottom + 2);
+          }
+        });
+      }
     }
   }
   /**
@@ -9120,8 +9217,9 @@ var TableView = class extends import_obsidian26.ItemView {
       return void 0;
     };
     return cols.map((key) => {
+      var _a;
       const entry = findEntry(key);
-      let type = (entry == null ? void 0 : entry.dataType) || this.plugin.props.obsidianType(key) || "";
+      let type = ((_a = this.plugin.settings.propTypes) == null ? void 0 : _a[key.toLowerCase()]) || (entry == null ? void 0 : entry.dataType) || this.plugin.props.obsidianType(key) || "";
       if (!type) {
         for (const r of rows) {
           const v = getCI(r.fm, key);

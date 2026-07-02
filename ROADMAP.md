@@ -214,14 +214,17 @@ Sizes are rough: **S** fits a patch/point release, **M** a minor release,
   work (section pin zones — header / body / footer with capped, internally
   scrolling zones — plus the roll-screen overhaul: centered cards, dismissal
   reflow and growth animations, and the summary's expandable settings panel).
-- **v3.10.x** — Milestone 12 (N2, F6, N1 completion).
+- **v3.10.0** — shipped: vault-wide (per-key) property data types with a
+  one-time unification migration, plus the edit-mode data-type switcher on
+  the type hint.
+- **v3.11.x** — Milestone 12 (N2, F6, N1 completion).
 - **v4.0.0** — Milestone 13 (G1 query blocks + G3 chart cells) — the flagship
   release; the shared-renderer extraction is the largest internal refactor
   since the registry split, which is what earns the major.
 - **v4.1.x** — Milestone 14 (H1, H2).
 - **v4.2.x** — Milestone 15 (L2).
 - Milestone 16 items (M2, R1) ride whichever train has room; Milestone 17
-  runs continuously, with P1 targeted right after v3.10.
+  runs continuously, with P1 targeted right after Milestone 12 lands.
 
 ### Risk register (cross-cutting)
 
@@ -239,7 +242,7 @@ Likelihood/impact: L low · M medium · H high.
 | Community-review friction | P1 | M | M | Pre-submission self-review: the `window.ExtendedProperties` global, the two private-API call sites and command naming are the likely flags — prepare rationale or alternatives before submitting. |
 | Single-locale i18n debt | non-English users | L | L | The locale *mechanism* and parity checker are kept (F4); community dictionaries can slot back in without code changes. |
 
-### Milestone 12 — Foundations: measure, test, finish the index ○ (target v3.10)
+### Milestone 12 — Foundations: measure, test, finish the index ○ (target v3.11)
 
 **Goal.** Turn the two things the v3.7.0–v3.8.0 audits could only check by
 reading code — performance and the Obsidian seam — into things a failing check

@@ -164,7 +164,11 @@ export class TableView extends ItemView {
     };
     return cols.map((key) => {
       const entry = findEntry(key);
-      let type = entry?.dataType || this.plugin.props.obsidianType(key) || "";
+      let type =
+        this.plugin.settings.propTypes?.[key.toLowerCase()] ||
+        entry?.dataType ||
+        this.plugin.props.obsidianType(key) ||
+        "";
       if (!type) {
         for (const r of rows) {
           const v = getCI(r.fm, key);

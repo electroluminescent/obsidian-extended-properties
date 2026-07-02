@@ -8,8 +8,31 @@
  * and the behavior unit-testable.
  */
 
-import type { Entry, Layout, Section } from "./model";
+import type { Entry, EPSettings, Layout, Section } from "./model";
 import { genId } from "../utils/misc";
+
+/**
+ * Set the shared data type of a property key (v3.10: data types are
+ * per-property, not per-layout — the same key renders as one type in every
+ * note-Type layout, matching Obsidian's own one-type-per-key model).
+ * Records the type in `settings.propTypes` (authoritative, keyed by
+ * lower-cased key) and propagates it to every layout entry and inline entry
+ * showing that key. Presentation options stay per-entry.
+ */
+export function setSharedDataType(settings: EPSettings, key: string, typeId: string): void {
+  const kl = key.trim().toLowerCase();
+  if (!kl || !typeId) return;
+  if (!settings.propTypes) settings.propTypes = {};
+  settings.propTypes[kl] = typeId;
+  for (const lk of Object.keys(settings.layouts ?? {}))
+    for (const s of settings.layouts[lk].sections ?? [])
+      for (const e of s.entries ?? [])
+        if (e.kind === "prop" && e.key && e.key.toLowerCase() === kl) e.dataType = typeId;
+  for (const k of Object.keys(settings.inlineEntries ?? {})) {
+    const e = settings.inlineEntries?.[k];
+    if (e && e.kind === "prop" && e.key && e.key.toLowerCase() === kl) e.dataType = typeId;
+  }
+}
 
 /** Create a blank grid filler entry. */
 export function blankEntry(): Entry {
