@@ -1,15 +1,16 @@
 # Extended Properties — roadmap
 
-**Status: v3.7.0.** The original feature roadmap (milestones 1–6) is fully
+**Status: v3.8.0.** The original feature roadmap (milestones 1–6) is fully
 implemented, and forward-roadmap items **L1 (history & safe sync, v3.1.0)**,
 **G2 (inline charts & sparklines, v3.2.0)** and **M1 (accessibility completion,
 v3.6.0)** have shipped. Releases v3.3.0–v3.5.5 added the 3D-dice presentation plus
 a run of roll, mobile and robustness polish (see *Dice presentation & polish*
-below). v3.7.0 was a quality pass rather than a feature release — see
-*Hardening pass (v3.7.0)* below — and its findings seed the new items in
-**Milestone 11** further down. This document is consolidated: it records what
-shipped — without the original per-feature planning notes or challenge analysis
-— and lays out the remaining forward-looking roadmap.
+below). v3.7.0–v3.8.0 were quality passes over a codebase audit (see *Hardening
+pass* and *Audit fixes* below); their findings drove a re-planning of the
+forward roadmap into **milestones 12–17** — sequenced by dependency, with
+sizes, risks and done-when criteria — at the bottom of this document. This
+document is consolidated: it records what shipped — without the original
+per-feature planning notes — and lays out the sequenced forward plan.
 
 Legend: ✅ done · ◑ partial · ○ planned.
 
@@ -134,6 +135,27 @@ that had none — `utils/formula.ts`, `utils/color.ts`, `core/layout-ops.ts` (34
 new tests, 160/160 passing). Everything else the audit checked — dead code,
 TODOs, i18n coverage, the deprecation state below — came back clean.
 
+### Audit fixes (v3.7.1–v3.8.0) ✅
+
+The deep-read audit that followed v3.7.0 found eight concrete gaps; all shipped
+across two releases. **v3.7.1 — the table view joins the safe paths:** cell and
+checkbox edits write through a single plugin-wide `NoteFacade` (batched,
+conflict-guarded, three-way-merged) instead of raw `processFrontMatter`; rows
+are served from the `PropertyIndex` snapshot cache — no vault re-scan per
+render or filter keystroke — with refreshes scoped to files that are (or were)
+rows of the shown type; and pending inline/table writes flush on plugin unload
+(`NoteFacade.flushAll`), closing a small data-loss window. **v3.8.0 — quality
+pass:** edit-session undo awaits its writes and surfaces failures; settings
+load structurally validates `types` and `layouts` (the shape-checking
+`inlineEntries` got in v3.7.0, now with tests); the type table became
+keyboard-accessible (header sort is a real button with `aria-sort`, cells edit
+with Enter/Space, resize grips are focusable separators — see
+ACCESSIBILITY.md); a new `ClusterAddon.onRename` hook moved the last
+feature-owned field knowledge out of the core view; `showWhen` conditions
+evaluate once per refresh pass; and roll history moved out of `data.json` into
+its own `roll-history.json` (one-time migration), so a settings save no longer
+reserializes hundreds of roll records.
+
 ## Deprecations
 
 - **German locale (`de`) — removed in v2.41.** English-only; the locale
@@ -158,73 +180,240 @@ sidebar, inline and table inputs.
 
 ## Forward-looking roadmap
 
-The original roadmap is delivered, so this is a fresh forward plan based on what
-the plugin can already do. Each item keeps the original structure — **What ·
-Considerations · Barriers · Touchpoints · Steps** — and is grouped into suggested
-milestones. Nothing here is committed; it is a design backlog.
+**Re-planned after v3.8.0.** Milestones 7–11 (the first forward plan) are
+superseded by **milestones 12–17** below. Every item id carries over — nothing
+was dropped — but items are regrouped by *dependency* rather than by theme,
+and each milestone now states a goal, a done-when, and per-item sizes.
+Nothing here is committed; it is a design backlog in build order.
 
-### Milestone 7 — Query & visualize
+Item format stays **What · Considerations · Barriers · Touchpoints · Steps**.
+Sizes are rough: **S** fits a patch/point release, **M** a minor release,
+**L** spans releases.
 
-#### G1 — Query blocks (`ep-query`) ○
+### Dependencies (why this order)
+
+- **Milestone 12 — Foundations** gates everything that touches performance or
+  the data path: N2's benchmark is the acceptance gate for N1's memoization,
+  and F6's seam tests protect exactly the write paths L2 and H1 will modify.
+  It is also the cheapest milestone — it pays for itself at the next audit.
+- **Milestone 13 — Query & visualize** needs N1's aggregate scale (12) and
+  produces the shared cell renderer its own G3 — and later work — reuses.
+- **Milestone 14 — Relationships & authoring** builds on the index layers
+  from 12/13 (relation edges are a third consumer of the same invalidation
+  seam).
+- **Milestone 15 — Value history & conflicts** extends the write seam F6 has
+  pinned down; doing it before F6 would mean modifying an untested data path.
+- **Milestone 16 — Interaction polish** is independent; slot into any release.
+- **Milestone 17 — Ecosystem & listing** is ongoing; the directory submission
+  (P1) makes sense once 12 has landed (a stability story to tell reviewers)
+  and does not need to wait for 13.
+
+### Release mapping (indicative, not committed)
+
+- **v3.9.x** — Milestone 12 (N2, F6, N1 completion).
+- **v4.0.0** — Milestone 13 (G1 query blocks + G3 chart cells) — the flagship
+  release; the shared-renderer extraction is the largest internal refactor
+  since the registry split, which is what earns the major.
+- **v4.1.x** — Milestone 14 (H1, H2).
+- **v4.2.x** — Milestone 15 (L2).
+- Milestone 16 items (M2, R1) ride whichever train has room; Milestone 17
+  runs continuously, with P1 targeted right after v3.9.
+
+### Risk register (cross-cutting)
+
+Likelihood/impact: L low · M medium · H high.
+
+| Risk | Where it bites | L | I | Mitigation |
+| --- | --- | --- | --- | --- |
+| Private Obsidian APIs drift (`metadataTypeManager`, `commands.removeCommand`) | property-type detection, macro commands | M | M | Both call sites are try/catch-guarded and degrade gracefully; F6's stub pins the expected shapes so a break becomes a failing test, not a user report. |
+| Committed `main.js` drifts from `src/` | manual + BRAT installs ship stale code | M | M | Happened twice before v3.7.1 (bundle lagged a release). N2 adds a CI guard that rebuilds and diffs the bundle. |
+| Performance claims stay unmeasured | N1, G1, any large vault | M | H | N2 lands first; assert on scaling and call counts, never wall-clock in CI. |
+| Cache-invalidation bugs | N1 aggregate cache, N1 type buckets, H1 relation edges | M | H | Every cache hangs off the one existing invalidation seam (`invalidateFile`/`invalidatePath`); the `crossNote` kill-switch stays the user-facing escape hatch; fixture tests per cache layer. |
+| Data loss at the write seam | D4 queue, three-way merge, unload flushes, L2 journal, history migration | L | H | All writes funnel through `NoteModel`/`NoteFacade` since v3.7.1 — one seam to test; F6 covers it before L2 builds on it. |
+| G1 scope creep ("a query language") | Milestone 13 | H | M | Declarative block schema with a handful of keys, no free grammar; differentiate on *typed, editable* cells (Dataview owns read-only queries); grouping is explicitly out of v1. |
+| a11y regressions | every UI release | M | M | ACCESSIBILITY.md manual checklist per release; M2 extends coverage; F6's jsdom smoke step can pin roles/labels later. |
+| Community-review friction | P1 | M | M | Pre-submission self-review: the `window.ExtendedProperties` global, the two private-API call sites and command naming are the likely flags — prepare rationale or alternatives before submitting. |
+| Single-locale i18n debt | non-English users | L | L | The locale *mechanism* and parity checker are kept (F4); community dictionaries can slot back in without code changes. |
+
+### Milestone 12 — Foundations: measure, test, finish the index ○ (target v3.9)
+
+**Goal.** Turn the two things the v3.7.0–v3.8.0 audits could only check by
+reading code — performance and the Obsidian seam — into things a failing check
+catches automatically, then finish N1 against that gate.
+**Done when.** The benchmark suite runs in CI with scaling assertions; the
+data-loss-risk flows run under Vitest against the vault fake; aggregate reads
+no longer re-reduce the full snapshot set on the benchmark fixture; CI fails
+on a stale `main.js`.
+
+#### N2 — Performance benchmark & regression harness ○ (S)
+
+- **What.** A reproducible large-vault benchmark: a synthetic fixture
+  generator (N notes × M types, cross-note references, aggregates) plus timed
+  runs of the index build, snapshot reads and aggregate evaluation — runnable
+  locally and as a CI job, so the next regression like the pre-v3.7.0
+  full-vault re-scan (or the table view's copy of it, fixed in v3.7.1) is a
+  failing number instead of a code-reading find.
+- **Considerations.** The measured paths are pure (`core/property-index.ts`,
+  `core/expr.ts`, `core/influences.ts`) — no Obsidian API needed. Vitest's
+  `bench` mode or a plain script both work. The fixture doubles as the
+  acceptance gate for N1's memoization, and later for G1's executor.
+- **Barriers.** CI runner noise makes absolute wall-clock thresholds flaky —
+  assert on *scaling* (a render-path read must not grow with vault size) and
+  on call counts, never milliseconds; keeping the synthetic vault
+  representative of real frontmatter shapes.
+- **Touchpoints.** New `tests/bench/`; `vitest.config.ts`;
+  `.github/workflows/test.yml`.
+- **Steps.** Fixture generator → benchmark the index build / read / aggregate
+  paths → scaling assertions → CI job → also in CI: rebuild `main.js` and
+  fail when the committed bundle differs (it drifted a release behind twice
+  before v3.7.1).
+
+#### F6 — Integration tests over the Obsidian seam ○ (M)
+
+- **What.** The pure modules sit at 162 unit tests, but the seam — the write
+  queue, the three-way merge, settings load, the unload flushes, the
+  roll-history migration — is verified only by hand, and v3.7.1/v3.8.0 grew
+  it. Extend `tests/stubs/obsidian.ts` into a fuller fake (vault files,
+  metadata cache, change events) so whole flows run under Vitest.
+- **Considerations.** Extend the stub per flow, not into an emulator.
+  Priority order = data-loss risk: batch write → merge/conflict; corrupt
+  `data.json` → defaults + backup; `flushAll`/`flushPending` on unload; the
+  one-time roll-history migration; `revertUndo`. Assert on observable
+  outcomes (file contents, settings state), never on stub internals.
+- **Barriers.** Fake fidelity vs. maintenance cost; DOM-heavy render flows
+  need jsdom — keep those to a later smoke step; the classic risk of testing
+  the stub instead of the plugin.
+- **Touchpoints.** `tests/stubs/obsidian.ts`; `vitest.config.ts`;
+  `core/note-model.ts`, `core/merge.ts`, `core/settings.ts`,
+  `features/rolling/history.ts`.
+- **Steps.** Stub vault + metadata events → batch-write & merge flow tests →
+  corrupt-load tests → unload-flush tests → history-migration test →
+  optional jsdom render smoke.
+
+#### N1 — Aggregate memoization & large-vault scale ◑ (M)
+
+- **What.** Memoize cross-note aggregates with dependency tracking, add
+  per-type file buckets, and optionally move heavy aggregation to a worker
+  for very large vaults.
+- **Shipped so far.** The per-file frontmatter snapshot cache (v3.7.0) and
+  its second consumer, the table view's `rowsByType` (v3.7.1). **Remaining:**
+  every `sum()/avg()/count()` call still re-filters and re-reduces the full
+  snapshot set on every read, and `rowsByType` scans all snapshots rather
+  than a type bucket.
+- **Considerations.** Two layers riding the same invalidation events the
+  snapshot cache already uses: a type → files bucket index (serves
+  `rowsByType` and aggregate candidate sets) and an aggregate cache keyed
+  `(type, key, fn)` with dirty flags. N2's fixture is the acceptance gate. A
+  worker can't touch the Obsidian API, so it only ever receives plain
+  serialized data — gate it behind a vault-size threshold.
+- **Barriers.** Invalidation breadth is the classic hard part: an aggregate
+  over `(type, key)` must invalidate when any note of that type changes `key`
+  *or* its `Type` list — bucket moves are the subtle case (a note gaining or
+  losing a type must dirty both buckets). Worker serialization can cost more
+  than it saves on small vaults.
+- **Touchpoints.** `core/property-index.ts` (buckets + aggregate cache);
+  `core/influences.ts` (aggregate call sites); build config (optional worker
+  entry).
+- **Steps.** Type buckets → aggregate cache + invalidation → verify on the N2
+  fixture → optional worker behind a threshold.
+
+### Milestone 13 — Query & visualize ○ (target v4.0)
+
+**Goal.** The flagship: vault data as live, *editable* views inside notes.
+**Done when.** An `ep-query` block filters, sorts and renders notes of a type
+with type-aware, in-place-editable cells; table columns can render charts;
+both reuse a single shared cell-renderer module; render cost on the N2
+fixture is bound by the index, not by vault size.
+
+#### G1 — Query blocks (`ep-query`) ○ (L)
 
 - **What.** A code block that queries notes by type and property predicates and
   renders the result as a table, list or cards — `from "Character" where Level >= 5
   sort by Dexterity desc`. Columns are properties; cells use the same type-aware
   widgets as the table view and edit in place.
-- **Considerations.** Reuse the parts already built: `evalCondition` for the
-  `where` clause, the `PropertyIndex` for the candidate set, the table view's
-  cell renderers for output, and the aggregate functions for summary rows. A
-  small declarative block schema (a few keys) beats inventing a full query
-  language. Live-refresh on the metadata cache.
-- **Barriers.** Performance over large vaults (depends on N1's incremental
-  index); query-language scope creep; re-render thrash on every vault change
-  (debounce, diff); overlap with Dataview — differentiate on *typed, editable*
-  cells rather than read-only output.
-- **Touchpoints.** New `src/features/query/`; extract the table cell renderers out
-  of `ui/table-view.ts` into a shared module; `core/property-index.ts`;
-  `core/expr.ts`.
-- **Steps.** Extract shared cell renderer → define the block schema → index-backed
-  executor (filter → sort → group) → render modes (table / list / cards) →
-  debounced live refresh → reuse the cross-note kill-switch.
+- **Considerations.** Almost every part now exists: `evalCondition` for the
+  `where` clause, `PropertyIndex.rowsByType()` (v3.7.1) for the candidate set
+  (N1's type buckets make it cheap), the table view's cell renderers for
+  output, the shared `NoteFacade` for in-place edits, and the aggregate
+  functions for summary rows. A small declarative block schema — a handful of
+  keys — beats inventing a query language. For live refresh, generalize the
+  table view's scoped-refresh pattern (v3.7.1): skip the rebuild unless the
+  changed file is, or was, in the result set.
+- **Barriers.** Scope creep is the top risk (see register): the v1 line is
+  filter → sort → render, no grouping. Re-render thrash on vault events
+  (debounce + the scoped check). Overlap with Dataview — differentiate on
+  *typed, editable* cells rather than read-only output. Performance is gated
+  on N1 (Milestone 12).
+- **Touchpoints.** New `src/features/query/`; extract `renderValue` and its
+  helpers out of `ui/table-view.ts` into a shared `ui/render/cells.ts`;
+  `core/property-index.ts`; `core/expr.ts`.
+- **Steps.** Extract the shared cell renderer (G3 shares this step) → block
+  schema (`from` / `where` / `columns` / `sort` / `render`) → index-backed
+  executor → render modes (table / list / cards) → in-place edit through the
+  facade → scoped live refresh → respect the cross-note kill-switch.
 
-#### G2 — Inline charts & sparklines ✅ (shipped in v3.2.0)
+#### G3 — Chart cells in the table view ○ (S)
 
-Delivered: pure SVG geometry + renderer, the `spark:` / `bar:` / `radar:` /
-`progress:` inline tokens (reading mode + Live Preview), and the `ep-chart` block
-— all themed by `--ep-*` and accessible (see the *Visualization* entry above).
-*Future extension:* a chart cell in the type table view, which needs per-column
-type configuration in `ui/table-view.ts`.
+- **What.** Per-column display configuration in the type table so a numeric
+  column can render as a sparkline, bar or progress cell — the follow-up G2
+  explicitly deferred for lack of per-column type config.
+- **Considerations.** The geometry (`utils/chart.ts`) and renderer
+  (`ui/render/charts.ts`) are pure, cheap SVG — that matters because
+  virtualized rows re-render on every scroll window. Persist the choice in
+  `TableLayout` (a `display` map beside `widths`), riding the existing
+  per-type persistence.
+- **Barriers.** Config surface in the header menu; chart legibility at ~29 px
+  row height; keeping cell cost flat under row virtualization.
+- **Touchpoints.** `ui/table-view.ts` (column model); the shared cell module
+  from G1; `core/model.ts` (`TableLayout.display`).
+- **Steps.** Column display model → header-menu config → sparkline / progress
+  cell renderers in the shared module → persistence.
 
-### Milestone 8 — Relationships & authoring
+*G2 — inline charts & sparklines — shipped in v3.2.0 (see the Visualization
+entry above); G3 is its recorded deferral.*
 
-#### H1 — Typed relations & backlinks ○
+### Milestone 14 — Relationships & authoring ○ (target v4.1)
+
+**Goal.** Notes that know about each other, and one-command note creation from
+a type.
+**Done when.** A `relation` value type with a lazily maintained inverse works
+through the index; `backlinks()` / `relatedTo()` resolve in expressions; a
+*New \<Type\> note* command scaffolds a note with the type's properties and an
+optional body template.
+
+#### H1 — Typed relations & backlinks ○ (L)
 
 - **What.** A first-class `relation` value type: a link property with a declared
   inverse, plus expression accessors — `backlinks()`, `relatedTo("Faction")` — and
   derived "referenced by" counts/lists, so a note can compute over the notes that
   point at it.
 - **Considerations.** Store relations as ordinary link properties (portable, no
-  hidden state). Maintain the inverse *lazily* through the index rather than
-  writing both sides on every edit. Reuse the expression engine's cycle detection
-  for relation chains.
-- **Barriers.** Eager inverse writes would cause write storms — any optional
-  inverse maintenance must ride the D4 batch queue with echo-suppression; index
-  cost and correctness on rename/delete; keeping cross-note reads cycle-free.
-- **Touchpoints.** `core/property-index.ts` (relation edges); `core/expr.ts`
+  hidden state). Maintain the inverse *lazily* through the index: relation
+  edges live beside the frontmatter snapshot cache and invalidate through the
+  same `invalidateFile` / `invalidatePath` seam — a third consumer of the
+  wiring N1's buckets already share, no new events. Reuse the expression
+  engine's cycle detection for relation chains.
+- **Barriers.** Eager inverse writes would cause write storms — optional
+  inverse maintenance must ride the shared `NoteFacade` batch queue with its
+  echo suppression (v3.7.1 made that queue plugin-wide); edge correctness on
+  rename/delete (the invalidation seam already handles both); cross-note
+  reads stay cycle-free because they read raw stored values.
+- **Touchpoints.** `core/property-index.ts` (edge map); `core/expr.ts`
   (relation functions); new `relation` value type in the registry;
   `core/note-model.ts` (opt-in inverse writes).
 - **Steps.** Relation value type → index relation edges → expression accessors →
   backlink-derived properties → optional (opt-in) inverse maintenance.
 
-#### H2 — Note scaffolding from types ○
+#### H2 — Note scaffolding from types ○ (M)
 
-- **What.** A *New <Type> note* command that creates a note pre-stamped with the
+- **What.** A *New \<Type\> note* command that creates a note pre-stamped with the
   type's properties (empty, hidden from Obsidian's panel) and an optional per-type
   body template — extending the existing "template section writes empty hidden
   props" behaviour to whole-note creation.
 - **Considerations.** Per-type body template stored either in settings or as a
-  pointer to a vault template file; if core Templates / Templater is present,
-  insert into the flow rather than fight it; configurable target folder and naming.
+  pointer to a vault template file (the D2 layout-store folder is a natural
+  home); if core Templates / Templater is present, insert into the flow rather
+  than fight it; configurable target folder and naming.
 - **Barriers.** Overlap and ordering conflicts with existing template plugins;
   where the body template lives (vault file vs. settings blob); frontmatter key
   ordering on creation.
@@ -233,36 +422,46 @@ type configuration in `ui/table-view.ts`.
 - **Steps.** Per-type template config → create-note command → write hidden props →
   optional body insert → folder / naming options.
 
-### Milestone 9 — Trust, scale & polish
+### Milestone 15 — Value history & richer conflicts ○ (target v4.2)
 
-#### N1 — Property-index incrementalization & scale ◑
+**Goal.** Extend L1's trust story from *configuration* to *data*.
+**Done when.** Every property write can be traced and restored per note
+(capped journal); conflicts both sides changed get a real merge UI instead of
+only keep-mine / take-theirs; inline chips decrypt via the session unlock.
 
-- **What.** Memoize cross-note aggregates with dependency tracking; optionally
-  move heavy expression/aggregation work to a worker for very large vaults.
-- **Shipped in v3.7.0:** the per-file dirty-marking half of this item —
-  `PropertyIndex` now caches a frontmatter snapshot per file and invalidates it
-  on `metadataCache.changed` / `vault.delete` / `vault.rename`, so a vault is
-  scanned once per file change rather than once per render (see *Hardening pass*
-  above). **Remaining:** every `sum()/avg()/count()` call still re-filters and
-  re-reduces the full cached snapshot set on every read — for a type with many
-  notes and several derived aggregates on screen at once, that's still repeated
-  work the cache doesn't remove.
-- **Considerations.** Cache aggregates keyed by `(type, key, fn)` with dirty
-  flags driven off the same invalidation events the snapshot cache already
-  uses — no new event wiring needed, just a second cache layer keyed off it. A
-  worker can't touch the Obsidian API, so it only ever receives plain serialized
-  data.
-- **Barriers.** Cache-invalidation correctness is the classic hard part —
-  an aggregate over `(type, key)` must invalidate whenever *any* note of that
-  type changes `key` OR its `Type` list, which is a broader dependency than the
-  per-file cache tracks today. Worker serialization can cost more than it saves
-  on small vaults — gate it behind a size threshold.
-- **Touchpoints.** `core/property-index.ts` (aggregate cache alongside the
-  snapshot cache); `core/expr.ts` (aggregate call sites); build config (optional
-  worker entry).
-- **Steps.** Aggregate memoization keyed by `(type, key, fn)`, invalidated by the
-  existing file-change events → benchmark fixture (large synthetic vault) →
-  optional worker behind a vault-size threshold.
+#### L2 — Value history & richer conflict handling ○ (L)
+
+- **What.** A capped per-note history of property-value writes with a restore
+  picker; a real merge UI for the conflicts that today fall back to the
+  keep-mine / take-theirs prompt; and decryption support for the inline
+  `prop:` / `val:` chips (the sidebar masks and unlocks today, the chips do
+  not).
+- **Considerations.** Since v3.7.1 every value write funnels through
+  `NoteModel`/`NoteFacade` and both flush on unload — journal per-note diffs
+  from that one seam (capped and compacted) rather than adding a second write
+  path, and the journal can't lose tail writes. The merge UI reuses the field
+  list the conflict guard already computes. Chip decryption reuses the
+  existing `core/secure.ts` session unlock; no new key handling. Build only
+  after F6 (Milestone 12) has the seam under test.
+- **Barriers.** History storage growth (cap + compaction policy — and it
+  belongs in its own file, following the v3.8.0 roll-history precedent, not in
+  `data.json`); encrypted values must be journaled as envelopes, never
+  plaintext; merge-UI scope creep — it only needs the keys both sides changed.
+- **Touchpoints.** `core/note-model.ts` (write journal); `core/snapshot-store.ts`;
+  `core/merge.ts` plus a new modal in `ui/modals/`;
+  `features/inline/inline-render.ts` + `core/secure.ts`.
+- **Steps.** Capped write journal (own file) → per-note history panel +
+  restore → merge modal for both-sides conflicts → inline chip unlock.
+
+*L1 — history & safe sync — shipped in v3.1.0 (see Trust & safe sync above);
+its recorded future extensions are exactly this milestone.*
+
+### Milestone 16 — Interaction polish ○ (any release)
+
+**Goal.** Finish M1's two deferrals and unlock the disabled dice AA.
+**Done when.** Dense sheets navigate with one Tab stop per entry (arrows move
+within); a bundled high-contrast preset ships; the 3D-dice anti-alias toggle
+is re-enabled with an approach that survives CSS 3D.
 
 #### M1 — Accessibility completion ✅ (shipped in v3.6.0)
 
@@ -282,162 +481,102 @@ checklist lives in [ACCESSIBILITY.md](ACCESSIBILITY.md). *Future:* an in-entry
 arrow-key composite (fewer Tab stops on dense sheets) and a full high-contrast
 theme preset.
 
-#### L1 — History & safe sync ✅ (shipped in v3.1.0)
+#### M2 — Dense-sheet keyboard composite & high-contrast preset ○ (M)
 
-Delivered: config history snapshots + restore, field-level three-way merge for
-the conflict guard, and opt-in AES-256-GCM encryption of sensitive values (see
-the *Trust & safe sync* entry above). *Future extensions:* snapshotting note
-*values* (not just configuration); a full merge UI for the conflicts that today
-fall back to the keep-mine/take-theirs prompt; and decryption coverage for the
-inline `prop:`/`val:` chips (the sidebar masks/reveals today).
+- **What.** The two items M1 left as future work: a roving-tabindex composite
+  *inside* an entry's control cluster (arrow keys move within a cluster, Tab
+  moves between entries) so dense sheets stop costing one Tab stop per
+  control, and a bundled high-contrast theme preset over the `--ep-*`
+  variable surface. (The type table got its separate keyboard pass in v3.8.0
+  — this item is now purely the sidebar composite plus the preset.)
+- **Considerations.** Follow the ARIA toolbar/grid composite patterns; build
+  on `utils/a11y.ts` and E1's existing *entry-level* roving tabindex — the
+  new composite nests inside it (entry level ↔ control level), and that
+  nesting is the design risk to prototype first. The preset ships as a Style
+  Settings profile — no new theming machinery.
+- **Barriers.** Nested roving focus coexisting with Obsidian's own focus
+  handling and the virtualized table view; needs a screen-reader pass
+  (update the ACCESSIBILITY.md checklist), not just keyboard testing.
+- **Touchpoints.** `ui/render/section-renderer.ts`, `ui/render/entry-renderer.ts`,
+  `ui/render/cluster.ts`; `utils/a11y.ts`; `styles.css`; ACCESSIBILITY.md.
+- **Steps.** Composite prototype in the sidebar → extend across entry kinds →
+  high-contrast preset → re-run and update the manual a11y checklist.
 
-### Milestone 10 — Ecosystem (ongoing)
+#### R1 — 3D dice anti-aliasing, second attempt ○ (S–M)
 
-#### K1 — API v2 & module ecosystem ○
+- **What.** Re-approach the anti-aliasing that shipped in v3.5.0 and was
+  locked off in v3.5.2: the 2× supersample distorted the dice under CSS 3D.
+  Goal: smooth face edges without geometry distortion, then re-enable the
+  settings toggle.
+- **Considerations.** Candidate approaches, roughly cheapest first: a subtle
+  same-colour border / edge inset on each face polygon to soften the
+  silhouette; uniform `scale3d` supersampling with corrected perspective (the
+  v3.5.1 lesson — every axis must scale and the perspective origin must
+  compensate); or pre-rendering the solid to canvas. Prototype behind a dev
+  flag and compare screenshots before committing.
+- **Barriers.** CSS 3D + supersampling interact with z-depth and perspective
+  in ways that broke twice already — this needs visual-regression
+  screenshots, not eyeballing; GPU cost on mobile; the reduced-motion path
+  must stay untouched.
+- **Touchpoints.** `features/rolling/dice-styles.ts`, `dice-anim.ts`;
+  `utils/polyhedra.ts` (per-face insets if that route wins); `styles.css`.
+- **Steps.** Prototype 2–3 approaches behind a dev flag → screenshot
+  comparison → pick (possibly per-platform) → re-enable the toggle → record
+  the outcome here.
+
+### Milestone 17 — Ecosystem & community listing ○ (ongoing)
+
+**Goal.** Make the plugin easy to discover and easy to extend.
+**Done when.** The plugin is listed in Obsidian's community directory, and a
+third-party module can contribute a settings panel, a command and a value-type
+editor without forking.
+
+#### P1 — Community plugin directory listing ○ (M)
+
+- **What.** Submit to `obsidianmd/obsidian-releases` per the runbook in
+  [RELEASING.md](RELEASING.md) §4: public repo, published (non-draft) release
+  with the three assets, then the `community-plugins.json` PR and review.
+- **Considerations.** BRAT already serves beta users, so there is no urgency
+  pressure — but review queues run weeks to months, so submit early relative
+  to Milestone 13 rather than waiting for the flagship. Target right after
+  Milestone 12: the stability story (bench + seam tests + the v3.7.x/3.8.0
+  hardening run) is the best reviewer-facing evidence. Split the README
+  (~30 KB single file) into a quick start and a reference before submitting —
+  reviewers and new users both benefit.
+- **Barriers.** Guideline review will likely flag: the
+  `window.ExtendedProperties` global (needed for the cross-plugin API —
+  prepare the rationale; an `app.plugins`-based access path already exists as
+  the documented alternative), the two guarded private-API call sites
+  (`metadataTypeManager`, `commands.removeCommand`), and mobile behaviour —
+  `isDesktopOnly: false` claims phone support, so a real mobile QA pass is a
+  prerequisite, not a nice-to-have.
+- **Touchpoints.** README (split); `manifest.json` (optional `fundingUrl`);
+  `.github/workflows/release.yml` (already tag-triggered);
+  `community-plugins.json` PR.
+- **Steps.** Self-review against the plugin guidelines → mobile QA pass on a
+  phone vault → README split → publish a non-draft release → submit the PR →
+  respond to review (expect at least one round).
+
+#### K1 — API v2 & module ecosystem ○ (L, ongoing)
 
 - **What.** Grow the public API into richer contribution points: module-supplied
   settings panels, palette commands, inline tokens and value-type editors; a
   module template repo; and more bundled optional modules (other RPG systems,
   habit / fitness / recipe trackers).
-- **Considerations.** Additive `apiVersion` 2 that never breaks v1; declarative
-  contribution points so modules describe what they add; the registry already
-  isolates module errors and reserves built-in ids.
+- **Considerations.** v3.8.0's `ClusterAddon.onRename` is the working pattern:
+  optional members on existing contracts grow the API *without* bumping
+  `apiVersion`. Keep accreting that way and reserve the v2 bump for a
+  genuinely breaking change. Contribution points stay declarative (modules
+  describe what they add); the registry already isolates module errors and
+  reserves built-in ids.
 - **Barriers.** Balancing API stability against growth; Obsidian does not sandbox
-  plugin code, so third-party modules run with full trust (document this clearly);
-  maintenance burden of every bundled module.
+  plugin code, so third-party modules run with full trust (document this
+  loudly); maintenance burden of every bundled module.
 - **Touchpoints.** `src/api.ts`; `core/registry.ts`; `ui/settings-tab.ts` (module
   panels); docs.
 - **Steps.** Settings-panel + command contribution points → inline-token hook →
-  value-type editor hook → bump `apiVersion` to 2 (back-compatible) → publish a
-  module template repo.
-
-### Milestone 11 — Quality deepening (seeded by the v3.7.0 audit)
-
-The v3.7.0 hardening pass fixed everything that was a straight defect; what it
-*surfaced* were structural gaps that need design work rather than a patch — the
-perf risk was found by reading code, not by measurement, and the seam between
-the pure modules and the Obsidian API is only hand-tested. The first two items
-close those gaps. The remaining four collect the deferred extensions recorded
-inline in the shipped entries above (G2, L1, M1 and the dice AA lock-out) into
-actionable items so they stop living as footnotes.
-
-#### N2 — Performance benchmark & regression harness ○
-
-- **What.** A reproducible large-vault benchmark: a synthetic fixture generator
-  (N notes × M types, cross-note references, aggregates) plus timed runs of the
-  index build, snapshot reads and aggregate evaluation — runnable locally and as
-  an optional CI job, so a regression like the pre-3.7.0 full-vault re-scan is
-  caught by a failing number instead of a code audit.
-- **Considerations.** The measured paths are already pure (`core/property-index.ts`,
-  `core/expr.ts`), so no Obsidian API is needed. Vitest's `bench` mode or a plain
-  script both work. The fixture generator doubles as the test bed N1's aggregate
-  memoization needs to prove itself against.
-- **Barriers.** CI runner noise makes absolute wall-clock thresholds flaky —
-  assert on *scaling* (e.g. a render-path read must not grow with vault size)
-  and on call counts rather than milliseconds; keeping the synthetic vault
-  representative of real frontmatter shapes.
-- **Touchpoints.** New `tests/bench/`; `core/property-index.ts`; `vitest.config.ts`;
-  `.github/workflows/test.yml` (optional job).
-- **Steps.** Fixture generator → benchmark the index build / read / aggregate
-  paths → scaling assertions → optional CI job → use as the acceptance gate for
-  N1's memoization.
-
-#### F6 — Integration tests over the Obsidian seam ○
-
-- **What.** The pure modules sit at 160 unit tests after v3.7.0, but the seam
-  code — write batching, the three-way merge, settings load and the corrupt
-  `data.json` fallback — is verified only by hand. Grow `tests/stubs/obsidian.ts`
-  into a fuller fake (vault files, metadata cache, change events) so whole flows
-  run under Vitest: edit → batch write → re-read; external edit → merge or
-  conflict prompt; corrupt file → defaults + backup.
-- **Considerations.** A stub already exists — extend it per flow rather than
-  building an emulator. Prioritize the data-loss-risk paths first, since those
-  are exactly the ones the audit could only check by reading. Assert on
-  observable outcomes (file contents, settings state), not on stub internals.
-- **Barriers.** Fake fidelity vs. maintenance cost; DOM-heavy render flows would
-  need jsdom (keep those to a later smoke-test step); the classic risk of
-  testing the stub instead of the plugin.
-- **Touchpoints.** `tests/stubs/obsidian.ts`; `vitest.config.ts`;
-  `core/note-model.ts`, `core/merge.ts`, `core/settings.ts`.
-- **Steps.** Extend the stub (vault + metadata events) → batch-write and merge
-  flow tests → settings load / corrupt-file tests → optional jsdom render smoke
-  tests.
-
-#### G3 — Chart cells in the table view ○ (G2's deferral)
-
-- **What.** Per-column display configuration in the type table view so a numeric
-  column can render as a sparkline, bar or progress cell — the follow-up G2
-  explicitly deferred for lack of per-column type config.
-- **Considerations.** The geometry (`utils/chart.ts`) and renderer
-  (`ui/render/charts.ts`) already exist and are pure/cheap SVG, which matters
-  because virtualized rows re-render often. Column display config persists
-  alongside the existing sort/filter persistence. Doing this is also the natural
-  forcing function for extracting the shared cell renderers G1 (query blocks)
-  needs — do the extraction once, use it twice.
-- **Barriers.** Config UI surface in the column header menu; chart legibility at
-  cell heights; keeping cell render cost flat under row virtualization.
-- **Touchpoints.** `ui/table-view.ts` (column model + cell render);
-  `ui/render/charts.ts`; `core/settings.ts` (persisted column display).
-- **Steps.** Column display model → header-menu config UI → sparkline / progress
-  cell renderers → persistence → share the extracted renderer with G1.
-
-#### L2 — Value history & richer conflict handling ○ (L1's extensions)
-
-- **What.** Extend L1 from configuration to *data*: a capped per-note history of
-  property-value writes with a restore picker; a real merge UI for the conflicts
-  that today fall back to the keep-mine / take-theirs prompt; and decryption
-  support for the inline `prop:` / `val:` chips (the sidebar masks and unlocks
-  today, the chips do not).
-- **Considerations.** The D4 write queue already sees every value write — journal
-  per-note diffs from there, capped and compacted, rather than adding a second
-  write path. The merge UI can reuse the field list the conflict guard already
-  computes. Chip decryption reuses the existing `core/secure.ts` session unlock;
-  no new key handling.
-- **Barriers.** History storage growth (cap + compaction policy); encrypted
-  values must be journaled as envelopes, never plaintext; merge-UI scope creep —
-  it only needs to handle the keys both sides changed.
-- **Touchpoints.** `core/note-model.ts` (write journal); `core/snapshot-store.ts`;
-  `core/merge.ts` plus a new modal in `ui/modals/`;
-  `features/inline/inline-render.ts` + `core/secure.ts`.
-- **Steps.** Capped write journal → per-note history panel + restore → merge
-  modal for both-sides conflicts → inline chip unlock.
-
-#### R1 — 3D dice anti-aliasing, second attempt ○
-
-- **What.** Re-approach the anti-aliasing that shipped in v3.5.0 and was locked
-  off in v3.5.2: the 2× supersample distorted the dice under CSS 3D. Goal: smooth
-  face edges without geometry distortion, then re-enable the settings toggle.
-- **Considerations.** Candidate approaches, roughly cheapest first: a subtle
-  same-colour border / edge inset on each face polygon to soften the silhouette;
-  uniform `scale3d` supersampling with corrected perspective (the v3.5.1 lesson —
-  any transform must scale *all three* axes and compensate the perspective
-  origin); or pre-rendering the solid to canvas. Prototype behind a dev flag and
-  compare screenshots before committing to one.
-- **Barriers.** CSS 3D + supersampling interact with z-depth and perspective in
-  ways that broke twice already — this needs visual regression screenshots, not
-  just eyeballing; GPU cost on mobile; the reduced-motion path must stay
-  untouched.
-- **Touchpoints.** `features/rolling/dice-styles.ts`, `dice-anim.ts`;
-  `utils/polyhedra.ts` (per-face insets if that route wins); `styles.css`.
-- **Steps.** Prototype 2–3 approaches behind a dev flag → screenshot comparison →
-  pick (possibly per-platform) → re-enable the toggle → note the outcome here.
-
-#### M2 — Dense-sheet keyboard composite & high-contrast preset ○ (M1's extensions)
-
-- **What.** The two items M1 left as future work: a roving-tabindex composite
-  inside an entry cluster (arrow keys move within a cluster, Tab moves between
-  clusters) so dense sheets stop costing one Tab stop per control, and a bundled
-  high-contrast theme preset over the `--ep-*` variable surface.
-- **Considerations.** Follow the ARIA toolbar/grid composite patterns; build on
-  the existing helpers in `utils/a11y.ts`. The preset ships as a Style Settings
-  profile — no new theming machinery.
-- **Barriers.** Roving tabindex must coexist with the virtualized table view and
-  Obsidian's own focus handling; needs a screen-reader pass (update the
-  ACCESSIBILITY.md checklist) rather than just keyboard testing.
-- **Touchpoints.** `ui/render/section-renderer.ts`, `ui/render/entry-renderer.ts`;
-  `utils/a11y.ts`; `styles.css`; ACCESSIBILITY.md.
-- **Steps.** Composite prototype in the sidebar → extend to the table view →
-  high-contrast preset → re-run and update the manual a11y checklist.
+  value-type editor hook → publish a module template repo → bump `apiVersion`
+  to 2 only when a breaking change forces it.
 
 ### Suggested sequencing
 
