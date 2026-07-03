@@ -612,9 +612,7 @@ var en_default = {
   "settings.fontPlaceholder": "theme default",
   "settings.baseSize": "Base size",
   "settings.listSize": "List item size",
-  "settings.languageHeading": "Language",
-  "settings.language": "UI language",
-  "settings.languageDesc": "Language of the sidebar and this settings tab.",
+  "settings.languageHeading": "UI text",
   "settings.overrides": "Custom wording",
   "settings.overridesDesc": "Replace any UI text with your own wording. Blank fields use the language default.",
   "settings.overridesReset": "Reset all",
@@ -651,8 +649,7 @@ var en_default = {
   "settings.macroDelete": "Delete macro",
   "settings.macroAdd": "Add a macro",
   "settings.macroAddBtn": "+ Macro",
-  "settings.macroNewName": "New macro",
-  "skills.deprecated": "The skills type is deprecated and will be removed in a future major version. Convert it to regular properties below - your records are preserved."
+  "settings.macroNewName": "New macro"
 };
 
 // src/i18n/locales/en.ts
@@ -1686,7 +1683,6 @@ function normalizeSettings(data, defaultLayout) {
     if (data.defaults) s.defaults = { ...DEFAULT_DEFAULTS, ...data.defaults };
     if (Array.isArray(data.manualHide)) s.manualHide = data.manualHide;
     if (typeof data.propMenu === "boolean") s.propMenu = data.propMenu;
-    if (typeof data.language === "string") s.language = data.language;
     if (data.stringOverrides && typeof data.stringOverrides === "object") s.stringOverrides = data.stringOverrides;
     if (data.features && typeof data.features === "object") s.features = data.features;
     if (Array.isArray(data.derivations))
@@ -2214,7 +2210,6 @@ var Registries = class {
     this.derivations = new Registry();
     this.sectionTemplates = new Registry();
     this.layoutPresets = new Registry();
-    this.skillPresets = new Registry();
     /** Preset used for brand-new note types. Features may claim this. */
     this.defaultPresetId = "empty";
   }
@@ -2225,7 +2220,6 @@ var Registries = class {
     this.derivations.clear();
     this.sectionTemplates.clear();
     this.layoutPresets.clear();
-    this.skillPresets.clear();
     this.defaultPresetId = "empty";
   }
 };
@@ -5323,7 +5317,7 @@ function registerCore(ctx2) {
 }
 
 // src/api.ts
-var API_VERSION = 1;
+var API_VERSION = 2;
 
 // src/ui/view.ts
 var import_obsidian26 = require("obsidian");
@@ -6781,7 +6775,10 @@ function renderEntryOptionsBody(octx, onDone, onRemoved, opts = {}) {
     c.createEl("h4", { text: t("options.typeHeading") });
     const cur = view.resolveType(e);
     new import_obsidian22.Setting(c).setName(t("options.dataType")).setDesc(t("options.dataTypeDesc")).addDropdown((d) => {
-      for (const def of view.registries.valueTypes.all()) d.addOption(def.id, def.name(view.i18n));
+      for (const def of view.registries.valueTypes.all()) {
+        if (def.deprecated && def.id !== cur) continue;
+        d.addOption(def.id, def.name(view.i18n));
+      }
       d.setValue(cur);
       d.onChange((v) => {
         if (e.key) setSharedDataType(view.settings, e.key, v);
@@ -9178,6 +9175,7 @@ var SidebarView = class extends import_obsidian26.ItemView {
         const openTypeMenu = (x, y) => {
           const menu = new import_obsidian26.Menu();
           for (const vt of this.registries.valueTypes.all()) {
+            if (vt.deprecated && vt.id !== typeId) continue;
             menu.addItem(
               (mi) => mi.setTitle(vt.name(this.i18n)).setChecked(vt.id === typeId).onClick(() => {
                 if (entry.key) setSharedDataType(this.settings, entry.key, vt.id);
@@ -10825,7 +10823,10 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
     const d = plugin.settings.defaults;
     c.createEl("h3", { text: t("settings.defaultsHeading") });
     new import_obsidian30.Setting(c).setName(t("settings.defaultDataType")).setDesc(t("settings.defaultDataTypeDesc")).addDropdown((dd) => {
-      for (const def of plugin.registries.valueTypes.all()) dd.addOption(def.id, def.name(i18n));
+      for (const def of plugin.registries.valueTypes.all()) {
+        if (def.deprecated) continue;
+        dd.addOption(def.id, def.name(i18n));
+      }
       dd.setValue(d.dataType);
       dd.onChange((v) => {
         d.dataType = v;
@@ -11206,16 +11207,6 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
     sizeRow(t("sectionOptions.titleSize"), () => d.titleSize, (n) => d.titleSize = n);
     sizeRow(t("settings.listSize"), () => d.listSize, (n) => d.listSize = n);
     c.createEl("h3", { text: t("settings.languageHeading") });
-    new import_obsidian30.Setting(c).setName(t("settings.language")).setDesc(t("settings.languageDesc")).addDropdown((dd) => {
-      for (const loc of i18n.availableLocales()) dd.addOption(loc.code, loc.name);
-      dd.setValue(plugin.settings.language);
-      dd.onChange((v) => {
-        plugin.settings.language = v;
-        i18n.setLocale(v);
-        save();
-        this.display();
-      });
-    });
     this.renderOverrideEditor(c);
     c.createEl("h3", { text: t("settings.obsidianHeading") });
     new import_obsidian30.Setting(c).setName(t("settings.hideShown")).setDesc(t("settings.hideShownDesc")).addToggle((tg) => {
@@ -12351,12 +12342,6 @@ function openRollMenu(ev, i18n, current, run, opts) {
   if (ev.clientX + w > window.innerWidth - 4) pop.style.left = Math.max(4, window.innerWidth - w - 4) + "px";
   if (ev.clientY + h > window.innerHeight - 4) pop.style.top = Math.max(4, ev.clientY - h - 2) + "px";
 }
-function renderDiceTag(parent, notation, alwaysShow = false) {
-  const spec = parseDice(notation);
-  if (!spec && !alwaysShow) return null;
-  const eff = spec != null ? spec : parseDiceOrDefault(void 0);
-  return parent.createSpan({ cls: "ep-dice-tag ep-line-abbr", text: formatDice(eff) });
-}
 
 // src/features/rolling/roller.ts
 function svc(view) {
@@ -12795,21 +12780,8 @@ function parseRecords(value) {
   }
   return out;
 }
-function cleanRecords(records) {
-  return records.map((r) => {
-    const o = { name: r.name };
-    if (r.source) o.source = r.source;
-    if (r.prof) o.prof = true;
-    if (r.dice) o.dice = r.dice;
-    if (r.mod !== void 0) o.mod = r.mod;
-    return o;
-  });
-}
 function readRecords(view, key) {
   return parseRecords(view.note.raw[key]);
-}
-function writeRecords(view, file, key, records) {
-  view.note.set(file, key, cleanRecords(records));
 }
 function profBonus(view, e) {
   var _a;
@@ -12829,21 +12801,19 @@ function keyTaken(view, key, except) {
   return false;
 }
 function convertToProperties(ref) {
-  var _a, _b;
+  var _a;
   const { view, file, section, entry } = ref;
   const t = view.i18n.t.bind(view.i18n);
   const e = ext(entry);
   const key = entry.key;
-  let records = readRecords(view, key);
-  const preset = view.registries.skillPresets.get(e.skillsPreset);
-  if (!records.length && preset) records = preset.records();
+  const records = readRecords(view, key);
   if (!records.length) {
     new import_obsidian38.Notice(t("skills.convertEmpty"));
     return;
   }
   const useProf = e.profMode === "level" || e.profMode === "fixed";
   const profKey = t("skills.convertProfProperty");
-  const profListKey = (_a = preset == null ? void 0 : preset.legacyProfKey) != null ? _a : t("skills.convertProfList", { name: entry.alias || key });
+  const profListKey = t("skills.convertProfList", { name: entry.alias || key });
   let profInf = null;
   if (useProf) {
     profInf = { source: profKey, toggle: profListKey };
@@ -12861,7 +12831,7 @@ function convertToProperties(ref) {
         ensurePropEntries(view.layout, section, [levelKey]);
       } else {
         ensurePropEntries(view.layout, section, [profKey]);
-        view.note.set(file, profKey, (_b = e.profFixed) != null ? _b : 0);
+        view.note.set(file, profKey, (_a = e.profFixed) != null ? _a : 0);
       }
     }
     const have = view.note.list(profListKey);
@@ -12870,7 +12840,7 @@ function convertToProperties(ref) {
     if (add.length) view.note.set(file, profListKey, [...have, ...add]);
   }
   const fresh = records.map((rec) => {
-    var _a2, _b2;
+    var _a2, _b;
     let k = rec.name;
     if (rec.source && k.toLowerCase() === rec.source.toLowerCase() || keyTaken(view, k, entry))
       k = t("skills.convertKeySuffix", { name: rec.name });
@@ -12888,7 +12858,7 @@ function convertToProperties(ref) {
       mods: mods2
     };
     if (k !== rec.name) en.alias = rec.name;
-    if ((_a2 = rec.dice) != null ? _a2 : e.dice) en.dice = (_b2 = rec.dice) != null ? _b2 : e.dice;
+    if ((_a2 = rec.dice) != null ? _a2 : e.dice) en.dice = (_b = rec.dice) != null ? _b : e.dice;
     if (rec.mod !== void 0) en.rollOverride = rec.mod + (rec.prof ? profBonus(view, e) : 0);
     return en;
   });
@@ -12907,343 +12877,48 @@ function confirmConvert(ref) {
     () => convertToProperties(ref)
   ).open();
 }
-function updateRecord(ctx2, index, change) {
-  const key = ctx2.entry.key;
-  const records = readRecords(ctx2.view, key);
-  if (!records[index]) return;
-  change(records[index]);
-  writeRecords(ctx2.view, ctx2.file, key, records);
-}
-function populateFromPreset(view, file, key, preset) {
-  const fresh = preset.records();
-  if (preset.legacyProfKey) {
-    const legacy = view.note.list(preset.legacyProfKey).map((x) => x.toLowerCase());
-    for (const r of fresh) if (legacy.includes(r.name.toLowerCase())) r.prof = true;
-  }
-  const existing = readRecords(view, key);
-  const have = new Set(existing.map((r) => r.name.toLowerCase()));
-  const merged = [...existing, ...fresh.filter((r) => !have.has(r.name.toLowerCase()))];
-  writeRecords(view, file, key, merged);
-}
-function addBlankSkill(view, file, key) {
-  new TextPromptModal(view.app, view.i18n, view.i18n.t("skills.newSkillPrompt"), "", (v) => {
-    const name = v.trim();
-    if (!name) return;
-    writeRecords(view, file, key, [...readRecords(view, key), { name }]);
-  }).open();
-}
-function openAddSkillsMenu(e, view, file, key) {
-  const menu = new import_obsidian38.Menu();
-  for (const preset of view.registries.skillPresets.all()) {
-    menu.addItem(
-      (i) => i.setTitle(view.i18n.t("skills.menu.addPreset", { name: preset.name(view.i18n) })).setIcon("list-plus").onClick(() => populateFromPreset(view, file, key, preset))
-    );
-  }
-  menu.addSeparator();
-  menu.addItem(
-    (i) => i.setTitle(view.i18n.t("skills.newSkill")).setIcon("plus").onClick(() => addBlankSkill(view, file, key))
-  );
-  menu.showAtMouseEvent(e);
-}
-function inlineText(span, value, commit2) {
-  const input = createEl("input", { cls: "ep-edit-input ep-edit-label" });
-  input.type = "text";
-  input.value = value;
-  span.replaceWith(input);
-  input.focus();
-  input.select();
-  let done = false;
-  const finish = (save) => {
-    if (done) return;
-    done = true;
-    if (input.parentElement) input.replaceWith(span);
-    if (save && input.value.trim()) commit2(input.value.trim());
-  };
-  input.onblur = () => finish(true);
-  input.onkeydown = (ev) => {
-    if (ev.key === "Enter") {
-      ev.preventDefault();
-      finish(true);
-    } else if (ev.key === "Escape") {
-      ev.preventDefault();
-      finish(false);
-    }
-  };
-}
-function inlineSource(ctx2, span, index) {
-  var _a, _b;
-  const view = ctx2.view;
-  const input = createEl("input", { cls: "ep-edit-input ep-edit-label" });
-  input.type = "text";
-  input.value = (_b = (_a = readRecords(view, ctx2.entry.key)[index]) == null ? void 0 : _a.source) != null ? _b : "";
-  span.replaceWith(input);
-  input.focus();
-  input.select();
-  let done = false;
-  const choose = (key) => updateRecord(ctx2, index, (r) => r.source = key || void 0);
-  new PropSuggest(view.app, input, view.i18n, () => view.propCandidates(true), (key) => {
-    done = true;
-    if (input.parentElement) input.replaceWith(span);
-    choose(key);
-  }, false);
-  const finish = (save) => {
-    if (done) return;
-    done = true;
-    if (input.parentElement) input.replaceWith(span);
-    if (save) choose(input.value.trim());
-  };
-  input.onblur = () => setTimeout(() => finish(true), 120);
-  input.onkeydown = (ev) => {
-    if (ev.key === "Escape") {
-      ev.preventDefault();
-      finish(false);
-    } else if (ev.key === "Enter") {
-      ev.preventDefault();
-      finish(true);
-    }
-  };
-}
-function renderRow(ctx2, list, records, index) {
-  var _a;
-  const view = ctx2.view;
-  const t = view.i18n.t.bind(view.i18n);
-  const e = ext(ctx2.entry);
-  const rec = records[index];
-  const row = list.createDiv({ cls: "ep-line" });
-  const cb = row.createEl("input");
-  cb.type = "checkbox";
-  cb.addClass("ep-prof");
-  cb.checked = !!rec.prof;
-  if (view.editMode) {
-    cb.setAttr("title", t("skills.proficientHint"));
-    cb.onchange = () => updateRecord(ctx2, index, (r) => r.prof = cb.checked || void 0);
-  } else {
-    cb.setAttr("title", t("hint.dblToggle"));
-    cb.onclick = (ev) => ev.preventDefault();
-    cb.ondblclick = () => updateRecord(ctx2, index, (r) => r.prof = !r.prof || void 0);
-  }
-  const nameSpan = row.createSpan({ cls: "ep-line-name", text: rec.name });
-  view.bindOpen(
-    nameSpan,
-    () => inlineText(nameSpan, rec.name, (v) => updateRecord(ctx2, index, (r) => r.name = v))
-  );
-  const abbrSpan = row.createSpan({
-    cls: "ep-line-abbr",
-    text: rec.source ? abbrFor(view.settings, rec.source) : "-"
-  });
-  abbrSpan.setAttr("aria-label", rec.source || t("skills.menu.setSource"));
-  view.bindOpen(abbrSpan, () => inlineSource(ctx2, abbrSpan, index));
-  const diceNotation = (_a = rec.dice) != null ? _a : e.dice;
-  const diceTag = renderDiceTag(row, diceNotation);
-  if (diceTag) {
-    view.bindOpen(diceTag, () => {
-      const r2 = diceTag.getBoundingClientRect();
-      const fakeEvent = new MouseEvent("click", { clientX: r2.left, clientY: r2.bottom });
-      openDiceMenu(fakeEvent, view.app, view.i18n, {
-        get: () => {
-          var _a2, _b;
-          return (_b = (_a2 = readRecords(view, ctx2.entry.key)[index]) == null ? void 0 : _a2.dice) != null ? _b : e.dice;
-        },
-        set: (n) => updateRecord(ctx2, index, (r) => r.dice = n)
-      });
-    });
-  }
-  const modSpan = row.createSpan({ cls: "ep-line-mod", text: fmtMod(effectiveMod(view, e, rec)) });
-  view.bindOpen(
-    modSpan,
-    () => openNumberInput(modSpan, effectiveMod(view, e, rec), (v) => {
-      const prof = rec.prof ? profBonus(view, e) : 0;
-      updateRecord(ctx2, index, (r) => r.mod = v - prof);
-    }, { min: -999, max: 999, float: false, clamp: false })
-  );
-  const rb = row.createEl("button", { cls: "ep-roll-btn", text: t("roll.roll") });
-  const svc2 = () => view.hub.get(ROLL_SERVICE, () => new RollService(view.i18n, view.settings, view.history, view.app));
-  const partsFor = () => {
-    const parts = [];
-    const base = rec.mod !== void 0 ? rec.mod : rec.source ? deriveModifier(e.skillMode, view.note.num(rec.source, 0)) : 0;
-    parts.push({
-      label: rec.mod !== void 0 ? t("roll.partOverride") : rec.source ? abbrFor(view.settings, rec.source) : t("roll.partMod"),
-      value: base
-    });
-    if (rec.prof) parts.push({ label: t("roll.partProf"), value: profBonus(view, e) });
-    return parts;
-  };
-  rb.onclick = () => {
-    var _a2;
-    return svc2().roll(rec.name, effectiveMod(view, e, rec), parseDiceOrDefault((_a2 = rec.dice) != null ? _a2 : e.dice), {
-      parts: partsFor()
-    });
-  };
-  rb.addEventListener("contextmenu", (ev) => {
-    ev.preventDefault();
-    ev.stopPropagation();
-    openRollMenu(ev, view.i18n, svc2().mode, (mode, times) => {
-      var _a2;
-      for (let i = 0; i < times; i++)
-        svc2().roll(
-          times > 1 ? `${rec.name} #${i + 1}` : rec.name,
-          effectiveMod(view, e, rec),
-          parseDiceOrDefault((_a2 = rec.dice) != null ? _a2 : e.dice),
-          { parts: partsFor(), mode, stay: times > 1 }
-        );
-    });
-  });
-  row.addEventListener("contextmenu", (ev) => {
-    ev.preventDefault();
-    ev.stopPropagation();
-    const menu = new import_obsidian38.Menu();
-    menu.addItem(
-      (i) => i.setTitle(t("skills.menu.setSource")).setIcon("link").onClick(() => inlineSource(ctx2, abbrSpan, index))
-    );
-    menu.addItem(
-      (i) => i.setTitle(t("skills.menu.setDice")).setIcon("dice").onClick(
-        () => openDiceMenu(ev, view.app, view.i18n, {
-          get: () => {
-            var _a2, _b;
-            return (_b = (_a2 = readRecords(view, ctx2.entry.key)[index]) == null ? void 0 : _a2.dice) != null ? _b : e.dice;
-          },
-          set: (n) => updateRecord(ctx2, index, (r) => r.dice = n)
-        })
-      )
-    );
-    if (rec.mod !== void 0)
-      menu.addItem(
-        (i) => i.setTitle(t("skills.menu.clearOverride")).setIcon("eraser").onClick(
-          () => updateRecord(ctx2, index, (r) => r.mod = void 0)
-        )
-      );
-    menu.addSeparator();
-    const move = (delta) => {
-      const key = ctx2.entry.key;
-      const rs = readRecords(view, key);
-      const j = index + delta;
-      if (j < 0 || j >= rs.length) return;
-      [rs[index], rs[j]] = [rs[j], rs[index]];
-      writeRecords(view, ctx2.file, key, rs);
-    };
-    menu.addItem((i) => i.setTitle(t("skills.menu.moveUp")).setIcon("arrow-up").onClick(() => move(-1)));
-    menu.addItem((i) => i.setTitle(t("skills.menu.moveDown")).setIcon("arrow-down").onClick(() => move(1)));
-    menu.addItem(
-      (i) => i.setTitle(t("skills.menu.remove")).setIcon("trash").onClick(() => {
-        const key = ctx2.entry.key;
-        const rs = readRecords(view, key);
-        rs.splice(index, 1);
-        writeRecords(view, ctx2.file, key, rs);
-      })
-    );
-    menu.showAtMouseEvent(ev);
-  });
-}
 var skillsType = {
   id: "skills",
   wide: true,
+  deprecated: true,
+  // hidden from type dropdowns; renders legacy data only
   name: (i18n) => i18n.t("type.skills"),
   render(ctx2) {
     const { view, entry } = ctx2;
     const key = entry.key;
+    const e = ext(entry);
     const holder = ctx2.extra.createDiv({ cls: "ep-block-list" });
     const build = () => {
       holder.empty();
+      holder.createDiv({ cls: "ep-skills-deprecated", text: view.i18n.t("skills.removed") });
       const records = readRecords(view, key);
       if (!records.length) {
-        const empty = holder.createDiv({ cls: "ep-empty-sub", text: view.i18n.t("skills.empty") });
-        const btn = empty.createEl("button", { cls: "ep-mini-btn", text: view.i18n.t("skills.addMenu") });
-        btn.onclick = (ev) => openAddSkillsMenu(ev, view, ctx2.file, key);
-        return;
+        holder.createDiv({ cls: "ep-empty-sub", text: view.i18n.t("skills.empty") });
+      } else {
+        for (const rec of records) {
+          const row = holder.createDiv({ cls: "ep-line" });
+          row.createSpan({ cls: "ep-line-name", text: (rec.prof ? "* " : "") + rec.name });
+          if (rec.source) row.createSpan({ cls: "ep-line-abbr", text: abbrFor(view.settings, rec.source) });
+          row.createSpan({ cls: "ep-line-mod", text: fmtMod(effectiveMod(view, e, rec)) });
+        }
       }
-      for (let i = 0; i < records.length; i++) renderRow(ctx2, holder, records, i);
-      if (view.editMode) {
-        const add = holder.createEl("button", { cls: "ep-mini-btn ep-list-addbtn", text: view.i18n.t("skills.addSkill") });
-        add.onclick = (ev) => openAddSkillsMenu(ev, view, ctx2.file, key);
-      }
+      const btn = holder.createEl("button", { cls: "ep-mini-btn", text: view.i18n.t("skills.convertBtn") });
+      btn.onclick = () => confirmConvert({ view, file: ctx2.file, section: ctx2.section, entry: ctx2.entry });
     };
     build();
     view.registerUpdater(build);
   },
   menuItems(menu, ref) {
-    const { view, file, entry } = ref;
-    const key = entry.key;
     menu.addItem(
-      (i) => i.setTitle(view.i18n.t("skills.newSkill")).setIcon("plus").onClick(() => addBlankSkill(view, file, key))
-    );
-    for (const preset of view.registries.skillPresets.all()) {
-      menu.addItem(
-        (i) => i.setTitle(view.i18n.t("skills.menu.addPreset", { name: preset.name(view.i18n) })).setIcon("list-plus").onClick(() => populateFromPreset(view, file, key, preset))
-      );
-    }
-    menu.addItem(
-      (i) => i.setTitle(view.i18n.t("skills.convert")).setIcon("wand").onClick(() => confirmConvert(ref))
+      (i) => i.setTitle(ref.view.i18n.t("skills.convert")).setIcon("wand").onClick(() => confirmConvert(ref))
     );
   },
   renderOptions(octx) {
-    const { view, entry, container: c, changed, redraw } = octx;
+    const { view, container: c } = octx;
     const t = view.i18n.t.bind(view.i18n);
-    const e = ext(entry);
     c.createEl("h4", { text: t("skills.options.heading") });
-    c.createEl("p", { cls: "setting-item-description", text: t("skills.options.editHint") });
-    c.createDiv({ cls: "ep-skills-deprecated", text: t("skills.deprecated") });
-    new import_obsidian38.Setting(c).setName(t("skills.convert")).setDesc(t("skills.convertDesc")).addButton(
-      (b) => b.setButtonText(t("skills.convertBtn")).onClick(() => confirmConvert(octx))
-    );
-    new import_obsidian38.Setting(c).setName(t("skills.options.sourceMode")).addDropdown((d) => {
-      var _a;
-      d.addOption("value", t("skills.options.modeValue"));
-      d.addOption("abilityMod", t("skills.options.modeAbilityMod"));
-      d.setValue((_a = e.skillMode) != null ? _a : "value");
-      d.onChange((v) => {
-        e.skillMode = v;
-        changed();
-      });
-    });
-    new import_obsidian38.Setting(c).setName(t("skills.options.profMode")).addDropdown((d) => {
-      var _a;
-      d.addOption("none", t("skills.options.profNone"));
-      d.addOption("level", t("skills.options.profLevel"));
-      d.addOption("fixed", t("skills.options.profFixed"));
-      d.setValue((_a = e.profMode) != null ? _a : "none");
-      d.onChange((v) => {
-        e.profMode = v === "none" ? void 0 : v;
-        changed();
-        redraw();
-      });
-    });
-    if (e.profMode === "level") {
-      new import_obsidian38.Setting(c).setName(t("skills.options.profSource")).addText((tx) => {
-        var _a;
-        tx.setPlaceholder("Level").setValue((_a = e.profSource) != null ? _a : "").onChange((v) => {
-          e.profSource = v.trim() || void 0;
-          changed();
-        });
-      });
-    }
-    if (e.profMode === "fixed") {
-      new import_obsidian38.Setting(c).setName(t("skills.options.profFixedValue")).addText((tx) => {
-        tx.setValue(e.profFixed !== void 0 ? String(e.profFixed) : "").onChange((v) => {
-          const n = Number(v);
-          e.profFixed = v.trim() === "" || !Number.isFinite(n) ? void 0 : n;
-          changed();
-        });
-      });
-    }
-    addDiceSettings(c, view.i18n, {
-      get: () => e.dice,
-      set: (n) => {
-        e.dice = n;
-        changed();
-      }
-    });
-    const presets = view.registries.skillPresets.all();
-    if (presets.length) {
-      c.createEl("h4", { text: t("skills.options.presets") });
-      for (const preset of presets) {
-        new import_obsidian38.Setting(c).setName(preset.name(view.i18n)).addButton(
-          (b) => b.setButtonText(t("skills.options.addPreset")).onClick(() => {
-            populateFromPreset(view, octx.file, entry.key, preset);
-            changed();
-          })
-        );
-      }
-    }
+    c.createDiv({ cls: "ep-skills-deprecated", text: t("skills.removed") });
+    new import_obsidian38.Setting(c).setName(t("skills.convert")).setDesc(t("skills.convertDesc")).addButton((b) => b.setButtonText(t("skills.convertBtn")).onClick(() => confirmConvert(octx)));
   }
 };
 
@@ -13339,38 +13014,15 @@ var strings_default = {
   "skills.convert": "Convert to property entries...",
   "skills.convertBtn": "Convert",
   "skills.convertDesc": "Replace this list with one derived number property per row. Proficiency becomes a togglable influence backed by a list property; sources stay referenced by name.",
-  "skills.convertConfirm": "Convert this skills list into individual derived property entries? The rows of the current note (or the preset) define the new entries; the record property itself is left untouched.",
+  "skills.convertConfirm": "Convert this skills list into individual derived property entries? The rows of the current note define the new entries; the record property itself is left untouched.",
   "skills.convertEmpty": "No rows to convert.",
   "skills.convertDone": "Created {n} property entries.",
   "skills.convertKeySuffix": "{name} Save",
   "skills.convertProfProperty": "Proficiency Bonus",
   "skills.convertProfList": "{name} Proficiencies",
   "skills.empty": "No skills yet.",
-  "skills.addMenu": "Add skills...",
-  "skills.addSkill": "+ add skill",
-  "skills.newSkill": "New skill...",
-  "skills.newSkillPrompt": "Skill name",
-  "skills.proficientHint": "Proficient",
-  "skills.menu.addPreset": "Add preset: {name}",
-  "skills.menu.setSource": "Set modifier source...",
-  "skills.menu.setDice": "Set dice...",
-  "skills.menu.clearOverride": "Clear modifier override",
-  "skills.menu.moveUp": "Move up",
-  "skills.menu.moveDown": "Move down",
-  "skills.menu.remove": "Remove skill",
   "skills.options.heading": "Skills",
-  "skills.options.editHint": "Rows are edited directly in the sidebar: click (or double-click outside edit mode) a name, source tag or modifier; right-click a row for dice, ordering and removal.",
-  "skills.options.sourceMode": "Modifier from source",
-  "skills.options.modeValue": "Source value as-is",
-  "skills.options.modeAbilityMod": "Ability modifier ((value - 10) / 2)",
-  "skills.options.profMode": "Proficiency bonus",
-  "skills.options.profNone": "None",
-  "skills.options.profLevel": "From a level property",
-  "skills.options.profFixed": "Fixed value",
-  "skills.options.profSource": "Level property",
-  "skills.options.profFixedValue": "Bonus",
-  "skills.options.presets": "Skill presets",
-  "skills.options.addPreset": "Add"
+  "skills.removed": "The skills value type was removed in v4.0. The stored rows are shown read-only - convert them to regular properties to keep working with them."
 };
 
 // src/features/rolling/strings.ts
@@ -13520,18 +13172,6 @@ function abilityEntry(key) {
 function rollSources() {
   return [profBonusEntry(), ...ABILITIES.map((a) => prop(a.key, { dataType: "number" }))];
 }
-var savesPreset = {
-  id: "dnd5e-saves",
-  name: (i18n) => i18n.t("dnd.savingThrows"),
-  records: () => ABILITIES.map((a) => ({ name: a.key, source: a.key })),
-  legacyProfKey: SAVE_PROF_KEY
-};
-var skillsPreset = {
-  id: "dnd5e-skills",
-  name: (i18n) => i18n.t("dnd.skills"),
-  records: () => SKILLS.map((s) => ({ name: s.name, source: s.ability })),
-  legacyProfKey: SKILL_PROF_KEY
-};
 var builders = {
   rolls: (i18n) => ({
     id: "rolls",
@@ -13639,8 +13279,6 @@ var dnd5eModule = {
   description: (i18n) => i18n.t("dnd.featureDesc"),
   register(ctx2) {
     ctx2.i18n.register("en", dndEn);
-    ctx2.registries.skillPresets.add(savesPreset);
-    ctx2.registries.skillPresets.add(skillsPreset);
     for (const tpl of sectionTemplates()) ctx2.registries.sectionTemplates.add(tpl);
     ctx2.registries.layoutPresets.add(characterPreset);
   },

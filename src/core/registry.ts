@@ -11,7 +11,6 @@
  *                           (compiled from user-editable settings blocks)
  * - {@link SectionTemplateDef}  one-click section presets in the edit toolbar
  * - {@link LayoutPresetDef}     full default layouts for new note types
- * - {@link SkillPresetDef}      record sets for the legacy "skills" value type
  *
  * A {@link FeatureModule} bundles registrations (plus i18n strings) so a
  * domain - like D&D 5e - lives entirely in `src/features/<id>/` and can be
@@ -60,6 +59,8 @@ export interface ValueTypeDef {
   id: string;
   /** Label for type dropdowns. */
   name(i18n: I18n): string;
+  /** Hidden from type dropdowns; kept only to render legacy data. */
+  deprecated?: boolean;
   /** Span all columns of the section (block-style values). */
   wide?: boolean;
   /** Render the value UI into `ctx.head` / `ctx.extra`. */
@@ -182,40 +183,6 @@ export interface LayoutPresetDef {
 }
 
 // ---------------------------------------------------------------------------
-// Skill records & presets (consumed by the "skills" value type)
-// ---------------------------------------------------------------------------
-
-/**
- * One row of a "skills" property. Stored verbatim (minus undefined fields)
- * as an object inside the property's list value, so everything stays
- * user-editable - in the sidebar, in the options page, or as raw YAML.
- */
-export interface SkillRecord {
-  /** Display name; also the roll label. */
-  name: string;
-  /** Property whose value feeds the modifier ("modifying property"). */
-  source?: string;
-  /** Proficient: the entry's proficiency bonus is added. */
-  prof?: boolean;
-  /** Dice notation ("2d6"); falls back to the entry's default dice. */
-  dice?: string;
-  /** Manual modifier override; when set, `source` is ignored. */
-  mod?: number;
-}
-
-/** A named, feature-provided set of skill records (e.g. the 5e skill list). */
-export interface SkillPresetDef {
-  id: string;
-  name(i18n: I18n): string;
-  records(): SkillRecord[];
-  /**
-   * Legacy list property holding proficient names (pre-record storage).
-   * When populating from this preset, matching names become proficient.
-   */
-  legacyProfKey?: string;
-}
-
-// ---------------------------------------------------------------------------
 // Registry plumbing
 // ---------------------------------------------------------------------------
 
@@ -248,7 +215,6 @@ export class Registries {
   readonly derivations = new Registry<DerivationDef>();
   readonly sectionTemplates = new Registry<SectionTemplateDef>();
   readonly layoutPresets = new Registry<LayoutPresetDef>();
-  readonly skillPresets = new Registry<SkillPresetDef>();
   /** Preset used for brand-new note types. Features may claim this. */
   defaultPresetId = "empty";
 
@@ -259,7 +225,6 @@ export class Registries {
     this.derivations.clear();
     this.sectionTemplates.clear();
     this.layoutPresets.clear();
-    this.skillPresets.clear();
     this.defaultPresetId = "empty";
   }
 }

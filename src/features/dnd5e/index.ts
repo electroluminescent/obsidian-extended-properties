@@ -12,9 +12,7 @@
 import type { Entry, EPSettings } from "../../core/model";
 import type { FeatureContext, FeatureModule } from "../../core/registry";
 import {
-  characterPreset, initiativeEntry, profBonusEntry, savesEntries, savesPreset,
-  sectionTemplates, skillsEntries, skillsPreset,
-} from "./sections";
+  characterPreset, initiativeEntry, profBonusEntry, savesEntries, sectionTemplates, skillsEntries, } from "./sections";
 import { dndEn } from "./strings";
 
 export const dnd5eModule: FeatureModule = {
@@ -25,8 +23,6 @@ export const dnd5eModule: FeatureModule = {
   register(ctx: FeatureContext): void {
     ctx.i18n.register("en", dndEn);
 
-    ctx.registries.skillPresets.add(savesPreset);
-    ctx.registries.skillPresets.add(skillsPreset);
 
     for (const tpl of sectionTemplates()) ctx.registries.sectionTemplates.add(tpl);
     // Registered as an optional preset only - new types always start

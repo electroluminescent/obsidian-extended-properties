@@ -38,7 +38,8 @@ Two principles run through the code:
 
 - **Value types** - how a property renders and edits (text, number, decimal,
   derived, formula, list, checkbox, colour, image, iframe, rating, link, unit,
-  datetime, and the legacy skills type).
+  datetime, audio, video and PDF; the removed legacy "skills" type renders
+  read-only for old data).
 - **Entry kinds** - non-property rows (blank spacer, table-of-contents, the roll
   panel).
 - **Cluster addons** - extra cells appended to numeric rows (roll buttons,
@@ -171,7 +172,8 @@ The value type then appears in the data-type dropdown for any property.
 
 ## Stability
 
-`apiVersion` starts at **1**. Internal refactors that don't change `src/api.ts`
+`apiVersion` is **2** (v1 modules keep working; v2 removed the legacy skills
+preset registry). Internal refactors that don't change `src/api.ts`
 or the re-exported registry types don't bump it; a breaking change to those does.
 Feature modules also self-migrate persisted settings via `FeatureModule.migrate`
 (see D3's versioned migration table).

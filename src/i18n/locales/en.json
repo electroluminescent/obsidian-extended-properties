@@ -523,9 +523,7 @@
   "settings.fontPlaceholder": "theme default",
   "settings.baseSize": "Base size",
   "settings.listSize": "List item size",
-  "settings.languageHeading": "Language",
-  "settings.language": "UI language",
-  "settings.languageDesc": "Language of the sidebar and this settings tab.",
+  "settings.languageHeading": "UI text",
   "settings.overrides": "Custom wording",
   "settings.overridesDesc": "Replace any UI text with your own wording. Blank fields use the language default.",
   "settings.overridesReset": "Reset all",
@@ -562,6 +560,5 @@
   "settings.macroDelete": "Delete macro",
   "settings.macroAdd": "Add a macro",
   "settings.macroAddBtn": "+ Macro",
-  "settings.macroNewName": "New macro",
-  "skills.deprecated": "The skills type is deprecated and will be removed in a future major version. Convert it to regular properties below - your records are preserved."
+  "settings.macroNewName": "New macro"
 }

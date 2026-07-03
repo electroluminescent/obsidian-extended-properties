@@ -1,6 +1,6 @@
 /**
  * The rolling feature module: dice, roll buttons, the roll log panel, and
- * the legacy "skills" value type (kept for record-based skill properties;
+ * the removed "skills" value type (read-only fallback for old record data;
  * new layouts use sections of derived number properties instead - the
  * skills type offers a one-click conversion).
  *

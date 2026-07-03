@@ -149,7 +149,10 @@ export function renderEntryOptionsBody(
       .setName(t("options.dataType"))
       .setDesc(t("options.dataTypeDesc"))
       .addDropdown((d) => {
-        for (const def of view.registries.valueTypes.all()) d.addOption(def.id, def.name(view.i18n));
+        for (const def of view.registries.valueTypes.all()) {
+          if (def.deprecated && def.id !== cur) continue; // legacy types render, but are not offered
+          d.addOption(def.id, def.name(view.i18n));
+        }
         d.setValue(cur);
         d.onChange((v) => {
           // Data types are shared per property key (vault-wide): re-stamp

@@ -137,7 +137,9 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
     if (data.defaults) s.defaults = { ...DEFAULT_DEFAULTS, ...data.defaults };
     if (Array.isArray(data.manualHide)) s.manualHide = data.manualHide;
     if (typeof data.propMenu === "boolean") s.propMenu = data.propMenu;
-    if (typeof data.language === "string") s.language = data.language;
+    // "language" stays handled (never carried as unknown) but is fixed to
+    // "en": the German dictionary was retired in v2.41 and the selector was
+    // removed in v4.0. Modules can still register locales via the API.
     if (data.stringOverrides && typeof data.stringOverrides === "object") s.stringOverrides = data.stringOverrides;
     if (data.features && typeof data.features === "object") s.features = data.features;
     // An explicitly persisted (even empty) list wins over the seeds.

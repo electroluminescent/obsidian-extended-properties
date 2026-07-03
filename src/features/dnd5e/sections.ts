@@ -15,7 +15,7 @@
  */
 
 import type { I18n } from "../../i18n/i18n";
-import type { LayoutPresetDef, SectionTemplateDef, SkillPresetDef } from "../../core/registry";
+import type { LayoutPresetDef, SectionTemplateDef } from "../../core/registry";
 import type { Influence } from "../../core/influences";
 import { Entry, LAYOUT_VERSION, Section } from "../../core/model";
 import { genId } from "../../utils/misc";
@@ -95,24 +95,6 @@ function abilityEntry(key: string): Entry {
 function rollSources(): Entry[] {
   return [profBonusEntry(), ...ABILITIES.map((a) => prop(a.key, { dataType: "number" }))];
 }
-
-// ---------------------------------------------------------------------------
-// Skill record presets (for the legacy "skills" value type & conversions)
-// ---------------------------------------------------------------------------
-
-export const savesPreset: SkillPresetDef = {
-  id: "dnd5e-saves",
-  name: (i18n) => i18n.t("dnd.savingThrows"),
-  records: () => ABILITIES.map((a) => ({ name: a.key, source: a.key })),
-  legacyProfKey: SAVE_PROF_KEY,
-};
-
-export const skillsPreset: SkillPresetDef = {
-  id: "dnd5e-skills",
-  name: (i18n) => i18n.t("dnd.skills"),
-  records: () => SKILLS.map((s) => ({ name: s.name, source: s.ability })),
-  legacyProfKey: SKILL_PROF_KEY,
-};
 
 // ---------------------------------------------------------------------------
 // Section templates

@@ -101,7 +101,10 @@ export class EPSettingTab extends PluginSettingTab {
       .setName(t("settings.defaultDataType"))
       .setDesc(t("settings.defaultDataTypeDesc"))
       .addDropdown((dd) => {
-        for (const def of plugin.registries.valueTypes.all()) dd.addOption(def.id, def.name(i18n));
+        for (const def of plugin.registries.valueTypes.all()) {
+          if (def.deprecated) continue;
+          dd.addOption(def.id, def.name(i18n));
+        }
         dd.setValue(d.dataType);
         dd.onChange((v) => {
           d.dataType = v;
@@ -595,21 +598,8 @@ export class EPSettingTab extends PluginSettingTab {
     sizeRow(t("sectionOptions.titleSize"), () => d.titleSize, (n) => (d.titleSize = n));
     sizeRow(t("settings.listSize"), () => d.listSize, (n) => (d.listSize = n));
 
-    // -- language -------------------------------------------------------------------
+    // -- UI text (per-string overrides; English is the built-in locale) --------------
     c.createEl("h3", { text: t("settings.languageHeading") });
-    new Setting(c)
-      .setName(t("settings.language"))
-      .setDesc(t("settings.languageDesc"))
-      .addDropdown((dd) => {
-        for (const loc of i18n.availableLocales()) dd.addOption(loc.code, loc.name);
-        dd.setValue(plugin.settings.language);
-        dd.onChange((v) => {
-          plugin.settings.language = v;
-          i18n.setLocale(v);
-          save();
-          this.display();
-        });
-      });
     this.renderOverrideEditor(c);
 
     // -- Obsidian integration ----------------------------------------------------------

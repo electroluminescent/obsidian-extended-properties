@@ -92,8 +92,8 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     // The default layout depends on registries, so bootstrap in two steps:
     // build registries assuming defaults, then normalize settings with them.
     this.i18n.register("en", coreEn, "English");
-    // German was removed in v2.41.0 (English-only; see ROADMAP "Deprecations").
-    // The locale mechanism stays intact so a data-driven locale can return (F4).
+    // English is the built-in locale; feature modules and API consumers can
+    // register additional dictionaries.
     let data: unknown = null;
     try {
       data = await this.loadData();

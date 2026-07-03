@@ -694,6 +694,7 @@ export class SidebarView extends ItemView implements ViewCtx {
         const openTypeMenu = (x: number, y: number): void => {
           const menu = new Menu();
           for (const vt of this.registries.valueTypes.all()) {
+            if (vt.deprecated && vt.id !== typeId) continue;
             menu.addItem((mi) =>
               mi.setTitle(vt.name(this.i18n)).setChecked(vt.id === typeId).onClick(() => {
                 if (entry.key) ops.setSharedDataType(this.settings, entry.key, vt.id);

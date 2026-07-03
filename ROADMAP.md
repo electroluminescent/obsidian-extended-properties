@@ -1,6 +1,6 @@
 # Extended Properties - roadmap
 
-**Status: v3.14.0.** The original feature roadmap (milestones 1-6) is fully
+**Status: v4.0.0.** The original feature roadmap (milestones 1-6) is fully
 implemented, and forward-roadmap items **L1 (history & safe sync, v3.1.0)**,
 **G2 (inline charts & sparklines, v3.2.0)** and **M1 (accessibility completion,
 v3.6.0)** have shipped. Releases v3.3.0-v3.5.5 added the 3D-dice presentation plus
@@ -12,7 +12,9 @@ sizes, risks and done-when criteria - at the bottom of this document.
 v3.9-v3.13 shipped a run of user-driven UI work (section pin zones, the
 roll-screen overhaul, vault-wide data types, unit suffixes, list alignment,
 the audio/video/PDF embed types, picker comforts), and **v3.14.0 shipped
-Milestone 12** (N2 + F6 + N1 - see below). This document is consolidated: it
+Milestone 12** (N2 + F6 + N1 - see below), and **v4.0.0 completed both
+long-standing deprecations** (see *Deprecations* below). This document is
+consolidated: it
 records what shipped - without the original per-feature planning notes - and
 lays out the sequenced forward plan.
 
@@ -160,17 +162,23 @@ evaluate once per refresh pass; and roll history moved out of `data.json` into
 its own `roll-history.json` (one-time migration), so a settings save no longer
 reserializes hundreds of roll records.
 
-## Deprecations
+## Deprecations (completed in v4.0.0)
 
-- **German locale (`de`) - removed in v2.41.** English-only; the locale
-  *mechanism* (the `register` API and the per-string override editor) is kept, so
-  a community-maintained dictionary can be slotted back in under F4. Any vault
-  still set to `de` resolves entirely through the English fallback.
-- **Legacy `skills` value type - deprecated (F5).** The one-click *Convert to
-  property entries* converter ships and the type shows a deprecation notice.
-  Removal (with a read-only fallback for unconverted data) is reserved for a
-  future major and is explicitly gated on the cross-version durability guarantee
-  above, so no data is lost.
+- **German locale (`de`) - removed in v2.41, fully retired in v4.0.0.** The
+  dictionary went in v2.41; v4.0.0 removed the last vestiges: the language
+  selector is gone (English is the built-in locale, `settings.language` is
+  fixed to `en`), the settings section is now the per-string override editor
+  only, and the docs no longer advertise a language choice. The locale
+  *mechanism* itself stays: feature modules and API consumers can still
+  register dictionaries, and the parity checker still guards the schema.
+- **Legacy `skills` value type - removed in v4.0.0.** The interactive type,
+  the skill preset registry (`skillPresets`, `SkillPresetDef`, `SkillRecord` -
+  an API-surface removal, so `apiVersion` bumped to **2**; v1 modules keep
+  working) and the D&D preset wiring are gone. What remains, per the plan: a
+  **read-only fallback** that renders stored record rows so no data is ever
+  lost, hidden from all type dropdowns, with the one-click *Convert to
+  property entries* still available from the entry menu, the options modal
+  and the fallback itself.
 
 ## Shipped beyond the original plan
 
@@ -224,7 +232,11 @@ Sizes are rough: **S** fits a patch/point release, **M** a minor release,
 - **v3.14.0** - Milestone 12 **shipped** (N2, F6, N1 - only N1's optional
   aggregation worker stays deferred behind its vault-size gate). User-driven
   UI work slotted in ahead of it as v3.9-v3.13.
-- **v4.0.0** - Milestone 13 (G1 query blocks + G3 chart cells) - the flagship
+- **v4.0.0** - shipped: the deprecation completions (skills type removal with
+  read-only fallback, German/language vestige removal) - the breaking
+  registry-surface change is what earned the major and the `apiVersion` 2
+  bump.
+- **v4.1.x** - Milestone 13 (G1 query blocks + G3 chart cells) - the flagship
   release; the shared-renderer extraction is the largest internal refactor
   since the registry split, which is what earns the major.
 - **v4.1.x** - Milestone 14 (H1, H2).
@@ -599,8 +611,8 @@ editor without forking.
 - **Touchpoints.** `src/api.ts`; `core/registry.ts`; `ui/settings-tab.ts` (module
   panels); docs.
 - **Steps.** Settings-panel + command contribution points -> inline-token hook ->
-  value-type editor hook -> publish a module template repo -> bump `apiVersion`
-  to 2 only when a breaking change forces it.
+  value-type editor hook -> publish a module template repo. (`apiVersion` was
+  bumped to 2 in v4.0.0 by the skills registry removal.)
 
 ### Deliberately not planned
 

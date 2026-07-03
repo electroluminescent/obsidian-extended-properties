@@ -82,7 +82,7 @@ Enable the rolling feature (default-on; toggle in Settings -> Features) for full
 - **Saved rolls (macros)**: Reusable "custom roll objects" - name a chain like `2d6 + 1d8 + 3`, then roll it from the dice roller, from the command palette (one command per macro), with optional per-type scope. Build one in the roller and *save as macro*, or manage them in Settings -> Rolls.
 - **Roll modes**: Normal, advantage (roll twice, take higher), and disadvantage (roll twice, take lower)-selectable per roll.
 - **Roll animation & on-screen dialog**: Rolls play out as cards in an on-screen dialog rather than a plain notice. Choose the per-die animation style - classic cycling numbers, a spinning icon, or true **3D polyhedra** (d4/d6/d8/d10/d12/d20, built from real solid geometry) that spin on a single axis, decelerate quickly with a slight bounce, and settle showing the result face - and set its duration. Cards can be kept (click to pin) or dismissed, and several rolls resolve side by side. While the dialog is enabled it *is* the result display, so the redundant result notification is suppressed (turn the animation off for a plain notice instead). On mobile, multiple roll cards wrap into as many columns as fit the screen and scroll vertically. Honors `prefers-reduced-motion` (the die lands without the spin).
-- **Skills value type (legacy)**: The record-based list type is kept for existing notes and offers a one-click *Convert to property entries* that turns each record into a derived property (proficiency becomes a togglable influence backed by a list property). New layouts use sections of derived properties instead.
+- **Skills value type (removed)**: The record-based list type was removed in v4.0. Existing data renders read-only - nothing is lost - and a one-click *Convert to property entries* turns each record into a derived property (proficiency becomes a togglable influence backed by a list property). New layouts use sections of derived properties instead.
 
 ### Inline Rolls & Properties
 
@@ -134,9 +134,9 @@ Share a layout or a single section as a portable JSON snippet. *Export* on a typ
 
 ### Localization & Text Override
 
-**Translatable strings**: The UI ships in English, with every string stored as **JSON data** (`src/i18n/locales/en.json` plus a `strings.json` per feature module) rather than baked into code, so a language can be added without touching logic. A parity checker (`npm run i18n`, also run in CI) verifies a new locale against the English schema. Missing keys fall back to English at runtime (resolution order: per-string override -> active locale -> English -> humanized key). See [CONTRIBUTING.md](CONTRIBUTING.md) for the add-a-language workflow. (German shipped through v2.40 and was retired in v2.41; the locale mechanism remains, so a community dictionary can be slotted back in.)
+**Translatable strings**: The UI ships in English, with every string stored as **JSON data** (`src/i18n/locales/en.json` plus a `strings.json` per feature module) rather than baked into code, so a language can be added without touching logic. A parity checker (`npm run i18n`, also run in CI) verifies a new locale against the English schema. Missing keys fall back to English at runtime (resolution order: per-string override -> active locale -> English -> humanized key). See [CONTRIBUTING.md](CONTRIBUTING.md) for the add-a-language workflow (dictionaries register through the module API; the built-in UI is English).
 
-**String overrides**: Override any UI text string individually via a searchable editor in Settings -> Language, without touching code. Useful for domain-specific terminology or personal naming preferences.
+**String overrides**: Override any UI text string individually via a searchable editor in Settings -> UI text, without touching code. Useful for domain-specific terminology or personal naming preferences.
 
 ## Advanced Features & Domain Modules
 
@@ -144,13 +144,12 @@ Share a layout or a single section as a portable JSON snippet. *Export* on a typ
 
 The plugin's architecture is built around registries, allowing feature modules to extend the core without modifying the codebase. Any module can register:
 
-- **Value types**: Custom data renderers and editors (e.g., the skills type).
+- **Value types**: Custom data renderers and editors (e.g., the rating type).
 - **Entry kinds**: Custom entry renderers (e.g., the roll panel).
 - **Cluster addons**: Extra UI cells appended to numeric rows (e.g., roll buttons, modifier badges).
 - **Derivations**: Modifier math blocks (also user-editable in settings).
 - **Section templates**: One-click section presets in the edit toolbar to build common layouts.
 - **Layout presets**: Full default layouts for new note types.
-- **Skill presets**: Pre-populated record lists for the legacy skills type (e.g., D&D 5e skill lists, saving throws).
 
 All feature modules can be toggled on/off in Settings -> Features without breaking existing layouts or data.
 
@@ -180,7 +179,7 @@ A complete D&D 5e character sheet built entirely as a feature module on top of t
 
 **Features toggle**: Enable/disable optional modules (D&D 5e, dice rolling, etc.) without deleting data.
 
-**Language & localization**: Choose UI language and override individual strings via searchable editor. Missing translations gracefully fall back to English.
+**UI text**: Override individual strings via a searchable editor. English is the built-in language; module-registered dictionaries fall back to English for missing keys.
 
 **Property hiding**: Manage which properties are hidden from Obsidian's properties panel. Sidebar-shown properties can be auto-hidden (default), and you can manually hide additional properties.
 

@@ -19,8 +19,12 @@
  */
 import type { FeatureModule } from "./core/registry";
 
-/** Bumped only on a breaking change to the published surface below. */
-export const API_VERSION = 1;
+/**
+ * Bumped only on a breaking change to the published surface below.
+ * v2 (plugin v4.0.0): the legacy skills preset registry (skillPresets,
+ * SkillPresetDef, SkillRecord) was removed from the registry surface.
+ */
+export const API_VERSION = 2;
 
 export interface ExtendedPropertiesApi {
   /** Stable version of the published API surface. */
