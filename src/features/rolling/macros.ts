@@ -1,5 +1,5 @@
 /**
- * Saved roll macros — "custom roll objects" — and the bridge between the
+ * Saved roll macros - "custom roll objects" - and the bridge between the
  * roller widget's segment chips and the {@link RollAst} engine.
  *
  * A macro is a named roll: a chain of segments (dice notation, numbers,

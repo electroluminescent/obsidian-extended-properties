@@ -1,7 +1,7 @@
 /**
  * The "core" feature module: registers the built-in value types, entry
  * kinds, and the empty layout preset. Core registrations use the same
- * extension points as optional features — there is no privileged path.
+ * extension points as optional features - there is no privileged path.
  */
 
 import type { FeatureContext } from "../../../core/registry";

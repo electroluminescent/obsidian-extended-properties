@@ -14,7 +14,7 @@ import { conflictingKeys } from "./merge";
 /** How long after our own write a metadata event counts as an echo (ms). */
 const ECHO_WINDOW_MS = 600;
 
-/** Coalescing debounce for queued writes (ms) — short enough to feel live. */
+/** Coalescing debounce for queued writes (ms) - short enough to feel live. */
 const WRITE_DEBOUNCE_MS = 300;
 /** Hard cap so a long continuous burst (a slider drag) still flushes (ms). */
 const WRITE_MAXWAIT_MS = 1000;
@@ -94,7 +94,7 @@ export class NoteModel {
   private pendingKeys = new Map<string, Set<string>>();
   private writeTimers = new Map<string, number>();
   private batchBase = new Map<string, number>();
-  /** Frontmatter snapshot when each batch began — the ancestor for 3-way merge. */
+  /** Frontmatter snapshot when each batch began - the ancestor for 3-way merge. */
   private batchBaseFm = new Map<string, Record<string, unknown>>();
   private batchStart = new Map<string, number>();
   private conflictPaths = new Set<string>();
@@ -200,7 +200,7 @@ export class NoteModel {
     // The note changed on disk after our batch began, and it isn't our own echo.
     if (guard && base && cur - base > CONFLICT_EPS_MS && !this.isEcho(file)) {
       // Three-way merge: only the keys both sides changed differently are real
-      // conflicts. If none, write our keys onto their file — their other edits
+      // conflicts. If none, write our keys onto their file - their other edits
       // are preserved because we never touch keys we didn't change.
       const theirs = (this.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown>) ?? {};
       const baseFm = this.batchBaseFm.get(path) ?? {};
@@ -339,7 +339,7 @@ export class NoteModel {
 }
 
 /**
- * A lightweight, file-keyed read/write facade over note frontmatter — the
+ * A lightweight, file-keyed read/write facade over note frontmatter - the
  * stateless counterpart to {@link NoteModel}, used where there is no active
  * view (inline rolls and properties in note bodies). Reads come straight from
  * the metadata cache; writes are coalesced per file (a short debounce) and
@@ -350,7 +350,7 @@ export class NoteFacade {
   private pending = new Map<string, Map<string, unknown>>();
   /** File mtime captured when each pending batch began (conflict baseline). */
   private bases = new Map<string, number>();
-  /** Frontmatter snapshot when each batch began — the ancestor for 3-way merge. */
+  /** Frontmatter snapshot when each batch began - the ancestor for 3-way merge. */
   private baseFm = new Map<string, Record<string, unknown>>();
   /** When we last wrote each file, to ignore our own echo (ms). */
   private lastWriteAt = new Map<string, number>();
@@ -448,8 +448,8 @@ export class NoteFacade {
 
   /**
    * Force-write every pending batch immediately (plugin unload). Mirrors
-   * {@link NoteModel.flushPending}: writes land without the conflict check —
-   * there is no one left to prompt — except files with an open conflict
+   * {@link NoteModel.flushPending}: writes land without the conflict check -
+   * there is no one left to prompt - except files with an open conflict
    * prompt, which stay suspended for the user's decision.
    */
   flushAll(): void {

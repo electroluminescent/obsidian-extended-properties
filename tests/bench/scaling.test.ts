@@ -1,6 +1,6 @@
 /**
  * PropertyIndex scaling assertions (N2). Deterministic work-count and
- * identity checks — never wall-clock — so CI noise can't flake them:
+ * identity checks - never wall-clock - so CI noise can't flake them:
  *
  *  - a warm cache serves reads with zero metadata-cache traffic;
  *  - aggregate candidate sets are memoized (same array identity) until a
@@ -32,7 +32,7 @@ describe("PropertyIndex scaling (N2)", () => {
       idx.valuesByType("Beast", "HP");
       idx.rowsByType("Item");
     }
-    expect(app.cacheReads).toBe(cold); // flat — renders cost no re-scan
+    expect(app.cacheReads).toBe(cold); // flat - renders cost no re-scan
   });
 
   it("memoizes aggregates until a note of that type changes", () => {
@@ -44,7 +44,7 @@ describe("PropertyIndex scaling (N2)", () => {
     expect(a2).toBe(a1); // identical array: no recompute
     const b1 = idx.valuesByType("Beast", "HP");
 
-    // Edit one Character note → Character aggregates recompute, Beast's don't.
+    // Edit one Character note -> Character aggregates recompute, Beast's don't.
     app.setFm("n/0.md", { Type: ["Character"], Level: 999 });
     idx.invalidateFile(app.files.get("n/0.md")!.file);
     const a3 = idx.valuesByType("Character", "Level");
@@ -61,7 +61,7 @@ describe("PropertyIndex scaling (N2)", () => {
     idx.rowsByType("Common"); // warm the snapshot cache + buckets
     app.fmReads = 0;
     expect(idx.valuesByType("Rare", "Gold")).toHaveLength(3);
-    // Bounded by the type's size (3 notes × a few key accesses), not by N.
+    // Bounded by the type's size (3 notes x a few key accesses), not by N.
     expect(app.fmReads).toBeLessThan(3 * 10);
   });
 

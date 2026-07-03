@@ -70,8 +70,8 @@ export function defaultSettings(): EPSettings {
  * Every top-level settings key `normalizeSettings` reads and sanitizes
  * explicitly. Any persisted key NOT in this set is carried over verbatim (see
  * the end of `normalizeSettings`), so settings written by a newer plugin
- * version — or top-level keys saved by a third-party module through the public
- * API — survive a load → save round-trip instead of being silently dropped.
+ * version - or top-level keys saved by a third-party module through the public
+ * API - survive a load -> save round-trip instead of being silently dropped.
  */
 const HANDLED_KEYS: ReadonlySet<string> = new Set([
   "types", "layouts", "layout", "hideShown", "defaults", "manualHide",
@@ -92,7 +92,7 @@ function cleanTypes(raw: unknown): string[] {
 }
 
 /**
- * Structural validation for persisted layouts — the largest user-authored
+ * Structural validation for persisted layouts - the largest user-authored
  * blob in `data.json`, and until now the least checked one (`inlineEntries`
  * got the same treatment in v3.7.0). A layout must be an object with a
  * `sections` array; sections must be objects (a missing `entries` becomes an
@@ -190,7 +190,7 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
     if (data.crossNote === false) s.crossNote = false;
     if (data.conflictGuard === false) s.conflictGuard = false;
     if (data.tableLayouts && typeof data.tableLayouts === "object") s.tableLayouts = data.tableLayouts;
-    // Inline `ep-sheet` entries keyed by block id — validate the shape so a
+    // Inline `ep-sheet` entries keyed by block id - validate the shape so a
     // corrupt/foreign value can't crash the inline renderer (it only ever
     // reads `Entry`-shaped objects out of this map).
     if (data.inlineEntries && typeof data.inlineEntries === "object") {
@@ -200,7 +200,7 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
       }
       s.inlineEntries = clean as EPSettings["inlineEntries"];
     }
-    // Shared per-key data types: keep only string → string pairs.
+    // Shared per-key data types: keep only string -> string pairs.
     if (data.propTypes && typeof data.propTypes === "object") {
       const clean: Record<string, string> = {};
       for (const [k, v] of Object.entries(data.propTypes as Record<string, unknown>)) {
@@ -292,7 +292,7 @@ export const SCHEMA_MIGRATIONS: Migration[] = [
       // Data types become per-property (vault-wide) instead of per-layout:
       // seed `propTypes` from the layouts (first explicit dataType per key
       // wins), then re-stamp every explicitly-typed entry so all layouts
-      // agree. Entries with no dataType keep auto-deriving — they resolve
+      // agree. Entries with no dataType keep auto-deriving - they resolve
       // through the shared map at render time.
       let changed = false;
       const map: Record<string, string> = { ...(s.propTypes ?? {}) };
@@ -325,7 +325,7 @@ export const SCHEMA_MIGRATIONS: Migration[] = [
 
 /**
  * Run every step newer than `s.schemaVersion`, in order, then stamp the current
- * version. Pure and idempotent — a second run is a no-op. `table` is injectable
+ * version. Pure and idempotent - a second run is a no-op. `table` is injectable
  * for tests and for folding in feature-module steps.
  */
 export function runSchemaMigrations(

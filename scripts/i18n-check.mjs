@@ -23,7 +23,7 @@ const placeholders = (s) => new Set([...String(s).matchAll(/\{(\w+)\}/g)].map((m
 const MODULES = ["rolling", "dnd5e", "inline"];
 
 let errors = 0;
-const err = (m) => { console.error("  ✗ " + m); errors++; };
+const err = (m) => { console.error("  X " + m); errors++; };
 
 /** key -> { file, ph }. `scope` groups keys by their schema file. */
 const schema = new Map();
@@ -37,7 +37,7 @@ for (const [f, scope] of enSources) {
   const dict = read(abs);
   for (const [k, v] of Object.entries(dict)) {
     if (typeof v !== "string") { err(`${f}: value of "${k}" is not a string`); continue; }
-    if (schema.has(k)) console.warn(`  ⚠ duplicate key "${k}" in ${f} (also ${schema.get(k).file})`);
+    if (schema.has(k)) console.warn(`  ! duplicate key "${k}" in ${f} (also ${schema.get(k).file})`);
     else schema.set(k, { file: f, scope, ph: placeholders(v) });
     if (((v.match(/\{/g) || []).length) !== ((v.match(/\}/g) || []).length)) err(`${f}: unbalanced { } in "${k}"`);
   }
@@ -58,7 +58,7 @@ for (const m of MODULES) {
 }
 
 if (!locales.length) {
-  console.log("No non-English locale files yet — English schema validated only.");
+  console.log("No non-English locale files yet - English schema validated only.");
 } else {
   for (const [lf, scope] of locales) {
     const dict = read(lf);

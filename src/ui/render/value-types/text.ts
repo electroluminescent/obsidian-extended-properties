@@ -1,5 +1,5 @@
 /**
- * "text" value type — single-line text with link rendering and vault-wide
+ * "text" value type - single-line text with link rendering and vault-wide
  * value autocompletion while editing.
  *
  * Also the surface for L1 sensitive-value encryption: a value stored as an
@@ -34,9 +34,9 @@ export const textType: ValueTypeDef = {
         const plain = view.secretReveal?.(raw) ?? null;
         if (plain !== null) {
           view.renderLinks(s, plain);
-          s.createSpan({ cls: "ep-lock-badge", text: " 🔒" });
+          s.createSpan({ cls: "ep-lock-badge", text: " [locked]" });
         } else {
-          s.setText("🔒 " + view.i18n.t("secure.locked"));
+          s.setText(view.i18n.t("secure.locked"));
           s.addClass("ep-locked");
         }
         applyValidity(v, entry, "text", raw, view.i18n);
@@ -44,7 +44,7 @@ export const textType: ValueTypeDef = {
       }
       const val = view.note.str(key);
       if (val === "") {
-        s.setText("—");
+        s.setText("-");
         s.addClass("ep-placeholder");
       } else {
         view.renderLinks(s, val);
@@ -54,7 +54,7 @@ export const textType: ValueTypeDef = {
     };
     draw();
     view.bindOpen(s, () => {
-      // Never open a plaintext editor over an encrypted value — that would drop
+      // Never open a plaintext editor over an encrypted value - that would drop
       // the ciphertext. Direct the user to Decrypt first.
       if (isEnvelope(view.note.raw[key])) {
         new Notice(view.i18n.t("secure.editLocked"));
@@ -87,7 +87,7 @@ export const textType: ValueTypeDef = {
         ).open();
       })
     );
-    // L1 encryption actions — sidebar view only (the ViewCtx helpers are optional).
+    // L1 encryption actions - sidebar view only (the ViewCtx helpers are optional).
     if (view.encryptValueAt && !encrypted) {
       menu.addItem((i) =>
         i

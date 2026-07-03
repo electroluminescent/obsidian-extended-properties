@@ -28,7 +28,7 @@ export type SectionPin = "header" | "body" | "footer";
 export interface EntryBase {
   /** Stable id used for drag & drop and FLIP animations. */
   id: string;
-  /** Entry kind id, resolved via the entry-kind registry ("prop", "blank", "toc", …). */
+  /** Entry kind id, resolved via the entry-kind registry ("prop", "blank", "toc", ...). */
   kind: string;
   /** For kind "prop": the frontmatter key this entry shows. */
   key?: string;
@@ -60,13 +60,13 @@ export interface EntryBase {
   slider?: boolean;
   /** Slider response: "linear" (default), "root", or "exp". */
   sliderCurve?: string;
-  /** Hide the −/+ stepper buttons when false (default: shown). */
+  /** Hide the -/+ stepper buttons when false (default: shown). */
   steppers?: boolean;
   /** Unset min/max default to the property's range across all notes. */
   min?: number;
   max?: number;
   clamp?: boolean;
-  /** Formula value type: expression mapping slider position → value. */
+  /** Formula value type: expression mapping slider position -> value. */
   formula?: string;
 
   /**
@@ -107,11 +107,11 @@ export type Entry = EntryBase & Record<string, unknown>;
 
 /**
  * View an entry through a feature-defined extension interface.
- * Purely a typing aid — no copying happens.
+ * Purely a typing aid - no copying happens.
  *
  * @example
  *   interface RollExt { roll?: RollKind; showMod?: boolean }
- *   const e = ext<RollExt>(entry); if (e.roll) …
+ *   const e = ext<RollExt>(entry); if (e.roll) ...
  */
 export function ext<T extends object>(entry: Entry): EntryBase & Partial<T> {
   return entry as EntryBase & Partial<T>;
@@ -219,7 +219,7 @@ export interface RollSeg {
 }
 
 /**
- * A named, reusable roll — a "custom roll object". Stored vault-globally in
+ * A named, reusable roll - a "custom roll object". Stored vault-globally in
  * settings; an optional `typeKey` scopes it to one note type. Until the roll
  * AST lands (roadmap A2) the roll is represented as a segment chain plus the
  * roller's mode/repeat, which is exactly what the roller widget round-trips.
@@ -306,7 +306,7 @@ export interface EPSettings {
    */
   sourceAbbrs: Record<string, string>;
   /**
-   * Maximum influence chain depth: how many property→property hops are
+   * Maximum influence chain depth: how many property->property hops are
    * resolved when derived values feed other derived values.
    */
   modDepth: number;
@@ -322,7 +322,7 @@ export interface EPSettings {
   dice3dAA?: boolean;
   /** Play subtle UI / dice / crit sound effects (default on). */
   sound?: boolean;
-  /** Sound-effect volume, 0–1 (default 0.3). */
+  /** Sound-effect volume, 0-1 (default 0.3). */
   soundVolume?: number;
   /** Per-category sound toggles (default on): UI clicks, dice rolls, crit/fail. */
   soundUi?: boolean;
@@ -371,7 +371,7 @@ export interface EPSettings {
   rollHistoryLimit: number;
   /** Persist roll history across sessions (false = legacy in-memory-only behavior). */
   rollHistoryEnabled: boolean;
-  /** Per-die crit thresholds: die-size (as string) → minimum face that counts as a crit. */
+  /** Per-die crit thresholds: die-size (as string) -> minimum face that counts as a crit. */
   critRanges: Record<string, number>;
   /** Treat an all-1s primary dice result as a fail (default true). */
   failOnOne: boolean;

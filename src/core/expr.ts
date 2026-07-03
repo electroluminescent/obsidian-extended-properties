@@ -1,5 +1,5 @@
 /**
- * The expression engine — one generic, pure math evaluator shared by derived
+ * The expression engine - one generic, pure math evaluator shared by derived
  * properties, the `formula` value type, per-influence expressions and (later)
  * conditional visibility and validation messages.
  *
@@ -19,9 +19,9 @@
  * References resolve through the caller's `resolve(name)`; functions not in the
  * builtin library fall back to `env.fn(name)` (the user-defined derivations).
  * `if(cond, a, b)` is lazy. Anything unresolved, NaN or non-finite makes the
- * whole evaluation return `undefined`, so a typo degrades to "—", never throws.
+ * whole evaluation return `undefined`, so a typo degrades to "-", never throws.
  *
- * Zero Obsidian imports — trivially unit-testable.
+ * Zero Obsidian imports - trivially unit-testable.
  */
 
 // ---------------------------------------------------------------------------
@@ -264,7 +264,7 @@ function toNum(v: Val): number {
   return n;
 }
 
-/** Equality — case-insensitive, trimmed string compare when either side is a string. */
+/** Equality - case-insensitive, trimmed string compare when either side is a string. */
 function eqVal(a: Val, b: Val): boolean {
   if (typeof a === "string" || typeof b === "string")
     return String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
@@ -315,7 +315,7 @@ function evalBinary(node: Extract<ExprNode, { kind: "binary" }>, env: ExprEnv): 
   const a = evalNode(node.left, env);
   const b = evalNode(node.right, env);
   // Equality is string-aware (case-insensitive) when either operand is a
-  // string — e.g. `Class == "Wizard"`; everything else coerces to number.
+  // string - e.g. `Class == "Wizard"`; everything else coerces to number.
   if (op === "==") return eqVal(a, b) ? 1 : 0;
   if (op === "!=") return eqVal(a, b) ? 0 : 1;
   const x = toNum(a);
@@ -426,7 +426,7 @@ function quote(name: string): string {
 
 /**
  * Render `ast` back to text. `mapRef` may rewrite reference names (used to show
- * the short-form denotation, e.g. `Dexterity` → `DEX`). Minimal parentheses.
+ * the short-form denotation, e.g. `Dexterity` -> `DEX`). Minimal parentheses.
  */
 export function serializeExpr(ast: ExprNode, mapRef?: (name: string) => string): string {
   const ser = (n: ExprNode, parentBp: number): string => {

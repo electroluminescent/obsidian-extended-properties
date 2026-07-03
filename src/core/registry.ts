@@ -1,10 +1,10 @@
 /**
- * Extension registries — the seam between the generic core and features.
+ * Extension registries - the seam between the generic core and features.
  *
  * The sidebar never hard-codes what an entry *is*. Instead it looks up:
  *
- * - {@link ValueTypeDef}    how a property value renders/edits ("text", "color", …)
- * - {@link EntryKindDef}    non-property widgets ("toc", roll panel, …)
+ * - {@link ValueTypeDef}    how a property value renders/edits ("text", "color", ...)
+ * - {@link EntryKindDef}    non-property widgets ("toc", roll panel, ...)
  * - {@link ClusterAddon}    extra controls attached to numeric entries
  *                           (e.g. the modifier badge + roll button)
  * - {@link DerivationDef}   how a raw source value becomes a modifier term
@@ -14,7 +14,7 @@
  * - {@link SkillPresetDef}      record sets for the legacy "skills" value type
  *
  * A {@link FeatureModule} bundles registrations (plus i18n strings) so a
- * domain — like D&D 5e — lives entirely in `src/features/<id>/` and can be
+ * domain - like D&D 5e - lives entirely in `src/features/<id>/` and can be
  * toggled in settings without the core knowing it exists.
  */
 
@@ -29,7 +29,7 @@ import type { EntryRef, EntryRenderCtx, OptionsCtx } from "./context";
 
 /**
  * A named cell in the aligned control cluster of a section
- * (`[before…] [−] [value] [+] [after…]`). All rows of a section share the
+ * (`[before...] [-] [value] [+] [after...]`). All rows of a section share the
  * same slot columns so values line up; rows that don't use a slot render an
  * empty cell.
  */
@@ -88,7 +88,7 @@ export interface EntryKindDef {
   clusterNeeds?(ref: EntryRef): ClusterNeeds;
   /** Span all columns of the section (e.g. block lists). */
   wide?: boolean;
-  /** Render entirely custom chrome (no shell/label) — used by "blank". */
+  /** Render entirely custom chrome (no shell/label) - used by "blank". */
   bare?: boolean;
   /** Show in the section menu's "Add object" submenu. */
   addable?: boolean;
@@ -121,7 +121,7 @@ export interface ClusterAddon {
   /** Slots this addon needs when it applies. */
   needs(ref: EntryRef): ClusterNeeds;
   /**
-   * Fill the addon's slots. Returns slot-id → cell renderer.
+   * Fill the addon's slots. Returns slot-id -> cell renderer.
    * Register updaters via `ref.view.registerUpdater` for live refresh.
    */
   fillSlots(ctx: EntryRenderCtx, num: NumericAccess): Record<string, (cell: HTMLElement) => void>;
@@ -133,7 +133,7 @@ export interface ClusterAddon {
    * Clear the fields this addon persists on an entry when the entry is
    * re-pointed at a different property key (per-key configuration rarely
    * survives a re-point meaningfully). Keeps feature-owned fields out of
-   * the core view — the view calls every addon's hook instead of knowing
+   * the core view - the view calls every addon's hook instead of knowing
    * the field names.
    */
   onRename?(entry: Entry): void;
@@ -188,7 +188,7 @@ export interface LayoutPresetDef {
 /**
  * One row of a "skills" property. Stored verbatim (minus undefined fields)
  * as an object inside the property's list value, so everything stays
- * user-editable — in the sidebar, in the options page, or as raw YAML.
+ * user-editable - in the sidebar, in the options page, or as raw YAML.
  */
 export interface SkillRecord {
   /** Display name; also the roll label. */
@@ -219,7 +219,7 @@ export interface SkillPresetDef {
 // Registry plumbing
 // ---------------------------------------------------------------------------
 
-/** Insertion-ordered id → definition map. */
+/** Insertion-ordered id -> definition map. */
 export class Registry<T extends { id: string }> {
   private items = new Map<string, T>();
 

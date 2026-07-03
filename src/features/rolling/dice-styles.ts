@@ -3,13 +3,13 @@
  *
  * Each {@link DiceStyle} owns how a single die looks while rolling and how it
  * lands. `dice-anim.ts` builds one die element per rolled face, calls `tick()`
- * on the un-settled ones each frame, and `settle(value)` when a die lands — the
+ * on the un-settled ones each frame, and `settle(value)` when a die lands - the
  * card layout, the addition chain, the conveyor and sound are all style-agnostic.
  *
  * Built-in styles:
- *   - classic — the die tumbles while its number cycles, then pops to the result
- *   - spin    — the die icon spins in place (number hidden) and reveals the result
- *   - 3d      — a tumbling numbered cube that lands facing the result
+ *   - classic - the die tumbles while its number cycles, then pops to the result
+ *   - spin    - the die icon spins in place (number hidden) and reveals the result
+ *   - 3d      - a tumbling numbered cube that lands facing the result
  */
 
 import { setIcon } from "obsidian";
@@ -34,7 +34,7 @@ export interface DiceStyle {
   id: string;
   name: (i18n: I18n) => string;
   /** Build the die's contents into `el` (already classed `ep-roll-die`).
-   *  `ss` is the 3D supersample (anti-alias) factor — 1 = off; only 3D uses it. */
+   *  `ss` is the 3D supersample (anti-alias) factor - 1 = off; only 3D uses it. */
   create(el: HTMLElement, sides: number, ss?: number): DieView;
 }
 
@@ -64,7 +64,7 @@ const classic: DiceStyle = {
 
 /**
  * Spin: the die icon spins while a number is always shown, cycling random
- * faces — fast at first, then slowing (the 3D die's deceleration feel) until
+ * faces - fast at first, then slowing (the 3D die's deceleration feel) until
  * the timeline lands it on the real result.
  */
 const spin: DiceStyle = {
@@ -91,7 +91,7 @@ const spin: DiceStyle = {
           num.setText(String(rnd(sides)));
           const p = Math.min(1, (performance.now() - t0) / dur);
           if (p >= 1) return; // settle() lands the real value
-          // Gap between face swaps grows quadratically: ~55 ms → ~285 ms.
+          // Gap between face swaps grows quadratically: ~55 ms -> ~285 ms.
           timer = window.setTimeout(step, 55 + 230 * p * p);
         };
         step();
@@ -108,7 +108,7 @@ const spin: DiceStyle = {
 };
 
 /**
- * 3D: a true polyhedron per die — tetrahedron (d4), cube (d6), octahedron (d8),
+ * 3D: a true polyhedron per die - tetrahedron (d4), cube (d6), octahedron (d8),
  * pentagonal trapezohedron (d10), dodecahedron (d12), icosahedron (d20). Each
  * solid is normalized to one size; faces are an edge layer with an inset fill
  * layer (so outlines always draw). It spins on a single axis, decelerating
@@ -120,12 +120,12 @@ const cube3d: DiceStyle = {
   id: "3d",
   name: (i) => i.t("roll.style.threeD"),
   create(el, sides, ss) {
-    // Supersample (anti-alias) factor: build the solid SS× larger so each face's
-    // clip-path rasterizes at SS× resolution, then scale the whole solid back
-    // down by 1/SS — the GPU minifies the clipped faces with linear filtering,
+    // Supersample (anti-alias) factor: build the solid SSx larger so each face's
+    // clip-path rasterizes at SSx resolution, then scale the whole solid back
+    // down by 1/SS - the GPU minifies the clipped faces with linear filtering,
     // smoothing the otherwise-jagged polygon edges. This MUST be scale3d (a
-    // uniform 3D scale): a 2D scale() leaves z at the SS× depth, stretching the
-    // solid and doubling the perspective foreshortening. With scale3d the SS×
+    // uniform 3D scale): a 2D scale() leaves z at the SSx depth, stretching the
+    // solid and doubling the perspective foreshortening. With scale3d the SSx
     // geometry depth cancels too, so perspective and shape are unchanged. SS = 1
     // reproduces the original (no extra layers).
     const SS = ss && ss > 1 ? Math.floor(ss) : 1;
@@ -136,7 +136,7 @@ const cube3d: DiceStyle = {
     const k = (1 / SS).toFixed(4);
     const sc = SS > 1 ? `scale3d(${k}, ${k}, ${k}) ` : "";
     if (SS > 1) {
-      // The face box (and its clip-path coords) are SS× big; size the stage to
+      // The face box (and its clip-path coords) are SSx big; size the stage to
       // match and pre-apply the downscale so it never flashes at full size.
       wrap.style.width = wrap.style.height = `${BOX * SS}px`;
       wrap.style.transform = sc.trim();
@@ -151,7 +151,7 @@ const cube3d: DiceStyle = {
       // The number is a sibling of the (clipped) fill so it's never clipped, and
       // rotated so its top points at the face's pointiest vertex / edge midpoint.
       const num = fe.createDiv({ cls: "ep-solid-num", text: String(k + 1) });
-      // em resolves before the 1/SS downscale, so size the digit SS× to keep it.
+      // em resolves before the 1/SS downscale, so size the digit SSx to keep it.
       if (SS > 1) num.style.fontSize = `${(1.05 * SS).toFixed(3)}em`;
       num.style.transform = `rotate(${f.numRot.toFixed(1)}deg)`;
       return fe;
@@ -182,16 +182,16 @@ const cube3d: DiceStyle = {
           wrap.style.transform = end; // no motion for reduced-motion users
           return;
         }
-        const spins = 3 + Math.floor(Math.random() * 2); // 3–4 full turns
+        const spins = 3 + Math.floor(Math.random() * 2); // 3-4 full turns
         const dur = Math.max(450, Math.min(1600, durationMs || 700));
         wrap.style.transform = tf(360 * spins); // wound-up start (no pre-animation flash)
         wrap.animate(
           [
-            // Decelerate quickly from the wound-up spin down onto the face…
+            // Decelerate quickly from the wound-up spin down onto the face...
             { transform: tf(360 * spins), offset: 0, easing: "cubic-bezier(.12,.75,.16,1)" },
-            // …carry a touch past it (the bounce)…
+            // ...carry a touch past it (the bounce)...
             { transform: tf(-9), offset: 0.86, easing: "cubic-bezier(.33,0,.5,1)" },
-            // …then settle back exactly on the face.
+            // ...then settle back exactly on the face.
             { transform: end, offset: 1 },
           ],
           { duration: dur, fill: "forwards" }

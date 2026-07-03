@@ -3,7 +3,7 @@
  *
  * A {@link ViewPlugin} maintains replace-widget decorations over inline-code
  * spans that match the inline syntax, but skips any span the selection touches
- * — so moving the caret just before, into, or just after a chip reveals the
+ * - so moving the caret just before, into, or just after a chip reveals the
  * raw text for editing, and leaving it re-renders the chip. The roll chip's
  * right-click menu (the standard roll menu) gains an "Edit source" action that
  * drops the caret inside the span to reveal it.
@@ -44,7 +44,7 @@ class InlineWidget extends WidgetType {
   /**
    * Position is deliberately NOT part of equality. An edit *above* a widget
    * shifts its position but not its content; if `eq` included the position,
-   * CM6 would rebuild the whole widget every keystroke and re-attach its DOM —
+   * CM6 would rebuild the whole widget every keystroke and re-attach its DOM -
    * a path that drops the heavier `vals:` card. Comparing content only lets
    * CM6 reuse and reposition the existing DOM, so cards survive edits above.
    */
@@ -82,7 +82,7 @@ class InlineWidget extends WidgetType {
       }
       return dom;
     } catch (e) {
-      // A throw here would leave an empty replacement widget — the raw text is
+      // A throw here would leave an empty replacement widget - the raw text is
       // hidden but no chip appears. Fall back to a clickable raw-text span so
       // the source is always visible and editable.
       console.error("extended-properties: inline widget render failed", e);
@@ -100,14 +100,14 @@ class InlineWidget extends WidgetType {
 function buildDecos(view: EditorView, ctx: InlineCtx): DecorationSet {
   const b = new RangeSetBuilder<Decoration>();
   if (ctx.settings.features["inline"] === false) return b.finish();
-  if (!view.state.field(editorLivePreviewField, false)) return b.finish(); // source mode → raw
+  if (!view.state.field(editorLivePreviewField, false)) return b.finish(); // source mode -> raw
   const file = view.state.field(editorInfoField, false)?.file ?? ctx.app.workspace.getActiveFile();
   if (!file) return b.finish();
   const sel = view.state.selection;
   const doc = view.state.doc;
 
   // Collect first, then add in sorted, non-overlapping order. RangeSetBuilder
-  // requires that — and backtick-span expansion or multiple visible ranges can
+  // requires that - and backtick-span expansion or multiple visible ranges can
   // otherwise produce an out-of-order add, which throws and blanks every chip.
   const items: { from: number; to: number; deco: Decoration }[] = [];
   for (const { from, to } of view.visibleRanges) {
@@ -125,7 +125,7 @@ function buildDecos(view: EditorView, ctx: InlineCtx): DecorationSet {
         const span = backtickSpan(doc, node.from, node.to);
         // While the editor is focused, a selection touching the span (either
         // edge) reveals the raw markdown for editing. When focus leaves the
-        // editor, always render the chip — otherwise clicking away would hide
+        // editor, always render the chip - otherwise clicking away would hide
         // the editable text without re-rendering the chip.
         if (view.hasFocus && sel.ranges.some((r) => r.from <= span.to && r.to >= span.from)) return;
         items.push({
@@ -176,7 +176,7 @@ export function inlineLivePreview(ctx: InlineCtx) {
           try {
             this.decorations = buildDecos(u.view, ctx);
           } catch (e) {
-            // A failed rebuild must not blank every chip/card — keep the
+            // A failed rebuild must not blank every chip/card - keep the
             // already-remapped decorations from this update instead.
             console.error("extended-properties: live-preview rebuild failed", e);
           }

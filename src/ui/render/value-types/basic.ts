@@ -81,7 +81,7 @@ function buildList(ctx: EntryRenderCtx, holder: HTMLElement, showAdd: boolean): 
     const chip = list.createSpan({ cls: "ep-chip" });
     const cv = chip.createSpan();
     view.renderLinks(cv, item);
-    const x = chip.createSpan({ cls: "ep-chip-x", text: "×" });
+    const x = chip.createSpan({ cls: "ep-chip-x", text: "x" });
     x.setAttr("role", "button");
     x.tabIndex = 0;
     x.setAttr("aria-label", view.i18n.t("a11y.removeItem", { item }));
@@ -173,7 +173,7 @@ export const colorType: ValueTypeDef = {
       const ok = hexToRgb(hex);
       sw.style.background = ok ? hex : "transparent";
       sw.toggleClass("ep-swatch-empty", !ok);
-      txt.setText(hex || "—");
+      txt.setText(hex || "-");
     };
     draw();
     const open = () =>

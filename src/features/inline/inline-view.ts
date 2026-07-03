@@ -1,6 +1,6 @@
 /**
- * `vals:` — render a property inline as the *same* card the sidebar shows:
- * label, the value-type UI (sliders, swatches, images, lists, …) and cluster
+ * `vals:` - render a property inline as the *same* card the sidebar shows:
+ * label, the value-type UI (sliders, swatches, images, lists, ...) and cluster
  * addons (roll buttons, modifier badges), with a context menu that opens the
  * standard entry-options modal (enable sliders, steppers, rolls, etc.).
  *
@@ -226,7 +226,7 @@ class InlineViewCtx implements ViewCtx {
  * (Live Preview) to reveal the raw text.
  */
 export function makeValsEl(ctx: InlineCtx, file: TFile, body: string, onEditSource?: () => void): HTMLElement {
-  // The root is the card itself — a single inline-block element. Nesting a
+  // The root is the card itself - a single inline-block element. Nesting a
   // block <div> inside an inline <span> widget collapses to zero size in the
   // mobile editor (chips are span-only, which is why they survived); a div
   // with an explicit inline-block display renders inline on both platforms.
@@ -303,11 +303,11 @@ export function makeValsEl(ctx: InlineCtx, file: TFile, body: string, onEditSour
       const v = ctx.facade.get(target, entry.key as string);
       head
         .createDiv({ cls: "ep-val-right" })
-        .setText(v === undefined || v === null || v === "" ? "—" : Array.isArray(v) ? v.join(", ") : String(v));
+        .setText(v === undefined || v === null || v === "" ? "-" : Array.isArray(v) ? v.join(", ") : String(v));
     }
 
     // Context menu: configure (options modal), clear value, value-type items,
-    // and Edit source — but none of the sidebar's structural (grid) actions.
+    // and Edit source - but none of the sidebar's structural (grid) actions.
     wrap.addEventListener("contextmenu", (ev) => {
       ev.preventDefault();
       ev.stopPropagation();

@@ -41,7 +41,7 @@ describe("buildSolid", () => {
     for (const sides of [4, 6, 8, 10, 12, 20]) {
       for (const f of buildSolid(sides)!) {
         const m = f.land.match(/matrix3d\(([^)]+)\)/)![1].split(",").map(Number);
-        // land is R^T (column-major): (R^T·n)[r] = Σ_c m[4c+r]·n[c]; should be (0,0,1).
+        // land is R^T (column-major): (R^T*n)[r] = sum_c m[4c+r]*n[c]; should be (0,0,1).
         const out = [0, 1, 2].map((r) => m[r] * f.n[0] + m[4 + r] * f.n[1] + m[8 + r] * f.n[2]);
         // matrix3d strings are rounded to 4 decimals, so allow ~1e-3 slack.
         expect(out[0]).toBeCloseTo(0, 3);

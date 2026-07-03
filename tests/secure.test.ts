@@ -3,10 +3,10 @@ import { encryptValue, decryptValue, isEnvelope, SecretStore } from "../src/core
 
 describe("secure (AES-GCM round-trip)", () => {
   it("round-trips a value with the right passphrase", async () => {
-    const env = await encryptValue("hunter2 — secret", "correct horse");
+    const env = await encryptValue("hunter2 - secret", "correct horse");
     expect(isEnvelope(env)).toBe(true);
     expect(env).not.toContain("hunter2");
-    expect(await decryptValue(env, "correct horse")).toBe("hunter2 — secret");
+    expect(await decryptValue(env, "correct horse")).toBe("hunter2 - secret");
   });
 
   it("rejects a wrong passphrase (never returns garbage)", async () => {

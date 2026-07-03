@@ -1,6 +1,6 @@
 /**
  * The control cluster: the right-aligned strip of cells on a numeric entry
- * row (`[addon slots…] [−] [value] [+] [addon slots…]`).
+ * row (`[addon slots...] [-] [value] [+] [addon slots...]`).
  *
  * All entries of a section share one column template (computed in
  * `section-renderer.ts`) so values align vertically; entries that don't use
@@ -75,7 +75,7 @@ export function buildCluster(
 
   if (flags.steppers) {
     if (o.steppers && editable) {
-      const dec = cl.createEl("button", { cls: "ep-step-btn", text: "−" });
+      const dec = cl.createEl("button", { cls: "ep-step-btn", text: "-" });
       dec.setAttr("aria-label", "Decrease value");
       dec.onclick = () => {
         sfx.tick();

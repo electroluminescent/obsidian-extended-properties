@@ -87,7 +87,7 @@ describe("normalizeSettings", () => {
         types: [],
         layouts: {},
         appVersion: "9.9.9",
-        modDepth: "oops", // invalid → must fall back, not carry the bad value
+        modDepth: "oops", // invalid -> must fall back, not carry the bad value
         futureSetting: { nested: 1 },
         myModuleConfig: [1, 2, 3],
       },

@@ -44,7 +44,7 @@ export function openEntryMenu(
       )
     );
     menu.addSeparator();
-    // Value-type specific actions (edit value, pick color, add item, …).
+    // Value-type specific actions (edit value, pick color, add item, ...).
     const type = view.resolveType(entry);
     view.registries.valueTypes.get(type)?.menuItems?.(menu, { view, file, section, entry }, { x: e.clientX, y: e.clientY });
   }

@@ -1,5 +1,5 @@
 /**
- * Context interfaces — the contracts renderers and features program against.
+ * Context interfaces - the contracts renderers and features program against.
  *
  * Renderers never receive the concrete sidebar view; they receive a
  * {@link ViewCtx}. This keeps every renderer, modal, and feature module
@@ -29,7 +29,7 @@ export interface ClusterOptions {
   get?: () => number;
   /** Static display text (non-editable entries). */
   display?: string;
-  /** Show −/+ stepper buttons. */
+  /** Show -/+ stepper buttons. */
   steppers?: boolean;
   min?: number;
   max?: number;
@@ -37,7 +37,7 @@ export interface ClusterOptions {
   clamp?: boolean;
   /** Commit an edited value. Editability = `get` && `commit`. */
   commit?: (v: number) => void;
-  /** slot id → renderer for the slots this entry actually uses. */
+  /** slot id -> renderer for the slots this entry actually uses. */
   slots?: Record<string, (cell: HTMLElement) => void>;
 }
 
@@ -61,7 +61,7 @@ export interface EntryRef {
 export interface EntryRenderCtx extends EntryRef {
   /** Single-line row: label + cluster/value. */
   head: HTMLElement;
-  /** Full-width area below the head (lists, images, sliders, …). */
+  /** Full-width area below the head (lists, images, sliders, ...). */
   extra: HTMLElement;
   /** Section-wide cluster columns. */
   flags: ClusterFlags;
@@ -121,7 +121,7 @@ export interface ViewCtx {
   // -- entry helpers ----------------------------------------------------
   /** Resolve an entry's effective value type id. */
   resolveType(entry: Entry): string;
-  /** Derive a value type for a key (Obsidian type → current value → default). */
+  /** Derive a value type for a key (Obsidian type -> current value -> default). */
   deriveType(key: string): string;
   /** Default label for an entry (key or kind label). */
   defaultLabelFor(entry: Entry): string;
@@ -146,7 +146,7 @@ export interface ViewCtx {
    */
   condVisible(showWhen?: string): boolean;
 
-  // -- sensitive property encryption (L1; optional — only the sidebar view) ----
+  // -- sensitive property encryption (L1; optional - only the sidebar view) ----
   /** Synchronous plaintext for an encrypted envelope value, if unlocked & primed. */
   secretReveal?(envelope: string): string | null;
   /** Encrypt a property's current value in place (explicit, confirmed). */
@@ -166,7 +166,7 @@ export interface ViewCtx {
   scrollToSection(id: string): void;
   /**
    * Candidate keys for property pickers, each with its resolved data type
-   * (id + display name), sorted note-first, then by type, then by key — the
+   * (id + display name), sorted note-first, then by type, then by key - the
    * shared grouping every property list renders.
    * @param includeShown also list keys already shown in the layout
    *                     (e.g. for roll sources or re-pointing an entry)

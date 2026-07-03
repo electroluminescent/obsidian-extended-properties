@@ -67,7 +67,7 @@ export class SidebarView extends ItemView implements ViewCtx {
    * values may have changed (render, refreshValues, maybeRefresh).
    */
   private condVals = new Map<string, boolean>();
-  /** Responsive-pass signature per section id — skip re-measuring unchanged ones (F2). */
+  /** Responsive-pass signature per section id - skip re-measuring unchanged ones (F2). */
   private respSig = new Map<string, string>();
   private hlTimer = 0;
   private scrollTimer = 0;
@@ -107,7 +107,7 @@ export class SidebarView extends ItemView implements ViewCtx {
     for (const u of this.updaters) {
       try { u(); } catch { /* a single broken updater must not kill the pass */ }
     }
-    // Updaters may repaint decorations (badges, chains) fresh — re-decide
+    // Updaters may repaint decorations (badges, chains) fresh - re-decide
     // visibility so a refresh can't resurrect squeezed elements. A repaint can
     // change content widths, so drop the signature cache and re-measure.
     this.respSig.clear();
@@ -226,7 +226,7 @@ export class SidebarView extends ItemView implements ViewCtx {
       this.note.set(file, key, plain);
       new Notice(this.i18n.t("secure.decrypted"));
     } catch {
-      new Notice(this.i18n.t("secure.wrongPass")); // no write — ciphertext preserved
+      new Notice(this.i18n.t("secure.wrongPass")); // no write - ciphertext preserved
     }
   }
 
@@ -312,7 +312,7 @@ export class SidebarView extends ItemView implements ViewCtx {
   bindOpen(el: HTMLElement, open: () => void, markEditable = true): void {
     if (markEditable) el.addClass("ep-editable");
     // Keyboard a11y (M1): editable value cells are operable, not just clickable
-    // — focusable, announced as a button, and opened with Enter/Space. This
+    // - focusable, announced as a button, and opened with Enter/Space. This
     // matches the slider knob's existing focusable-control pattern.
     el.tabIndex = 0;
     el.setAttr("role", "button");
@@ -417,8 +417,8 @@ export class SidebarView extends ItemView implements ViewCtx {
     entry.unit = undefined;
     entry.unitFactor = undefined;
     entry.listAlign = undefined;
-    // Feature-owned fields (roll config, modifier chains, …) are cleared by
-    // their owners — see ClusterAddon.onRename.
+    // Feature-owned fields (roll config, modifier chains, ...) are cleared by
+    // their owners - see ClusterAddon.onRename.
     for (const addon of this.registries.clusterAddons.all()) {
       try {
         addon.onRename?.(entry);
@@ -539,7 +539,7 @@ export class SidebarView extends ItemView implements ViewCtx {
    * of our own write), in-place value refresh, or full re-render.
    */
   maybeRefresh(file?: TFile): void {
-    this.condVals.clear(); // fresh event — note values may have changed
+    this.condVals.clear(); // fresh event - note values may have changed
     const active = this.app.workspace.getActiveFile();
     if (!active) {
       this.note.path = null;
@@ -563,7 +563,7 @@ export class SidebarView extends ItemView implements ViewCtx {
     this.render();
   }
 
-  /** Signature of which prop entries are empty — visibility changes need a re-render. */
+  /** Signature of which prop entries are empty - visibility changes need a re-render. */
   private emptySig(): string {
     let sig = "";
     for (const s of this.layout.sections) {
@@ -683,7 +683,7 @@ export class SidebarView extends ItemView implements ViewCtx {
       const typeId = this.resolveType(entry);
       const def = this.registries.valueTypes.get(typeId);
       const hint = span.createSpan({ cls: "ep-type-hint", text: def ? def.name(this.i18n) : typeId });
-      // Edit mode: the hint is a quick data-type switcher (vault-wide — the
+      // Edit mode: the hint is a quick data-type switcher (vault-wide - the
       // shared setter re-stamps every layout showing this key).
       if (this.editMode) {
         hint.addClass("ep-editable");
@@ -725,17 +725,17 @@ export class SidebarView extends ItemView implements ViewCtx {
   /**
    * Width-responsive decorations: per section, progressively hide the
    * data-type hints, then the modifier chains, then the dice tags while
-   * any row overflows — and bring them back when the sidebar grows.
+   * any row overflows - and bring them back when the sidebar grows.
    * Re-run on every render and on container resize.
    */
   private responsivePass(): void {
-    // Decorations need this much spare room before they may stay — derived from
+    // Decorations need this much spare room before they may stay - derived from
     // the view's font size (~1.5em) so it scales with the user's text size and
     // gives larger touch targets on mobile.
     const SLACK = 1.5 * (parseFloat(getComputedStyle(this.content).fontSize) || 16);
     // Hide order = reverse priority. Label, value and roll button rank
     // highest and are never hidden; then (descending importance) the
-    // modifier total, toggle checkboxes, modifier chain, dice, data type —
+    // modifier total, toggle checkboxes, modifier chain, dice, data type -
     // so the data type vanishes first and the modifier badge last.
     const TIERS = [".ep-type-hint", ".ep-dice-tag", ".ep-denote", ".ep-tog-cell", ".ep-mod-badge"];
     const mode = this.editMode ? "e" : "v";
@@ -763,9 +763,9 @@ export class SidebarView extends ItemView implements ViewCtx {
       alignClustersNow(sec);
 
       // A row is "tight" when its children genuinely overflow it, or when the
-      // label (flex: 1 — it absorbs all spare room) has less than SLACK px left
+      // label (flex: 1 - it absorbs all spare room) has less than SLACK px left
       // before truncating. The label's content width must be measured with a
-      // Range — scrollWidth is max(clientWidth, content) and never reports spare
+      // Range - scrollWidth is max(clientWidth, content) and never reports spare
       // room. Reuse one Range for the whole section to avoid per-row allocation.
       const range = sec.ownerDocument.createRange();
       const spareOf = (n: HTMLElement): number => {
@@ -779,8 +779,8 @@ export class SidebarView extends ItemView implements ViewCtx {
       };
 
       // F2 step 2: tier-major read-then-write. Each iteration reads which rows
-      // are still tight (one reflow), then writes that tier's squeeze on them —
-      // O(tiers) forced reflows instead of O(rows × tiers). Squeezing is
+      // are still tight (one reflow), then writes that tier's squeeze on them -
+      // O(tiers) forced reflows instead of O(rows x tiers). Squeezing is
       // row-local (every cell keeps its own min-width, and rows own their grid),
       // so batching the reads can't alter another row's decision. Decide PER ROW
       // so one cramped row never strips decorations off the rest of the section.
@@ -877,7 +877,7 @@ export class SidebarView extends ItemView implements ViewCtx {
     }
     this.updaters = [];
     this.sectionEls = {};
-    this.respSig.clear(); // DOM is rebuilt — drop the responsive-pass cache
+    this.respSig.clear(); // DOM is rebuilt - drop the responsive-pass cache
     this.condVals.clear();
 
     const file = this.app.workspace.getActiveFile();
@@ -912,7 +912,7 @@ export class SidebarView extends ItemView implements ViewCtx {
           b.onclick = () => this.note.set(file, "Type", tp, true);
         }
       } else {
-        // No default type exists — any Type value the note gets is adopted
+        // No default type exists - any Type value the note gets is adopted
         // as a new, empty type.
         box.createDiv({ cls: "ep-empty-sub", text: t("view.noTypesConfigured") });
       }

@@ -4,17 +4,17 @@
  * A roll is a signed sum of terms; each term is a dice group, an integer, or
  * a property reference. Dice groups carry modifiers:
  *
- *   keep/drop   `kh` `kl` `dh` `dl` (optional count, default 1) — e.g. `4d6kh3`
- *   explode     `!` (on max) or `!N` (on ≥ N)
- *   reroll      `rN` (reroll ≤ N, recursive) or `roN` (reroll ≤ N once)
- *   success     `>=N` `>N` `<=N` `<N` `=N` — value becomes the count of hits
+ *   keep/drop   `kh` `kl` `dh` `dl` (optional count, default 1) - e.g. `4d6kh3`
+ *   explode     `!` (on max) or `!N` (on >= N)
+ *   reroll      `rN` (reroll <= N, recursive) or `roN` (reroll <= N once)
+ *   success     `>=N` `>N` `<=N` `<N` `=N` - value becomes the count of hits
  *
  * Examples: `2d6kh1 + 1d8 + DEX + 3`, `4d6dl1`, `10d6>=5`, `1d10!`, `2d20kl1`
  * (= disadvantage). `d%` is shorthand for d100.
  *
- * Pure module — zero Obsidian imports — so it is trivially unit-testable. The
+ * Pure module - zero Obsidian imports - so it is trivially unit-testable. The
  * RNG and the property resolver are injected; the same resolver A1 will own
- * later can be passed straight in (here it is a name → number lookup).
+ * later can be passed straight in (here it is a name -> number lookup).
  */
 
 // ---------------------------------------------------------------------------
@@ -25,7 +25,7 @@ export type KeepKind = "kh" | "kl" | "dh" | "dl";
 
 export type DiceOp =
   | { t: KeepKind; n: number }
-  | { t: "explode"; on: number } // on < 0 → explode on the die's max face
+  | { t: "explode"; on: number } // on < 0 -> explode on the die's max face
   | { t: "reroll"; max: number; once: boolean }
   | { t: "success"; cmp: ">=" | ">" | "<=" | "<" | "="; v: number };
 
@@ -63,7 +63,7 @@ export interface DiceGroupResult {
   sides: number;
   faces: number[];
   dropped: boolean[];
-  /** Sum of kept faces, or — for a success group — the count of hits. */
+  /** Sum of kept faces, or - for a success group - the count of hits. */
   value: number;
   success: boolean;
 }
@@ -84,13 +84,13 @@ export interface RollResult {
 export interface CritRules {
   /** Minimum face on a `sides`-die that counts toward a crit (default = sides). */
   critFrom(sides: number): number;
-  /** Face that, shown on every kept primary die, is a fail — or null to disable. */
+  /** Face that, shown on every kept primary die, is a fail - or null to disable. */
   failAt: number | null;
 }
 export interface RollEnv {
   /** Roll a single die: 1..sides. */
   roll1(sides: number): number;
-  /** Resolve a property reference to a number (undefined = unknown → 0). */
+  /** Resolve a property reference to a number (undefined = unknown -> 0). */
   resolve?(name: string): number | undefined;
   crit?: CritRules;
 }
@@ -318,8 +318,8 @@ function rollDice(node: DiceNode, env: RollEnv): DiceGroupResult {
     const asc = active.slice().sort((a, b) => faces[a] - faces[b]);
     const n = Math.max(0, Math.min(asc.length, op.n));
     let dropIdx: number[] = [];
-    if (op.t === "kh") dropIdx = asc.slice(0, asc.length - n); // keep highest n → drop the lowest rest
-    else if (op.t === "kl") dropIdx = asc.slice(n); // keep lowest n → drop the highest rest
+    if (op.t === "kh") dropIdx = asc.slice(0, asc.length - n); // keep highest n -> drop the lowest rest
+    else if (op.t === "kl") dropIdx = asc.slice(n); // keep lowest n -> drop the highest rest
     else if (op.t === "dh") dropIdx = asc.slice(asc.length - n); // drop highest n
     else if (op.t === "dl") dropIdx = asc.slice(0, n); // drop lowest n
     for (const di of dropIdx) dropped[di] = true;

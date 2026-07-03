@@ -1,9 +1,9 @@
 /**
- * Stylized die icons — isometric outlines keyed by face count, registered
+ * Stylized die icons - isometric outlines keyed by face count, registered
  * as Obsidian icons so they work in menus, buttons and inline tags alike.
  * The same shapes ship as standalone SVG files under `assets/dice/`.
  *
- * All icons live in a 0–100 viewBox and draw with `currentColor`, so they
+ * All icons live in a 0-100 viewBox and draw with `currentColor`, so they
  * inherit the surrounding text color.
  */
 
@@ -13,7 +13,7 @@ import { addIcon } from "obsidian";
 const P = (d: string): string =>
   `<path d="${d}" fill="none" stroke="currentColor" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>`;
 
-/** Icon id → SVG body (100×100 viewBox). */
+/** Icon id -> SVG body (100x100 viewBox). */
 export const DICE_ICONS: Record<string, string> = {
   // Coin: circle with an equator.
   "ep-d2":

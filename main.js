@@ -60,7 +60,7 @@ var I18n = class {
       return { code, name: (_a = this.names.get(code)) != null ? _a : code };
     });
   }
-  /** Every known string key (union over all locales) — used by the override editor. */
+  /** Every known string key (union over all locales) - used by the override editor. */
   keys() {
     const all = /* @__PURE__ */ new Set();
     for (const d of this.dicts.values()) for (const k of Object.keys(d)) all.add(k);
@@ -96,20 +96,20 @@ var en_default = {
   "common.done": "Done",
   "view.title": "Extended properties",
   "view.noNote": "Open a note to see its properties here.",
-  "view.noType": "\u201C{note}\u201D has no matching Type.",
+  "view.noType": '"{note}" has no matching Type.',
   "view.noTypeHint": "Set its Type property to one of:",
   "view.setType": "Set Type: {type}",
   "view.noTypesConfigured": "No types are configured yet. Give this note any Type value to create one (it starts empty), or add types in the plugin settings.",
-  "view.typeBadgeHint": "This note\u2019s Type \u2014 selects which saved layout is shown",
+  "view.typeBadgeHint": "This note's Type - selects which saved layout is shown",
   "view.edit": "Edit",
   "view.done": "Done",
   "view.editHint": "Edit: rearrange sections & properties, change types, colors, etc.",
-  "view.doneHint": "Finish editing \u2014 keep or undo your changes",
+  "view.doneHint": "Finish editing - keep or undo your changes",
   "view.addSection": "+ Section",
   "view.resetAll": "Reset all",
-  "view.resetConfirm": "Reset the \u201C{type}\u201D layout to defaults? Note properties are not changed.",
+  "view.resetConfirm": 'Reset the "{type}" layout to defaults? Note properties are not changed.',
   "view.addTemplates": "Add:",
-  "view.templateResetConfirm": "The \u201C{name}\u201D section already exists. Reset it to its original section and properties?",
+  "view.templateResetConfirm": 'The "{name}" section already exists. Reset it to its original section and properties?',
   "hint.clickEdit": "Click to edit",
   "hint.dblEdit": "Double-click to edit",
   "hint.dblToggle": "Double-click to toggle",
@@ -142,7 +142,7 @@ var en_default = {
   "layout.list": "list",
   "layout.columns": "columns",
   "layout.grid": "grid",
-  "section.menu.configure": "Configure \u201C{name}\u201D section\u2026",
+  "section.menu.configure": 'Configure "{name}" section...',
   "section.menu.showDividers": "Show horizontal dividers",
   "section.menu.hideDividers": "Hide horizontal dividers",
   "section.menu.showVDividers": "Show vertical dividers",
@@ -152,7 +152,7 @@ var en_default = {
   "section.menu.addObject": "Add object",
   "section.menu.moveUp": "Move up",
   "section.menu.moveDown": "Move down",
-  "section.menu.export": "Export section\u2026",
+  "section.menu.export": "Export section...",
   "section.menu.delete": "Delete section",
   "transfer.exportType": "Export",
   "transfer.exportTypeTip": "Copy this type (layout + referenced derivations) to the clipboard as a shareable snippet",
@@ -160,41 +160,41 @@ var en_default = {
   "transfer.importHeading": "Import type or section",
   "transfer.importHeadingDesc": "Paste a snippet exported from another vault to add its sections here.",
   "transfer.importTitle": "Import type or section",
-  "transfer.importPlaceholder": "Paste an exported type or section snippet (JSON)\u2026",
+  "transfer.importPlaceholder": "Paste an exported type or section snippet (JSON)...",
   "transfer.importBtn": "Import",
   "transfer.invalid": "Not a valid Extended Properties snippet.",
   "transfer.kindType": "type",
   "transfer.kindSection": "section",
-  "transfer.summary": "{kind} \u201C{name}\u201D \u2014 {sections} section(s), {entries} propert(y/ies).",
+  "transfer.summary": '{kind} "{name}" - {sections} section(s), {entries} propert(y/ies).',
   "transfer.missingDerivations": "Missing derivation building blocks: {list}",
   "transfer.createMissing": "Create missing derivations",
   "transfer.targetType": "Add to type",
-  "transfer.targetTypeDesc": "Sections are appended to this type (created if it doesn\u2019t exist). Existing: {types}",
+  "transfer.targetTypeDesc": "Sections are appended to this type (created if it doesn't exist). Existing: {types}",
   "transfer.pickType": "Enter a target type name.",
-  "transfer.imported": "Imported \u201C{name}\u201D into {type}",
+  "transfer.imported": 'Imported "{name}" into {type}',
   "entry.addProperty": "+ add property",
-  "entry.addToColumnHint": "Add a property to this column of \u201C{section}\u201D",
-  "entry.addToSectionHint": "Add a property to \u201C{section}\u201D",
+  "entry.addToColumnHint": 'Add a property to this column of "{section}"',
+  "entry.addToSectionHint": 'Add a property to "{section}"',
   "entry.dragHint": "Drag to move",
   "entry.changeKeyHint": "Click to change which property this shows",
   "entry.renameHint": "Click to rename",
   "entry.unknownKind": "Unavailable: {kind}",
-  "entry.menu.configure": "Configure \u201C{name}\u201D property\u2026",
-  "entry.menu.configureObject": "Configure \u201C{name}\u201D object\u2026",
-  "entry.menu.showInObsidian": "Show \u201C{key}\u201D in Obsidian properties",
-  "entry.menu.hideFromObsidian": "Hide \u201C{key}\u201D from Obsidian properties",
-  "entry.menu.clearValue": "Remove value from \u201C{key}\u201D",
+  "entry.menu.configure": 'Configure "{name}" property...',
+  "entry.menu.configureObject": 'Configure "{name}" object...',
+  "entry.menu.showInObsidian": 'Show "{key}" in Obsidian properties',
+  "entry.menu.hideFromObsidian": 'Hide "{key}" from Obsidian properties',
+  "entry.menu.clearValue": 'Remove value from "{key}"',
   "entry.menu.remove": "Remove from sidebar",
-  "entry.menu.editValue": "Edit value\u2026",
+  "entry.menu.editValue": "Edit value...",
   "entry.menu.toggle": "Toggle",
-  "entry.menu.addItem": "Add item\u2026",
-  "entry.menu.pickColor": "Pick color\u2026",
-  "entry.menu.editImage": "Edit image link\u2026",
+  "entry.menu.addItem": "Add item...",
+  "entry.menu.pickColor": "Pick color...",
+  "entry.menu.editImage": "Edit image link...",
   "prompt.editValue": "Edit {name}",
   "kind.blank": "Blank",
   "kind.toc": "Contents",
-  "toc.hint": "Contents \u2014 click a section to scroll to it",
-  "blank.dragHint": "Blank cell \u2014 drag to move",
+  "toc.hint": "Contents - click a section to scroll to it",
+  "blank.dragHint": "Blank cell - drag to move",
   "blank.addHere": "Add property here",
   "blank.remove": "Remove blank",
   "grid.removeRow": "Remove this row",
@@ -243,7 +243,7 @@ var en_default = {
   "validate.required": "This value is required.",
   "validate.min": "Must be at least {n}.",
   "validate.max": "Must be at most {n}.",
-  "validate.pattern": "Doesn\u2019t match the required format.",
+  "validate.pattern": "Doesn't match the required format.",
   "validate.allowed": "Not one of the allowed values.",
   "options.constraintsHeading": "Validation",
   "options.required": "Required",
@@ -261,22 +261,22 @@ var en_default = {
   "mods.preview": "{denote} = {total}",
   "mods.influence": "Influence {n}",
   "mods.sourceSelf": "(this property)",
-  "mods.modeFormula": "Custom formula\u2026",
+  "mods.modeFormula": "Custom formula...",
   "mods.formula": "Formula f(x)",
-  "mods.modeExpr": "Expression\u2026",
+  "mods.modeExpr": "Expression...",
   "mods.expr": "Expression",
   "mods.exprDesc": "Math over properties by name or short form, e.g. floor((STR + DEX) / 2) + max(PB, 2). Functions: floor, ceil, round, min, max, clamp, abs, if; your derivations are callable too.",
-  "mods.errExpr": "This value can't be computed \u2014 check the expression (unknown property or syntax).",
+  "mods.errExpr": "This value can't be computed - check the expression (unknown property or syntax).",
   "mods.errCycle": "This value depends on itself (a reference cycle).",
-  "mods.termOptions": "Sign \xB7 toggle",
+  "mods.termOptions": "Sign - toggle",
   "mods.termOptionsDesc": "How this term enters the sum, and a list property that toggles it per note (the way proficiency works).",
   "mods.shortForm": "Short form",
   "mods.shortFormDesc": "Abbreviation used in modifier chains (INT + DEX) and inline val:/roll: references. Must be unique across properties.",
-  "mods.shortFormConflict": "\u201C{abbr}\u201D is already the short form of \u201C{other}\u201D. Use it here instead? \u201C{other}\u201D will be given a new short form.",
+  "mods.shortFormConflict": '"{abbr}" is already the short form of "{other}". Use it here instead? "{other}" will be given a new short form.',
   "mods.showToggle": "Show checkbox on the row",
   "mods.clickToggle": "click to toggle",
   "mods.weightAdd": "+ add",
-  "mods.weightSub": "\u2212 subtract",
+  "mods.weightSub": "- subtract",
   "mods.toggleProp": "Toggle list property",
   "mods.togglePlaceholder": "always on",
   "mods.abbr": "Short form",
@@ -290,7 +290,7 @@ var en_default = {
   "mods.showChainDesc": "The short-form denotation (INT + DEX); auto-hidden when space is tight",
   "mods.showDice": "Show dice",
   "mods.showDiceDesc": "The dice breakdown (2d20) before the modifier; auto-hidden when space is tight",
-  "mods.showToggleDesc": "On = the checkbox bound to \u201C{list}\u201D is shown on the row",
+  "mods.showToggleDesc": 'On = the checkbox bound to "{list}" is shown on the row',
   "mods.showInChain": "Show in chain",
   "mods.showInChainDesc": "On = this term appears in the chain denotation (it always counts toward the total)",
   "mods.showDiceIcon": "Show dice icon",
@@ -303,36 +303,36 @@ var en_default = {
   "list.add": "+ add",
   "list.addTo": "Add to {key}",
   "list.noMoreValues": "No more values.",
-  "image.emptyHint": "No image \u2014 click to set",
+  "image.emptyHint": "No image - click to set",
   "image.linkPrompt": "Image link (URL or ![[embed]])",
   "image.linkPromptShort": "Image link",
-  "iframe.emptyHint": "No URL \u2014 click to set",
+  "iframe.emptyHint": "No URL - click to set",
   "iframe.urlPrompt": "Embed URL",
-  "media.setSource": "Set source\u2026",
+  "media.setSource": "Set source...",
   "add.addCustom": "Add custom value",
-  "audio.emptyHint": "No audio \u2014 click to set a file or URL",
-  "audio.srcPrompt": "Audio source (vault file, [[wikilink]] or URL \u2014 Spotify/SoundCloud links embed their player)",
-  "video.emptyHint": "No video \u2014 click to set a file or URL",
-  "video.srcPrompt": "Video source (vault file, [[wikilink]] or URL \u2014 YouTube/Vimeo links embed their player)",
-  "pdf.emptyHint": "No PDF \u2014 click to set a file or URL",
+  "audio.emptyHint": "No audio - click to set a file or URL",
+  "audio.srcPrompt": "Audio source (vault file, [[wikilink]] or URL - Spotify/SoundCloud links embed their player)",
+  "video.emptyHint": "No video - click to set a file or URL",
+  "video.srcPrompt": "Video source (vault file, [[wikilink]] or URL - YouTube/Vimeo links embed their player)",
+  "pdf.emptyHint": "No PDF - click to set a file or URL",
   "pdf.srcPrompt": "PDF source (vault file, [[wikilink]] or URL)",
   "options.videoHeading": "Video",
   "iframe.setUrl": "Set URL",
-  "add.searchPlaceholder": "Add a property to \u201C{section}\u201D\u2026",
+  "add.searchPlaceholder": 'Add a property to "{section}"...',
   "add.hiddenBadge": "hidden",
-  "add.create": "Create \u201C{key}\u201D",
+  "add.create": 'Create "{key}"',
   "add.groupOnNote": "On note",
   "add.groupOnSidebar": "On sidebar",
   "add.groupOthers": "Others",
-  "add.pickValues": "{key} \u2014 pick values",
-  "add.customValue": "Custom value\u2026",
-  "add.typeValue": "Type a value\u2026",
+  "add.pickValues": "{key} - pick values",
+  "add.customValue": "Custom value...",
+  "add.typeValue": "Type a value...",
   "add.addN": "Add {n}",
   "add.addEmpty": "Add empty",
   "add.noValues": "No existing values.",
-  "add.notesWith": "Notes with \u201C{value}\u201D",
+  "add.notesWith": 'Notes with "{value}"',
   "add.noNotes": "No notes use this value.",
-  "suggest.create": "Create \u201C{key}\u201D (text)",
+  "suggest.create": 'Create "{key}" (text)',
   "suggest.onNote": "on note",
   "exitEdit.title": "Leave edit mode",
   "exitEdit.message": "You made changes while editing. Keep them, or undo everything from this session?",
@@ -344,7 +344,7 @@ var en_default = {
   "confirmChanges.keep": "Keep changes",
   "confirmChanges.undo": "Undo changes",
   "iconPicker.title": "Choose an icon",
-  "iconPicker.search": "Search icons\u2026",
+  "iconPicker.search": "Search icons...",
   "iconPicker.noMatch": "No matching icons.",
   "colorPicker.title": "Pick a color",
   "colorPicker.eyedropper": "Pick from screen",
@@ -355,37 +355,37 @@ var en_default = {
   "colorPicker.saturation": "Saturation",
   "colorPicker.lightness": "Lightness",
   "colorPicker.chroma": "Chroma",
-  "colorPicker.labA": "a (green\u2013red)",
-  "colorPicker.labB": "b (blue\u2013yellow)",
-  "imageViewer.hint": "Scroll to zoom \xB7 drag to pan \xB7 double-click to reset",
-  "options.title": "\u201C{name}\u201D options",
+  "colorPicker.labA": "a (green-red)",
+  "colorPicker.labB": "b (blue-yellow)",
+  "imageViewer.hint": "Scroll to zoom - drag to pan - double-click to reset",
+  "options.title": '"{name}" options',
   "options.propertyHeading": "Property",
   "options.objectHeading": "Object",
   "options.property": "Property",
   "options.propertyDesc": "Which note property this entry shows",
   "options.label": "Display label",
-  "options.labelDesc": "Optional \u2014 leave blank to use \u201C{default}\u201D",
+  "options.labelDesc": 'Optional - leave blank to use "{default}"',
   "options.typeHeading": "Type",
   "options.dataType": "Data type",
   "options.dataTypeDesc": "Defaults to the Obsidian property type",
   "options.numberHeading": "Number & slider",
   "options.showSlider": "Show slider",
-  "options.showSteppers": "Show \u2212 / + buttons",
+  "options.showSteppers": "Show - / + buttons",
   "options.sliderCurve": "Slider curve",
   "options.curveLinear": "Linear",
   "options.curveRoot": "Root",
   "options.curveExp": "Exponential",
   "options.rangeAuto": "Blank = this property's lowest/highest value across notes",
   "options.sharedHeading": "Shared settings ({n} selected)",
-  "options.mixed": "Mixed values \u2014 changing this writes it to every selected tab.",
-  "options.multiNote": "Editing {n} {type} properties together \u2014 every setting you change here is written to all of them.",
+  "options.mixed": "Mixed values - changing this writes it to every selected tab.",
+  "options.multiNote": "Editing {n} {type} properties together - every setting you change here is written to all of them.",
   "options.multiMixed": "Currently differing across the selection: {list}.",
   "options.showLabel": "Show label",
   "options.showLabelDesc": "On = the label is visible outside edit mode",
   "options.showWhenEmpty": "Show when empty",
   "options.showWhenEmptyDesc": "On = stays visible outside edit mode even without a value",
   "options.showWhen": "Show when",
-  "options.showWhenDesc": `Condition over the note's values \u2014 e.g. Class == "Wizard" or Level >= 5. Empty = always shown; edit mode shows it dimmed.`,
+  "options.showWhenDesc": `Condition over the note's values - e.g. Class == "Wizard" or Level >= 5. Empty = always shown; edit mode shows it dimmed.`,
   "options.showWhenActive": "Shown when: {expr}",
   "options.showType": "Show data type",
   "options.showTypeDesc": "Small italic tag beside the label; auto-hidden when space is tight",
@@ -416,9 +416,9 @@ var en_default = {
   "options.showInObsidian": "Show in Obsidian properties",
   "options.showInObsidianDesc": "Off = hidden from the properties panel",
   "options.placementHeading": "Placement",
-  "sectionOptions.title": "Format \u201C{name}\u201D",
+  "sectionOptions.title": 'Format "{name}"',
   "sectionOptions.tabSection": "Section",
-  "sectionOptions.tabsHint": "Click a tab to edit it. Ctrl/Cmd-click toggles single tabs, Shift-click selects a range, and dragging across tabs selects several \u2014 the body then shows their shared settings, and only settings you change are written to all selected tabs.",
+  "sectionOptions.tabsHint": "Click a tab to edit it. Ctrl/Cmd-click toggles single tabs, Shift-click selects a range, and dragging across tabs selects several - the body then shows their shared settings, and only settings you change are written to all selected tabs.",
   "sectionOptions.columnN": "Column {n}",
   "sectionOptions.rowN": "Row {n}",
   "sectionOptions.groupBy": "Group tabs",
@@ -426,10 +426,10 @@ var en_default = {
   "sectionOptions.groupRow": "By row",
   "sectionOptions.groupType": "By data type",
   "sectionOptions.showWhenEmptyDesc": "On = the section stays visible even when it has no visible properties (outside edit mode)",
-  "sectionOptions.showWhenDesc": 'Show this section only when the condition holds \u2014 e.g. Class == "Wizard". Empty = always shown.',
+  "sectionOptions.showWhenDesc": 'Show this section only when the condition holds - e.g. Class == "Wizard". Empty = always shown.',
   "sectionOptions.sectionHeading": "Section",
   "sectionOptions.name": "Name",
-  "sectionOptions.nameDesc": "Optional \u2014 blank shows \u201CSection\u201D",
+  "sectionOptions.nameDesc": 'Optional - blank shows "Section"',
   "sectionOptions.collapsible": "Collapsible",
   "sectionOptions.dividers": "Horizontal dividers",
   "sectionOptions.vdividers": "Vertical dividers",
@@ -461,11 +461,11 @@ var en_default = {
   "size.smallRows": "Small (~4)",
   "size.mediumRows": "Medium (~8)",
   "size.largeRows": "Large (~12)",
-  "propPanel.hideEverywhere": "Hide \u201C{key}\u201D in properties (all notes)",
-  "propPanel.showEverywhere": "Show \u201C{key}\u201D in properties (all notes)",
+  "propPanel.hideEverywhere": 'Hide "{key}" in properties (all notes)',
+  "propPanel.showEverywhere": 'Show "{key}" in properties (all notes)',
   "propPanel.hideShow": "Hide / show properties",
-  "propPanel.hideKey": "  Hide \u201C{key}\u201D",
-  "propPanel.showKey": "  Show \u201C{key}\u201D",
+  "propPanel.hideKey": '  Hide "{key}"',
+  "propPanel.showKey": '  Show "{key}"',
   "propPanel.groupInNotes": "In notes",
   "propPanel.groupOther": "Other",
   "propPanel.hiddenHeading": "Hidden properties",
@@ -474,10 +474,10 @@ var en_default = {
   "propPanel.showAll": "Show all hidden",
   "command.openSidebar": "Open properties sidebar",
   "command.openTable": "Open type table",
-  "command.hideProperty": "Hide a property from Obsidian\u2019s properties panel",
+  "command.hideProperty": "Hide a property from Obsidian's properties panel",
   "table.title": "Type table",
   "table.columns": "Columns",
-  "table.filter": "Filter\u2026",
+  "table.filter": "Filter...",
   "table.name": "Name",
   "table.count": "{n} notes",
   "table.noTypes": "No note types are configured yet. Add one in the plugin settings to see its notes here.",
@@ -486,20 +486,20 @@ var en_default = {
   "roll.summary.settings": "Roll settings",
   "table.roll": "Roll this property",
   "table.rollFailed": "Rolling is unavailable.",
-  "table.truncated": "Showing first {shown} of {total} \u2014 narrow the filter to see more.",
-  "notice.hiding": "Hiding \u201C{key}\u201D from Obsidian properties.",
+  "table.truncated": "Showing first {shown} of {total} - narrow the filter to see more.",
+  "notice.hiding": 'Hiding "{key}" from Obsidian properties.',
   "notice.saveFailed": "Could not save property: {error}",
-  "conflict.message": "\u201C{note}\u201D changed on disk while you were editing. Keep your changes, or take the version on disk?",
+  "conflict.message": '"{note}" changed on disk while you were editing. Keep your changes, or take the version on disk?',
   "conflict.keepMine": "Keep mine",
   "conflict.takeTheirs": "Take theirs",
   "conflict.merged": 'Merged your edits into "{note}" ({n} changed) - no conflicts.',
   "conflict.keys": "Both sides changed: {keys}",
   "preset.empty": "Empty",
-  "settings.intro": "Open a note whose Type matches one below, then click Edit (or right-click anything) to arrange it. Drag handles, use \u22EF / right-click for options (Configure for the full panel), click labels to rename, add properties at each section\u2019s bottom.",
+  "settings.intro": "Open a note whose Type matches one below, then click Edit (or right-click anything) to arrange it. Drag handles, use ... / right-click for options (Configure for the full panel), click labels to rename, add properties at each section's bottom.",
   "settings.typesHeading": "Types",
-  "settings.typesDesc": "Each Type has its own layout; a note\u2019s Type property selects it.",
+  "settings.typesDesc": "Each Type has its own layout; a note's Type property selects it.",
   "settings.resetLayout": "Reset layout",
-  "settings.resetLayoutConfirm": "Reset the \u201C{type}\u201D layout to defaults?",
+  "settings.resetLayoutConfirm": 'Reset the "{type}" layout to defaults?',
   "settings.deleteType": "Delete",
   "settings.addType": "Add a type",
   "settings.addTypeBtn": "+ Type",
@@ -512,7 +512,7 @@ var en_default = {
   "settings.newSectionHeading": "New section defaults",
   "settings.entryDividers": "Dividers between properties",
   "settings.derivationsHeading": "Modifier building blocks",
-  "settings.derivationsDesc": "Named formulas (in x) that influences can apply to a source value \u2014 e.g. an ability modifier. Fully editable; influences reference them by name.",
+  "settings.derivationsDesc": "Named formulas (in x) that influences can apply to a source value - e.g. an ability modifier. Fully editable; influences reference them by name.",
   "settings.derivationName": "Name",
   "settings.derivationDelete": "Delete",
   "settings.derivationAdd": "Add a building block",
@@ -546,16 +546,16 @@ var en_default = {
   "settings.soundCritDesc": "The chime on a critical hit and the buzz on a critical fail.",
   "settings.failOnOne": "Fail on natural 1",
   "settings.failOnOneDesc": "Mark a roll red when every kept die of the first group shows 1.",
-  "settings.critRangesDesc": "Crit threshold per die size \u2014 the lowest face that counts toward a crit (default = the die's maximum). E.g. set d20 to 19 for a 19\u201320 crit range.",
+  "settings.critRangesDesc": "Crit threshold per die size - the lowest face that counts toward a crit (default = the die's maximum). E.g. set d20 to 19 for a 19-20 crit range.",
   "settings.critRangeFrom": "Crit from (d{sides})",
   "settings.critRangeDelete": "Remove",
   "settings.critRangeAdd": "Add a crit range",
   "settings.critRangeAddBtn": "+ Die size",
   "settings.critRangePrompt": "Die size (e.g. 20)",
   "settings.modsOffProp": "Disabled-modifiers property",
-  "settings.modsOffPropDesc": "List property storing the modifiers switched off by clicking their short form (entries as \u201CProperty:Source\u201D).",
+  "settings.modsOffPropDesc": 'List property storing the modifiers switched off by clicking their short form (entries as "Property:Source").',
   "settings.modDepth": "Modifier chain depth",
-  "settings.modDepthDesc": "How many property\u2192property hops are resolved when derived values influence other derived values.",
+  "settings.modDepthDesc": "How many property->property hops are resolved when derived values influence other derived values.",
   "settings.modSuffix": "Modifier suffix",
   "settings.modSuffixDesc": "Append this after a dot to use a property's modifier instead of its value (e.g. INT.s or intelligence.s in a roll or expression; cross-note [[Note]].INT.s). Any length; blank disables it.",
   "settings.crossNote": "Cross-note references",
@@ -579,7 +579,7 @@ var en_default = {
   "snapshot.restored": "Configuration restored from snapshot.",
   "snapshot.pick": "Pick a snapshot to restore",
   "snapshot.cmd.save": "Save configuration snapshot",
-  "snapshot.cmd.restore": "Restore configuration snapshot\u2026",
+  "snapshot.cmd.restore": "Restore configuration snapshot...",
   "secure.locked": "Encrypted",
   "secure.enterPass": "Passphrase for sensitive properties",
   "secure.encryptWarn": "Encrypt this value? It can only be read after unlocking with this exact passphrase. If you lose the passphrase, the value cannot be recovered.",
@@ -598,9 +598,9 @@ var en_default = {
   "settings.snapshots": "Auto-snapshot configuration",
   "settings.snapshotsDesc": "Once a day on load, save a snapshot of your types, layouts, derivations and settings to the layout folder's snapshots/ subfolder, so a change can be rolled back. Restore any snapshot from the button here or the command palette.",
   "settings.snapshotSaveNow": "Save snapshot now",
-  "settings.snapshotRestore": "Restore\u2026",
+  "settings.snapshotRestore": "Restore...",
   "settings.abbrHeading": "Short forms",
-  "settings.abbrDesc": "Short forms used in modifier denotations (INT + DEX \u2212 AGE). The default is the capitalized first three letters of the property name; overrides apply everywhere the property is shown as a source.",
+  "settings.abbrDesc": "Short forms used in modifier denotations (INT + DEX - AGE). The default is the capitalized first three letters of the property name; overrides apply everywhere the property is shown as a source.",
   "settings.abbrDefault": "Default: {abbr}",
   "settings.abbrDelete": "Remove override",
   "settings.abbrAdd": "Add a short form",
@@ -618,17 +618,17 @@ var en_default = {
   "settings.overrides": "Custom wording",
   "settings.overridesDesc": "Replace any UI text with your own wording. Blank fields use the language default.",
   "settings.overridesReset": "Reset all",
-  "settings.overridesSearch": "Search UI texts\u2026",
+  "settings.overridesSearch": "Search UI texts...",
   "settings.overridesHint": "Search for a text to override it. Overridden texts are listed here.",
-  "settings.overrideDefault": "Default: \u201C{text}\u201D",
-  "settings.overridesMore": "{count} more \u2014 refine your search.",
+  "settings.overrideDefault": 'Default: "{text}"',
+  "settings.overridesMore": "{count} more - refine your search.",
   "settings.obsidianHeading": "Obsidian",
   "settings.hideShown": "Hide sidebar properties from Obsidian",
   "settings.hideShownDesc": "Override per property in its options.",
   "settings.propMenu": "Right-click hide in Obsidian properties",
-  "settings.propMenuDesc": "Adds a hide toggle to the right-click menu in Obsidian\u2019s properties panel (replaces the default menu for that click).",
+  "settings.propMenuDesc": "Adds a hide toggle to the right-click menu in Obsidian's properties panel (replaces the default menu for that click).",
   "settings.hiddenHeading": "Always-hidden properties",
-  "settings.hiddenDesc": "Hidden from Obsidian\u2019s properties panel everywhere, whether or not they\u2019re in the sidebar.",
+  "settings.hiddenDesc": "Hidden from Obsidian's properties panel everywhere, whether or not they're in the sidebar.",
   "settings.unhide": "Unhide",
   "settings.hideProperty": "Hide a property",
   "settings.hidePropertyBtn": "+ Hide property",
@@ -645,14 +645,14 @@ var en_default = {
   "settings.rollHistoryClearConfirm": "Clear the entire roll history?",
   "settings.rollHistoryCleared": "Roll history cleared.",
   "settings.macrosHeading": "Saved rolls (macros)",
-  "settings.macrosDesc": "Reusable rolls shown on the roll screen and available as commands. Notation like \u201C2d6 + 1d8 + 3\u201D; scope to a type or leave it available to all.",
+  "settings.macrosDesc": 'Reusable rolls shown on the roll screen and available as commands. Notation like "2d6 + 1d8 + 3"; scope to a type or leave it available to all.',
   "settings.macroName": "Name",
   "settings.macroGlobal": "All types",
   "settings.macroDelete": "Delete macro",
   "settings.macroAdd": "Add a macro",
   "settings.macroAddBtn": "+ Macro",
   "settings.macroNewName": "New macro",
-  "skills.deprecated": "The skills type is deprecated and will be removed in a future major version. Convert it to regular properties below \u2014 your records are preserved."
+  "skills.deprecated": "The skills type is deprecated and will be removed in a future major version. Convert it to regular properties below - your records are preserved."
 };
 
 // src/i18n/locales/en.ts
@@ -1307,7 +1307,7 @@ var NoteEval = class {
     const key = inf.source || entry.key || "";
     return sign * applyDerivation(this.env, inf, this.sourceValue(key, depth));
   }
-  /** Legacy source resolution: never errors (absent → 0). */
+  /** Legacy source resolution: never errors (absent -> 0). */
   sourceValue(key, depth) {
     var _a;
     const stored = numericRaw(this.env, key);
@@ -1325,7 +1325,7 @@ var NoteEval = class {
   /**
    * Expression reference: a known property resolves to its value (0 if absent);
    * a name suffixed with `s` (e.g. `INTs`) resolves to that property's
-   * *modifier* — its override-aware {@link totalAt} — instead of its value.
+   * *modifier* - its override-aware {@link totalAt} - instead of its value.
    */
   refValue(name, depth) {
     if (name.length > 5 && name.slice(0, 5).toLowerCase() === "this.") name = name.slice(5);
@@ -1537,8 +1537,8 @@ function denotationText(settings, entry, mods2) {
   let out = "";
   mods2.forEach((inf, i) => {
     const neg = inf.weight === -1;
-    if (i > 0) out += neg ? " \u2212 " : " + ";
-    else if (neg) out += "\u2212";
+    if (i > 0) out += neg ? " - " : " + ";
+    else if (neg) out += "-";
     out += termDenotation(settings, entry, inf);
   });
   return out;
@@ -2170,7 +2170,7 @@ var SecretStore = class {
    * Decrypt every envelope among `values` into the cache. Returns how many were
    * newly decrypted (so the caller can skip a re-render when nothing changed).
    * A value that fails to decrypt (wrong key / corrupt) is silently left masked
-   * — never throws, never loses data.
+   * - never throws, never loses data.
    */
   async prime(values) {
     if (this.pass === null) return 0;
@@ -2273,7 +2273,7 @@ var PropertyIndex = class {
      */
     this.cache = null;
     /**
-     * Type-bucket index (N1): lower-cased `Type` value → paths of the notes
+     * Type-bucket index (N1): lower-cased `Type` value -> paths of the notes
      * carrying it. Built with the snapshot cache and maintained by the same
      * invalidation events, it serves {@link rowsByType} and the aggregate
      * candidate sets, so per-type reads cost O(notes of that type) instead of
@@ -2282,7 +2282,7 @@ var PropertyIndex = class {
     this.buckets = /* @__PURE__ */ new Map();
     /**
      * Memoized aggregate candidate values (N1), keyed `type\u0000key` (both
-     * lower-cased). Invalidated whenever any note of that type changes —
+     * lower-cased). Invalidated whenever any note of that type changes -
      * including notes *entering or leaving* the type: a `Type`-list change
      * dirties both the old and new buckets' aggregates.
      */
@@ -2347,7 +2347,7 @@ var PropertyIndex = class {
     }
     this.cache.delete(path);
   }
-  /** Drop the whole cache — cheap escape hatch, rebuilt lazily on next read. */
+  /** Drop the whole cache - cheap escape hatch, rebuilt lazily on next read. */
   invalidateAll() {
     this.cache = null;
     this.buckets.clear();
@@ -2356,7 +2356,7 @@ var PropertyIndex = class {
   /**
    * Numeric values of `key` across every note whose `Type` includes
    * `typeKey`. Memoized (N1): repeated reads return the cached array until a
-   * note of that type — or one entering/leaving it — invalidates. Callers
+   * note of that type - or one entering/leaving it - invalidates. Callers
    * must treat the result as read-only.
    */
   valuesByType(typeKey, key) {
@@ -2377,7 +2377,7 @@ var PropertyIndex = class {
     return out;
   }
   /**
-   * Files (with their cached frontmatter) whose `Type` includes `typeKey` —
+   * Files (with their cached frontmatter) whose `Type` includes `typeKey` -
    * the row projection the type table view renders. Served from the type
    * bucket (N1), so the cost is O(notes of the type), not O(vault).
    */
@@ -3128,9 +3128,9 @@ var textType = {
         const plain = (_b = (_a = view.secretReveal) == null ? void 0 : _a.call(view, raw)) != null ? _b : null;
         if (plain !== null) {
           view.renderLinks(s, plain);
-          s.createSpan({ cls: "ep-lock-badge", text: " \u{1F512}" });
+          s.createSpan({ cls: "ep-lock-badge", text: " [locked]" });
         } else {
-          s.setText("\u{1F512} " + view.i18n.t("secure.locked"));
+          s.setText(view.i18n.t("secure.locked"));
           s.addClass("ep-locked");
         }
         applyValidity(v, entry, "text", raw, view.i18n);
@@ -3138,7 +3138,7 @@ var textType = {
       }
       const val = view.note.str(key);
       if (val === "") {
-        s.setText("\u2014");
+        s.setText("-");
         s.addClass("ep-placeholder");
       } else {
         view.renderLinks(s, val);
@@ -3239,7 +3239,7 @@ function buildCluster(head, flags, o, bindOpen) {
   for (const slot of flags.before) makeSlotCell(slot);
   if (flags.steppers) {
     if (o.steppers && editable) {
-      const dec = cl.createEl("button", { cls: "ep-step-btn", text: "\u2212" });
+      const dec = cl.createEl("button", { cls: "ep-step-btn", text: "-" });
       dec.setAttr("aria-label", "Decrease value");
       dec.onclick = () => {
         sfx.tick();
@@ -3633,21 +3633,21 @@ function paintDenotation(parent, view, entry, file) {
   list.forEach((inf, i) => {
     var _a, _b, _c, _d;
     const neg = inf.weight === -1;
-    if (i > 0) den.createSpan({ cls: "ep-denote-op", text: neg ? "\u2212" : "+" });
-    else if (neg) den.createSpan({ cls: "ep-denote-op", text: "\u2212" });
+    if (i > 0) den.createSpan({ cls: "ep-denote-op", text: neg ? "-" : "+" });
+    else if (neg) den.createSpan({ cls: "ep-denote-op", text: "-" });
     const srcKey = inf.source || entry.key || "";
     const term = den.createSpan({ cls: "ep-line-abbr ep-denote-term", text: termDenotation(view.settings, entry, inf) });
     let title;
     if (inf.expr) {
-      title = inf.expr + (inf.toggle ? ` \xB7 ${inf.toggle}` : "");
+      title = inf.expr + (inf.toggle ? ` - ${inf.toggle}` : "");
     } else {
       const modeName = inf.mode === "formula" ? (_a = inf.formula) != null ? _a : "x" : (_d = (_c = view.registries.derivations.get((_b = inf.mode) != null ? _b : "value")) == null ? void 0 : _c.name(view.i18n)) != null ? _d : "";
-      title = srcKey + (modeName ? ` \xB7 ${modeName}` : "") + (inf.toggle ? ` \xB7 ${inf.toggle}` : "");
+      title = srcKey + (modeName ? ` - ${modeName}` : "") + (inf.toggle ? ` - ${inf.toggle}` : "");
     }
     if (!influenceActive(view, entry, inf)) term.addClass("ep-denote-off");
     if (file) {
       term.addClass("ep-denote-tog");
-      title += ` \xB7 ${view.i18n.t("mods.clickToggle")}`;
+      title += ` - ${view.i18n.t("mods.clickToggle")}`;
       const flip = () => {
         if (inf.toggle) setInfluenceActive(view, file, entry, inf, !influenceActive(view, entry, inf));
         else setInfluenceDisabled(view, file, entry, inf, !influenceDisabled(view, entry, inf));
@@ -3680,7 +3680,7 @@ function paintBadge(cell, ref) {
   paintDice(cell, ref.entry);
   const info = modifierInfo(ref.view, ref.entry);
   if (info.value === void 0) {
-    const m = cell.createSpan({ cls: "ep-expr-error", text: "\u2014" });
+    const m = cell.createSpan({ cls: "ep-expr-error", text: "-" });
     m.setAttr("title", ref.view.i18n.t(info.error === "cycle" ? "mods.errCycle" : "mods.errExpr"));
   } else {
     cell.appendText(fmtMod(info.value));
@@ -3727,7 +3727,7 @@ var modifierAddon = {
             cb.setAttr("title", (_a = inf.toggle) != null ? _a : "");
             cb.onchange = flip;
           } else {
-            cb.setAttr("title", `${(_b = inf.toggle) != null ? _b : ""} \u2014 ${view.i18n.t("hint.dblToggle")}`);
+            cb.setAttr("title", `${(_b = inf.toggle) != null ? _b : ""} - ${view.i18n.t("hint.dblToggle")}`);
             cb.onclick = (ev) => ev.preventDefault();
             cb.ondblclick = flip;
           }
@@ -4026,7 +4026,7 @@ var derivedType = {
     for (const a of addonsFor(ctx2)) Object.assign(slots, a.fillSlots(ctx2, { get: compute, label }));
     const disp = () => {
       const r = modifierInfo(view, entry);
-      return r.value === void 0 ? "\u2014" : fmtMod(r.value);
+      return r.value === void 0 ? "-" : fmtMod(r.value);
     };
     const refs = view.buildCluster(ctx2.head, ctx2.flags, { display: disp(), slots });
     refs.val.addClass("ep-num-join");
@@ -4035,7 +4035,7 @@ var derivedType = {
     const sync = () => {
       const info = modifierInfo(view, entry);
       if (info.value === void 0) {
-        refs.val.setText("\u2014");
+        refs.val.setText("-");
         refs.val.addClass("ep-expr-error");
         refs.val.removeClass("ep-overridden");
         refs.val.setAttr("title", view.i18n.t(info.error === "cycle" ? "mods.errCycle" : "mods.errExpr"));
@@ -4251,7 +4251,7 @@ function buildList(ctx2, holder, showAdd) {
     const chip = list.createSpan({ cls: "ep-chip" });
     const cv = chip.createSpan();
     view.renderLinks(cv, item);
-    const x = chip.createSpan({ cls: "ep-chip-x", text: "\xD7" });
+    const x = chip.createSpan({ cls: "ep-chip-x", text: "x" });
     x.setAttr("role", "button");
     x.tabIndex = 0;
     x.setAttr("aria-label", view.i18n.t("a11y.removeItem", { item }));
@@ -4333,7 +4333,7 @@ var colorType = {
       const ok = hexToRgb(hex);
       sw.style.background = ok ? hex : "transparent";
       sw.toggleClass("ep-swatch-empty", !ok);
-      txt.setText(hex || "\u2014");
+      txt.setText(hex || "-");
     };
     draw();
     const open = () => view.openColorPicker(view.note.str(key) || "#888888", (out) => view.note.set(file, key, out));
@@ -4911,7 +4911,7 @@ var linkType = {
       v.removeClass("ep-link-unresolved");
       const raw = view.note.str(key);
       if (!raw) {
-        v.createSpan({ cls: "ep-placeholder", text: "\u2014" });
+        v.createSpan({ cls: "ep-placeholder", text: "-" });
         return;
       }
       view.renderLinks(v, /\[\[.+?\]\]|\]\([^)]+\)/.test(raw) ? raw : `[[${raw}]]`);
@@ -4996,7 +4996,7 @@ var datetimeType = {
       const raw = view.note.str(key);
       const d = raw ? new Date(raw) : null;
       if (!raw || !d || isNaN(d.getTime())) {
-        txt.setText(raw || "\u2014");
+        txt.setText(raw || "-");
         txt.toggleClass("ep-placeholder", !raw);
         rel.setText("");
         return;
@@ -5228,7 +5228,7 @@ var blankKind = {
     const { view, section, entry, wrap } = ctx2;
     if (!view.editMode) return;
     const t = view.i18n.t.bind(view.i18n);
-    const grip = wrap.createSpan({ cls: "ep-grip", text: "\u283F" });
+    const grip = wrap.createSpan({ cls: "ep-grip", text: "::" });
     grip.setAttr("title", t("blank.dragHint"));
     const openMenu = (ce) => {
       ce.preventDefault();
@@ -5263,7 +5263,7 @@ var blankKind = {
       }
       m.showAtMouseEvent(ce);
     };
-    const mb = wrap.createSpan({ cls: "ep-menu-btn", text: "\u22EF" });
+    const mb = wrap.createSpan({ cls: "ep-menu-btn", text: "..." });
     mb.onclick = openMenu;
     wrap.addEventListener("contextmenu", openMenu);
     wrap.onclick = () => view.openAddMenu(wrap, section, { replaceId: entry.id });
@@ -5406,7 +5406,7 @@ var NoteModel = class {
     this.pendingKeys = /* @__PURE__ */ new Map();
     this.writeTimers = /* @__PURE__ */ new Map();
     this.batchBase = /* @__PURE__ */ new Map();
-    /** Frontmatter snapshot when each batch began — the ancestor for 3-way merge. */
+    /** Frontmatter snapshot when each batch began - the ancestor for 3-way merge. */
     this.batchBaseFm = /* @__PURE__ */ new Map();
     this.batchStart = /* @__PURE__ */ new Map();
     this.conflictPaths = /* @__PURE__ */ new Set();
@@ -5637,7 +5637,7 @@ var NoteFacade = class {
     this.pending = /* @__PURE__ */ new Map();
     /** File mtime captured when each pending batch began (conflict baseline). */
     this.bases = /* @__PURE__ */ new Map();
-    /** Frontmatter snapshot when each batch began — the ancestor for 3-way merge. */
+    /** Frontmatter snapshot when each batch began - the ancestor for 3-way merge. */
     this.baseFm = /* @__PURE__ */ new Map();
     /** When we last wrote each file, to ignore our own echo (ms). */
     this.lastWriteAt = /* @__PURE__ */ new Map();
@@ -5729,8 +5729,8 @@ var NoteFacade = class {
   }
   /**
    * Force-write every pending batch immediately (plugin unload). Mirrors
-   * {@link NoteModel.flushPending}: writes land without the conflict check —
-   * there is no one left to prompt — except files with an open conflict
+   * {@link NoteModel.flushPending}: writes land without the conflict check -
+   * there is no one left to prompt - except files with an open conflict
    * prompt, which stay suspended for the user's decision.
    */
   flushAll() {
@@ -6041,7 +6041,7 @@ function renderEntry(grid, view, file, section, entry, flags, drag) {
   const head = wrap.createDiv({ cls: "ep-entry-head" });
   let grip = null;
   if (view.editMode) {
-    grip = head.createSpan({ cls: "ep-grip", text: "\u283F" });
+    grip = head.createSpan({ cls: "ep-grip", text: "::" });
     grip.setAttr("title", view.i18n.t("entry.dragHint"));
     grip.setAttr("aria-hidden", "true");
   }
@@ -6065,7 +6065,7 @@ function renderEntry(grid, view, file, section, entry, flags, drag) {
   });
   longPressContextMenu(wrap);
   if (view.editMode) {
-    const menuBtn = head.createSpan({ cls: "ep-menu-btn", text: "\u22EF" });
+    const menuBtn = head.createSpan({ cls: "ep-menu-btn", text: "..." });
     menuBtn.setAttr("role", "button");
     menuBtn.tabIndex = 0;
     menuBtn.setAttr("aria-label", view.i18n.t("a11y.entryMenu"));
@@ -6304,7 +6304,7 @@ var ColorPickerModal = class extends import_obsidian19.Modal {
     place();
     return { update, setValue: (v) => setVal(v, false) };
   }
-  /** A 2D canvas field (e.g. saturation × lightness) with a draggable cursor. */
+  /** A 2D canvas field (e.g. saturation x lightness) with a draggable cursor. */
   buildField(parent, colorAt, getXY, setXY) {
     const wrap = parent.createDiv({ cls: "ep-cp-field-wrap" });
     const canvas = wrap.createEl("canvas");
@@ -6655,7 +6655,7 @@ function addIconSetting(app, i18n, container, name, get, set) {
     prev.empty();
     const ic = get();
     if (ic) (0, import_obsidian21.setIcon)(prev, ic);
-    else prev.setText("\u2014");
+    else prev.setText("-");
   };
   update();
   setting.addButton(
@@ -7150,7 +7150,7 @@ var SectionOptionsModal = class extends import_obsidian23.Modal {
    * visible. The UI edits a proxy of the first entry; whenever a setting
    * changes, exactly the fields that changed are copied to all selected
    * entries (identity fields are excluded). Settings whose values differ
-   * across the selection are listed in the note on top — changing one
+   * across the selection are listed in the note on top - changing one
    * writes it to all.
    */
   drawMultiSameType(c, ents) {
@@ -7891,7 +7891,7 @@ function renderSection(parent, view, file, section, drag, host) {
     chev.toggleClass("ep-open", !section.collapsed);
   }
   if (view.editMode) {
-    const grip = sum.createSpan({ cls: "ep-grip", text: "\u283F" });
+    const grip = sum.createSpan({ cls: "ep-grip", text: "::" });
     grip.setAttr("title", t("section.dragHint"));
     grip.onclick = (e) => e.stopPropagation();
   }
@@ -7945,7 +7945,7 @@ function renderSection(parent, view, file, section, drag, host) {
       view.saveLayout();
       view.rerender();
     };
-    const menuBtn = sum.createSpan({ cls: "ep-menu-btn", text: "\u22EF" });
+    const menuBtn = sum.createSpan({ cls: "ep-menu-btn", text: "..." });
     menuBtn.setAttr("title", t("section.optionsHint"));
     menuBtn.onclick = (e) => {
       e.preventDefault();
@@ -8578,7 +8578,7 @@ var SidebarView = class extends import_obsidian26.ItemView {
      * values may have changed (render, refreshValues, maybeRefresh).
      */
     this.condVals = /* @__PURE__ */ new Map();
-    /** Responsive-pass signature per section id — skip re-measuring unchanged ones (F2). */
+    /** Responsive-pass signature per section id - skip re-measuring unchanged ones (F2). */
     this.respSig = /* @__PURE__ */ new Map();
     this.hlTimer = 0;
     this.scrollTimer = 0;
@@ -9062,7 +9062,7 @@ var SidebarView = class extends import_obsidian26.ItemView {
     }
     this.render();
   }
-  /** Signature of which prop entries are empty — visibility changes need a re-render. */
+  /** Signature of which prop entries are empty - visibility changes need a re-render. */
   emptySig() {
     let sig = "";
     for (const s of this.layout.sections) {
@@ -9208,7 +9208,7 @@ var SidebarView = class extends import_obsidian26.ItemView {
   /**
    * Width-responsive decorations: per section, progressively hide the
    * data-type hints, then the modifier chains, then the dice tags while
-   * any row overflows — and bring them back when the sidebar grows.
+   * any row overflows - and bring them back when the sidebar grows.
    * Re-run on every render and on container resize.
    */
   responsivePass() {
@@ -9542,7 +9542,7 @@ var TableView = class extends import_obsidian27.ItemView {
   }
   /**
    * Re-render on external metadata / workspace changes. When the changed file
-   * is known, skip the rebuild unless that file is a row of the shown type —
+   * is known, skip the rebuild unless that file is a row of the shown type -
    * or was one before the change (so losing the type removes the row).
    */
   refresh(file) {
@@ -9818,7 +9818,7 @@ var TableView = class extends import_obsidian27.ItemView {
       e.stopPropagation();
       try {
         const mod = (_a = parseNumeric(raw)) != null ? _a : 0;
-        this.plugin.rollService().roll(`${file.basename} \xB7 ${m.key}`, mod, parseDiceOrDefault(m.dice));
+        this.plugin.rollService().roll(`${file.basename} - ${m.key}`, mod, parseDiceOrDefault(m.dice));
       } catch (e2) {
         new import_obsidian27.Notice(this.plugin.i18n.t("table.rollFailed"));
       }
@@ -9871,9 +9871,9 @@ var TableView = class extends import_obsidian27.ItemView {
     td.ondblclick = start;
   }
   /**
-   * Write a cell edit through the plugin's shared {@link NoteFacade} — the
+   * Write a cell edit through the plugin's shared {@link NoteFacade} - the
    * same batched, conflict-guarded, merge-aware path the sidebar and inline
-   * chips use — never a raw `processFrontMatter`. Empty clears the key;
+   * chips use - never a raw `processFrontMatter`. Empty clears the key;
    * numeric-looking text is stored as a number.
    */
   writeCellText(file, key, value) {
@@ -10001,7 +10001,7 @@ var TableView = class extends import_obsidian27.ItemView {
     for (const k of sorted) {
       const tn = typeNameOf(k);
       menu.addItem(
-        (i) => i.setTitle(tn ? `${k} \xB7 ${tn}` : k).setChecked(layout.columns.includes(k)).onClick(() => {
+        (i) => i.setTitle(tn ? `${k} - ${tn}` : k).setChecked(layout.columns.includes(k)).onClick(() => {
           layout.columns = layout.columns.includes(k) ? layout.columns.filter((c) => c !== k) : [...layout.columns, k];
           void this.plugin.saveSettings();
           this.render();
@@ -10088,7 +10088,7 @@ var ImportModal = class extends import_obsidian28.Modal {
       );
     }
     if (!this.target) this.target = doc.kind === "type" ? doc.name : (_a = this.plugin.settings.types[0]) != null ? _a : "";
-    new import_obsidian28.Setting(body).setName(t("transfer.targetType")).setDesc(t("transfer.targetTypeDesc", { types: this.plugin.settings.types.join(", ") || "\u2014" })).addText((tx) => tx.setValue(this.target).onChange((v) => this.target = v.trim()));
+    new import_obsidian28.Setting(body).setName(t("transfer.targetType")).setDesc(t("transfer.targetTypeDesc", { types: this.plugin.settings.types.join(", ") || "-" })).addText((tx) => tx.setValue(this.target).onChange((v) => this.target = v.trim()));
     new import_obsidian28.Setting(body).addButton(
       (b) => b.setButtonText(t("transfer.importBtn")).setCta().onClick(() => this.apply(doc))
     );
@@ -10730,11 +10730,11 @@ var cube3d = {
         wrap.style.transform = tf(360 * spins);
         wrap.animate(
           [
-            // Decelerate quickly from the wound-up spin down onto the face…
+            // Decelerate quickly from the wound-up spin down onto the face...
             { transform: tf(360 * spins), offset: 0, easing: "cubic-bezier(.12,.75,.16,1)" },
-            // …carry a touch past it (the bounce)…
+            // ...carry a touch past it (the bounce)...
             { transform: tf(-9), offset: 0.86, easing: "cubic-bezier(.33,0,.5,1)" },
-            // …then settle back exactly on the face.
+            // ...then settle back exactly on the face.
             { transform: end, offset: 1 }
           ],
           { duration: dur, fill: "forwards" }
@@ -11713,8 +11713,8 @@ function updateSummary(i18n) {
         lt++;
       }
     }
-    geHead.setText(`\u2265 ${v} \xB7 ${ge}`);
-    ltHead.setText(`< ${v} \xB7 ${lt}`);
+    geHead.setText(`>= ${v} - ${ge}`);
+    ltHead.setText(`< ${v} - ${lt}`);
     if (firsts) {
       for (const x of els) {
         const a = firsts.get(x.el);
@@ -12439,7 +12439,7 @@ var rollerKind = {
     fnBtn("kl", t("roller.fnKeepLow"), () => insertToken("kl1"));
     fnBtn("!", t("roller.fnExplode"), () => insertToken("!"));
     fnBtn("r", t("roller.fnReroll"), () => insertToken("r1"));
-    fnBtn("\u2265", t("roller.fnSuccess"), () => insertToken(">="));
+    fnBtn(">=", t("roller.fnSuccess"), () => insertToken(">="));
     fnBtn("+", t("roller.fnPlus"), () => insertToken(" + "));
     const inlineChipText = (chip, initial, apply) => {
       chip.empty();
@@ -12467,8 +12467,8 @@ var rollerKind = {
       const list = segs();
       list.forEach((seg, idx) => {
         var _a2;
-        if (idx > 0) chainEl.createSpan({ cls: "ep-roll-op", text: seg.neg ? "\u2212" : "+" });
-        else if (seg.neg) chainEl.createSpan({ cls: "ep-roll-op", text: "\u2212" });
+        if (idx > 0) chainEl.createSpan({ cls: "ep-roll-op", text: seg.neg ? "-" : "+" });
+        else if (seg.neg) chainEl.createSpan({ cls: "ep-roll-op", text: "-" });
         const chip = chainEl.createSpan({ cls: "ep-roller-chip" });
         const label = seg.dice !== void 0 ? seg.dice : seg.ref !== void 0 ? seg.ref : String((_a2 = seg.add) != null ? _a2 : 0);
         chip.createSpan({ cls: "ep-roller-chiplab", text: label });
@@ -12511,7 +12511,7 @@ var rollerKind = {
             });
           }
         };
-        const x = chip.createSpan({ cls: "ep-roller-x", text: "\u2715" });
+        const x = chip.createSpan({ cls: "ep-roller-x", text: "x" });
         x.setAttr("title", t("roller.removeSeg"));
         x.onclick = (ev) => {
           ev.stopPropagation();
@@ -13029,7 +13029,7 @@ function renderRow(ctx2, list, records, index) {
   );
   const abbrSpan = row.createSpan({
     cls: "ep-line-abbr",
-    text: rec.source ? abbrFor(view.settings, rec.source) : "\u2014"
+    text: rec.source ? abbrFor(view.settings, rec.source) : "-"
   });
   abbrSpan.setAttr("aria-label", rec.source || t("skills.menu.setSource"));
   view.bindOpen(abbrSpan, () => inlineSource(ctx2, abbrSpan, index));
@@ -13250,14 +13250,14 @@ var skillsType = {
 // src/features/rolling/strings.json
 var strings_default = {
   "roll.featureName": "Dice & rolls",
-  "roll.featureDesc": "Roll buttons on properties, configurable dice (d2\u2013d100 or custom), the roll log panel, and the skills data type.",
+  "roll.featureDesc": "Roll buttons on properties, configurable dice (d2-d100 or custom), the roll log panel, and the skills data type.",
   "roll.roll": "Roll",
   "roll.rollAria": "Roll {name}",
   "roll.rolls": "Rolls",
   "roll.checkLabel": "{name} check",
   "roll.tagAdvantage": "(adv)",
   "roll.tagDisadvantage": "(dis)",
-  "roll.modeHint": "Roll mode \u2014 applies to all roll buttons",
+  "roll.modeHint": "Roll mode - applies to all roll buttons",
   "roll.modeDisadvantage": "Disadv",
   "roll.modeNormal": "Normal",
   "roll.modeAdvantage": "Advantage",
@@ -13280,13 +13280,13 @@ var strings_default = {
   "roll.rerollAll": "Reroll all",
   "roll.rngRandom": "Random",
   "roll.rngKarmic": "Karmic",
-  "roll.rngHint": "Toggle the global roll system: pure random, or adaptive (karmic) \u2014 failures build hidden luck debt that converts some future failures into successes; streaks of bad luck fade out.",
+  "roll.rngHint": "Toggle the global roll system: pure random, or adaptive (karmic) - failures build hidden luck debt that converts some future failures into successes; streaks of bad luck fade out.",
   "roll.logNoteOnly": "This note",
   "roll.logNoteOnlyHint": "Show only rolls made on the current note",
   "roll.logClear": "Clear",
   "roll.logClearHint": "Clear the roll history",
   "roll.logClearConfirm": "Clear the entire roll history?",
-  "roll.logClearNoteConfirm": "Clear this note\u2019s roll history?",
+  "roll.logClearNoteConfirm": "Clear this note's roll history?",
   "roll.cmd.exportHistory": "Export roll history to a note",
   "roll.cmd.macroPrefix": "Roll macro: {name}",
   "roll.export.title": "Roll history",
@@ -13303,17 +13303,17 @@ var strings_default = {
   "roller.addDie": "+ die",
   "roller.addNum": "+ number",
   "roller.times": "Rolls",
-  "roller.chipHint": "Click to edit, \u2715 to remove",
+  "roller.chipHint": "Click to edit, x to remove",
   "roller.removeSeg": "Remove",
   "roller.exprPlaceholder": "e.g. 2d6kh1 + 1d8 + DEX + 3",
-  "roller.exprHint": "Type a roll. kh/kl/dh/dl keep or drop dice, ! explodes, rN/roN reroll \u2264 N, >=N counts successes; names like DEX read the note's property.",
+  "roller.exprHint": "Type a roll. kh/kl/dh/dl keep or drop dice, ! explodes, rN/roN reroll <= N, >=N counts successes; names like DEX read the note's property.",
   "roller.fnDie": "die",
   "roller.fnDieHint": "Insert a die (pick the size)",
   "roller.fnKeepHigh": "Keep highest (advantage)",
   "roller.fnKeepLow": "Keep lowest (disadvantage)",
   "roller.fnExplode": "Explode on max",
-  "roller.fnReroll": "Reroll \u2264 1",
-  "roller.fnSuccess": "Count successes (\u2265 N)",
+  "roller.fnReroll": "Reroll <= 1",
+  "roller.fnSuccess": "Count successes (>= N)",
   "roller.fnPlus": "Add a term",
   "roller.macros": "Macros",
   "roller.saveMacro": "+ save as macro",
@@ -13324,19 +13324,19 @@ var strings_default = {
   "roller.macroRename": "Rename",
   "roller.macroRenamePrompt": "Macro name",
   "roller.macroDelete": "Delete macro",
-  "roller.macroSaved": "Saved macro \u201C{name}\u201D.",
+  "roller.macroSaved": 'Saved macro "{name}".',
   "dice.die": "Die",
   "dice.dieDesc": "Preset die, or type a custom size next to it",
-  "dice.custom": "Custom\u2026",
-  "dice.customSize": "Custom die size\u2026",
+  "dice.custom": "Custom...",
+  "dice.customSize": "Custom die size...",
   "dice.customSizePrompt": "Die size (number of faces)",
   "dice.customSizeShort": "size",
-  "dice.count": "Number of dice\u2026",
+  "dice.count": "Number of dice...",
   "dice.countPrompt": "Number of dice",
   "dice.countLabel": "Number of dice",
   "dice.reset": "Default (d20)",
   "type.skills": "skills (legacy list)",
-  "skills.convert": "Convert to property entries\u2026",
+  "skills.convert": "Convert to property entries...",
   "skills.convertBtn": "Convert",
   "skills.convertDesc": "Replace this list with one derived number property per row. Proficiency becomes a togglable influence backed by a list property; sources stay referenced by name.",
   "skills.convertConfirm": "Convert this skills list into individual derived property entries? The rows of the current note (or the preset) define the new entries; the record property itself is left untouched.",
@@ -13346,14 +13346,14 @@ var strings_default = {
   "skills.convertProfProperty": "Proficiency Bonus",
   "skills.convertProfList": "{name} Proficiencies",
   "skills.empty": "No skills yet.",
-  "skills.addMenu": "Add skills\u2026",
+  "skills.addMenu": "Add skills...",
   "skills.addSkill": "+ add skill",
-  "skills.newSkill": "New skill\u2026",
+  "skills.newSkill": "New skill...",
   "skills.newSkillPrompt": "Skill name",
   "skills.proficientHint": "Proficient",
   "skills.menu.addPreset": "Add preset: {name}",
-  "skills.menu.setSource": "Set modifier source\u2026",
-  "skills.menu.setDice": "Set dice\u2026",
+  "skills.menu.setSource": "Set modifier source...",
+  "skills.menu.setDice": "Set dice...",
   "skills.menu.clearOverride": "Clear modifier override",
   "skills.menu.moveUp": "Move up",
   "skills.menu.moveDown": "Move down",
@@ -13362,7 +13362,7 @@ var strings_default = {
   "skills.options.editHint": "Rows are edited directly in the sidebar: click (or double-click outside edit mode) a name, source tag or modifier; right-click a row for dice, ordering and removal.",
   "skills.options.sourceMode": "Modifier from source",
   "skills.options.modeValue": "Source value as-is",
-  "skills.options.modeAbilityMod": "Ability modifier ((value \u2212 10) / 2)",
+  "skills.options.modeAbilityMod": "Ability modifier ((value - 10) / 2)",
   "skills.options.profMode": "Proficiency bonus",
   "skills.options.profNone": "None",
   "skills.options.profLevel": "From a level property",
@@ -13694,7 +13694,7 @@ var HistoryService = class {
     this.store = store;
     /** Most-recent-first. The source of truth the panel renders from. */
     this.entries = [];
-    /** id → re-roll closure (this session only; not persisted). */
+    /** id -> re-roll closure (this session only; not persisted). */
     this.redos = /* @__PURE__ */ new Map();
     this.listeners = /* @__PURE__ */ new Set();
     this.flushTimer = 0;
@@ -14083,7 +14083,7 @@ function makeValsEl(ctx2, file, body, onEditSource) {
     } catch (e) {
       console.error("extended-properties: vals value render failed", e);
       const v = ctx2.facade.get(target, entry.key);
-      head.createDiv({ cls: "ep-val-right" }).setText(v === void 0 || v === null || v === "" ? "\u2014" : Array.isArray(v) ? v.join(", ") : String(v));
+      head.createDiv({ cls: "ep-val-right" }).setText(v === void 0 || v === null || v === "" ? "-" : Array.isArray(v) ? v.join(", ") : String(v));
     }
     wrap.addEventListener("contextmenu", (ev) => {
       var _a2, _b2;
@@ -14791,7 +14791,7 @@ var InlineWidget = class extends import_view.WidgetType {
   /**
    * Position is deliberately NOT part of equality. An edit *above* a widget
    * shifts its position but not its content; if `eq` included the position,
-   * CM6 would rebuild the whole widget every keystroke and re-attach its DOM —
+   * CM6 would rebuild the whole widget every keystroke and re-attach its DOM -
    * a path that drops the heavier `vals:` card. Comparing content only lets
    * CM6 reuse and reposition the existing DOM, so cards survive edits above.
    */
@@ -14906,12 +14906,12 @@ function inlineLivePreview(ctx2) {
 var strings_default3 = {
   "inline.featureName": "Inline rolls & properties",
   "inline.featureDesc": "Render `roll: 2d6+DEX` as a clickable roll and `prop: Strength` as a live, editable value in note bodies (reading mode), plus an `ep-sheet` code block that projects a note-type section.",
-  "inline.rollHint": "Click to roll \xB7 {expr}",
+  "inline.rollHint": "Click to roll - {expr}",
   "inline.rollInvalid": "Invalid roll expression.",
-  "inline.propHint": "{key} \u2014 click to edit",
+  "inline.propHint": "{key} - click to edit",
   "inline.editSource": "Edit source",
   "inline.editValue": "Edit {prop} value",
-  "inline.empty": "\u2014",
+  "inline.empty": "-",
   "inline.sheetNoType": "ep-sheet: this note has no matching type.",
   "inline.sheetEmpty": "ep-sheet: nothing to show.",
   "inline.chartInvalid": "Not enough values to chart.",
@@ -14954,7 +14954,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian42.Plugin {
     /** Signature of the registered macro set; guards needless re-registration. */
     this.macroSig = "";
   }
-  /** All known feature modules (enabled or not) — the settings tab lists them. */
+  /** All known feature modules (enabled or not) - the settings tab lists them. */
   get featureModules() {
     return FEATURE_MODULES;
   }
@@ -15172,7 +15172,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian42.Plugin {
         delete window.ExtendedProperties;
     });
   }
-  /** @see ExtendedPropertiesApi.register — incorporate a third-party module. */
+  /** @see ExtendedPropertiesApi.register - incorporate a third-party module. */
   registerExternalModule(module2) {
     if (!module2 || typeof module2.id !== "string" || typeof module2.register !== "function") {
       console.error("Extended Properties: invalid module passed to register()");
@@ -15230,7 +15230,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian42.Plugin {
   /**
    * File-backed roll-history store: `roll-history.json` next to `data.json`,
    * so a settings save never reserializes hundreds of roll records and a
-   * roll never rewrites the whole configuration. Best-effort — errors are
+   * roll never rewrites the whole configuration. Best-effort - errors are
    * logged, never thrown into the roll path.
    */
   historyStore() {
@@ -15311,7 +15311,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian42.Plugin {
   }
   /**
    * Snapshot the pre-migration `data.json` to the plugin's `backups/` folder,
-   * keeping the most recent 5. Best-effort — a failure must never block load.
+   * keeping the most recent 5. Best-effort - a failure must never block load.
    */
   async backupData(rawData) {
     try {
@@ -15439,7 +15439,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian42.Plugin {
     var _a;
     return (_a = this.settings.types.find((t) => t.toLowerCase() === key)) != null ? _a : key;
   }
-  /** A vault file changed — if it's one of our layout files (not our echo), reload (debounced). */
+  /** A vault file changed - if it's one of our layout files (not our echo), reload (debounced). */
   onLayoutFileEvent(path) {
     if (this.settings.layoutVault !== true || !this.layoutStore) return;
     if (!this.layoutStore.owns(path) || this.layoutStore.isEcho(path)) return;

@@ -64,7 +64,7 @@ export interface RefOption {
 /**
  * Token-aware autocomplete for expression/notation fields (the roller, the
  * influence expression editor, macro notation). Suggests property names and
- * their short forms — interchangeably — for the identifier the caret is on,
+ * their short forms - interchangeably - for the identifier the caret is on,
  * and replaces just that token on selection (the rest of the expression is
  * left intact).
  */
@@ -161,7 +161,7 @@ type LinkOrValue =
 
 /**
  * Text-input autocomplete that offers vault-note links when the caret sits in
- * an unclosed `[[…` token (inserting `[[Note]]`), and otherwise existing
+ * an unclosed `[[...` token (inserting `[[Note]]`), and otherwise existing
  * property values when an options provider is given. Attach to any free-text or
  * list-value input so typing `[[` brings up note suggestions.
  */

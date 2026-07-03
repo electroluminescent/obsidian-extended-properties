@@ -18,7 +18,7 @@ function cond(expr: string, e: ExprEnv): boolean | undefined | null {
   return ast ? evalCondition(ast, e) : null;
 }
 
-describe("evalCondition — numeric comparisons", () => {
+describe("evalCondition - numeric comparisons", () => {
   it("compares numbers", () => {
     expect(cond("Level >= 5", env({ Level: 5 }))).toBe(true);
     expect(cond("Level >= 5", env({ Level: 4 }))).toBe(false);
@@ -27,7 +27,7 @@ describe("evalCondition — numeric comparisons", () => {
   });
 });
 
-describe("evalCondition — string equality", () => {
+describe("evalCondition - string equality", () => {
   it("matches case-insensitively and trims", () => {
     expect(cond('Class == "Wizard"', env({}, { Class: "Wizard" }))).toBe(true);
     expect(cond('Class == "wizard"', env({}, { Class: "Wizard" }))).toBe(true);
@@ -37,7 +37,7 @@ describe("evalCondition — string equality", () => {
   });
 });
 
-describe("evalCondition — boolean logic & truthiness", () => {
+describe("evalCondition - boolean logic & truthiness", () => {
   it("combines && || ! and treats non-empty strings as truthy", () => {
     const e = env({ Level: 6 }, { Class: "Wizard" });
     expect(cond('Class == "Wizard" && Level >= 5', e)).toBe(true);
@@ -48,7 +48,7 @@ describe("evalCondition — boolean logic & truthiness", () => {
   });
 });
 
-describe("evalCondition — unresolved defaults to undefined", () => {
+describe("evalCondition - unresolved defaults to undefined", () => {
   it("returns undefined when a reference cannot be resolved", () => {
     expect(cond('Missing == "x"', env())).toBeUndefined();
     expect(cond("Missing >= 5", env())).toBeUndefined();
@@ -60,7 +60,7 @@ describe("evalExpr stays numeric", () => {
     const ast = parseExpr("2 + 3 * 4")!;
     expect(evalExpr(ast, env())).toBe(14);
     expect(evalExpr(parseExpr('Class == "Wizard"')!, env({}, { Class: "Wizard" }))).toBe(1);
-    // a bare string is not a number → undefined in the numeric context
+    // a bare string is not a number -> undefined in the numeric context
     expect(evalExpr(parseExpr('"hello"')!, env())).toBeUndefined();
   });
 });

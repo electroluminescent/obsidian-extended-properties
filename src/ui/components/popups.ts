@@ -266,7 +266,7 @@ export class PopupManager {
     custom.type = "text";
     custom.placeholder = multi ? t("add.customValue") : t("add.typeValue");
     new TextLinkSuggest(view.app, custom); // [[ note autocomplete
-    // Multi (list property): clicking an existing value adds it IMMEDIATELY —
+    // Multi (list property): clicking an existing value adds it IMMEDIATELY -
     // no checkbox/confirm round-trip. The first pick creates the entry with
     // that value; later picks append. Only a typed custom value still goes
     // through the Add button (Enter).

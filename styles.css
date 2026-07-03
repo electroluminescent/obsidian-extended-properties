@@ -1,4 +1,4 @@
-/* Extended Properties — Character Sidebar */
+/* Extended Properties - Character Sidebar */
 /* @settings
 
 name: Extended Properties
@@ -96,8 +96,8 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
 .ep-log-row.ep-fail { color: var(--text-error); font-weight: 700; }
 .ep-init { width: 100%; margin: 6px 0 10px; }
 
-/* Pinned zones. Both cap their height (--ep-zone-max ≈ a third of the view,
-   set by reflowSticky) and scroll internally past it — so pinning any number
+/* Pinned zones. Both cap their height (--ep-zone-max ~ a third of the view,
+   set by reflowSticky) and scroll internally past it - so pinning any number
    of sections keeps every item reachable at any window size, instead of the
    zones swallowing the view. flex-shrink: 0 keeps the flex column from
    squeezing them below their capped height. */
@@ -348,7 +348,7 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
 
 /* add menu groups / badges / search / pads */
 .ep-pop-group { font-weight: 700; font-size: var(--font-ui-smaller); color: var(--text-accent); padding: 5px 8px 2px; text-transform: uppercase; letter-spacing: .04em; }
-/* Data-type sub-groups within a picker group (On this note → number, text, …). */
+/* Data-type sub-groups within a picker group (On this note -> number, text, ...). */
 .ep-pop-subgroup { font-style: italic; font-size: 0.78em; color: var(--text-faint); padding: 4px 10px 1px; }
 /* Data-type tag beside a suggested property (mirrors the sidebar type hint). */
 .ep-sug-type { margin-left: 8px; font-style: italic; font-size: 0.78em; color: var(--text-faint); }
@@ -376,7 +376,7 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
 .ep-val-right a, .ep-chip a, .ep-line-name a { color: var(--link-color, var(--text-accent)); text-decoration: var(--link-decoration, none); cursor: pointer; }
 .ep-val-right a:hover, .ep-chip a:hover { text-decoration: underline; }
 
-/* round 18 additions — square add bars + per row/col remove */
+/* round 18 additions - square add bars + per row/col remove */
 .ep-colrail { display: flex; align-items: center; height: 14px; }
 .ep-rowrail { display: flex; flex-direction: column; align-items: center; width: 14px; }
 .ep-colrail .ep-addbar, .ep-rowrail .ep-addbar { width: 14px; height: 14px; min-width: 14px; flex: 0 0 14px; border-radius: 4px; }
@@ -387,7 +387,7 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
 .ep-rmbar:hover { opacity: 1; background: var(--background-modifier-error); color: var(--text-on-accent); }
 .ep-rmbar svg { width: 10px; height: 10px; }
 
-/* Dice notation tag — muted, abbreviation-style, shown before modifiers. */
+/* Dice notation tag - muted, abbreviation-style, shown before modifiers. */
 .ep-dice-tag {
   opacity: 0.75;
   font-size: 0.85em;
@@ -397,7 +397,7 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
   margin-right: 3px;
 }
 
-/* round 19 additions — the influence engine (denotations, toggles, editor) */
+/* round 19 additions - the influence engine (denotations, toggles, editor) */
 .ep-denote { display: inline-flex; align-items: center; gap: 1px; margin-right: 4px; white-space: nowrap; }
 .ep-denote .ep-line-abbr { width: auto; text-align: left; }
 .ep-denote-op { font-size: 0.85em; color: var(--text-faint); padding: 0 1px; }
@@ -409,7 +409,7 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
 .ep-options .ep-mods-sub .setting-item-name { color: var(--text-muted); font-size: var(--font-ui-smaller); }
 .ep-options .ep-abbr-input { width: 4.5em; }
 
-/* round 20 additions — alignment, viewport fitting, insertion lines, mobile */
+/* round 20 additions - alignment, viewport fitting, insertion lines, mobile */
 /* breathing room below the last section */
 .ep-sidebar { padding-bottom: 96px; }
 /* toggle checkboxes right-aligned, in modifier order */
@@ -424,7 +424,7 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
 }
 .ep-section.ep-drop-top::before { top: -7px; }
 .ep-section.ep-drop-bottom::after { bottom: -7px; }
-/* grips drive pointer drags — keep touch from scrolling instead */
+/* grips drive pointer drags - keep touch from scrolling instead */
 .ep-grip { touch-action: none; }
 /* larger touch targets */
 @media (pointer: coarse) {
@@ -443,7 +443,7 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
   .ep-section.ep-drop-top::before, .ep-section.ep-drop-bottom::after { height: 4px; }
 }
 
-/* round 21 additions — measured rails, dimmed inactive inputs */
+/* round 21 additions - measured rails, dimmed inactive inputs */
 /* rail buttons are absolutely positioned on measured cell boundaries/centers */
 .ep-colrail { position: relative; display: block; height: 16px; margin: 2px 0; }
 .ep-rowrail { position: relative; display: block; width: 16px; flex: 0 0 16px; }
@@ -456,7 +456,7 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
   .ep-rowrail { width: 26px; flex-basis: 26px; }
 }
 
-/* round 22 additions — tabs, dividers, hover fix, dice joining, type hints */
+/* round 22 additions - tabs, dividers, hover fix, dice joining, type hints */
 /* hover must not cancel the centering transform of measured rail buttons */
 .ep-colrail .ep-addbar:hover { width: 14px; height: 14px; transform: translate(-50%, -50%); }
 .ep-rowrail .ep-addbar:hover { width: 14px; height: 14px; transform: translate(-50%, -50%); }
@@ -473,7 +473,7 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 .ep-num.ep-overridden { text-decoration: underline dotted; }
 /* datatype hint beside labels (auto-removed when space is tight) */
 .ep-line-name .ep-type-hint { font-style: italic; font-size: 0.78em; color: var(--text-faint); margin-left: 5px; font-weight: 400; }
-/* Unit suffix after a numeric value — muted like the type hint, but it reads
+/* Unit suffix after a numeric value - muted like the type hint, but it reads
    as data (kg, ft, %), so slightly stronger and upright. */
 .ep-unit-hint { font-size: 0.78em; color: var(--text-muted); margin-left: 4px; font-weight: 400; }
 /* List chip alignment (per-entry option; left is the default flex start). */
@@ -496,7 +496,7 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 .ep-tab:hover { color: var(--text-normal); }
 .ep-tab.is-active { background: var(--interactive-accent); color: var(--text-on-accent); }
 
-/* round 23 additions — responsive squeezing, tab columns, divider-free settings */
+/* round 23 additions - responsive squeezing, tab columns, divider-free settings */
 /* decorations hidden by the width-responsive pass */
 .ep-squeezed { display: none !important; }
 /* column labels in the tab bar (Columns layout) */
@@ -505,7 +505,7 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 /* no dividers between settings in the plugin settings tab either */
 .ep-settings .setting-item { border-top: none; }
 
-/* round 24 additions — dice icons, chain toggling, grid divider alignment */
+/* round 24 additions - dice icons, chain toggling, grid divider alignment */
 /* truly divider-free options & settings (override theme borders) */
 .ep-options .setting-item, .ep-settings .setting-item { border-top: none !important; }
 /* die pictogram preceding the dice breakdown */
@@ -522,7 +522,7 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 .ep-grid.ep-mode-grid { align-items: stretch; }
 .ep-grid.ep-mode-grid > .ep-empty-cell { min-height: 28px; }
 
-/* round 25 additions — stacked dice tag, multi-edit note, roll animation */
+/* round 25 additions - stacked dice tag, multi-edit note, roll animation */
 /* die icon stacked above the notation, both centered */
 .ep-dice-tag.ep-dice-stack { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.05; }
 .ep-dice-stack .ep-dice-ico { margin: 0; }
@@ -554,7 +554,7 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 
 /* modular dice animation styles: spin + 3d cube, plus card resize */
 .ep-roll-die.ep-spin .ep-roll-die-ico { opacity: 0.35; animation: ep-spin .5s linear infinite; }
-/* The number stays visible while spinning — it cycles random faces (JS-paced,
+/* The number stays visible while spinning - it cycles random faces (JS-paced,
    decelerating) instead of hiding until the landing. */
 @keyframes ep-spin { to { transform: rotate(360deg); } }
 /* each 3D die is a self-contained perspective scene (flat container + perspective),
@@ -569,7 +569,7 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 .ep-cube-left { transform: rotateY(-90deg) translateZ(32px); }
 .ep-cube-top { transform: rotateX(90deg) translateZ(32px); }
 .ep-cube-bottom { transform: rotateX(-90deg) translateZ(32px); }
-/* generic polyhedron solid (d4/d8/d10/d12/d20 — faces placed via matrix3d) */
+/* generic polyhedron solid (d4/d8/d10/d12/d20 - faces placed via matrix3d) */
 .ep-solid { position: relative; width: 64px; height: 64px; transform-style: preserve-3d; transition: transform .14s linear; }
 .ep-solid.ep-solid-land { transition: transform .5s cubic-bezier(.2, .8, .3, 1); }
 .ep-solid-face { position: absolute; inset: 0; }
@@ -589,7 +589,7 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
   .ep-cube, .ep-cube.ep-cube-land, .ep-solid, .ep-solid.ep-solid-land { transition: none; }
 }
 
-/* round 26 additions — pinnable roll cards, value chain, fading decorations */
+/* round 26 additions - pinnable roll cards, value chain, fading decorations */
 /* non-blocking layer hosting (possibly several) roll cards */
 /* Cards center on the screen; --ep-roll-reserve keeps them clear of the
    bottom summary dialog (measured live in dice-anim.ts, so an expanded
@@ -610,7 +610,7 @@ body.is-mobile .ep-roll-cards { margin: 0; width: 100%; max-height: 100%; flex-w
 /* the addition chain: value cells with origin labels underneath */
 .ep-roll-chain { display: flex; align-items: flex-start; gap: 7px; flex-wrap: wrap; justify-content: center; min-height: 2.8em; max-width: 420px; }
 .ep-roll-op { font-weight: 700; color: var(--text-faint); padding-top: 0.05em; }
-/* scoped to the card chain — ".ep-roll-cell" alone is the sidebar's roll-button slot! */
+/* scoped to the card chain - ".ep-roll-cell" alone is the sidebar's roll-button slot! */
 .ep-roll-chain .ep-roll-cell { display: flex; flex-direction: column; align-items: center; opacity: 0; transform: translateY(6px); transition: opacity .22s ease, transform .22s ease; }
 .ep-roll-chain .ep-roll-cell.ep-in { opacity: 1; transform: none; }
 .ep-roll-chain .ep-roll-cellval { font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.15; }
@@ -629,10 +629,10 @@ body.is-mobile .ep-roll-cards { margin: 0; width: 100%; max-height: 100%; flex-w
   .ep-roll-chain .ep-roll-cell, .ep-type-hint, .ep-entry-head .ep-denote, .ep-entry-head .ep-dice-tag { transition: none; }
 }
 
-/* round 27 additions — priority squeezing, dropped dice, close-all, dice roller */
+/* round 27 additions - priority squeezing, dropped dice, close-all, dice roller */
 /* chain values share one line, so dice, modifiers and the total align */
 .ep-roll-chain .ep-roll-cellval, .ep-roll-chain .ep-roll-op { height: 28px; display: flex; align-items: center; padding-top: 0; }
-/* the dropped (ignored) advantage/disadvantage die — visible but dimmed */
+/* the dropped (ignored) advantage/disadvantage die - visible but dimmed */
 .ep-roll-die.ep-roll-drop { opacity: 0.35; }
 .ep-roll-die.ep-roll-drop .ep-roll-die-num { text-decoration: line-through; }
 .ep-roll-chain .ep-roll-cell.ep-roll-dropped { opacity: 0.45; }
@@ -664,7 +664,7 @@ body.is-mobile .ep-roll-cards { margin: 0; width: 100%; max-height: 100%; flex-w
 .ep-roller-times input { width: 4em; }
 @media (prefers-reduced-motion: reduce) { .ep-entry-head .ep-tog-cell, .ep-entry-head .ep-mod-badge { transition: none; } }
 
-/* round 28 additions — blocking backdrop, result summary window, clickable log */
+/* round 28 additions - blocking backdrop, result summary window, clickable log */
 /* optional: dim the background and swallow clicks while roll cards are up */
 .ep-roll-layer.ep-roll-block { pointer-events: auto; background: rgba(0, 0, 0, 0.55); }
 /* bottom-center window: dismiss-all + the result-distribution slider */
@@ -686,7 +686,7 @@ body.is-mobile .ep-roll-summary.ep-sum-open { max-height: 50vh; }
 .ep-roll-sum-toggle:hover { color: var(--text-normal); }
 .ep-roll-sum-toggle .ep-chev { display: inline-flex; transition: transform .15s ease; }
 .ep-roll-sum-toggle .ep-chev.ep-open { transform: rotate(90deg); }
-/* Accordion: the grid row interpolates 0fr↔1fr, so opening/closing the panel
+/* Accordion: the grid row interpolates 0fr<->1fr, so opening/closing the panel
    animates the dialog's height instead of jumping. */
 .ep-roll-sum-acc { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .22s ease; width: 100%; }
 .ep-roll-sum-settings.ep-open .ep-roll-sum-acc { grid-template-rows: 1fr; }
@@ -718,7 +718,7 @@ body.is-mobile .ep-roll-sum-toggle { min-height: 34px; }
 .ep-log-tools { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; margin-bottom: 4px; }
 .ep-log-row.ep-log-click { cursor: pointer; }
 .ep-log-row.ep-log-click:hover { color: var(--text-normal); background: var(--background-modifier-hover); border-radius: 4px; }
-/* the panel holds the whole session history — scroll it */
+/* the panel holds the whole session history - scroll it */
 .ep-log { max-height: 260px; overflow-y: auto; }
 @media (prefers-reduced-motion: reduce) { .ep-roll-sum-die { transition: none; } }
 
@@ -731,7 +731,7 @@ body.is-mobile .ep-roll-sum-toggle { min-height: 34px; }
 .ep-invalid { border-color: var(--text-error) !important; }
 /* C1: invalid value marker on value displays (non-blocking) */
 .ep-invalid-mark { box-shadow: 0 0 0 1px var(--text-error); border-radius: 4px; }
-/* expression engine: failed derivations (—) and the inline expression field */
+/* expression engine: failed derivations (-) and the inline expression field */
 .ep-expr-error { color: var(--text-error); cursor: help; font-weight: 700; }
 .ep-expr-input { width: 100%; font-family: var(--font-monospace); }
 
@@ -751,7 +751,7 @@ body.is-mobile .ep-roll-sum-toggle { min-height: 34px; }
 /* Live Preview fallback when a widget fails to render (never an empty chip) */
 .ep-inline-error { color: var(--text-error); cursor: pointer; font-family: var(--font-monospace); border-bottom: 1px dotted var(--text-error); }
 /* vals: a sidebar-style property card, rendered inline (card class is on the
-   inline-block root itself — no block wrapper that would collapse on mobile) */
+   inline-block root itself - no block wrapper that would collapse on mobile) */
 .ep-inline-vals { display: inline-block; vertical-align: middle; max-width: 100%; }
 .ep-inline-vals.ep-entry { gap: 6px; padding: 2px 8px; border: 1px solid var(--background-modifier-border); border-radius: var(--ep-radius, 6px); background: var(--background-secondary); }
 .ep-inline-vals .ep-entry-head { display: flex; align-items: center; gap: 6px; }
@@ -830,8 +830,8 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-table th, .ep-table td { border: 1px solid var(--background-modifier-border); padding: 4px 8px; text-align: left; white-space: nowrap; }
 .ep-table thead th { position: sticky; top: 0; background: var(--background-secondary); z-index: 1; }
 .ep-sortable { cursor: pointer; user-select: none; }
-.ep-sort-asc::after { content: " ▲"; opacity: 0.6; font-size: 0.8em; }
-.ep-sort-desc::after { content: " ▼"; opacity: 0.6; font-size: 0.8em; }
+.ep-sort-asc::after { content: " \25b2"; opacity: 0.6; font-size: 0.8em; }
+.ep-sort-desc::after { content: " \25bc"; opacity: 0.6; font-size: 0.8em; }
 .ep-table-link { cursor: pointer; color: var(--text-accent); }
 .ep-table tbody tr:hover { background: var(--background-modifier-hover); }
 .ep-table-cell { cursor: text; }

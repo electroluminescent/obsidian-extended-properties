@@ -1,7 +1,7 @@
 /**
  * The legacy "skills" value type.
  *
- * The property value is a list of {@link SkillRecord}s — one per skill —
+ * The property value is a list of {@link SkillRecord}s - one per skill -
  * stored as plain objects in frontmatter, e.g.:
  *
  * ```yaml
@@ -56,7 +56,7 @@ export interface SkillsExt {
 }
 
 // ---------------------------------------------------------------------------
-// Records ↔ frontmatter
+// Records <-> frontmatter
 // ---------------------------------------------------------------------------
 
 /** Tolerantly read records from a frontmatter value (strings become names). */
@@ -122,7 +122,7 @@ function effectiveMod(view: ViewCtx, e: SkillsExt, rec: SkillRecord): number {
 }
 
 // ---------------------------------------------------------------------------
-// Conversion → derived number properties
+// Conversion -> derived number properties
 // ---------------------------------------------------------------------------
 
 /** Whether `key` is already used by another prop entry of the layout. */
@@ -224,7 +224,7 @@ function confirmConvert(ref: EntryRef): void {
 }
 
 // ---------------------------------------------------------------------------
-// Record mutation helpers (read → modify → write keeps rows stateless)
+// Record mutation helpers (read -> modify -> write keeps rows stateless)
 // ---------------------------------------------------------------------------
 
 function updateRecord(ctx: EntryRenderCtx, index: number, change: (rec: SkillRecord) => void): void {
@@ -366,12 +366,12 @@ function renderRow(ctx: EntryRenderCtx, list: HTMLElement, records: SkillRecord[
   // Modifying property (short form, editable; overrides live in settings).
   const abbrSpan = row.createSpan({
     cls: "ep-line-abbr",
-    text: rec.source ? abbrFor(view.settings, rec.source) : "—",
+    text: rec.source ? abbrFor(view.settings, rec.source) : "-",
   });
   abbrSpan.setAttr("aria-label", rec.source || t("skills.menu.setSource"));
   view.bindOpen(abbrSpan, () => inlineSource(ctx, abbrSpan, index));
 
-  // Dice tag — same muted format, before the modifier.
+  // Dice tag - same muted format, before the modifier.
   const diceNotation = rec.dice ?? e.dice;
   const diceTag = renderDiceTag(row, diceNotation);
   if (diceTag) {
@@ -385,7 +385,7 @@ function renderRow(ctx: EntryRenderCtx, list: HTMLElement, records: SkillRecord[
     });
   }
 
-  // Modifier (editable — writes an override so the shown value sticks).
+  // Modifier (editable - writes an override so the shown value sticks).
   const modSpan = row.createSpan({ cls: "ep-line-mod", text: fmtMod(effectiveMod(view, e, rec)) });
   view.bindOpen(modSpan, () =>
     openNumberInput(modSpan, effectiveMod(view, e, rec), (v) => {

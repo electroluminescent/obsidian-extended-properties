@@ -1,10 +1,10 @@
 /**
- * Tiny synthesized UI sound effects via the Web Audio API — no asset files,
+ * Tiny synthesized UI sound effects via the Web Audio API - no asset files,
  * just short, subtle blips for clicks, dice rolls and crit/fail tones.
  *
  * Gated by a plugin setting (configure via {@link configureSound}); the
- * AudioContext is created lazily on first use — always inside a user gesture
- * (a click or roll), so autoplay policies are satisfied — and every call is a
+ * AudioContext is created lazily on first use - always inside a user gesture
+ * (a click or roll), so autoplay policies are satisfied - and every call is a
  * silent no-op when disabled or unsupported.
  */
 

@@ -5,7 +5,7 @@
  * folder, so configuration syncs / diffs / shares with the vault instead of
  * living only in `data.json`. It is opt-in and additive: `settings.layouts`
  * stays the in-memory source of truth, these files mirror it and win on load,
- * and `data.json` keeps a copy as a backup. Every operation is defensive — a
+ * and `data.json` keeps a copy as a backup. Every operation is defensive - a
  * missing folder or a hand-corrupted file fails per file with a notice, never
  * an exception that could break the plugin.
  */

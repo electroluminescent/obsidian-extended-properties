@@ -3,7 +3,7 @@
  * (floats), and "formula" (a slider whose position maps through a math
  * expression; typing a value solves the formula backwards).
  *
- * Cluster addons (see {@link ClusterAddon}) can attach extra cells — the
+ * Cluster addons (see {@link ClusterAddon}) can attach extra cells - the
  * core modifier system adds its badge/toggles and the rolling module its
  * roll button this way.
  */
@@ -28,19 +28,19 @@ function defaultRange(kind: NumericKind): { min: number; max: number } {
   return { min: -9999, max: 99999 };
 }
 
-/** Whether the entry shows −/+ steppers (number/decimal, not opted out). */
+/** Whether the entry shows -/+ steppers (number/decimal, not opted out). */
 function wantSteppers(kind: NumericKind, entry: { steppers?: boolean }): boolean {
   return (kind === "number" || kind === "decimal") && entry.steppers !== false;
 }
 
-/** Slider response curve: normalized position [0,1] → normalized value. */
+/** Slider response curve: normalized position [0,1] -> normalized value. */
 function curveMap(curve: string | undefined, t: number): number {
   if (curve === "root") return Math.sqrt(Math.max(0, t));
   if (curve === "exp") return t * t;
   return t;
 }
 
-/** Inverse of {@link curveMap}: normalized value → slider position. */
+/** Inverse of {@link curveMap}: normalized value -> slider position. */
 function curveInvert(curve: string | undefined, u: number): number {
   const c = Math.min(1, Math.max(0, u));
   if (curve === "root") return c * c;
@@ -236,7 +236,7 @@ function renderOptions(kind: NumericKind, octx: OptionsCtx): void {
         changed();
       });
     });
-    // Optional unit suffix — rendered as a muted tag beside the property
+    // Optional unit suffix - rendered as a muted tag beside the property
     // name, the way the data-type hint appears (same `unit` field the
     // dedicated unit value type uses, so converting between types keeps it).
     new Setting(c)
@@ -297,13 +297,13 @@ function renderOptions(kind: NumericKind, octx: OptionsCtx): void {
         });
       });
   }
-  // Addons (modifiers, rolling, …) append their own rows. Deliberately not
+  // Addons (modifiers, rolling, ...) append their own rows. Deliberately not
   // filtered by `appliesTo`: an addon that doesn't apply *yet* must still be
   // able to offer the option that enables it (each one guards itself).
   for (const a of octx.view.registries.clusterAddons.all()) a.renderOptions?.(octx);
 }
 
-/** Context-menu "Edit value…" honoring integer/clamp rules. */
+/** Context-menu "Edit value..." honoring integer/clamp rules. */
 function menuItems(kind: NumericKind, menu: Menu, ref: EntryRef): void {
   const { view, file, entry } = ref;
   const key = entry.key as string;

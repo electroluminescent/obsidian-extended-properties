@@ -53,7 +53,7 @@ describe("references", () => {
   });
   it("degrades unresolved references to undefined (never throws)", () => {
     expect(ev("missing + 1")).toBeUndefined();
-    expect(ev("1 / 0")).toBeUndefined(); // non-finite → undefined
+    expect(ev("1 / 0")).toBeUndefined(); // non-finite -> undefined
   });
 });
 

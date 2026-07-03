@@ -1,12 +1,12 @@
 /**
  * Opt-in, user-initiated encryption of sensitive property values (roadmap L1).
  *
- * A value is encrypted into a self-describing envelope string —
- * `ep-enc:1:<salt>:<iv>:<ciphertext>` (all base64) — stored in place of the
+ * A value is encrypted into a self-describing envelope string -
+ * `ep-enc:1:<salt>:<iv>:<ciphertext>` (all base64) - stored in place of the
  * plaintext in the note's frontmatter. Encryption is AES-256-GCM with a key
  * derived from a session passphrase via PBKDF2; GCM's authentication tag means
  * a wrong passphrase fails loudly (it never returns garbage), so decryption
- * failure is always non-destructive — the ciphertext is left untouched and the
+ * failure is always non-destructive - the ciphertext is left untouched and the
  * value simply shows as locked.
  *
  * IMPORTANT (lockout): the passphrase is held only in memory for the session
@@ -14,7 +14,7 @@
  * recovered. The UI warns about this before the first encryption.
  *
  * Pure (Web Crypto only, no Obsidian) so the round-trip is unit-tested. Web
- * Crypto is present in the Obsidian (Electron) renderer and in Node ≥ 20.
+ * Crypto is present in the Obsidian (Electron) renderer and in Node >= 20.
  */
 
 const PREFIX = "ep-enc:1:";
@@ -130,7 +130,7 @@ export class SecretStore {
    * Decrypt every envelope among `values` into the cache. Returns how many were
    * newly decrypted (so the caller can skip a re-render when nothing changed).
    * A value that fails to decrypt (wrong key / corrupt) is silently left masked
-   * — never throws, never loses data.
+   * - never throws, never loses data.
    */
   async prime(values: Iterable<unknown>): Promise<number> {
     if (this.pass === null) return 0;

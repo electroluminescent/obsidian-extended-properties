@@ -31,7 +31,7 @@ export function getNum(raw: Record<string, unknown>, key: string, def: number): 
 /**
  * Coerce a frontmatter value to a number, or null when it isn't one:
  * plain numbers as-is; ISO dates (`YYYY-MM-DD`) as whole-day numbers; and the
- * leading number of a unit value (`"10 lb"` → 10). Shared by the influence
+ * leading number of a unit value (`"10 lb"` -> 10). Shared by the influence
  * engine and the vault index so references behave the same everywhere.
  */
 export function parseNumeric(v: unknown): number | null {

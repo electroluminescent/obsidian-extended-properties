@@ -1,10 +1,10 @@
 /**
  * "diceroller" entry kind: a freely assemblable dice interface (addable like
  * Contents, and available as a section template). Build a chain of dice
- * groups, numbers and property references — as chips or by typing a full
- * expression (`2d6kh1 + 1d8 + DEX + 3`) — pick how many simultaneous rolls to
+ * groups, numbers and property references - as chips or by typing a full
+ * expression (`2d6kh1 + 1d8 + DEX + 3`) - pick how many simultaneous rolls to
  * make and advantage/disadvantage, then execute through the shared
- * {@link RollService} (animation, history, notice — same as every roll button).
+ * {@link RollService} (animation, history, notice - same as every roll button).
  *
  * The chips and the expression field are two views of one {@link RollAst}:
  * editing either rewrites the other. Advantage/disadvantage add their extra
@@ -125,7 +125,7 @@ export const rollerKind: EntryKindDef = {
     fnBtn("kl", t("roller.fnKeepLow"), () => insertToken("kl1"));
     fnBtn("!", t("roller.fnExplode"), () => insertToken("!"));
     fnBtn("r", t("roller.fnReroll"), () => insertToken("r1"));
-    fnBtn("≥", t("roller.fnSuccess"), () => insertToken(">="));
+    fnBtn(">=", t("roller.fnSuccess"), () => insertToken(">="));
     fnBtn("+", t("roller.fnPlus"), () => insertToken(" + "));
 
     /** Replace a chip with a one-field text editor; `apply(value)` decides what to keep. */
@@ -156,8 +156,8 @@ export const rollerKind: EntryKindDef = {
       chainEl.empty();
       const list = segs();
       list.forEach((seg, idx) => {
-        if (idx > 0) chainEl.createSpan({ cls: "ep-roll-op", text: seg.neg ? "−" : "+" });
-        else if (seg.neg) chainEl.createSpan({ cls: "ep-roll-op", text: "−" });
+        if (idx > 0) chainEl.createSpan({ cls: "ep-roll-op", text: seg.neg ? "-" : "+" });
+        else if (seg.neg) chainEl.createSpan({ cls: "ep-roll-op", text: "-" });
         const chip = chainEl.createSpan({ cls: "ep-roller-chip" });
         const label = seg.dice !== undefined ? seg.dice : seg.ref !== undefined ? seg.ref : String(seg.add ?? 0);
         chip.createSpan({ cls: "ep-roller-chiplab", text: label });
@@ -166,7 +166,7 @@ export const rollerKind: EntryKindDef = {
           ev.stopPropagation();
           if (seg.dice !== undefined) {
             if (parseDice(seg.dice)) {
-              // Simple NdS — the preset dice menu.
+              // Simple NdS - the preset dice menu.
               openDiceMenu(ev, view.app, view.i18n, {
                 get: () => seg.dice,
                 set: (n) => {
@@ -176,7 +176,7 @@ export const rollerKind: EntryKindDef = {
                 },
               });
             } else {
-              // Advanced notation (keep/drop, explode, …) — edit as text.
+              // Advanced notation (keep/drop, explode, ...) - edit as text.
               inlineChipText(chip, seg.dice ?? "", (val) => {
                 const parsed = textToSegs(val);
                 if (parsed && parsed.length === 1 && parsed[0].dice) seg.dice = parsed[0].dice;
@@ -201,7 +201,7 @@ export const rollerKind: EntryKindDef = {
             });
           }
         };
-        const x = chip.createSpan({ cls: "ep-roller-x", text: "✕" });
+        const x = chip.createSpan({ cls: "ep-roller-x", text: "x" });
         x.setAttr("title", t("roller.removeSeg"));
         x.onclick = (ev) => {
           ev.stopPropagation();

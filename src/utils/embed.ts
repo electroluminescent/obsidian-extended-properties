@@ -3,14 +3,14 @@
  * source string (vault path vs. web URL vs. streaming service) and rewrite
  * service page URLs into their embeddable player form.
  *
- * Zero Obsidian imports — unit-tested directly (tests/embed.test.ts).
+ * Zero Obsidian imports - unit-tested directly (tests/embed.test.ts).
  */
 
 /** How a media source should be embedded. */
 export type MediaEmbed =
-  /** Vault-local path/wikilink or a direct media URL — native element. */
+  /** Vault-local path/wikilink or a direct media URL - native element. */
   | { kind: "file" }
-  /** A service player page — embed via iframe at `src`. */
+  /** A service player page - embed via iframe at `src`. */
   | { kind: "iframe"; src: string };
 
 const VIDEO_EXT = /\.(mp4|webm|ogv|mov|m4v|mkv)(\?[^ ]*)?$/i;
@@ -20,7 +20,7 @@ const AUDIO_EXT = /\.(mp3|wav|ogg|oga|m4a|flac|aac|opus|3gp)(\?[^ ]*)?$/i;
 export const isWebUrl = (s: string): boolean => /^https?:\/\//i.test(s.trim());
 
 /**
- * YouTube page URL (watch / youtu.be / shorts / live / already-embed) →
+ * YouTube page URL (watch / youtu.be / shorts / live / already-embed) ->
  * embed player URL, else null. A `t=`/`start=` timestamp is preserved.
  */
 export function youtubeEmbed(url: string): string | null {
@@ -32,7 +32,7 @@ export function youtubeEmbed(url: string): string | null {
   return `https://www.youtube.com/embed/${m[1]}${t ? `?start=${t[1]}` : ""}`;
 }
 
-/** Vimeo page URL → player URL, else null. */
+/** Vimeo page URL -> player URL, else null. */
 export function vimeoEmbed(url: string): string | null {
   const m = /vimeo\.com\/(?:video\/)?(\d+)/i.exec(url);
   return m ? `https://player.vimeo.com/video/${m[1]}` : null;

@@ -1,10 +1,10 @@
 /**
  * Core entry kinds:
  *
- * - "prop"  — shows a frontmatter property; delegates to the value-type
+ * - "prop"  - shows a frontmatter property; delegates to the value-type
  *             registry for the actual value UI.
- * - "blank" — an empty grid cell (placeholder + add/remove menu in edit mode).
- * - "toc"   — table of contents: one row per section, click to scroll.
+ * - "blank" - an empty grid cell (placeholder + add/remove menu in edit mode).
+ * - "toc"   - table of contents: one row per section, click to scroll.
  */
 
 import { Menu, setIcon } from "obsidian";
@@ -48,7 +48,7 @@ export const blankKind: EntryKindDef = {
     const { view, section, entry, wrap } = ctx;
     if (!view.editMode) return;
     const t = view.i18n.t.bind(view.i18n);
-    const grip = wrap.createSpan({ cls: "ep-grip", text: "⠿" });
+    const grip = wrap.createSpan({ cls: "ep-grip", text: "::" });
     grip.setAttr("title", t("blank.dragHint"));
     const openMenu = (ce: MouseEvent) => {
       ce.preventDefault();
@@ -83,7 +83,7 @@ export const blankKind: EntryKindDef = {
       }
       m.showAtMouseEvent(ce);
     };
-    const mb = wrap.createSpan({ cls: "ep-menu-btn", text: "⋯" });
+    const mb = wrap.createSpan({ cls: "ep-menu-btn", text: "..." });
     mb.onclick = openMenu;
     wrap.addEventListener("contextmenu", openMenu);
     wrap.onclick = () => view.openAddMenu(wrap, section, { replaceId: entry.id });

@@ -7,7 +7,7 @@ import { App } from "obsidian";
 
 /**
  * Append `text` to `el`, converting links.
- * - `[[target|label]]` opens in the workspace (Ctrl/Cmd-click → new pane).
+ * - `[[target|label]]` opens in the workspace (Ctrl/Cmd-click -> new pane).
  * - `![[embeds]]` are left as literal text (the sidebar doesn't embed).
  * - `[label](url)` opens externally.
  */

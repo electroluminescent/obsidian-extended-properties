@@ -1,7 +1,7 @@
 /**
  * Dice model: parsing, formatting and rolling of "NdS" specs.
  *
- * Pure functions — UI for choosing dice lives in the rolling feature module.
+ * Pure functions - UI for choosing dice lives in the rolling feature module.
  * A spec is persisted as its notation string (e.g. "2d6") so it stays
  * readable in frontmatter and settings.
  */
@@ -10,16 +10,16 @@
 export const DICE_PRESETS = [2, 4, 6, 8, 10, 12, 20, 100];
 
 export interface DiceSpec {
-  /** Number of dice rolled together (≥ 1). */
+  /** Number of dice rolled together (>= 1). */
   count: number;
-  /** Faces per die (≥ 2). */
+  /** Faces per die (>= 2). */
   sides: number;
 }
 
 /** The default die for roll buttons that don't configure one. */
 export const DEFAULT_DICE: DiceSpec = { count: 1, sides: 20 };
 
-/** Format a spec as notation: 1d20 → "d20", 2d6 → "2d6". */
+/** Format a spec as notation: 1d20 -> "d20", 2d6 -> "2d6". */
 export function formatDice(spec: DiceSpec): string {
   return (spec.count > 1 ? spec.count : "") + "d" + spec.sides;
 }

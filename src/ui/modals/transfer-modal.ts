@@ -40,7 +40,7 @@ export class ImportModal extends Modal {
         }
       })
       .catch(() => {
-        /* clipboard unavailable — ignore */
+        /* clipboard unavailable - ignore */
       });
   }
 
@@ -99,7 +99,7 @@ export class ImportModal extends Modal {
     if (!this.target) this.target = doc.kind === "type" ? doc.name : this.plugin.settings.types[0] ?? "";
     new Setting(body)
       .setName(t("transfer.targetType"))
-      .setDesc(t("transfer.targetTypeDesc", { types: this.plugin.settings.types.join(", ") || "—" }))
+      .setDesc(t("transfer.targetTypeDesc", { types: this.plugin.settings.types.join(", ") || "-" }))
       .addText((tx) => tx.setValue(this.target).onChange((v) => (this.target = v.trim())));
 
     new Setting(body).addButton((b) =>

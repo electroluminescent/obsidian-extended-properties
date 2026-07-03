@@ -7,7 +7,7 @@ import { App, FuzzySuggestModal } from "obsidian";
 import type { I18n } from "../../i18n/i18n";
 import type { SnapshotMeta } from "../../core/snapshot-store";
 
-/** "ep-snapshot-2026-06-27-184500.json" → "2026-06-27 18:45:00". */
+/** "ep-snapshot-2026-06-27-184500.json" -> "2026-06-27 18:45:00". */
 function pretty(name: string): string {
   const m = name.match(/(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})(\d{2})/);
   return m ? `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}:${m[6]}` : name;

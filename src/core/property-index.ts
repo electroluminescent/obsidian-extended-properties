@@ -44,7 +44,7 @@ export class PropertyIndex {
    */
   private cache: Map<string, FileSnap> | null = null;
   /**
-   * Type-bucket index (N1): lower-cased `Type` value → paths of the notes
+   * Type-bucket index (N1): lower-cased `Type` value -> paths of the notes
    * carrying it. Built with the snapshot cache and maintained by the same
    * invalidation events, it serves {@link rowsByType} and the aggregate
    * candidate sets, so per-type reads cost O(notes of that type) instead of
@@ -53,7 +53,7 @@ export class PropertyIndex {
   private buckets = new Map<string, Set<string>>();
   /**
    * Memoized aggregate candidate values (N1), keyed `type\u0000key` (both
-   * lower-cased). Invalidated whenever any note of that type changes —
+   * lower-cased). Invalidated whenever any note of that type changes -
    * including notes *entering or leaving* the type: a `Type`-list change
    * dirties both the old and new buckets' aggregates.
    */
@@ -74,7 +74,7 @@ export class PropertyIndex {
   }
 
   private snapshots(): Iterable<FileSnap> {
-    // An iterator, not a copied array — queries run per render, so avoiding
+    // An iterator, not a copied array - queries run per render, so avoiding
     // the per-call allocation matters on large vaults.
     return this.ensure().values();
   }
@@ -111,7 +111,7 @@ export class PropertyIndex {
     this.cache.set(file.path, { file, fm });
     this.bucketAdd(file.path, fm);
     // Dirty the aggregates of every type the note belonged to OR now belongs
-    // to — the broader dependency N1 tracks (bucket moves hit both sides).
+    // to - the broader dependency N1 tracks (bucket moves hit both sides).
     this.dirtyTypes(new Set([...(old?.fm ? typesOf(old.fm) : []), ...(fm ? typesOf(fm) : [])]));
   }
 
@@ -126,7 +126,7 @@ export class PropertyIndex {
     this.cache.delete(path);
   }
 
-  /** Drop the whole cache — cheap escape hatch, rebuilt lazily on next read. */
+  /** Drop the whole cache - cheap escape hatch, rebuilt lazily on next read. */
   invalidateAll(): void {
     this.cache = null;
     this.buckets.clear();
@@ -136,7 +136,7 @@ export class PropertyIndex {
   /**
    * Numeric values of `key` across every note whose `Type` includes
    * `typeKey`. Memoized (N1): repeated reads return the cached array until a
-   * note of that type — or one entering/leaving it — invalidates. Callers
+   * note of that type - or one entering/leaving it - invalidates. Callers
    * must treat the result as read-only.
    */
   valuesByType(typeKey: string, key: string): number[] {
@@ -157,7 +157,7 @@ export class PropertyIndex {
   }
 
   /**
-   * Files (with their cached frontmatter) whose `Type` includes `typeKey` —
+   * Files (with their cached frontmatter) whose `Type` includes `typeKey` -
    * the row projection the type table view renders. Served from the type
    * bucket (N1), so the cost is O(notes of the type), not O(vault).
    */

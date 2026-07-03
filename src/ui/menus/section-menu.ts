@@ -45,7 +45,7 @@ export function openSectionMenu(e: MouseEvent, view: ViewCtx, section: Section):
     })
   );
 
-  // "Add object" — any entry kind that registered itself as addable.
+  // "Add object" - any entry kind that registered itself as addable.
   const addable = view.registries.entryKinds.all().filter((k) => k.addable);
   if (addable.length) {
     menu.addItem((i) =>

@@ -4,8 +4,8 @@
  * Every roll is evaluated as a {@link RollAst} (see `utils/dice-expr.ts`):
  * one representation for the simple `NdS + modifier` of a roll button and the
  * full notation a power user types into the dice roller (`2d6kh1 + 1d8 + DEX`).
- * {@link RollService.roll} keeps the old simple-spec call shape — it builds a
- * trivial AST and maps advantage/disadvantage onto a keep/drop node — so the
+ * {@link RollService.roll} keeps the old simple-spec call shape - it builds a
+ * trivial AST and maps advantage/disadvantage onto a keep/drop node - so the
  * numeric addon, skills rows and derived entries are unchanged.
  *
  * Resolved rolls are recorded into the plugin-level {@link HistoryService} and

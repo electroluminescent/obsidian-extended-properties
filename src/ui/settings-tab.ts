@@ -506,7 +506,7 @@ export class EPSettingTab extends PluginSettingTab {
         )
       );
 
-      // Macros ("custom roll objects"): name · notation · mode · scope · delete.
+      // Macros ("custom roll objects"): name - notation - mode - scope - delete.
       c.createEl("h4", { text: t("settings.macrosHeading") });
       c.createEl("p", { cls: "setting-item-description", text: t("settings.macrosDesc") });
       const macros = plugin.settings.macros;

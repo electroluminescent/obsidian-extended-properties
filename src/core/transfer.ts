@@ -2,11 +2,11 @@
  * Export / import of types, sections and templates (roadmap D1).
  *
  * Packs a note-type layout or a single section into a versioned, self-contained
- * JSON snippet — plus a dependency manifest of the derivation building blocks it
- * references — so it can be shared and imported into another vault. Importing
+ * JSON snippet - plus a dependency manifest of the derivation building blocks it
+ * references - so it can be shared and imported into another vault. Importing
  * regenerates entry/section ids (avoiding collisions) and audits which
  * referenced derivations are missing in the target, so the UI can offer to add
- * them. Pure — no Obsidian — so it round-trips in unit tests.
+ * them. Pure - no Obsidian - so it round-trips in unit tests.
  */
 
 import type { Layout, Section } from "./model";

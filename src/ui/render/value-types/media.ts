@@ -1,10 +1,10 @@
 /**
  * Media value types rendered in the entry's full-width area: "image",
- * "iframe", and the embedded players — "audio", "video" and "pdf".
+ * "iframe", and the embedded players - "audio", "video" and "pdf".
  *
  * Audio and video accept vault-local files (paths or wikilinks, resolved
  * like image sources) and web URLs; service pages rewrite to their embed
- * players (YouTube/Vimeo for video, Spotify/SoundCloud for audio — see
+ * players (YouTube/Vimeo for video, Spotify/SoundCloud for audio - see
  * `utils/embed.ts`, pure and unit-tested).
  */
 
@@ -28,7 +28,7 @@ const embedScale = (entry: { iframeScale?: number }, def = 1): number =>
   entry.iframeScale && entry.iframeScale > 0 ? entry.iframeScale : def;
 
 /**
- * The iframe's sizing rows — Height (px) and Scale — shared by every media
+ * The iframe's sizing rows - Height (px) and Scale - shared by every media
  * type so images, audio players, videos, PDFs and iframes size the same way.
  */
 function addEmbedSizeRows(octx: OptionsCtx, scaleDefault: number, heightPlaceholder?: number): void {
@@ -154,7 +154,7 @@ function promptSource(ctx: EntryRenderCtx, promptKey: string): void {
 /**
  * Wire an embed holder: a "Set source" row in edit mode (the players own
  * their clicks, so the holder can't double as the editor), plus a rebuild
- * only when the value actually changed — media elements are expensive.
+ * only when the value actually changed - media elements are expensive.
  */
 function bindEmbed(ctx: EntryRenderCtx, holder: HTMLElement, promptKey: string, draw: () => void): void {
   const { view, entry } = ctx;
@@ -180,7 +180,7 @@ function bindEmbed(ctx: EntryRenderCtx, holder: HTMLElement, promptKey: string, 
   });
 }
 
-/** Shared "Set source…" context-menu item for the embed types. */
+/** Shared "Set source..." context-menu item for the embed types. */
 function sourceMenuItem(promptKey: string): ValueTypeDef["menuItems"] {
   return (menu, ref) => {
     const { view, file, entry } = ref;
@@ -255,7 +255,7 @@ export const videoType: ValueTypeDef = {
       }
       const em = videoEmbed(src);
       if (em.kind === "iframe") {
-        // Service player (YouTube, Vimeo, …): a 16:9 frame, or a fixed-height
+        // Service player (YouTube, Vimeo, ...): a 16:9 frame, or a fixed-height
         // one when an explicit height is set.
         const wrap = holder.createDiv({ cls: "ep-video-framewrap" });
         if (hPx) {

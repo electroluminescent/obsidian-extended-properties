@@ -1,7 +1,7 @@
 /**
  * Pure geometry for the inline charts (roadmap G2).
  *
- * These functions turn numeric series into SVG coordinates — a sparkline path,
+ * These functions turn numeric series into SVG coordinates - a sparkline path,
  * bar rectangles, radar points, a progress fraction. They are deliberately
  * Obsidian- and DOM-free so the maths is unit-tested directly; the thin DOM
  * renderer in `ui/render/charts.ts` turns the output into `<svg>` elements.
@@ -27,7 +27,7 @@ export function extent(values: number[]): Extent {
   return { min, max };
 }
 
-/** SVG path `d` for a sparkline of `values` over a `w`×`h` box (top-left origin). */
+/** SVG path `d` for a sparkline of `values` over a `w`x`h` box (top-left origin). */
 export function sparklinePath(values: number[], w: number, h: number, pad = 1): string {
   if (values.length === 0) return "";
   const { min, max } = extent(values);
@@ -50,7 +50,7 @@ export interface Rect {
 }
 
 /**
- * Bar rectangles for `values` over a `w`×`h` box, scaled to the largest value
+ * Bar rectangles for `values` over a `w`x`h` box, scaled to the largest value
  * (which therefore fills the height). Negative values clamp to a zero-height
  * bar; bars grow up from the baseline.
  */
@@ -89,12 +89,12 @@ export function ringPoints(n: number, cx: number, cy: number, r: number): Pt[] {
   return radarPoints(new Array(n).fill(1), 1, cx, cy, r);
 }
 
-/** `"x,y x,y …"` for an SVG `<polygon points>` / `<polyline>`. */
+/** `"x,y x,y ..."` for an SVG `<polygon points>` / `<polyline>`. */
 export function pointsAttr(pts: Pt[]): string {
   return pts.map((p) => p.x.toFixed(2) + "," + p.y.toFixed(2)).join(" ");
 }
 
-/** Fraction of `max` filled by `value`, clamped to `[0,1]` (0 when max ≤ 0). */
+/** Fraction of `max` filled by `value`, clamped to `[0,1]` (0 when max <= 0). */
 export function clampFrac(value: number, max: number): number {
   if (!(max > 0) || !Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(1, value / max));

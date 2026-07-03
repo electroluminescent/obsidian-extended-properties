@@ -1,15 +1,15 @@
 /**
  * Richer value types (roadmap C3):
  *
- * - "rating"   — a row of clickable pips/stars; stores an integer.
- * - "link"     — an internal link, click-through, with unresolved styling.
- * - "unit"     — a number shown with a unit suffix; stores the canonical
+ * - "rating"   - a row of clickable pips/stars; stores an integer.
+ * - "link"     - an internal link, click-through, with unresolved styling.
+ * - "unit"     - a number shown with a unit suffix; stores the canonical
  *                number, displays it multiplied by a per-entry factor.
- * - "datetime" — an ISO date with a relative ("in 3 days") hint; `<input
+ * - "datetime" - an ISO date with a relative ("in 3 days") hint; `<input
  *                type=date>` editor. Pairs with the `today()`/`days()`
  *                expression functions.
  *
- * Each is just a {@link ValueTypeDef} registration — no engine change — which
+ * Each is just a {@link ValueTypeDef} registration - no engine change - which
  * is the point of the registry architecture.
  */
 
@@ -46,7 +46,7 @@ export const ratingType: ValueTypeDef = {
     const v = ctx.head.createDiv({ cls: "ep-val-right ep-rating" });
     if (entry.valueColor) v.style.color = entry.valueColor as string;
     // Accessible as a slider (M1): focusable, arrow-keys change the value, and
-    // the pips themselves are decorative (aria-hidden) — the container conveys it.
+    // the pips themselves are decorative (aria-hidden) - the container conveys it.
     v.setAttr("role", "slider");
     v.tabIndex = 0;
     v.setAttr("aria-label", view.i18n.t("a11y.rating", { name: view.defaultLabelFor(entry) }));
@@ -154,10 +154,10 @@ export const linkType: ValueTypeDef = {
       v.removeClass("ep-link-unresolved");
       const raw = view.note.str(key);
       if (!raw) {
-        v.createSpan({ cls: "ep-placeholder", text: "—" });
+        v.createSpan({ cls: "ep-placeholder", text: "-" });
         return;
       }
-      // Render as an internal link (wrap bare text in [[…]]) and flag unresolved.
+      // Render as an internal link (wrap bare text in [[...]]) and flag unresolved.
       view.renderLinks(v, /\[\[.+?\]\]|\]\([^)]+\)/.test(raw) ? raw : `[[${raw}]]`);
       const dest = view.app.metadataCache.getFirstLinkpathDest(linkTarget(raw), view.note.path || "");
       if (!dest) v.addClass("ep-link-unresolved");
@@ -261,7 +261,7 @@ export const datetimeType: ValueTypeDef = {
       const raw = view.note.str(key);
       const d = raw ? new Date(raw) : null;
       if (!raw || !d || isNaN(d.getTime())) {
-        txt.setText(raw || "—");
+        txt.setText(raw || "-");
         txt.toggleClass("ep-placeholder", !raw);
         rel.setText("");
         return;

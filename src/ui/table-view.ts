@@ -3,7 +3,7 @@
  *
  * A workspace view listing every note of a chosen type as rows, with chosen
  * frontmatter properties as columns. Sortable headers, a text filter, a column
- * pick-list and drag-to-resize columns — all persisted per type in
+ * pick-list and drag-to-resize columns - all persisted per type in
  * `settings.tableLayouts`. Rows click through to the note; cells render a
  * compact, type-aware widget (checkbox, rating, colour swatch, link, image,
  * number, list chips) and edit in place on double-click; rollable columns get a
@@ -12,7 +12,7 @@
  *
  * Data is a projection over the metadata cache, not a new store: rows are read
  * through the plugin-wide {@link PropertyIndex} snapshot cache (never a fresh
- * vault scan), refreshes are skipped for files that are not — and were not —
+ * vault scan), refreshes are skipped for files that are not - and were not -
  * rows of the shown type, and cell edits write through the plugin's shared
  * {@link NoteFacade} so they get the same batching, conflict guard and
  * three-way merge as the sidebar and inline chips.
@@ -96,7 +96,7 @@ export class TableView extends ItemView {
 
   /**
    * Re-render on external metadata / workspace changes. When the changed file
-   * is known, skip the rebuild unless that file is a row of the shown type —
+   * is known, skip the rebuild unless that file is a row of the shown type -
    * or was one before the change (so losing the type removes the row).
    */
   refresh(file?: TFile): void {
@@ -120,7 +120,7 @@ export class TableView extends ItemView {
   // -- data ------------------------------------------------------------------
 
   private rows(typeKey: string): Row[] {
-    // Served from the PropertyIndex snapshot cache — a render (or a filter
+    // Served from the PropertyIndex snapshot cache - a render (or a filter
     // keystroke) never re-scans every markdown file in the vault.
     return this.plugin.props.rowsByType(typeKey);
   }
@@ -316,7 +316,7 @@ export class TableView extends ItemView {
       e.preventDefault();
       open();
     };
-    // An href-less anchor is not focusable — make the note link keyboard-reachable.
+    // An href-less anchor is not focusable - make the note link keyboard-reachable.
     a.tabIndex = 0;
     a.addEventListener("keydown", (e: KeyboardEvent) => {
       if (e.key === "Enter") {
@@ -408,7 +408,7 @@ export class TableView extends ItemView {
       e.stopPropagation();
       try {
         const mod = parseNumeric(raw) ?? 0;
-        this.plugin.rollService().roll(`${file.basename} · ${m.key}`, mod, parseDiceOrDefault(m.dice));
+        this.plugin.rollService().roll(`${file.basename} - ${m.key}`, mod, parseDiceOrDefault(m.dice));
       } catch {
         new Notice(this.plugin.i18n.t("table.rollFailed"));
       }
@@ -467,9 +467,9 @@ export class TableView extends ItemView {
   }
 
   /**
-   * Write a cell edit through the plugin's shared {@link NoteFacade} — the
+   * Write a cell edit through the plugin's shared {@link NoteFacade} - the
    * same batched, conflict-guarded, merge-aware path the sidebar and inline
-   * chips use — never a raw `processFrontMatter`. Empty clears the key;
+   * chips use - never a raw `processFrontMatter`. Empty clears the key;
    * numeric-looking text is stored as a number.
    */
   private writeCellText(file: TFile, key: string, value: string): void {
@@ -500,7 +500,7 @@ export class TableView extends ItemView {
   private headerCell(tr: HTMLElement, key: string, label: string, layout: TableLayout, meta: ColMeta | null): void {
     const th = tr.createEl("th", { cls: "ep-table-col ep-sortable" });
     // A real <button> so header sort is keyboard-operable (Enter/Space fire a
-    // click, which bubbles to the th handler below — one code path for both).
+    // click, which bubbles to the th handler below - one code path for both).
     th.createEl("button", { cls: "ep-th-label", text: label });
     if (meta) {
       const w = layout.widths?.[key];
@@ -540,7 +540,7 @@ export class TableView extends ItemView {
 
   private attachResize(th: HTMLElement, key: string, layout: TableLayout): void {
     const grip = th.createSpan({ cls: "ep-col-resize" });
-    // Keyboard a11y: the grip is a focusable separator; ←/→ resize in steps.
+    // Keyboard a11y: the grip is a focusable separator; Left/Right arrows resize in steps.
     grip.tabIndex = 0;
     grip.setAttr("role", "separator");
     grip.setAttr("aria-orientation", "vertical");
@@ -589,7 +589,7 @@ export class TableView extends ItemView {
         const lk = k.toLowerCase();
         if (lk !== "type" && lk !== "position") candidates.add(k);
       }
-    // The shared picker order: by data type, then by key — with the type
+    // The shared picker order: by data type, then by key - with the type
     // shown beside each property (matching the sidebar pickers).
     const typeNameOf = (k: string): string => {
       const id = this.plugin.settings.propTypes?.[k.toLowerCase()] || this.plugin.props.obsidianType(k) || "";
@@ -598,14 +598,14 @@ export class TableView extends ItemView {
       return def ? def.name(this.plugin.i18n) : id;
     };
     const sorted = [...candidates].sort(
-      (a, b) => (typeNameOf(a) || "￿").localeCompare(typeNameOf(b) || "￿") || a.localeCompare(b)
+      (a, b) => (typeNameOf(a) || "\uffff").localeCompare(typeNameOf(b) || "\uffff") || a.localeCompare(b)
     );
     const menu = new Menu();
     for (const k of sorted) {
       const tn = typeNameOf(k);
       menu.addItem((i) =>
         i
-          .setTitle(tn ? `${k} · ${tn}` : k)
+          .setTitle(tn ? `${k} - ${tn}` : k)
           .setChecked(layout.columns.includes(k))
           .onClick(() => {
             layout.columns = layout.columns.includes(k)

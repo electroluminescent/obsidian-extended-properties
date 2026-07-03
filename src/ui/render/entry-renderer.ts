@@ -18,7 +18,7 @@ export function isHiddenEntry(view: ViewCtx, entry: Entry): boolean {
   // Conditional visibility applies to entries of any kind.
   if (entry.showWhen && !view.condVisible(entry.showWhen)) return true;
   if (entry.kind !== "prop") return false;
-  // Derived values are computed, not stored — they are never "empty".
+  // Derived values are computed, not stored - they are never "empty".
   if (view.resolveType(entry) === "derived") return false;
   return entry.hideIfEmpty !== false && view.note.isEmpty(entry.key);
 }
@@ -74,7 +74,7 @@ export function renderEntry(
   const head = wrap.createDiv({ cls: "ep-entry-head" });
   let grip: HTMLElement | null = null;
   if (view.editMode) {
-    grip = head.createSpan({ cls: "ep-grip", text: "⠿" });
+    grip = head.createSpan({ cls: "ep-grip", text: "::" });
     grip.setAttr("title", view.i18n.t("entry.dragHint"));
     grip.setAttr("aria-hidden", "true"); // mouse-drag affordance; keyboard reorders via the entry menu
   }
@@ -101,7 +101,7 @@ export function renderEntry(
   });
   longPressContextMenu(wrap); // touch parity for the entry menu
   if (view.editMode) {
-    const menuBtn = head.createSpan({ cls: "ep-menu-btn", text: "⋯" });
+    const menuBtn = head.createSpan({ cls: "ep-menu-btn", text: "..." });
     menuBtn.setAttr("role", "button");
     menuBtn.tabIndex = 0;
     menuBtn.setAttr("aria-label", view.i18n.t("a11y.entryMenu"));

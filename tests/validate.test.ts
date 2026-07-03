@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { validate, clampToConstraints, shouldClamp, hasConstraints } from "../src/core/validate";
 
-describe("validate — required", () => {
+describe("validate - required", () => {
   it("flags empty when required", () => {
     expect(validate("", { required: true }, "text").ok).toBe(false);
     expect(validate(undefined, { required: true }, "number").ok).toBe(false);
@@ -14,7 +14,7 @@ describe("validate — required", () => {
   });
 });
 
-describe("validate — numeric range", () => {
+describe("validate - numeric range", () => {
   const c = { min: 1, max: 20 };
   it("checks bounds (and accepts string numbers)", () => {
     expect(validate(0, c, "number")).toEqual({ ok: false, code: "min", bound: 1 });
@@ -27,7 +27,7 @@ describe("validate — numeric range", () => {
   });
 });
 
-describe("validate — text pattern & allowed", () => {
+describe("validate - text pattern & allowed", () => {
   it("matches the whole string against the pattern", () => {
     expect(validate("AB12", { pattern: "[A-Z]{2}\\d{2}" }, "text").ok).toBe(true);
     expect(validate("ab12", { pattern: "[A-Z]{2}\\d{2}" }, "text")).toEqual({ ok: false, code: "pattern" });

@@ -1,10 +1,10 @@
 /**
  * Shared dice-choosing UI, used everywhere a roll can be configured:
  *
- * - {@link openDiceMenu}: a context menu with the preset dice (D2–D100),
- *   a custom die size, dice count, and reset — for inline use on rows.
+ * - {@link openDiceMenu}: a context menu with the preset dice (D2-D100),
+ *   a custom die size, dice count, and reset - for inline use on rows.
  * - {@link addDiceSettings}: `Setting` rows (preset dropdown + count +
- *   custom size) — for options modals.
+ *   custom size) - for options modals.
  * - {@link renderDiceTag}: the small notation tag ("2d6") rendered in the
  *   same muted format as a modifying property's abbreviation, shown before
  *   the modifier.
@@ -65,7 +65,7 @@ export function openDiceMenu(e: MouseEvent, app: App, i18n: I18n, binding: DiceB
 /** `Setting` rows for options modals: preset dropdown, count, custom size. */
 export function addDiceSettings(container: HTMLElement, i18n: I18n, binding: DiceBinding): void {
   const cur = () => parseDiceOrDefault(binding.get());
-  // The custom-size box is only active while "Custom…" is selected;
+  // The custom-size box is only active while "Custom..." is selected;
   // otherwise it is disabled and dimmed.
   let sizeBox: TextComponent | null = null;
   const setSizeActive = (on: boolean) => {

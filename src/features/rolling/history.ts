@@ -6,15 +6,15 @@
  * the single plugin instance) sees the same log, and so it survives note
  * switches and reloads. Views subscribe; the roll service only appends.
  *
- * Records are serializable (no closures) and live in their own store — a
- * `roll-history.json` next to `data.json` (see {@link HistoryStore}) — so a
+ * Records are serializable (no closures) and live in their own store - a
+ * `roll-history.json` next to `data.json` (see {@link HistoryStore}) - so a
  * settings save never reserializes hundreds of roll records and a roll never
  * rewrites the whole configuration. Older vaults that still carry records in
  * `settings.rollHistory` are migrated once on {@link HistoryService.init}.
  * Writes are debounced so a burst of rolls (e.g. a multi-roll) doesn't thrash
  * the file/sync; the flush also runs immediately on clear and on unload.
  * The in-session "re-roll" closures are kept in a side map keyed by record id
- * — they exist only for rolls made this session, never persisted.
+ * - they exist only for rolls made this session, never persisted.
  */
 
 import type { I18n } from "../../i18n/i18n";
@@ -34,7 +34,7 @@ const FLUSH_MS = 1500;
 export class HistoryService {
   /** Most-recent-first. The source of truth the panel renders from. */
   private entries: RollRecord[] = [];
-  /** id → re-roll closure (this session only; not persisted). */
+  /** id -> re-roll closure (this session only; not persisted). */
   private redos = new Map<string, () => void>();
   private listeners = new Set<() => void>();
   private flushTimer = 0;

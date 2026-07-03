@@ -1,7 +1,7 @@
 /**
  * Minimal "obsidian" stub for the test runner. The pure modules under test only
  * import *types* from obsidian (erased at transform time), so nothing here is
- * exercised at runtime — these exist solely to satisfy resolution if a value
+ * exercised at runtime - these exist solely to satisfy resolution if a value
  * import is ever introduced.
  */
 export class Menu {}

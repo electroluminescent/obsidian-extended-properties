@@ -1,7 +1,7 @@
 /**
  * The rolling feature module: dice, roll buttons, the roll log panel, and
  * the legacy "skills" value type (kept for record-based skill properties;
- * new layouts use sections of derived number properties instead — the
+ * new layouts use sections of derived number properties instead - the
  * skills type offers a one-click conversion).
  *
  * Domain modules (e.g. dnd5e) build on these pieces. Disabling this module

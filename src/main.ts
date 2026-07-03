@@ -1,5 +1,5 @@
 /**
- * Plugin entry point — wiring only.
+ * Plugin entry point - wiring only.
  *
  * Owns the long-lived services (settings, i18n, registries, property index,
  * hide service), registers the view, commands and DOM integrations, and
@@ -41,7 +41,7 @@ import { NoteFacade } from "./core/note-model";
 
 /**
  * All available feature modules, in registration order (later modules may
- * build on earlier ones — dnd5e uses the rolling module's value types).
+ * build on earlier ones - dnd5e uses the rolling module's value types).
  * Adding a feature to the plugin is: create `src/features/<id>/`, export a
  * {@link FeatureModule}, list it here.
  */
@@ -51,7 +51,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
   settings!: EPSettings;
   readonly i18n = new I18n();
   readonly registries = new Registries();
-  /** Public, versioned API (F5) — also exposed on `window.ExtendedProperties`. */
+  /** Public, versioned API (F5) - also exposed on `window.ExtendedProperties`. */
   api!: ExtendedPropertiesApi;
   /** Third-party feature modules registered through the public API. */
   private externalModules: FeatureModule[] = [];
@@ -79,7 +79,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
   /** Signature of the registered macro set; guards needless re-registration. */
   private macroSig = "";
 
-  /** All known feature modules (enabled or not) — the settings tab lists them. */
+  /** All known feature modules (enabled or not) - the settings tab lists them. */
   get featureModules(): FeatureModule[] {
     return FEATURE_MODULES;
   }
@@ -133,7 +133,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     this.register(this.hide.install());
 
     // Plugin-level roll history (shared by all views; persists across reloads
-    // in its own roll-history.json — see historyStore below).
+    // in its own roll-history.json - see historyStore below).
     this.history = new HistoryService(
       this.settings,
       () => {
@@ -148,7 +148,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     if (runSchemaMigrations(this.settings).changed) migrated = true;
     // Carry user customizations across plugin-version upgrades: stamp the
     // running version and, on a real upgrade, snapshot data.json even when the
-    // schema is unchanged — so any release can be rolled back to its predecessor.
+    // schema is unchanged - so any release can be rolled back to its predecessor.
     if (this.settings.appVersion !== this.manifest.version) {
       this.settings.appVersion = this.manifest.version;
       migrated = true;
@@ -339,7 +339,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     });
   }
 
-  /** @see ExtendedPropertiesApi.register — incorporate a third-party module. */
+  /** @see ExtendedPropertiesApi.register - incorporate a third-party module. */
   private registerExternalModule(module: FeatureModule): void {
     if (!module || typeof module.id !== "string" || typeof module.register !== "function") {
       console.error("Extended Properties: invalid module passed to register()");
@@ -404,7 +404,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
   /**
    * File-backed roll-history store: `roll-history.json` next to `data.json`,
    * so a settings save never reserializes hundreds of roll records and a
-   * roll never rewrites the whole configuration. Best-effort — errors are
+   * roll never rewrites the whole configuration. Best-effort - errors are
    * logged, never thrown into the roll path.
    */
   private historyStore(): HistoryStore | undefined {
@@ -466,7 +466,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
         console.error("Extended Properties: external module '" + mod.id + "' failed to register", e);
       }
     }
-    // User-editable derivation building blocks (settings → registry).
+    // User-editable derivation building blocks (settings -> registry).
     registerDerivations(this.registries, this.settings);
   }
 
@@ -494,7 +494,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
 
   /**
    * Snapshot the pre-migration `data.json` to the plugin's `backups/` folder,
-   * keeping the most recent 5. Best-effort — a failure must never block load.
+   * keeping the most recent 5. Best-effort - a failure must never block load.
    */
   private async backupData(rawData: unknown): Promise<void> {
     try {
@@ -630,7 +630,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     return this.settings.types.find((t) => t.toLowerCase() === key) ?? key;
   }
 
-  /** A vault file changed — if it's one of our layout files (not our echo), reload (debounced). */
+  /** A vault file changed - if it's one of our layout files (not our echo), reload (debounced). */
   private onLayoutFileEvent(path: string): void {
     if (this.settings.layoutVault !== true || !this.layoutStore) return;
     if (!this.layoutStore.owns(path) || this.layoutStore.isEcho(path)) return;

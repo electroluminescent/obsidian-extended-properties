@@ -7,7 +7,7 @@
  * limiting the list to the current note. A clear action empties the history
  * (everything, or just the current note when the note filter is on). Clicking
  * an entry re-runs it while its re-roll closure is still in memory (this
- * session). Advantage/disadvantage is chosen per roll via right-click — there
+ * session). Advantage/disadvantage is chosen per roll via right-click - there
  * is no global mode switch here.
  */
 

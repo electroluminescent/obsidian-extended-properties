@@ -2,7 +2,7 @@
  * In-memory vault fake for the seam tests (F6): an App-shaped object with a
  * frontmatter store, TFile handles, `processFrontMatter`, and a helper to
  * simulate external edits (sync, another pane) by replacing frontmatter and
- * advancing the mtime — enough to run the write-queue, merge and flush flows
+ * advancing the mtime - enough to run the write-queue, merge and flush flows
  * end to end without Obsidian.
  */
 

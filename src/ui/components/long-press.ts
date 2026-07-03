@@ -3,7 +3,7 @@
  *
  * Phones have no right-click, so every context menu needs a long-press path.
  * Rather than refactor each menu builder, {@link longPressContextMenu}
- * synthesizes a `contextmenu` event at the press point — the element's existing
+ * synthesizes a `contextmenu` event at the press point - the element's existing
  * `oncontextmenu` / `addEventListener("contextmenu")` handler fires unchanged
  * and shows its menu at the touch location.
  */
@@ -19,7 +19,7 @@ export interface LongPressOptions {
 
 /**
  * Fire `fn(x, y)` when `el` is pressed and held without moving (touch/pen).
- * Mouse input is ignored — desktop already has right-click. Returns a disposer.
+ * Mouse input is ignored - desktop already has right-click. Returns a disposer.
  */
 export function onLongPress(
   el: HTMLElement,

@@ -20,7 +20,7 @@ import { bindRename } from "../components/inline-edit";
 import type { DragController } from "../drag";
 import type { LayoutMode, SectionPin } from "../../core/model";
 
-/** Row-height presets → max rows shown before the section scrolls. */
+/** Row-height presets -> max rows shown before the section scrolls. */
 const SIZE_ROWS: Record<string, number> = { s: 4, m: 8, l: 12 };
 const ROW_PX = 32;
 
@@ -36,7 +36,7 @@ function computeFlags(view: ViewCtx, file: TFile, section: Section): ClusterFlag
 
 /**
  * Equalize cluster columns across all rows of a section: each slot
- * (denotation, toggle boxes, modifier badge, …) and the value cell get the
+ * (denotation, toggle boxes, modifier badge, ...) and the value cell get the
  * width of their widest sibling, so influence strings, checkboxes and
  * numbers line up vertically even though every row owns its own grid.
  */
@@ -65,7 +65,7 @@ function alignClusters(det: HTMLElement): void {
 }
 
 export interface SectionHost {
-  /** Map of section id → rendered element (for TOC scrolling). */
+  /** Map of section id -> rendered element (for TOC scrolling). */
   registerSectionEl(id: string, el: HTMLElement): void;
   /** Re-measure the sticky zone after collapse animations. */
   reflowSticky(): void;
@@ -113,7 +113,7 @@ export function renderSection(
     chev.toggleClass("ep-open", !section.collapsed);
   }
   if (view.editMode) {
-    const grip = sum.createSpan({ cls: "ep-grip", text: "⠿" });
+    const grip = sum.createSpan({ cls: "ep-grip", text: "::" });
     grip.setAttr("title", t("section.dragHint"));
     grip.onclick = (e) => e.stopPropagation();
   }
@@ -154,7 +154,7 @@ export function renderSection(
       view.saveLayout();
       view.rerender();
     };
-    // Pin-zone cycler: body → header → footer (mirrors the layout cycler).
+    // Pin-zone cycler: body -> header -> footer (mirrors the layout cycler).
     const pin = sectionPin(section);
     const pinBtn = sum.createSpan({ cls: "ep-icon-btn" });
     setIcon(pinBtn, pin === "header" ? "arrow-up-to-line" : pin === "footer" ? "arrow-down-to-line" : "pin");
@@ -171,7 +171,7 @@ export function renderSection(
       view.rerender();
     };
     // Options menu.
-    const menuBtn = sum.createSpan({ cls: "ep-menu-btn", text: "⋯" });
+    const menuBtn = sum.createSpan({ cls: "ep-menu-btn", text: "..." });
     menuBtn.setAttr("title", t("section.optionsHint"));
     menuBtn.onclick = (e) => {
       e.preventDefault();
@@ -335,9 +335,9 @@ function clusterSpans(spans: [number, number][]): [number, number][] {
 /**
  * Position the add/remove rail buttons by measuring the rendered cells:
  * "+" sits exactly on the boundaries between columns/rows (and the outer
- * edges), "−" exactly at each column/row center. The grid is offset by the
+ * edges), "-" exactly at each column/row center. The grid is offset by the
  * row rail and trailed by non-row chrome (the add-property button), so
- * static spacing drifts — measuring guarantees the buttons only cover
+ * static spacing drifts - measuring guarantees the buttons only cover
  * rows/columns that actually exist and can be removed.
  */
 function renderRails(

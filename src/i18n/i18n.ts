@@ -2,7 +2,7 @@
  * Internationalization service.
  *
  * Every user-visible string in the plugin flows through {@link I18n.t}.
- * Resolution order: user override → active locale → English → humanized key.
+ * Resolution order: user override -> active locale -> English -> humanized key.
  *
  * Dictionaries are *open*: core registers its strings at startup and feature
  * modules merge their own keys into any locale (`register`). This keeps
@@ -53,7 +53,7 @@ export class I18n {
     return [...this.dicts.keys()].sort().map((code) => ({ code, name: this.names.get(code) ?? code }));
   }
 
-  /** Every known string key (union over all locales) — used by the override editor. */
+  /** Every known string key (union over all locales) - used by the override editor. */
   keys(): string[] {
     const all = new Set<string>();
     for (const d of this.dicts.values()) for (const k of Object.keys(d)) all.add(k);

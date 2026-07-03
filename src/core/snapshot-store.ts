@@ -2,13 +2,13 @@
  * Configuration history snapshots (roadmap L1).
  *
  * Writes timestamped JSON snapshots of the plugin's customization state (types,
- * layouts, derivation blocks, short forms, defaults, styling — everything a
+ * layouts, derivation blocks, short forms, defaults, styling - everything a
  * user arranges) to a `snapshots/` subfolder of the layout vault folder, so a
  * layout or settings change can be rolled back from inside the vault. Note
  * *values* themselves live in the notes (and already have the vault's own sync
  * / git history); these snapshots protect the plugin configuration.
  *
- * Defensive throughout — a snapshot is insurance and must never throw into the
+ * Defensive throughout - a snapshot is insurance and must never throw into the
  * load path. The pure name/prune helpers are unit-tested.
  */
 import { App, Notice } from "obsidian";

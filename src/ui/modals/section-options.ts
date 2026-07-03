@@ -5,7 +5,7 @@
  * entry, so everything in a section is editable from one place. Tabs can be
  * multi-selected (Ctrl/Cmd-click): the body then shows only the settings
  * *shared* by every selected target, and only a setting the user actually
- * touches is written — to all selected targets at once. Shared settings use
+ * touches is written - to all selected targets at once. Shared settings use
  * the same fields and i18n labels across data types and sections, so they
  * are genuinely "the same" setting wherever they appear.
  *
@@ -276,7 +276,7 @@ export class SectionOptionsModal extends Modal {
    * visible. The UI edits a proxy of the first entry; whenever a setting
    * changes, exactly the fields that changed are copied to all selected
    * entries (identity fields are excluded). Settings whose values differ
-   * across the selection are listed in the note on top — changing one
+   * across the selection are listed in the note on top - changing one
    * writes it to all.
    */
   private drawMultiSameType(c: HTMLElement, ents: Entry[]): void {

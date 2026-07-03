@@ -1,10 +1,10 @@
 /**
- * The "modifiers" cluster addon — the generic UI of the influence engine
+ * The "modifiers" cluster addon - the generic UI of the influence engine
  * (`core/influences.ts`) for numeric property entries:
  *
  * - toggle checkboxes for togglable influences (the generic "proficiency"),
  * - the modifier badge: a denotation built from the short forms of all
- *   influencing properties ("INT + DEX − AGE") followed by the total,
+ *   influencing properties ("INT + DEX - AGE") followed by the total,
  * - the influence editor in the entry options modal, where each term's
  *   source, derivation, sign, toggle list and short form are configured.
  *
@@ -70,26 +70,26 @@ export function paintDenotation(
   const den = parent.createSpan({ cls: "ep-denote" });
   list.forEach((inf, i) => {
     const neg = inf.weight === -1;
-    if (i > 0) den.createSpan({ cls: "ep-denote-op", text: neg ? "−" : "+" });
-    else if (neg) den.createSpan({ cls: "ep-denote-op", text: "−" });
+    if (i > 0) den.createSpan({ cls: "ep-denote-op", text: neg ? "-" : "+" });
+    else if (neg) den.createSpan({ cls: "ep-denote-op", text: "-" });
     const srcKey = inf.source || (entry.key as string) || "";
     const term = den.createSpan({ cls: "ep-line-abbr ep-denote-term", text: termDenotation(view.settings, entry, inf) });
     let title: string;
     if (inf.expr) {
-      title = inf.expr + (inf.toggle ? ` · ${inf.toggle}` : "");
+      title = inf.expr + (inf.toggle ? ` - ${inf.toggle}` : "");
     } else {
       const modeName =
         inf.mode === "formula"
           ? inf.formula ?? "x"
           : view.registries.derivations.get(inf.mode ?? "value")?.name(view.i18n) ?? "";
-      title = srcKey + (modeName ? ` · ${modeName}` : "") + (inf.toggle ? ` · ${inf.toggle}` : "");
+      title = srcKey + (modeName ? ` - ${modeName}` : "") + (inf.toggle ? ` - ${inf.toggle}` : "");
     }
     if (!influenceActive(view, entry, inf)) term.addClass("ep-denote-off");
     if (file) {
       // Every modifier is click-togglable: list-backed terms flip their
       // toggle list, the rest flip the per-note disabled-modifiers list.
       term.addClass("ep-denote-tog");
-      title += ` · ${view.i18n.t("mods.clickToggle")}`;
+      title += ` - ${view.i18n.t("mods.clickToggle")}`;
       const flip = () => {
         if (inf.toggle) setInfluenceActive(view, file, entry, inf, !influenceActive(view, entry, inf));
         else setInfluenceDisabled(view, file, entry, inf, !influenceDisabled(view, entry, inf));
@@ -108,7 +108,7 @@ export function paintDenotation(
 /**
  * Dice breakdown tag ("2d20") for rollable entries, rendered between the
  * modifier names and the modifier itself, so the row reads like the roll:
- * `STR + PRO  2d20 +5`. Only the notation is needed here — the rolling
+ * `STR + PRO  2d20 +5`. Only the notation is needed here - the rolling
  * module owns the actual rolling.
  */
 export function paintDice(parent: HTMLElement, entry: Entry): void {
@@ -125,14 +125,14 @@ export function paintDice(parent: HTMLElement, entry: Entry): void {
   tag.createSpan({ text: formatDice(spec) });
 }
 
-/** Badge: denotation + dice breakdown + computed total (or "—" on error). */
+/** Badge: denotation + dice breakdown + computed total (or "-" on error). */
 function paintBadge(cell: HTMLElement, ref: EntryRef): void {
   cell.empty();
   if (ref.entry.showChain !== false) paintDenotation(cell, ref.view, ref.entry, ref.file);
   paintDice(cell, ref.entry);
   const info = modifierInfo(ref.view, ref.entry);
   if (info.value === undefined) {
-    const m = cell.createSpan({ cls: "ep-expr-error", text: "—" });
+    const m = cell.createSpan({ cls: "ep-expr-error", text: "-" });
     m.setAttr("title", ref.view.i18n.t(info.error === "cycle" ? "mods.errCycle" : "mods.errExpr"));
   } else {
     cell.appendText(fmtMod(info.value));
@@ -189,7 +189,7 @@ export const modifierAddon: ClusterAddon = {
             cb.setAttr("title", inf.toggle ?? "");
             cb.onchange = flip;
           } else {
-            cb.setAttr("title", `${inf.toggle ?? ""} — ${view.i18n.t("hint.dblToggle")}`);
+            cb.setAttr("title", `${inf.toggle ?? ""} - ${view.i18n.t("hint.dblToggle")}`);
             cb.onclick = (ev) => ev.preventDefault();
             cb.ondblclick = flip;
           }
@@ -214,7 +214,7 @@ export const modifierAddon: ClusterAddon = {
     let total = 0;
     for (const inf of mods(ctx.entry)) {
       if (inf.source || inf.expr) {
-        // Sourced and expression terms don't track the dragged value live —
+        // Sourced and expression terms don't track the dragged value live -
         // evaluate them normally against the current note.
         total += influenceTerm(view, ctx.entry, inf);
         continue;

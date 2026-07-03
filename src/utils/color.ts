@@ -1,7 +1,7 @@
 /**
  * Color math used by the color value type and the color picker modal.
  *
- * All conversions operate on sRGB in the 0–255 range. OKLab/OKLCH conversions
+ * All conversions operate on sRGB in the 0-255 range. OKLab/OKLCH conversions
  * go through linear-light sRGB and can produce out-of-gamut values; use
  * {@link inGamutLin} to detect those (the picker renders them translucent).
  */
@@ -61,13 +61,13 @@ export function hslToRgb(h: number, s: number, l: number): Rgb {
   return { r: (r + m) * 255, g: (g + m) * 255, b: (b + m) * 255 };
 }
 
-/** sRGB channel (0–255) → linear light (0–1). */
+/** sRGB channel (0-255) -> linear light (0-1). */
 function srgbToLin(c: number): number {
   c /= 255;
   return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
 }
 
-/** Linear light (0–1) → sRGB channel (0–255, clamped). */
+/** Linear light (0-1) -> sRGB channel (0-255, clamped). */
 function linToSrgb(c: number): number {
   const v = c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(Math.max(c, 0), 1 / 2.4) - 0.055;
   return clamp(v * 255, 0, 255);

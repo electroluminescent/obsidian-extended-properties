@@ -6,7 +6,7 @@
  * plane. For every face we emit:
  *   - `place`: a `matrix3d(...)` that positions a face element on the solid,
  *   - `land`:  the transpose rotation that brings *that* face to the front,
- *              upright and centred (so a settled die always reads correctly —
+ *              upright and centred (so a settled die always reads correctly -
  *              this is the inverse of the face's own rotation, so it is exact
  *              regardless of any coordinate-handedness subtleties), and
  *   - `clip`:  a `clip-path: polygon(...)` of the face's true outline.
@@ -20,7 +20,7 @@ export type V3 = [number, number, number];
 
 const PHI = (1 + Math.sqrt(5)) / 2;
 /** Pixels per geometry unit. Solids are normalized to circumradius 1 first, so
- * every die ends up the same on-screen size (~2·SCALE across). */
+ * every die ends up the same on-screen size (~2*SCALE across). */
 const SCALE = 28;
 /** Face element box size in px (clip-path coords are relative to it). */
 export const BOX = 64;
@@ -49,7 +49,7 @@ const mean = (vs: V3[]): V3 => {
   return [s[0] / vs.length, s[1] / vs.length, s[2] / vs.length];
 };
 
-/** All sign combinations of (±x,±y,±z) for the given magnitudes (0 keeps 0). */
+/** All sign combinations of (+/-x,+/-y,+/-z) for the given magnitudes (0 keeps 0). */
 function signs(x: number, y: number, z: number): V3[] {
   const out: V3[] = [];
   const sx = x === 0 ? [0] : [x, -x];
@@ -76,7 +76,7 @@ function trapezohedron(): SolidDef {
   const ringZ = 0.16;
   // Apex height that makes the kite faces exactly planar: the apex, the midpoint
   // of an upper edge, and the opposite lower vertex must be colinear, giving
-  // apexZ = ringZ·(1+cos36°)/(1−cos36°).
+  // apexZ = ringZ*(1+cos36 degrees)/(1-cos36 degrees).
   const c36 = Math.cos(Math.PI / 5);
   const apexZ = (ringZ * (1 + c36)) / (1 - c36);
   verts.push([0, 0, apexZ]); // 0 top apex
@@ -110,7 +110,7 @@ const SOLIDS: Record<number, SolidDef> = {
  * Faces of the convex hull of `verts`: every plane through 3 vertices with all
  * other vertices on one side is a face; its on-plane vertices (ordered) are the
  * polygon. Works for any convex solid, so square/pentagon/kite faces fall out
- * without hand-listing them. O(n⁴), but n ≤ 20.
+ * without hand-listing them. O(n^4), but n <= 20.
  */
 function hullFaces(verts: V3[]): V3[][] {
   const eps = 1e-4;
@@ -133,7 +133,7 @@ function hullFaces(verts: V3[]): V3[][] {
           else if (s < -eps) neg = true;
           else on.push(l);
         }
-        if (pos && neg) continue; // plane cuts through the solid → not a face
+        if (pos && neg) continue; // plane cuts through the solid -> not a face
         if (on.length < 3) continue;
         const key = [...on].sort((a, b) => a - b).join(",");
         if (seen.has(key)) continue;
@@ -185,7 +185,7 @@ function numberFeature(face: V3[]): V3 {
 /** Order coplanar vertices counter-clockwise around their shared centre. */
 function orderAround(face: V3[]): V3[] {
   const c = mean(face);
-  // True face normal — the centroid direction is wrong for kite faces (d10),
+  // True face normal - the centroid direction is wrong for kite faces (d10),
   // which would order their vertices in a tilted frame and malform the polygon.
   let n = norm(cross(sub(face[1], face[0]), sub(face[2], face[0])));
   if (dot(n, c) < 0) n = [-n[0], -n[1], -n[2]];
@@ -203,39 +203,39 @@ function f3(x: number): string {
 }
 
 function makeFace(face: V3[], ss: number): PolyFace {
-  // Supersample factor: emit the face SS× larger (px scale + box + gap) so its
-  // clip-path is rasterized at SS× resolution; dice-styles scales the solid back
-  // down, and the GPU minifies the clipped faces — anti-aliasing the edges.
+  // Supersample factor: emit the face SSx larger (px scale + box + gap) so its
+  // clip-path is rasterized at SSx resolution; dice-styles scales the solid back
+  // down, and the GPU minifies the clipped faces - anti-aliasing the edges.
   const scale = SCALE * ss;
   const box = BOX * ss;
   const gap = GAP * ss;
   const c = mean(face);
   // True outward face normal. The centroid direction is NOT the normal for kite
-  // faces (d10) — using it left the d10 mis-assembled. Take it from two edges.
+  // faces (d10) - using it left the d10 mis-assembled. Take it from two edges.
   let n = norm(cross(sub(face[1], face[0]), sub(face[2], face[0])));
   if (dot(n, c) < 0) n = [-n[0], -n[1], -n[2]];
   // Anchor the face element at the foot of the perpendicular from the origin
-  // (p = d·n, a point on the face plane); this makes the settle rotation land
+  // (p = d*n, a point on the face plane); this makes the settle rotation land
   // every face exactly centred, kites included.
   const d0 = dot(n, face[0]);
   const p: V3 = [n[0] * d0, n[1] * d0, n[2] * d0];
   const right = norm(sub(face[0], p));
-  const up = cross(n, right); // unit: n ⟂ right, both unit
-  // place = translate(p*SCALE) ∘ rotation[right|up|n]  (column-major matrix3d)
+  const up = cross(n, right); // unit: n perpendicular to right, both unit
+  // place = translate(p*SCALE) * rotation[right|up|n]  (column-major matrix3d)
   const place =
     `matrix3d(${f3(right[0])},${f3(right[1])},${f3(right[2])},0,` +
     `${f3(up[0])},${f3(up[1])},${f3(up[2])},0,` +
     `${f3(n[0])},${f3(n[1])},${f3(n[2])},0,` +
     `${f3(p[0] * scale)},${f3(p[1] * scale)},${f3(p[2] * scale)},1)`;
   // land = transpose of the rotation (its inverse): rotating the solid by this
-  // maps the face to identity → front, centred (since p lies on the normal).
+  // maps the face to identity -> front, centred (since p lies on the normal).
   const land =
     `matrix3d(${f3(right[0])},${f3(up[0])},${f3(n[0])},0,` +
     `${f3(right[1])},${f3(up[1])},${f3(n[1])},0,` +
     `${f3(right[2])},${f3(up[2])},${f3(n[2])},0,0,0,0,1)`;
   const mid = box / 2;
   // The placement matrix maps the element's local +Y axis onto `up`, so the
-  // clip-path Y is `mid + (…·up)` — NOT minus. With minus each face's outline is
+  // clip-path Y is `mid + (...*up)` - NOT minus. With minus each face's outline is
   // reflected; that's invisible for regular polygons (their reference axis is a
   // symmetry axis) but mis-shapes the d10's kite faces, so the d10 never tiled.
   const px = face.map((v) => {
@@ -261,7 +261,7 @@ function makeFace(face: V3[], ss: number): PolyFace {
   const numRot = (Math.atan2(fx, -fy) * 180) / Math.PI;
   // At landing the face is at identity (its `up` axis points screen-down), so the
   // feature sits at screen angle atan2(fy, fx). Spin the solid so it ends up at the
-  // top (−90°), which also carries the number (pointed at the feature) upright.
+  // top (-90 degrees), which also carries the number (pointed at the feature) upright.
   const landUp = -90 - (Math.atan2(fy, fx) * 180) / Math.PI;
   return { place, land, clip: poly(px), clipInner: poly(inner), n, sidesOfFace: face.length, numRot, landUp };
 }

@@ -171,7 +171,7 @@ export class ColorPickerModal extends Modal {
     return { update, setValue: (v: number) => setVal(v, false) };
   }
 
-  /** A 2D canvas field (e.g. saturation × lightness) with a draggable cursor. */
+  /** A 2D canvas field (e.g. saturation x lightness) with a draggable cursor. */
   private buildField(
     parent: HTMLElement,
     colorAt: (x: number, y: number) => Rgb,

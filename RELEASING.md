@@ -1,8 +1,8 @@
 # Releasing & community submission
 
 This is the maintainer guide for cutting releases and (eventually) submitting to
-Obsidian's community plugin directory. The plumbing — CI, a tag-triggered release
-workflow, `LICENSE`, `.gitignore`, `versions.json` discipline — is already in the
+Obsidian's community plugin directory. The plumbing - CI, a tag-triggered release
+workflow, `LICENSE`, `.gitignore`, `versions.json` discipline - is already in the
 repo; this document is the runbook.
 
 > Repo: <https://github.com/electroluminescent/obsidian-extended-properties>.
@@ -13,10 +13,10 @@ repo; this document is the runbook.
 npm install --legacy-peer-deps   # obsidian pins @codemirror/state
 npm run typecheck                # tsc --noEmit (strict)
 npm test                         # vitest over the pure modules
-npm run build                    # esbuild → main.js
+npm run build                    # esbuild -> main.js
 ```
 
-CI (`.github/workflows/test.yml`) runs typecheck → test → build on every push and
+CI (`.github/workflows/test.yml`) runs typecheck -> test -> build on every push and
 PR, so the same three gates protect `main`.
 
 ## 2. Cut a release
@@ -25,7 +25,7 @@ The version lives in three files (`package.json`, `manifest.json`, `versions.jso
 `npm version` keeps them in sync via `version-bump.mjs`:
 
 ```bash
-npm version patch        # or: minor | major  → bumps all three, commits, tags
+npm version patch        # or: minor | major  -> bumps all three, commits, tags
 git push --follow-tags
 ```
 
@@ -38,7 +38,7 @@ the full project zip attached. Review the draft, then publish it.
 > installs work straight from the latest release.
 >
 > Vault-local `data.json` is git-ignored (along with `backups/`), so it is never
-> tracked or shipped in a release — an update can't overwrite a user's live
+> tracked or shipped in a release - an update can't overwrite a user's live
 > settings and layouts.
 
 ## 3. Install paths (also in the README)
@@ -47,7 +47,7 @@ the full project zip attached. Review the draft, then publish it.
   `<vault>/.obsidian/plugins/extended-properties/` and enable the plugin.
 - **BRAT (beta):** install [BRAT](https://github.com/TfTHacker/obsidian42-brat),
   then *Add beta plugin* with `https://github.com/electroluminescent/obsidian-extended-properties`.
-  BRAT tracks the latest GitHub release — no community listing required.
+  BRAT tracks the latest GitHub release - no community listing required.
 
 ## 4. Community plugin submission
 
@@ -55,7 +55,7 @@ Once the repo is public and at least one published (non-draft) release exists wi
 the three assets attached, submit to the directory:
 
 1. `authorUrl` is already set in `manifest.json`; optionally add `fundingUrl`
-   too — optional for review but recommended.
+   too - optional for review but recommended.
 2. Fork [`obsidianmd/obsidian-releases`](https://github.com/obsidianmd/obsidian-releases)
    and add this entry to the **end** of `community-plugins.json`:
 
@@ -73,14 +73,14 @@ the three assets attached, submit to the directory:
 
 ### Review checklist (current state)
 
-- ✅ `id` is unique and matches `manifest.json` (`extended-properties`).
-- ✅ No `innerHTML` / `outerHTML` / `insertAdjacentHTML` — DOM is built with
+- [x] `id` is unique and matches `manifest.json` (`extended-properties`).
+- [x] No `innerHTML` / `outerHTML` / `insertAdjacentHTML` - DOM is built with
   Obsidian's `createEl`/`createDiv` helpers.
-- ✅ `console.*` only inside error `catch` blocks (not routine logging).
-- ✅ `isDesktopOnly: false` and the plugin is verified to work on mobile
+- [x] `console.*` only inside error `catch` blocks (not routine logging).
+- [x] `isDesktopOnly: false` and the plugin is verified to work on mobile
   (touch menus, scroll-safe sliders, bottom-sheet modals).
-- ✅ MIT `LICENSE` present.
-- ✅ `manifest.json` has `id`, `name`, `version`, `minAppVersion`, `description`,
+- [x] MIT `LICENSE` present.
+- [x] `manifest.json` has `id`, `name`, `version`, `minAppVersion`, `description`,
   `author`, `isDesktopOnly`.
-- ✅ `authorUrl` set (`https://github.com/electroluminescent/obsidian-extended-properties`); `fundingUrl` optional — add if desired.
-- ☐ Repo pushed public with a published release.
+- [x] `authorUrl` set (`https://github.com/electroluminescent/obsidian-extended-properties`); `fundingUrl` optional - add if desired.
+- [ ] Repo pushed public with a published release.

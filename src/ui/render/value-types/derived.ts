@@ -1,5 +1,5 @@
 /**
- * "derived" value type — a read-only number computed by the influence
+ * "derived" value type - a read-only number computed by the influence
  * engine: the sum of its configured influences (`core/influences.ts`),
  * shown as a signed modifier. Replaces the former hard-coded "computed"
  * entries (proficiency, initiative) and the rows of the legacy skills
@@ -51,7 +51,7 @@ export const derivedType: ValueTypeDef = {
 
     const disp = () => {
       const r = modifierInfo(view, entry);
-      return r.value === undefined ? "—" : fmtMod(r.value);
+      return r.value === undefined ? "-" : fmtMod(r.value);
     };
     const refs = view.buildCluster(ctx.head, ctx.flags, { display: disp(), slots });
     refs.val.addClass("ep-num-join");
@@ -60,7 +60,7 @@ export const derivedType: ValueTypeDef = {
     const sync = () => {
       const info = modifierInfo(view, entry);
       if (info.value === undefined) {
-        refs.val.setText("—");
+        refs.val.setText("-");
         refs.val.addClass("ep-expr-error");
         refs.val.removeClass("ep-overridden");
         refs.val.setAttr("title", view.i18n.t(info.error === "cycle" ? "mods.errCycle" : "mods.errExpr"));
@@ -100,7 +100,7 @@ export const derivedType: ValueTypeDef = {
   },
 
   renderOptions(octx: OptionsCtx) {
-    // Influence editor, roll settings, … — every addon may contribute.
+    // Influence editor, roll settings, ... - every addon may contribute.
     for (const a of octx.view.registries.clusterAddons.all()) a.renderOptions?.(octx);
   },
 };

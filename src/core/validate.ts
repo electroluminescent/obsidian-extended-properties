@@ -1,10 +1,10 @@
 /**
- * Per-entry validation (roadmap C1). Pure — no Obsidian — so it is trivially
+ * Per-entry validation (roadmap C1). Pure - no Obsidian - so it is trivially
  * unit-testable and shared by every renderer and editor.
  *
  * Constraints live on the layout entry (per-sheet policy, not per-note data).
  * Validation warns by default; the UI may clamp numbers when `clamp` is set.
- * It never blocks saving — frontmatter stays freeform.
+ * It never blocks saving - frontmatter stays freeform.
  */
 
 export interface Constraints {
@@ -53,7 +53,7 @@ export function validate(raw: unknown, c: Constraints | undefined, type: string)
     return OK;
   }
 
-  // text / link / datetime / list — each string checked against pattern/allowed.
+  // text / link / datetime / list - each string checked against pattern/allowed.
   const items = Array.isArray(raw) ? raw.map((x) => String(x)) : [String(raw)];
   let re: RegExp | null = null;
   if (c.pattern) {

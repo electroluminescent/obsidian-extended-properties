@@ -3,13 +3,13 @@
  *
  * Shared builders used by both the reading-mode post-processor and the Live
  * Preview editor extension (`live-preview.ts`):
- *   `roll: 2d6+DEX`   → a clickable roll chip (mode via `roll(adv):`/`roll(dis):`)
- *   `prop: Strength`  → the note's live, click-to-edit property value
+ *   `roll: 2d6+DEX`   -> a clickable roll chip (mode via `roll(adv):`/`roll(dis):`)
+ *   `prop: Strength`  -> the note's live, click-to-edit property value
  * plus an `ep-sheet` code block that renders a read-only statblock.
  *
- * Everything is a thin adapter over existing pieces — {@link NoteFacade} for
+ * Everything is a thin adapter over existing pieces - {@link NoteFacade} for
  * values, the {@link RollService}/dice engine for rolls, the influence engine
- * for derived values — and resolves against the processor's `sourcePath`, not
+ * for derived values - and resolves against the processor's `sourcePath`, not
  * the active view, so embeds and popovers attribute correctly. Subscriptions
  * live on {@link MarkdownRenderChild}s, so they unload with their block.
  */
@@ -61,7 +61,7 @@ export interface InlineCtx {
 const enabled = (ctx: InlineCtx): boolean => ctx.settings.features["inline"] !== false;
 
 // ---------------------------------------------------------------------------
-// Inline `roll:` / `prop:` — reading-mode post-processor
+// Inline `roll:` / `prop:` - reading-mode post-processor
 // ---------------------------------------------------------------------------
 
 /** Markdown post-processor: replace `roll:`/`prop:` inline code with live UI. */
@@ -172,7 +172,7 @@ export function runInlineRoll(ctx: InlineCtx, file: TFile, body: string, mode: R
 
 /**
  * A clickable roll chip: left-click rolls (mode from the `roll(adv|dis):`
- * suffix), right-click opens the standard roll menu — with an extra "Edit
+ * suffix), right-click opens the standard roll menu - with an extra "Edit
  * source" action when `onEdit` is given (Live Preview reveals the raw text).
  */
 export function makeRollChip(ctx: InlineCtx, file: TFile, body: string, opt: string, onEdit?: () => void): HTMLElement {
@@ -287,10 +287,10 @@ function findInlineEntry(ctx: InlineCtx, file: TFile, key: string): Entry | null
 }
 
 /**
- * A `val:` element — rendered like a roll chip (with the property's icon in the
+ * A `val:` element - rendered like a roll chip (with the property's icon in the
  * same slot the dice icon occupies on a roll). It shows a property's value
  * (editable; link values are clickable to navigate, edited via the context
- * menu) — or, when the reference uses the modifier suffix (`INTs`), that
+ * menu) - or, when the reference uses the modifier suffix (`INTs`), that
  * property's modifier (read-only). `onEditSource` adds an "Edit source" menu
  * item (Live Preview, to reveal the raw text).
  */
@@ -311,7 +311,7 @@ export function makeValEl(ctx: InlineCtx, file: TFile, body: string, onEditSourc
     if (entry.iconColor) ic.style.color = entry.iconColor as string;
   }
   // The property's full name, in small text before the value. For a cross-note
-  // reference, show "<note>/<property>" — the accessor resolved to that note's
+  // reference, show "<note>/<property>" - the accessor resolved to that note's
   // full property name where possible.
   let crossName: string | null = null;
   if (noteRef) {
@@ -350,7 +350,7 @@ export function makeValEl(ctx: InlineCtx, file: TFile, body: string, onEditSourc
     }
     chip.setAttr("title", t("inline.propHint", { key }));
   } else {
-    // Modifier (`Xs`), cross-note (`[[note]].x`), or unresolved → read-only.
+    // Modifier (`Xs`), cross-note (`[[note]].x`), or unresolved -> read-only.
     const v = makeNoteAwareResolver(ctx.app, ctx.settings, ctx.registries, envFor(ctx, file), file.path)(body);
     lab.setText(v === undefined ? t("inline.empty") : base ? fmtMod(v) : String(v));
     if (v === undefined) chip.addClass("ep-expr-error");
@@ -394,7 +394,7 @@ class ValInline extends MarkdownRenderChild {
   }
 }
 
-/** Reading-mode `vals:` — the sidebar value-type rendering (refreshes on change). */
+/** Reading-mode `vals:` - the sidebar value-type rendering (refreshes on change). */
 class ValsInline extends MarkdownRenderChild {
   constructor(public root: HTMLElement, private ctx: InlineCtx, private file: TFile, private body: string) {
     super(root);
@@ -560,7 +560,7 @@ class ChartBlock extends MarkdownRenderChild {
 }
 
 // ---------------------------------------------------------------------------
-// `ep-sheet` code block — read-only statblock projection
+// `ep-sheet` code block - read-only statblock projection
 // ---------------------------------------------------------------------------
 
 /** Build a read-only influence environment for `file` (optionally scoped to `layout`). */

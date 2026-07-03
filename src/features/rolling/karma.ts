@@ -1,7 +1,7 @@
 /**
  * Random number sources for dice: pure random and "karmic" adaptive random.
  *
- * Pure random has no memory — every face is independent and long streaks
+ * Pure random has no memory - every face is independent and long streaks
  * happen. Adaptive random remembers recent failures via a hidden,
  * session-scoped **luck debt**:
  *
@@ -10,8 +10,8 @@
  *     half of its faces).
  *  3. Before resolving, the accumulated debt may trigger an intervention
  *     (the chance grows with the debt).
- *  4. No intervention → the face resolves with the standard uniform odds.
- *  5. Intervention → the result is replaced with a success (a uniformly
+ *  4. No intervention -> the face resolves with the standard uniform odds.
+ *  5. Intervention -> the result is replaced with a success (a uniformly
  *     chosen top-half face).
  *  6. A normal failure increases luck debt by `p`.
  *  7. A normal success leaves luck debt unchanged.

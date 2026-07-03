@@ -1,12 +1,12 @@
 /**
- * D&D 5e rules data. Pure constants — the math lives in the rolling
+ * D&D 5e rules data. Pure constants - the math lives in the rolling
  * module's `modifiers.ts` (shared "code pieces") and is re-exported here
  * for convenience.
  */
 
 export { abilityMod, levelProfBonus as profBonus } from "../rolling/modifiers";
 
-/** Proficiency list properties — also the toggle lists of the new entries. */
+/** Proficiency list properties - also the toggle lists of the new entries. */
 export const SAVE_PROF_KEY = "Saving Throw Proficiencies";
 export const SKILL_PROF_KEY = "Skill Proficiencies";
 export const LEVEL_KEY = "Level";

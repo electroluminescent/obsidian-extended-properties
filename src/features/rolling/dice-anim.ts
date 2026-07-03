@@ -5,7 +5,7 @@
  * right-click multi-roll) can resolve side by side. A roll may carry
  * several dice pools (custom chains roll different die types at once);
  * every die tumbles, then settles one after another, appending its value
- * to the addition chain — modifier parts and the total follow. The
+ * to the addition chain - modifier parts and the total follow. The
  * dropped advantage/disadvantage die stays visible, dimmed and struck.
  *
  * The layer optionally dims and blocks the background (plugin setting).
@@ -42,18 +42,18 @@ export function configureRollUi(settings: EPSettings, save: () => void): void {
   uiCtx = { settings, save };
 }
 
-/** Safety cap — every realistic roll renders all its dice (the row scrolls
+/** Safety cap - every realistic roll renders all its dice (the row scrolls
  * through them); only absurd pools are capped to bound the DOM. */
 const MAX_DICE_SHOWN = 200;
 /** Milliseconds between face cycles while tumbling. */
 const TICK_MS = 80;
-/** 3D-dice supersample factor when anti-aliasing is on (2× ≈ 4 samples/pixel). */
+/** 3D-dice supersample factor when anti-aliasing is on (2x ~ 4 samples/pixel). */
 const AA_SS = 2;
 /** Anti-aliasing is temporarily LOCKED OFF: the supersampled render distorts the
  *  dice. Set to false (and re-enable the settings toggle) to restore the feature. */
 const AA_LOCKED = true;
 
-/** One labeled summand of a roll (a modifier term, the override, …). */
+/** One labeled summand of a roll (a modifier term, the override, ...). */
 export interface RollPart {
   label: string;
   value: number;
@@ -77,9 +77,9 @@ export interface RollAnimJob {
   total: number;
   /** How many times the faces cycle before settling (legacy; unused by the timeline). */
   spins?: number;
-  /** Total animation budget in ms — dice and modifiers stagger to finish within it. */
+  /** Total animation budget in ms - dice and modifiers stagger to finish within it. */
   durationMs?: number;
-  /** Result tone — drives the crit/fail sound on resolve. */
+  /** Result tone - drives the crit/fail sound on resolve. */
   tone?: "normal" | "crit" | "fail";
   /** Keep the card on screen after resolving (clicking always toggles). */
   stay: boolean;
@@ -103,7 +103,7 @@ let summaryOpen = false;
 const closers = new Set<() => void>();
 /** Resolved, still-visible rolls (feed the bottom summary window). */
 const lives = new Map<object, { total: number; sides: number; reroll?: () => void }>();
-/** Cards still tumbling — the summary waits for them. */
+/** Cards still tumbling - the summary waits for them. */
 let pending = 0;
 
 export function closeAllRolls(): void {
@@ -137,7 +137,7 @@ function dropBox(box: HTMLElement): void {
 
 /**
  * Capture the positions of the existing cards, returning a player that
- * FLIP-slides them to wherever layout moved them — into the space a
+ * FLIP-slides them to wherever layout moved them - into the space a
  * dismissed card freed, or aside to re-center around a newly added one
  * (mirrors the summary's mini-die animation).
  */
@@ -194,7 +194,7 @@ function updateSummary(i18n: I18n): void {
   }
   summaryIndex = Math.max(0, Math.min(uniq.length - 1, summaryIndex));
 
-  // Animate only the first appearance — rebuilds (slider moves, a new roll
+  // Animate only the first appearance - rebuilds (slider moves, a new roll
   // joining) replace the element in place without re-popping; their size
   // change is FLIP-animated below instead.
   const isNew = !summaryEl;
@@ -212,14 +212,14 @@ function updateSummary(i18n: I18n): void {
   };
   const dismiss = top.createEl("button", { cls: "ep-roll-sum-dismiss", text: i18n.t("roll.closeAll") });
   dismiss.onclick = closeAllRolls;
-  // The slider snaps across the distinct result values — no in-between.
+  // The slider snaps across the distinct result values - no in-between.
   const slider = summaryEl.createEl("input", { cls: "ep-roll-sum-slider", type: "range" });
   slider.min = "0";
   slider.max = String(uniq.length - 1);
   slider.step = "1";
   slider.value = String(summaryIndex);
   slider.disabled = uniq.length < 2;
-  // "<" sits on the left, "≥" on the right.
+  // "<" sits on the left, ">=" on the right.
   const groupsRow = summaryEl.createDiv({ cls: "ep-roll-sum-groups" });
   const ltGroup = groupsRow.createDiv({ cls: "ep-roll-sum-group" });
   const ltHead = ltGroup.createDiv({ cls: "ep-roll-sum-head" });
@@ -254,8 +254,8 @@ function updateSummary(i18n: I18n): void {
         lt++;
       }
     }
-    geHead.setText(`≥ ${v} · ${ge}`);
-    ltHead.setText(`< ${v} · ${lt}`);
+    geHead.setText(`>= ${v} - ${ge}`);
+    ltHead.setText(`< ${v} - ${lt}`);
     if (firsts) {
       for (const x of els) {
         const a = firsts.get(x.el);
@@ -279,7 +279,7 @@ function updateSummary(i18n: I18n): void {
   };
   apply(false);
   renderSummarySettings(summaryEl, i18n);
-  // A rebuilt dialog with different content jumps in size — animate the
+  // A rebuilt dialog with different content jumps in size - animate the
   // rebuilt element from the previous width/height instead (bottom-fixed and
   // centered, so it grows upward and outward symmetrically).
   if (prevRect) {
@@ -311,7 +311,7 @@ function updateSummary(i18n: I18n): void {
  * Expandable roll-settings panel inside the summary dialog. Compact,
  * label-per-control grid; every control is a native element (keyboard and
  * screen-reader operable). On mobile the expanded summary may take up to
- * half the screen and scrolls internally — the layer's measured bottom
+ * half the screen and scrolls internally - the layer's measured bottom
  * reserve keeps the dice cards visible above it.
  */
 let rsId = 0;
@@ -326,7 +326,7 @@ function renderSummarySettings(host: HTMLElement, i18n: I18n): void {
   setIcon(chev, "chevron-right");
   chev.toggleClass("ep-open", summaryOpen);
   tog.createSpan({ text: i18n.t("roll.summary.settings") });
-  // Accordion: a 0fr↔1fr grid row transition animates the open/close (the
+  // Accordion: a 0fr<->1fr grid row transition animates the open/close (the
   // clip layer hides the collapsing content and, via `visibility`, keeps the
   // hidden controls out of the tab order).
   const acc = wrap.createDiv({ cls: "ep-roll-sum-acc" });
@@ -418,7 +418,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
   const token = {};
   const host = cardsHost(job.block);
   // Existing cards shift aside as the centered row re-centers around the
-  // newcomer — slide them there instead of jumping (FLIP).
+  // newcomer - slide them there instead of jumping (FLIP).
   const playJoin = prepareCardFlip(host);
   const box = host.createDiv({ cls: "ep-roll-box" });
   box.createDiv({ cls: "ep-roll-label", text: job.label });
@@ -428,7 +428,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
   // edge instead of wrapping onto a second row.
   const diceTrack = diceRow.createDiv({ cls: "ep-roll-dice-track" });
   const chain = box.createDiv({ cls: "ep-roll-chain" });
-  // Card growth is FLIP-animated in addCell: content-driven auto→auto size
+  // Card growth is FLIP-animated in addCell: content-driven auto->auto size
   // changes don't fire CSS transitions, so each appended chain cell measures
   // the card before/after and animates between the two sizes explicitly.
   // Keep the newest card in view; previous rolls scroll off to the left.
@@ -448,7 +448,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     const el = diceTrack.createDiv({ cls: "ep-roll-die" });
     dies.push({ el, view: style.create(el, sides, aaSS), sides });
   }
-  playJoin(); // the new card is fully laid out — slide the others aside
+  playJoin(); // the new card is fully laid out - slide the others aside
 
   /**
    * Single-row conveyor: slide the track so die `i`'s right edge sits at the
@@ -547,8 +547,8 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
   /**
    * Append one value (+ small origin label) to the addition chain, FLIP-
    * animating the card's size: a new row (a die value, a modifier term, the
-   * total) can widen and heighten the card, and auto→auto growth fires no
-   * CSS transition on its own. Works mid-animation too — the "before" size
+   * total) can widen and heighten the card, and auto->auto growth fires no
+   * CSS transition on its own. Works mid-animation too - the "before" size
    * is read from the live rect, so rapid successive rows chain smoothly.
    */
   let sizeTimer = 0;
@@ -558,7 +558,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     const cell = chain.createDiv({ cls: "ep-roll-cell" + (cls ? " " + cls : "") });
     cell.createDiv({ cls: "ep-roll-cellval", text: valueText });
     cell.createDiv({ cls: "ep-roll-celllab", text: labelText });
-    // Measure the natural size with the new row in place…
+    // Measure the natural size with the new row in place...
     box.style.transition = "none";
     box.style.width = "";
     box.style.height = "";
@@ -567,17 +567,17 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     const w = nat.width;
     const h = nat.height;
     if (Math.abs(w - before.width) >= 1 || Math.abs(h - before.height) >= 1) {
-      // …freeze the chain at its FINAL laid-out width, so the new cell never
+      // ...freeze the chain at its FINAL laid-out width, so the new cell never
       // wraps onto a temporary extra line while the box is still narrow (the
-      // old behaviour: wrap → widen → un-wrap → shrink, a visible jolt). The
+      // old behaviour: wrap -> widen -> un-wrap -> shrink, a visible jolt). The
       // width must be measured fractionally and rounded UP (+1 safety):
       // offsetWidth rounds down, and a frozen width even half a pixel short
-      // re-wraps the newest cell — the exact jolt this freeze prevents. A
+      // re-wraps the newest cell - the exact jolt this freeze prevents. A
       // cell only ever starts a new line when the current one is truly full
       // (the chain's max-width), never because of the animation. The clipped
-      // box then simply reveals the final layout as it grows…
+      // box then simply reveals the final layout as it grows...
       chain.style.width = Math.ceil(chain.getBoundingClientRect().width) + 1 + "px";
-      // …and animate from the current (possibly mid-transition) size to it.
+      // ...and animate from the current (possibly mid-transition) size to it.
       box.style.overflow = "hidden";
       box.style.width = before.width + "px";
       box.style.height = before.height + "px";
@@ -607,7 +607,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     updateSummary(i18n);
     if (job.tone === "crit") sfx.crit();
     else if (job.tone === "fail") sfx.fail();
-    // The auto-close must re-check pinning — clicking a card during this
+    // The auto-close must re-check pinning - clicking a card during this
     // window has to keep it (the old timer closed it regardless).
     if (!pinned) later(() => {
       if (!pinned) close();
@@ -616,7 +616,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
 
   // Fixed-budget timeline. Each die and each modifier part is scheduled at an
   // evenly-staggered offset within `budget`, so they appear to start one after
-  // another (overlapping — not waiting for the previous to finish) and the roll
+  // another (overlapping - not waiting for the previous to finish) and the roll
   // resolves at ~budget no matter how many dice or parts there are.
   const settled: boolean[] = [];
   let keptShown = 0;

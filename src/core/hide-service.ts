@@ -2,8 +2,8 @@
  * Hiding properties from Obsidian's own properties panel.
  *
  * Two sources decide what is hidden:
- * 1. `settings.manualHide` — explicit, vault-wide hides.
- * 2. Sidebar entries — when `settings.hideShown` is on, every property shown
+ * 1. `settings.manualHide` - explicit, vault-wide hides.
+ * 2. Sidebar entries - when `settings.hideShown` is on, every property shown
  *    in a sidebar layout is hidden from Obsidian unless the entry opts out
  *    via `showInObsidian`.
  *

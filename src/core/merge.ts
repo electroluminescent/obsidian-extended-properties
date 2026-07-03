@@ -36,7 +36,7 @@ export function valuesEqual(a: unknown, b: unknown): boolean {
  * changed the same key, relative to `base`, to a value different from ours.
  *
  * A key where only we changed it, or where they changed it to the same value we
- * did, is *not* a conflict — our write is safe and preserves their other edits.
+ * did, is *not* a conflict - our write is safe and preserves their other edits.
  */
 export function conflictingKeys(
   base: Frontmatter,
@@ -54,7 +54,7 @@ export function conflictingKeys(
 }
 
 export interface MergeResult {
-  /** The merged frontmatter (our edits ∪ their non-conflicting edits). */
+  /** The merged frontmatter (our edits + their non-conflicting edits). */
   merged: Frontmatter;
   /** Keys both sides changed to different values (left at our value in `merged`). */
   conflicts: string[];

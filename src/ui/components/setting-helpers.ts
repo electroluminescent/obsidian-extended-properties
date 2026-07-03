@@ -65,7 +65,7 @@ export function addIconSetting(
     prev.empty();
     const ic = get();
     if (ic) setIcon(prev, ic);
-    else prev.setText("—");
+    else prev.setText("-");
   };
   update();
   setting.addButton((b) =>

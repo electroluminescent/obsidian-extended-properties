@@ -27,7 +27,7 @@ describe("parse / serialize round-trip", () => {
   });
 });
 
-describe("evalRoll — deterministic", () => {
+describe("evalRoll - deterministic", () => {
   it("flat modifier and references", () => {
     const r = evalRoll(parseRoll("2d6 + 3 + DEX")!, { roll1: seq([4, 4]), resolve: (n) => (n === "DEX" ? 2 : undefined) });
     expect(r.total).toBe(4 + 4 + 3 + 2);
@@ -72,7 +72,7 @@ describe("evalRoll — deterministic", () => {
   });
 });
 
-describe("advantage ≥ normal in expectation", () => {
+describe("advantage >= normal in expectation", () => {
   it("2d20kh1 averages higher than 1d20 over many samples", () => {
     const rng = () => 1 + Math.floor(Math.random() * 20);
     const mean = (expr: string) => {

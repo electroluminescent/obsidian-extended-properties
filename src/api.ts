@@ -2,7 +2,7 @@
  * Public, versioned API for third-party feature modules (roadmap F5).
  *
  * Other plugins can extend Extended Properties without forking it by
- * registering a {@link FeatureModule} — the same contract the built-in dice,
+ * registering a {@link FeatureModule} - the same contract the built-in dice,
  * D&D 5e and inline modules use. A module can add value types, entry kinds,
  * cluster addons, derivations, section templates, layout presets and locale
  * strings through the registries handed to its `register(ctx)`.

@@ -3,7 +3,7 @@
  * reordering sections/entries, and grid row/column manipulation.
  *
  * These functions mutate the given layout but perform no persistence and no
- * rendering — callers (view, drag controller, menus) decide when to save and
+ * rendering - callers (view, drag controller, menus) decide when to save and
  * re-render. Keeping the mutations here makes drag & drop and the menus thin
  * and the behavior unit-testable.
  */
@@ -13,7 +13,7 @@ import { genId } from "../utils/misc";
 
 /**
  * Set the shared data type of a property key (v3.10: data types are
- * per-property, not per-layout — the same key renders as one type in every
+ * per-property, not per-layout - the same key renders as one type in every
  * note-Type layout, matching Obsidian's own one-type-per-key model).
  * Records the type in `settings.propTypes` (authoritative, keyed by
  * lower-cased key) and propagates it to every layout entry and inline entry
@@ -202,7 +202,7 @@ export function addColumnAt(section: Section, idx: number, isGrid: boolean): voi
   section.entries = rows.flat();
 }
 
-/** Remove the column at `colIdx` (grid drops cells; columns/list: just −1). */
+/** Remove the column at `colIdx` (grid drops cells; columns/list: just -1). */
 export function removeColumnAt(section: Section, colIdx: number, isGrid: boolean): void {
   if (!isGrid) {
     section.columns = Math.max(1, (section.columns || 1) - 1);

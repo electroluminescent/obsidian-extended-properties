@@ -1,10 +1,10 @@
 /**
- * The influence engine — generic, user-editable modifier math.
+ * The influence engine - generic, user-editable modifier math.
  *
  * A numeric entry can be driven by the sum of one or more {@link Influence}s.
  * Each influence names a source property, a derivation (how the raw source
  * value becomes a contribution), a sign, and optionally a *toggle list
- * property* that switches the influence on/off per note — the generic form
+ * property* that switches the influence on/off per note - the generic form
  * of "proficiency": the influence applies when the entry's key (or alias)
  * is listed in that property.
  *
@@ -57,11 +57,11 @@ export interface Influence {
   formula?: string;
   /**
    * Full expression (see `core/expr.ts`) referencing properties by name or
-   * short form — e.g. `floor((STR + DEX) / 2) + max(PB, 2)`. When set it wins
-   * over `source`/`mode`/`formula`; the term is `weight × expr`.
+   * short form - e.g. `floor((STR + DEX) / 2) + max(PB, 2)`. When set it wins
+   * over `source`/`mode`/`formula`; the term is `weight x expr`.
    */
   expr?: string;
-  /** −1 subtracts the term from the sum; anything else adds it. */
+  /** -1 subtracts the term from the sum; anything else adds it. */
   weight?: number;
   /**
    * Name of a list property that makes this term togglable (the way
@@ -71,12 +71,12 @@ export interface Influence {
   toggle?: string;
   /**
    * Hide this term's checkbox on the row (per source). The toggle list
-   * still applies — only the button is suppressed.
+   * still applies - only the button is suppressed.
    */
   hideToggle?: boolean;
   /**
    * Hide this term in the chain denotation (per source). The term still
-   * counts toward the total — only the display is suppressed.
+   * counts toward the total - only the display is suppressed.
    */
   hideInChain?: boolean;
 }
@@ -101,7 +101,7 @@ export interface DerivationSetting {
 
 /**
  * Default building blocks seeded into fresh settings. These are ordinary
- * formula entries — rename, edit or delete them in the settings tab.
+ * formula entries - rename, edit or delete them in the settings tab.
  */
 export function defaultDerivations(): DerivationSetting[] {
   return [
@@ -132,7 +132,7 @@ export interface InfluenceEnv {
   registries: Registries;
   settings: EPSettings;
   /**
-   * Active layout — used to resolve *chained* modifiers: when a source
+   * Active layout - used to resolve *chained* modifiers: when a source
    * property is itself a derived entry, its influence sum is computed
    * recursively (up to `settings.modDepth` hops, default 8).
    */
@@ -252,7 +252,7 @@ function buildFnEnv(env: InfluenceEnv): (name: string) => ((args: number[]) => n
  * setting remains only as a backstop for very deep legacy chains). Legacy
  * `mode`/`formula` terms evaluate exactly as before and never error; only
  * `expr` terms can fail (parse error / unknown reference / cycle), which makes
- * the whole entry resolve to `undefined` so the UI can show "—".
+ * the whole entry resolve to `undefined` so the UI can show "-".
  */
 class NoteEval {
   private cache = new Map<string, number | undefined>();
@@ -351,7 +351,7 @@ class NoteEval {
     return sign * applyDerivation(this.env, inf, this.sourceValue(key, depth));
   }
 
-  /** Legacy source resolution: never errors (absent → 0). */
+  /** Legacy source resolution: never errors (absent -> 0). */
   private sourceValue(key: string, depth: number): number {
     const stored = numericRaw(this.env, key);
     if (stored !== null) return stored;
@@ -370,7 +370,7 @@ class NoteEval {
   /**
    * Expression reference: a known property resolves to its value (0 if absent);
    * a name suffixed with `s` (e.g. `INTs`) resolves to that property's
-   * *modifier* — its override-aware {@link totalAt} — instead of its value.
+   * *modifier* - its override-aware {@link totalAt} - instead of its value.
    */
   private refValue(name: string, depth: number): number | undefined {
     // `this.Prop` is an explicit local reference (symmetry with `[[Note]].Prop`).
@@ -433,13 +433,13 @@ export function influenceTerm(env: InfluenceEnv, entry: Entry, inf: Influence): 
 /**
  * The entry's effective modifier: per-note stored override (derived entries),
  * layout-wide override, or the (chain-resolved) influence sum. Returns 0 when
- * the expression fails — use {@link modifierInfo} to detect that for display.
+ * the expression fails - use {@link modifierInfo} to detect that for display.
  */
 export function modifierTotal(env: InfluenceEnv, entry: Entry): number {
   return new NoteEval(env).total(entry) ?? 0;
 }
 
-/** A computed modifier plus whether (and why) it failed, for the "—" badge. */
+/** A computed modifier plus whether (and why) it failed, for the "-" badge. */
 export interface ModifierInfo {
   value: number | undefined;
   error: "cycle" | "expr" | null;
@@ -490,10 +490,10 @@ export function setAbbr(settings: EPSettings, key: string, abbr: string | undefi
 // ---------------------------------------------------------------------------
 // Short-form registry (unique per property)
 //
-// `settings.sourceAbbrs` is the authoritative key → short-form map. Short
+// `settings.sourceAbbrs` is the authoritative key -> short-form map. Short
 // forms are unique (case-insensitive); on a clash the loser is re-derived by
 // "moving down the string": keep the leading letters and advance the last one
-// (Dexterity → DEX, Dexterous → DET).
+// (Dexterity -> DEX, Dexterous -> DET).
 // ---------------------------------------------------------------------------
 
 /** Lower-cased short forms currently in use, optionally excluding one key. */
@@ -661,13 +661,13 @@ export function termDenotation(settings: EPSettings, entry: Entry, inf: Influenc
   return inf.expr ? exprDenotation(settings, inf.expr) : abbrFor(settings, inf.source || (entry.key as string) || "");
 }
 
-/** Plain-text denotation of an influence list, e.g. "INT + DEX − AGE". */
+/** Plain-text denotation of an influence list, e.g. "INT + DEX - AGE". */
 export function denotationText(settings: EPSettings, entry: Entry, mods: Influence[]): string {
   let out = "";
   mods.forEach((inf, i) => {
     const neg = inf.weight === -1;
-    if (i > 0) out += neg ? " − " : " + ";
-    else if (neg) out += "−";
+    if (i > 0) out += neg ? " - " : " + ";
+    else if (neg) out += "-";
     out += termDenotation(settings, entry, inf);
   });
   return out;

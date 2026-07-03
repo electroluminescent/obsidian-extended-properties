@@ -4,7 +4,7 @@
  * Nothing here is a bespoke widget and nothing is computed by hidden rules:
  * every value is an ordinary property entry, and every derived number
  * (proficiency bonus, initiative, saves, skills) is a "derived" entry whose
- * influences reference *real source properties* by name — Level feeds the
+ * influences reference *real source properties* by name - Level feeds the
  * proficiency bonus, abilities feed saves and skills, and proficiency is a
  * togglable influence backed by the classic list properties
  * ("Saving Throw Proficiencies" / "Skill Proficiencies").

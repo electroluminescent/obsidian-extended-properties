@@ -2,14 +2,14 @@
  * Per-entry options.
  *
  * {@link renderEntryOptionsBody} renders the full options UI for one entry
- * into any container — used by the standalone modal here and by the tabbed
+ * into any container - used by the standalone modal here and by the tabbed
  * section options modal. Generic sections (property/label, appearance,
  * Obsidian visibility, placement) are rendered directly; type- and
  * feature-specific sections are contributed through the registries:
  *
- *   value type   → `ValueTypeDef.renderOptions`   (range, image height, …)
- *   addons       → `ClusterAddon.renderOptions`   (modifiers, rolls, …)
- *   entry kind   → `EntryKindDef.renderOptions`   (non-prop widgets)
+ *   value type   -> `ValueTypeDef.renderOptions`   (range, image height, ...)
+ *   addons       -> `ClusterAddon.renderOptions`   (modifiers, rolls, ...)
+ *   entry kind   -> `EntryKindDef.renderOptions`   (non-prop widgets)
  *
  * Closing the modal with changes asks the user to keep or undo them
  * (snapshot diff).
@@ -45,7 +45,7 @@ export function viewColorHost(view: ViewCtx): ColorHost {
  * @param onDone    called when the user presses Done
  * @param onRemoved called after the entry was removed from its section
  * @param opts.multi multi-target mode: the entry is a proxy whose changes
- *                   are mirrored to several entries — per-entry identity
+ *                   are mirrored to several entries - per-entry identity
  *                   (key, label) and removal are hidden.
  */
 const NUMERIC_CONSTRAINT_TYPES = new Set(["number", "decimal", "formula", "unit", "rating"]);

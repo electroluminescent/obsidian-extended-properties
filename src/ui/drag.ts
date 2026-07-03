@@ -1,7 +1,7 @@
 /**
  * Drag & drop for sections and entries (edit mode).
  *
- * Both sections and entries use pointer events (mouse, pen *and* touch —
+ * Both sections and entries use pointer events (mouse, pen *and* touch -
  * grips set `touch-action: none`). Sections show an insertion line between
  * sections (like the grid cell markers); entries use a floating clone:
  * list/column targets reorder live (FLIP-animated), grid targets highlight

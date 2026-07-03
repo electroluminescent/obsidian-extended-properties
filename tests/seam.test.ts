@@ -1,6 +1,6 @@
 /**
  * Integration tests over the Obsidian seam (F6): whole write-path flows run
- * against the in-memory vault fake — batch write coalescing, the three-way
+ * against the in-memory vault fake - batch write coalescing, the three-way
  * auto-merge, the unload flushes, edit-session revert, and the roll-history
  * migration. Assertions are on observable outcomes (file contents, settings
  * state), never on stub internals.
