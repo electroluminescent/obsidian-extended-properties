@@ -479,7 +479,10 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 .ep-audio, .ep-video, .ep-pdf { width: 100%; }
 .ep-audio-el { width: 100%; display: block; }
 .ep-audio-frame { width: 100%; height: 152px; border: none; border-radius: 8px; }
-.ep-video-el { width: 100%; display: block; border-radius: 8px; background: #000; }
+.ep-video-el { width: 100%; display: block; border-radius: 8px; background: #000; object-fit: contain; }
+/* Scale > 1 zooms media inside its (clipped) box. */
+.ep-media-zoom { overflow: hidden; }
+.ep-media-zoom .ep-image-img, .ep-media-zoom .ep-video-el { transform-origin: center center; }
 .ep-video-framewrap { position: relative; width: 100%; aspect-ratio: 16 / 9; }
 .ep-video-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: none; border-radius: 8px; }
 .ep-pdf-frame { width: 100%; height: 100%; border: none; border-radius: 8px; }

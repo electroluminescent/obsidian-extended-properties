@@ -4379,6 +4379,27 @@ var ImageViewerModal = class extends import_obsidian11.Modal {
 
 // src/ui/render/value-types/media.ts
 var IMAGE_HEIGHTS = { s: 120, m: 240, l: 360 };
+var embedHeight = (entry) => entry.iframeHeight && entry.iframeHeight > 0 ? entry.iframeHeight : 0;
+var embedScale = (entry, def = 1) => entry.iframeScale && entry.iframeScale > 0 ? entry.iframeScale : def;
+function addEmbedSizeRows(octx, scaleDefault, heightPlaceholder) {
+  const { view, entry, container: c, changed } = octx;
+  const t = view.i18n.t.bind(view.i18n);
+  new import_obsidian12.Setting(c).setName(t("options.embedHeight")).addText((tx) => {
+    if (heightPlaceholder !== void 0) tx.setPlaceholder(String(heightPlaceholder));
+    tx.setValue(entry.iframeHeight !== void 0 ? String(entry.iframeHeight) : "").onChange((v) => {
+      const n = Number(v);
+      entry.iframeHeight = Number.isFinite(n) && n > 0 ? n : void 0;
+      changed();
+    });
+  });
+  new import_obsidian12.Setting(c).setName(t("options.embedScale")).addSlider((sl) => {
+    var _a;
+    sl.setLimits(0.25, 2, 0.05).setValue((_a = entry.iframeScale) != null ? _a : scaleDefault).setDynamicTooltip().onChange((v) => {
+      entry.iframeScale = v;
+      changed();
+    });
+  });
+}
 var imageType = {
   id: "image",
   name: (i18n) => i18n.t("type.image"),
@@ -4387,7 +4408,8 @@ var imageType = {
     const { view, file, entry } = ctx2;
     const key = entry.key;
     const holder = ctx2.extra.createDiv({ cls: "ep-image" });
-    const h = (_b = IMAGE_HEIGHTS[(_a = entry.size) != null ? _a : ""]) != null ? _b : 0;
+    const h = embedHeight(entry) || ((_b = IMAGE_HEIGHTS[(_a = entry.size) != null ? _a : ""]) != null ? _b : 0);
+    const s = embedScale(entry);
     const draw = () => {
       holder.empty();
       holder.removeClass("ep-image-empty");
@@ -4401,6 +4423,10 @@ var imageType = {
           holder.removeClass("ep-image-fixed");
         }
         const img = holder.createEl("img", { cls: "ep-image-img" });
+        if (s !== 1) {
+          holder.addClass("ep-media-zoom");
+          img.style.transform = `scale(${s})`;
+        }
         img.src = view.resolveImage(src);
       } else {
         holder.style.removeProperty("height");
@@ -4444,6 +4470,7 @@ var imageType = {
         changed();
       });
     });
+    addEmbedSizeRows(octx, 1);
   },
   menuItems(menu, ref) {
     const { view, file, entry } = ref;
@@ -4553,6 +4580,8 @@ var videoType = {
     const key = entry.key;
     const holder = ctx2.extra.createDiv({ cls: "ep-video" });
     const maxH = (_b = VIDEO_HEIGHTS[(_a = entry.size) != null ? _a : ""]) != null ? _b : 0;
+    const hPx = embedHeight(entry);
+    const s = embedScale(entry);
     const draw = () => {
       holder.empty();
       holder.removeClass("ep-image-empty");
@@ -4565,16 +4594,31 @@ var videoType = {
       const em = videoEmbed(src);
       if (em.kind === "iframe") {
         const wrap = holder.createDiv({ cls: "ep-video-framewrap" });
-        if (maxH) wrap.style.maxHeight = maxH + "px";
+        if (hPx) {
+          wrap.style.aspectRatio = "auto";
+          wrap.style.height = hPx + "px";
+        } else if (maxH) {
+          wrap.style.maxHeight = maxH + "px";
+        }
         const f = wrap.createEl("iframe", { cls: "ep-video-frame" });
         f.setAttr("src", em.src);
         f.setAttr("allow", "fullscreen; encrypted-media; picture-in-picture");
         f.setAttr("allowfullscreen", "true");
+        if (s !== 1)
+          f.setAttr(
+            "style",
+            `width:${(100 / s).toFixed(2)}%;height:${(100 / s).toFixed(2)}%;transform:scale(${s});transform-origin:top left;`
+          );
       } else {
         const v = holder.createEl("video", { cls: "ep-video-el" });
         v.controls = true;
         v.preload = "metadata";
-        if (maxH) v.style.maxHeight = maxH + "px";
+        if (hPx) v.style.height = hPx + "px";
+        else if (maxH) v.style.maxHeight = maxH + "px";
+        if (s !== 1) {
+          holder.addClass("ep-media-zoom");
+          v.style.transform = `scale(${s})`;
+        }
         v.src = view.resolveImage(src);
       }
     };
@@ -4595,6 +4639,7 @@ var videoType = {
         changed();
       });
     });
+    addEmbedSizeRows(octx, 1);
   },
   menuItems: sourceMenuItem("video.srcPrompt")
 };
@@ -4605,7 +4650,8 @@ var pdfType = {
     const { view, entry } = ctx2;
     const key = entry.key;
     const holder = ctx2.extra.createDiv({ cls: "ep-pdf" });
-    const height = entry.iframeHeight && entry.iframeHeight > 0 ? entry.iframeHeight : 360;
+    const height = embedHeight(entry) || 360;
+    const s = embedScale(entry);
     const draw = () => {
       holder.empty();
       holder.removeClass("ep-image-empty");
@@ -4619,21 +4665,21 @@ var pdfType = {
       holder.style.height = height + "px";
       const f = holder.createEl("iframe", { cls: "ep-pdf-frame" });
       f.setAttr("src", view.resolveImage(src));
+      if (s !== 1) {
+        holder.addClass("ep-media-zoom");
+        f.setAttr(
+          "style",
+          `width:${(100 / s).toFixed(2)}%;height:${(height / s).toFixed(0)}px;transform:scale(${s});transform-origin:top left;border:none;`
+        );
+      }
     };
     bindEmbed(ctx2, holder, "pdf.srcPrompt", draw);
   },
   renderOptions(octx) {
-    const { view, entry, container: c, changed } = octx;
+    const { view, container: c } = octx;
     const t = view.i18n.t.bind(view.i18n);
     c.createEl("h4", { text: t("options.embedHeading") });
-    new import_obsidian12.Setting(c).setName(t("options.embedHeight")).addText((tx) => {
-      var _a;
-      tx.setValue(String((_a = entry.iframeHeight) != null ? _a : 360)).onChange((v) => {
-        const n = Number(v);
-        entry.iframeHeight = Number.isFinite(n) && n > 0 ? n : void 0;
-        changed();
-      });
-    });
+    addEmbedSizeRows(octx, 1, 360);
   },
   menuItems: sourceMenuItem("pdf.srcPrompt")
 };
@@ -4689,24 +4735,10 @@ var iframeType = {
     });
   },
   renderOptions(octx) {
-    const { view, entry, container: c, changed } = octx;
+    const { view, container: c } = octx;
     const t = view.i18n.t.bind(view.i18n);
     c.createEl("h4", { text: t("options.embedHeading") });
-    new import_obsidian12.Setting(c).setName(t("options.embedHeight")).addText((tx) => {
-      var _a;
-      tx.setValue(String((_a = entry.iframeHeight) != null ? _a : 200)).onChange((v) => {
-        const n = Number(v);
-        entry.iframeHeight = Number.isFinite(n) && n > 0 ? n : void 0;
-        changed();
-      });
-    });
-    new import_obsidian12.Setting(c).setName(t("options.embedScale")).addSlider((sl) => {
-      var _a;
-      sl.setLimits(0.25, 2, 0.05).setValue((_a = entry.iframeScale) != null ? _a : 0.25).setDynamicTooltip().onChange((v) => {
-        entry.iframeScale = v;
-        changed();
-      });
-    });
+    addEmbedSizeRows(octx, 0.25, 200);
   }
 };
 

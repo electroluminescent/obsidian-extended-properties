@@ -9,7 +9,7 @@
  */
 
 import { Setting } from "obsidian";
-import type { EntryRenderCtx } from "../../../core/context";
+import type { EntryRenderCtx, OptionsCtx } from "../../../core/context";
 import type { ValueTypeDef } from "../../../core/registry";
 import type { SectionSize } from "../../../core/model";
 import { audioEmbed, videoEmbed } from "../../../utils/embed";
@@ -19,6 +19,40 @@ import { ImageViewerModal } from "../../modals/image-viewer";
 /** Image height presets in px (0 = natural height). */
 const IMAGE_HEIGHTS: Record<string, number> = { s: 120, m: 240, l: 360 };
 
+/** Explicit height in px (`iframeHeight`), 0 = unset. Shared by all media. */
+const embedHeight = (entry: { iframeHeight?: number }): number =>
+  entry.iframeHeight && entry.iframeHeight > 0 ? entry.iframeHeight : 0;
+
+/** Zoom/scale factor (`iframeScale`); `def` is the type's natural default. */
+const embedScale = (entry: { iframeScale?: number }, def = 1): number =>
+  entry.iframeScale && entry.iframeScale > 0 ? entry.iframeScale : def;
+
+/**
+ * The iframe's sizing rows — Height (px) and Scale — shared by every media
+ * type so images, audio players, videos, PDFs and iframes size the same way.
+ */
+function addEmbedSizeRows(octx: OptionsCtx, scaleDefault: number, heightPlaceholder?: number): void {
+  const { view, entry, container: c, changed } = octx;
+  const t = view.i18n.t.bind(view.i18n);
+  new Setting(c).setName(t("options.embedHeight")).addText((tx) => {
+    if (heightPlaceholder !== undefined) tx.setPlaceholder(String(heightPlaceholder));
+    tx.setValue(entry.iframeHeight !== undefined ? String(entry.iframeHeight) : "").onChange((v) => {
+      const n = Number(v);
+      entry.iframeHeight = Number.isFinite(n) && n > 0 ? n : undefined;
+      changed();
+    });
+  });
+  new Setting(c).setName(t("options.embedScale")).addSlider((sl) => {
+    sl.setLimits(0.25, 2, 0.05)
+      .setValue(entry.iframeScale ?? scaleDefault)
+      .setDynamicTooltip()
+      .onChange((v) => {
+        entry.iframeScale = v;
+        changed();
+      });
+  });
+}
+
 export const imageType: ValueTypeDef = {
   id: "image",
   name: (i18n) => i18n.t("type.image"),
@@ -27,7 +61,9 @@ export const imageType: ValueTypeDef = {
     const { view, file, entry } = ctx;
     const key = entry.key as string;
     const holder = ctx.extra.createDiv({ cls: "ep-image" });
-    const h = IMAGE_HEIGHTS[(entry.size as string) ?? ""] ?? 0;
+    // Explicit height (px) wins over the preset; scale zooms within the box.
+    const h = embedHeight(entry) || (IMAGE_HEIGHTS[(entry.size as string) ?? ""] ?? 0);
+    const s = embedScale(entry);
     const draw = () => {
       holder.empty();
       holder.removeClass("ep-image-empty");
@@ -41,6 +77,10 @@ export const imageType: ValueTypeDef = {
           holder.removeClass("ep-image-fixed");
         }
         const img = holder.createEl("img", { cls: "ep-image-img" });
+        if (s !== 1) {
+          holder.addClass("ep-media-zoom");
+          img.style.transform = `scale(${s})`;
+        }
         img.src = view.resolveImage(src);
       } else {
         holder.style.removeProperty("height");
@@ -82,6 +122,7 @@ export const imageType: ValueTypeDef = {
         changed();
       });
     });
+    addEmbedSizeRows(octx, 1);
   },
 
   menuItems(menu, ref) {
@@ -201,6 +242,8 @@ export const videoType: ValueTypeDef = {
     const key = entry.key as string;
     const holder = ctx.extra.createDiv({ cls: "ep-video" });
     const maxH = VIDEO_HEIGHTS[(entry.size as string) ?? ""] ?? 0;
+    const hPx = embedHeight(entry); // explicit height wins over the preset
+    const s = embedScale(entry);
     const draw = (): void => {
       holder.empty();
       holder.removeClass("ep-image-empty");
@@ -212,18 +255,35 @@ export const videoType: ValueTypeDef = {
       }
       const em = videoEmbed(src);
       if (em.kind === "iframe") {
-        // Service player (YouTube, Vimeo, …): a 16:9 frame.
+        // Service player (YouTube, Vimeo, …): a 16:9 frame, or a fixed-height
+        // one when an explicit height is set.
         const wrap = holder.createDiv({ cls: "ep-video-framewrap" });
-        if (maxH) wrap.style.maxHeight = maxH + "px";
+        if (hPx) {
+          wrap.style.aspectRatio = "auto";
+          wrap.style.height = hPx + "px";
+        } else if (maxH) {
+          wrap.style.maxHeight = maxH + "px";
+        }
         const f = wrap.createEl("iframe", { cls: "ep-video-frame" });
         f.setAttr("src", em.src);
         f.setAttr("allow", "fullscreen; encrypted-media; picture-in-picture");
         f.setAttr("allowfullscreen", "true");
+        // The iframe scaling technique, in % so it works with both wrap modes.
+        if (s !== 1)
+          f.setAttr(
+            "style",
+            `width:${(100 / s).toFixed(2)}%;height:${(100 / s).toFixed(2)}%;transform:scale(${s});transform-origin:top left;`
+          );
       } else {
         const v = holder.createEl("video", { cls: "ep-video-el" });
         v.controls = true;
         v.preload = "metadata";
-        if (maxH) v.style.maxHeight = maxH + "px";
+        if (hPx) v.style.height = hPx + "px";
+        else if (maxH) v.style.maxHeight = maxH + "px";
+        if (s !== 1) {
+          holder.addClass("ep-media-zoom");
+          v.style.transform = `scale(${s})`;
+        }
         v.src = view.resolveImage(src);
       }
     };
@@ -245,6 +305,7 @@ export const videoType: ValueTypeDef = {
         changed();
       });
     });
+    addEmbedSizeRows(octx, 1);
   },
 
   menuItems: sourceMenuItem("video.srcPrompt"),
@@ -258,7 +319,8 @@ export const pdfType: ValueTypeDef = {
     const { view, entry } = ctx;
     const key = entry.key as string;
     const holder = ctx.extra.createDiv({ cls: "ep-pdf" });
-    const height = entry.iframeHeight && entry.iframeHeight > 0 ? entry.iframeHeight : 360;
+    const height = embedHeight(entry) || 360;
+    const s = embedScale(entry);
     const draw = (): void => {
       holder.empty();
       holder.removeClass("ep-image-empty");
@@ -272,21 +334,23 @@ export const pdfType: ValueTypeDef = {
       holder.style.height = height + "px";
       const f = holder.createEl("iframe", { cls: "ep-pdf-frame" });
       f.setAttr("src", view.resolveImage(src)); // local PDFs resolve to app:// resources
+      // Same scaling technique as the iframe type.
+      if (s !== 1) {
+        holder.addClass("ep-media-zoom");
+        f.setAttr(
+          "style",
+          `width:${(100 / s).toFixed(2)}%;height:${(height / s).toFixed(0)}px;transform:scale(${s});transform-origin:top left;border:none;`
+        );
+      }
     };
     bindEmbed(ctx, holder, "pdf.srcPrompt", draw);
   },
 
   renderOptions(octx) {
-    const { view, entry, container: c, changed } = octx;
+    const { view, container: c } = octx;
     const t = view.i18n.t.bind(view.i18n);
     c.createEl("h4", { text: t("options.embedHeading") });
-    new Setting(c).setName(t("options.embedHeight")).addText((tx) => {
-      tx.setValue(String(entry.iframeHeight ?? 360)).onChange((v) => {
-        const n = Number(v);
-        entry.iframeHeight = Number.isFinite(n) && n > 0 ? n : undefined;
-        changed();
-      });
-    });
+    addEmbedSizeRows(octx, 1, 360);
   },
 
   menuItems: sourceMenuItem("pdf.srcPrompt"),
@@ -344,24 +408,9 @@ export const iframeType: ValueTypeDef = {
   },
 
   renderOptions(octx) {
-    const { view, entry, container: c, changed } = octx;
+    const { view, container: c } = octx;
     const t = view.i18n.t.bind(view.i18n);
     c.createEl("h4", { text: t("options.embedHeading") });
-    new Setting(c).setName(t("options.embedHeight")).addText((tx) => {
-      tx.setValue(String(entry.iframeHeight ?? 200)).onChange((v) => {
-        const n = Number(v);
-        entry.iframeHeight = Number.isFinite(n) && n > 0 ? n : undefined;
-        changed();
-      });
-    });
-    new Setting(c).setName(t("options.embedScale")).addSlider((sl) => {
-      sl.setLimits(0.25, 2, 0.05)
-        .setValue(entry.iframeScale ?? 0.25)
-        .setDynamicTooltip()
-        .onChange((v) => {
-          entry.iframeScale = v;
-          changed();
-        });
-    });
+    addEmbedSizeRows(octx, 0.25, 200);
   },
 };
