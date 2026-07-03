@@ -83,4 +83,4 @@ the three assets attached, submit to the directory:
 - [x] `manifest.json` has `id`, `name`, `version`, `minAppVersion`, `description`,
   `author`, `isDesktopOnly`.
 - [x] `authorUrl` set (`https://github.com/electroluminescent/obsidian-extended-properties`); `fundingUrl` optional - add if desired.
-- [ ] Repo pushed public with a published release.
+- [x] Repo pushed public with a published release.
