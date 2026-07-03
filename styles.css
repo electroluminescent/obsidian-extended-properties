@@ -348,6 +348,10 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
 
 /* add menu groups / badges / search / pads */
 .ep-pop-group { font-weight: 700; font-size: var(--font-ui-smaller); color: var(--text-accent); padding: 5px 8px 2px; text-transform: uppercase; letter-spacing: .04em; }
+/* Data-type sub-groups within a picker group (On this note → number, text, …). */
+.ep-pop-subgroup { font-style: italic; font-size: 0.78em; color: var(--text-faint); padding: 4px 10px 1px; }
+/* Data-type tag beside a suggested property (mirrors the sidebar type hint). */
+.ep-sug-type { margin-left: 8px; font-style: italic; font-size: 0.78em; color: var(--text-faint); }
 .ep-badge-hidden { background: var(--background-modifier-error); color: var(--text-on-accent); }
 .ep-addsearch { width: calc(100% - 8px); margin: 2px 4px 4px; }
 .ep-addlist { max-height: 46vh; overflow: auto; }

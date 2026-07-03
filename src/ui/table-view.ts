@@ -589,11 +589,23 @@ export class TableView extends ItemView {
         const lk = k.toLowerCase();
         if (lk !== "type" && lk !== "position") candidates.add(k);
       }
+    // The shared picker order: by data type, then by key — with the type
+    // shown beside each property (matching the sidebar pickers).
+    const typeNameOf = (k: string): string => {
+      const id = this.plugin.settings.propTypes?.[k.toLowerCase()] || this.plugin.props.obsidianType(k) || "";
+      if (!id) return "";
+      const def = this.plugin.registries.valueTypes.get(id);
+      return def ? def.name(this.plugin.i18n) : id;
+    };
+    const sorted = [...candidates].sort(
+      (a, b) => (typeNameOf(a) || "￿").localeCompare(typeNameOf(b) || "￿") || a.localeCompare(b)
+    );
     const menu = new Menu();
-    for (const k of [...candidates].sort((a, b) => a.localeCompare(b))) {
+    for (const k of sorted) {
+      const tn = typeNameOf(k);
       menu.addItem((i) =>
         i
-          .setTitle(k)
+          .setTitle(tn ? `${k} · ${tn}` : k)
           .setChecked(layout.columns.includes(k))
           .onClick(() => {
             layout.columns = layout.columns.includes(k)

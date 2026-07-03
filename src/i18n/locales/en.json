@@ -220,6 +220,7 @@
   "iframe.emptyHint": "No URL \u2014 click to set",
   "iframe.urlPrompt": "Embed URL",
   "media.setSource": "Set source…",
+  "add.addCustom": "Add custom value",
   "audio.emptyHint": "No audio — click to set a file or URL",
   "audio.srcPrompt": "Audio source (vault file, [[wikilink]] or URL — Spotify/SoundCloud links embed their player)",
   "video.emptyHint": "No video — click to set a file or URL",

@@ -7,7 +7,7 @@
 import { AbstractInputSuggest, App, TFile } from "obsidian";
 import type { I18n } from "../../i18n/i18n";
 
-interface PropSuggestion { key: string; kind: "note" | "vault" | "create" }
+interface PropSuggestion { key: string; kind: "note" | "vault" | "create"; typeName?: string }
 
 /** Suggests property keys; offers creating an unknown key verbatim. */
 export class PropSuggest extends AbstractInputSuggest<PropSuggestion> {
@@ -15,7 +15,7 @@ export class PropSuggest extends AbstractInputSuggest<PropSuggestion> {
     app: App,
     inputEl: HTMLInputElement,
     private i18n: I18n,
-    private getCandidates: () => { key: string; onNote: boolean }[],
+    private getCandidates: () => { key: string; onNote: boolean; typeName?: string }[],
     private onChoose: (key: string) => void,
     private clearOnSelect = true
   ) {
@@ -27,7 +27,11 @@ export class PropSuggest extends AbstractInputSuggest<PropSuggestion> {
     const ql = q.toLowerCase();
     const cands = this.getCandidates();
     const filtered = (ql ? cands.filter((c) => c.key.toLowerCase().includes(ql)) : cands).slice(0, 50);
-    const res: PropSuggestion[] = filtered.map((c) => ({ key: c.key, kind: c.onNote ? "note" : "vault" }));
+    const res: PropSuggestion[] = filtered.map((c) => ({
+      key: c.key,
+      kind: c.onNote ? ("note" as const) : ("vault" as const),
+      typeName: c.typeName,
+    }));
     if (q && !cands.some((c) => c.key.toLowerCase() === ql)) res.unshift({ key: q, kind: "create" });
     return res;
   }
@@ -39,6 +43,8 @@ export class PropSuggest extends AbstractInputSuggest<PropSuggestion> {
       return;
     }
     el.createSpan({ text: c.key });
+    // Data-type tag, styled like the sidebar's type hint.
+    if (c.typeName) el.createSpan({ cls: "ep-sug-type", text: c.typeName });
     if (c.kind === "note") el.createSpan({ cls: "ep-sug-badge", text: this.i18n.t("suggest.onNote") });
   }
 

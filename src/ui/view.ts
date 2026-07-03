@@ -465,7 +465,7 @@ export class SidebarView extends ItemView implements ViewCtx {
     c.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
   }
 
-  propCandidates(includeShown = false): { key: string; onNote: boolean }[] {
+  propCandidates(includeShown = false): { key: string; onNote: boolean; type: string; typeName: string }[] {
     const shown = new Set<string>();
     if (!includeShown)
       for (const sec of this.layout.sections)
@@ -474,12 +474,25 @@ export class SidebarView extends ItemView implements ViewCtx {
       ...Object.keys(this.note.raw).filter((k) => k.toLowerCase() !== "position"),
       ...this.props.knownProps(),
     ]);
-    const list: { key: string; onNote: boolean }[] = [];
+    const list: { key: string; onNote: boolean; type: string; typeName: string }[] = [];
     for (const k of all) {
       if (shown.has(k.toLowerCase())) continue;
-      list.push({ key: k, onNote: this.note.raw[k] !== undefined });
+      const type = this.deriveType(k);
+      const def = this.registries.valueTypes.get(type);
+      list.push({
+        key: k,
+        onNote: this.note.raw[k] !== undefined,
+        type,
+        typeName: def ? def.name(this.i18n) : type,
+      });
     }
-    list.sort((a, b) => (a.onNote === b.onNote ? a.key.localeCompare(b.key) : a.onNote ? -1 : 1));
+    // The shared picker order: on-note first, then by data type, then by key.
+    list.sort(
+      (a, b) =>
+        (a.onNote === b.onNote ? 0 : a.onNote ? -1 : 1) ||
+        a.typeName.localeCompare(b.typeName) ||
+        a.key.localeCompare(b.key)
+    );
     return list;
   }
 

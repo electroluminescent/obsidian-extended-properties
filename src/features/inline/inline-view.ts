@@ -208,8 +208,14 @@ class InlineViewCtx implements ViewCtx {
   openAddMenu(): void {}
   openListValuePicker(): void {}
   scrollToSection(): void {}
-  propCandidates(): { key: string; onNote: boolean }[] {
-    return Object.keys(this.note.raw).map((key) => ({ key, onNote: true }));
+  propCandidates(): { key: string; onNote: boolean; type: string; typeName: string }[] {
+    return Object.keys(this.note.raw)
+      .map((key) => {
+        const type = this.deriveType(key);
+        const def = this.registries.valueTypes.get(type);
+        return { key, onNote: true, type, typeName: def ? def.name(this.i18n) : type };
+      })
+      .sort((a, b) => a.typeName.localeCompare(b.typeName) || a.key.localeCompare(b.key));
   }
 }
 

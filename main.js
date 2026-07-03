@@ -309,6 +309,7 @@ var en_default = {
   "iframe.emptyHint": "No URL \u2014 click to set",
   "iframe.urlPrompt": "Embed URL",
   "media.setSource": "Set source\u2026",
+  "add.addCustom": "Add custom value",
   "audio.emptyHint": "No audio \u2014 click to set a file or URL",
   "audio.srcPrompt": "Audio source (vault file, [[wikilink]] or URL \u2014 Spotify/SoundCloud links embed their player)",
   "video.emptyHint": "No video \u2014 click to set a file or URL",
@@ -2519,7 +2520,11 @@ var PropSuggest = class extends import_obsidian4.AbstractInputSuggest {
     const ql = q.toLowerCase();
     const cands = this.getCandidates();
     const filtered = (ql ? cands.filter((c) => c.key.toLowerCase().includes(ql)) : cands).slice(0, 50);
-    const res = filtered.map((c) => ({ key: c.key, kind: c.onNote ? "note" : "vault" }));
+    const res = filtered.map((c) => ({
+      key: c.key,
+      kind: c.onNote ? "note" : "vault",
+      typeName: c.typeName
+    }));
     if (q && !cands.some((c) => c.key.toLowerCase() === ql)) res.unshift({ key: q, kind: "create" });
     return res;
   }
@@ -2530,6 +2535,7 @@ var PropSuggest = class extends import_obsidian4.AbstractInputSuggest {
       return;
     }
     el.createSpan({ text: c.key });
+    if (c.typeName) el.createSpan({ cls: "ep-sug-type", text: c.typeName });
     if (c.kind === "note") el.createSpan({ cls: "ep-sug-badge", text: this.i18n.t("suggest.onNote") });
   }
   selectSuggestion(c) {
@@ -8152,7 +8158,7 @@ var PopupManager = class {
     }, 0);
   }
   // -- add-property menu --------------------------------------------------
-  /** Candidates grouped for the add menu. */
+  /** Candidates grouped for the add menu, each with its resolved data type. */
   addCandidates() {
     const view = this.view;
     const shown = /* @__PURE__ */ new Set();
@@ -8162,13 +8168,18 @@ var PopupManager = class {
       ...Object.keys(view.note.raw).filter((k) => k.toLowerCase() !== "position"),
       ...view.props.knownProps()
     ]);
+    const typed = (k) => {
+      const id = view.deriveType(k);
+      const def = view.registries.valueTypes.get(id);
+      return { key: k, typeName: def ? def.name(view.i18n) : id };
+    };
     const onNote = [], onSidebar = [], others = [];
     for (const k of all) {
-      if (view.note.raw[k] !== void 0) onNote.push({ key: k });
-      else if (shown.has(k.toLowerCase())) onSidebar.push({ key: k });
-      else others.push({ key: k });
+      if (view.note.raw[k] !== void 0) onNote.push(typed(k));
+      else if (shown.has(k.toLowerCase())) onSidebar.push(typed(k));
+      else others.push(typed(k));
     }
-    const srt = (a) => a.sort((x, y) => x.key.localeCompare(y.key));
+    const srt = (a) => a.sort((x, y) => x.typeName.localeCompare(y.typeName) || x.key.localeCompare(y.key));
     return { onNote: srt(onNote), onSidebar: srt(onSidebar), others: srt(others) };
   }
   allKeys() {
@@ -8249,7 +8260,14 @@ var PopupManager = class {
         const f = arr.filter((c) => !q || c.key.toLowerCase().includes(q));
         if (!f.length) return;
         listEl.createDiv({ cls: "ep-pop-group", text: title });
-        for (const c of f.slice(0, 60)) addRow(c);
+        let lastType = null;
+        for (const c of f.slice(0, 60)) {
+          if (c.typeName !== lastType) {
+            lastType = c.typeName;
+            listEl.createDiv({ cls: "ep-pop-subgroup", text: c.typeName });
+          }
+          addRow(c);
+        }
       };
       if (q && !this.allKeys().some((k) => k.toLowerCase() === q)) {
         const row = listEl.createDiv({ cls: "ep-pop-row ep-pop-create" });
@@ -8301,21 +8319,30 @@ var PopupManager = class {
     side.style.minWidth = "170px";
     side.createDiv({ cls: "ep-side-title", text: multi ? t("add.pickValues", { key }) : key });
     const body = side.createDiv({ cls: "ep-side-body" });
-    const sel = /* @__PURE__ */ new Set();
     const vals = view.props.valuesFor(key);
     const custom = side.createEl("input", { cls: "ep-edit-input ep-side-custom" });
     custom.type = "text";
     custom.placeholder = multi ? t("add.customValue") : t("add.typeValue");
     new TextLinkSuggest(view.app, custom);
-    let addBtn = null;
-    const updateCount = () => {
-      if (addBtn) addBtn.setText(t("add.addN", { n: sel.size + (custom.value.trim() ? 1 : 0) }));
+    let appended = false;
+    const instantAdd = (v, it) => {
+      if (appended) view.note.set(file, key, [...view.note.list(key), v]);
+      else {
+        this.addEntryWithValue(file, section, key, [v], target);
+        appended = true;
+      }
+      it.remove();
+      if (!body.querySelector(".ep-pop-row")) body.createDiv({ cls: "ep-empty-sub", text: t("add.noValues") });
     };
     const commit2 = (single) => {
       if (multi) {
-        const arr = [...sel];
-        if (custom.value.trim()) arr.push(custom.value.trim());
-        this.addEntryWithValue(file, section, key, arr, target);
+        const v = custom.value.trim();
+        if (v) {
+          if (appended) view.note.set(file, key, [...view.note.list(key), v]);
+          else this.addEntryWithValue(file, section, key, [v], target);
+        } else if (!appended) {
+          this.addEntryWithValue(file, section, key, [], target);
+        }
       } else {
         const v = single != null ? single : custom.value.trim();
         this.addEntryWithValue(file, section, key, v === "" ? void 0 : v, target);
@@ -8329,23 +8356,10 @@ var PopupManager = class {
         nt = window.setTimeout(() => this.openNotesWindow(it, key, v), 500);
       };
       it.onmouseleave = () => window.clearTimeout(nt);
-      if (multi) {
-        const cb = it.createEl("input");
-        cb.type = "checkbox";
-        it.createSpan({ text: v });
-        it.onclick = (e) => {
-          if (e.target !== cb) cb.checked = !cb.checked;
-          if (cb.checked) sel.add(v);
-          else sel.delete(v);
-          updateCount();
-        };
-      } else {
-        it.createSpan({ text: v });
-        it.onclick = () => commit2(v);
-      }
+      it.createSpan({ text: v });
+      it.onclick = () => multi ? instantAdd(v, it) : commit2(v);
     }
     if (!vals.length) body.createDiv({ cls: "ep-empty-sub", text: t("add.noValues") });
-    custom.oninput = () => updateCount();
     custom.onkeydown = (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -8354,7 +8368,7 @@ var PopupManager = class {
     };
     const foot = side.createDiv({ cls: "ep-side-foot" });
     if (multi) {
-      addBtn = foot.createEl("button", { cls: "mod-cta", text: t("add.addN", { n: 0 }) });
+      const addBtn = foot.createEl("button", { cls: "mod-cta", text: t("add.addCustom") });
       addBtn.onclick = () => commit2();
     } else {
       const ab = foot.createEl("button", { cls: "ep-mini-btn", text: t("add.addEmpty") });
@@ -8401,28 +8415,23 @@ var PopupManager = class {
     side.style.minWidth = "170px";
     side.createDiv({ cls: "ep-side-title", text: t("list.addTo", { key }) });
     const body = side.createDiv({ cls: "ep-side-body" });
-    const sel = /* @__PURE__ */ new Set();
     const opts = view.props.valuesFor(key).filter((o) => !cur.some((c) => c.toLowerCase() === o.toLowerCase()));
     const custom = side.createEl("input", { cls: "ep-edit-input ep-side-custom" });
     custom.type = "text";
     custom.placeholder = t("add.customValue");
     new TextLinkSuggest(view.app, custom);
-    let addBtn;
-    const updateCount = () => addBtn.setText(t("add.addN", { n: sel.size + (custom.value.trim() ? 1 : 0) }));
     for (const v of opts) {
       const it = body.createDiv({ cls: "ep-pop-row" });
-      const cb = it.createEl("input");
-      cb.type = "checkbox";
       it.createSpan({ text: v });
-      it.onclick = (e) => {
-        if (e.target !== cb) cb.checked = !cb.checked;
-        if (cb.checked) sel.add(v);
-        else sel.delete(v);
-        updateCount();
+      it.onclick = () => {
+        view.note.set(file, key, [...view.note.list(key), v]);
+        it.remove();
+        if (!body.querySelector(".ep-pop-row"))
+          body.createDiv({ cls: "ep-empty-sub", text: t("list.noMoreValues") });
       };
     }
     if (!opts.length) body.createDiv({ cls: "ep-empty-sub", text: t("list.noMoreValues") });
-    custom.oninput = () => updateCount();
+    let addBtn;
     custom.onkeydown = (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -8430,11 +8439,10 @@ var PopupManager = class {
       }
     };
     const foot = side.createDiv({ cls: "ep-side-foot" });
-    addBtn = foot.createEl("button", { cls: "mod-cta", text: t("add.addN", { n: 0 }) });
+    addBtn = foot.createEl("button", { cls: "mod-cta", text: t("add.addCustom") });
     addBtn.onclick = () => {
-      const add = [...sel];
-      if (custom.value.trim()) add.push(custom.value.trim());
-      if (add.length) view.note.set(file, key, [...cur, ...add]);
+      const v = custom.value.trim();
+      if (v) view.note.set(file, key, [...view.note.list(key), v]);
       this.closeAll();
     };
     this.fitToViewport(side, left, left);
@@ -8909,9 +8917,18 @@ var SidebarView = class extends import_obsidian26.ItemView {
     const list = [];
     for (const k of all) {
       if (shown.has(k.toLowerCase())) continue;
-      list.push({ key: k, onNote: this.note.raw[k] !== void 0 });
+      const type = this.deriveType(k);
+      const def = this.registries.valueTypes.get(type);
+      list.push({
+        key: k,
+        onNote: this.note.raw[k] !== void 0,
+        type,
+        typeName: def ? def.name(this.i18n) : type
+      });
     }
-    list.sort((a, b) => a.onNote === b.onNote ? a.key.localeCompare(b.key) : a.onNote ? -1 : 1);
+    list.sort(
+      (a, b) => (a.onNote === b.onNote ? 0 : a.onNote ? -1 : 1) || a.typeName.localeCompare(b.typeName) || a.key.localeCompare(b.key)
+    );
     return list;
   }
   // -- ItemView lifecycle ---------------------------------------------------
@@ -9907,10 +9924,21 @@ var TableView = class extends import_obsidian27.ItemView {
         const lk = k.toLowerCase();
         if (lk !== "type" && lk !== "position") candidates.add(k);
       }
+    const typeNameOf = (k) => {
+      var _a;
+      const id = ((_a = this.plugin.settings.propTypes) == null ? void 0 : _a[k.toLowerCase()]) || this.plugin.props.obsidianType(k) || "";
+      if (!id) return "";
+      const def = this.plugin.registries.valueTypes.get(id);
+      return def ? def.name(this.plugin.i18n) : id;
+    };
+    const sorted = [...candidates].sort(
+      (a, b) => (typeNameOf(a) || "\uFFFF").localeCompare(typeNameOf(b) || "\uFFFF") || a.localeCompare(b)
+    );
     const menu = new import_obsidian27.Menu();
-    for (const k of [...candidates].sort((a, b) => a.localeCompare(b))) {
+    for (const k of sorted) {
+      const tn = typeNameOf(k);
       menu.addItem(
-        (i) => i.setTitle(k).setChecked(layout.columns.includes(k)).onClick(() => {
+        (i) => i.setTitle(tn ? `${k} \xB7 ${tn}` : k).setChecked(layout.columns.includes(k)).onClick(() => {
           layout.columns = layout.columns.includes(k) ? layout.columns.filter((c) => c !== k) : [...layout.columns, k];
           void this.plugin.saveSettings();
           this.render();
@@ -13925,7 +13953,11 @@ var InlineViewCtx = class {
   scrollToSection() {
   }
   propCandidates() {
-    return Object.keys(this.note.raw).map((key) => ({ key, onNote: true }));
+    return Object.keys(this.note.raw).map((key) => {
+      const type = this.deriveType(key);
+      const def = this.registries.valueTypes.get(type);
+      return { key, onNote: true, type, typeName: def ? def.name(this.i18n) : type };
+    }).sort((a, b) => a.typeName.localeCompare(b.typeName) || a.key.localeCompare(b.key));
   }
 };
 function makeValsEl(ctx2, file, body, onEditSource) {

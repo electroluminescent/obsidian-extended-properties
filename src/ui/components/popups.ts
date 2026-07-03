@@ -77,8 +77,12 @@ export class PopupManager {
 
   // -- add-property menu --------------------------------------------------
 
-  /** Candidates grouped for the add menu. */
-  private addCandidates(): { onNote: { key: string }[]; onSidebar: { key: string }[]; others: { key: string }[] } {
+  /** Candidates grouped for the add menu, each with its resolved data type. */
+  private addCandidates(): {
+    onNote: { key: string; typeName: string }[];
+    onSidebar: { key: string; typeName: string }[];
+    others: { key: string; typeName: string }[];
+  } {
     const view = this.view;
     const shown = new Set<string>();
     for (const sec of view.layout.sections)
@@ -87,13 +91,21 @@ export class PopupManager {
       ...Object.keys(view.note.raw).filter((k) => k.toLowerCase() !== "position"),
       ...view.props.knownProps(),
     ]);
-    const onNote: { key: string }[] = [], onSidebar: { key: string }[] = [], others: { key: string }[] = [];
+    const typed = (k: string): { key: string; typeName: string } => {
+      const id = view.deriveType(k);
+      const def = view.registries.valueTypes.get(id);
+      return { key: k, typeName: def ? def.name(view.i18n) : id };
+    };
+    type Cand = { key: string; typeName: string };
+    const onNote: Cand[] = [], onSidebar: Cand[] = [], others: Cand[] = [];
     for (const k of all) {
-      if (view.note.raw[k] !== undefined) onNote.push({ key: k });
-      else if (shown.has(k.toLowerCase())) onSidebar.push({ key: k });
-      else others.push({ key: k });
+      if (view.note.raw[k] !== undefined) onNote.push(typed(k));
+      else if (shown.has(k.toLowerCase())) onSidebar.push(typed(k));
+      else others.push(typed(k));
     }
-    const srt = (a: { key: string }[]) => a.sort((x, y) => x.key.localeCompare(y.key));
+    // Within each group: by data type, then by key (the shared picker order).
+    const srt = (a: Cand[]) =>
+      a.sort((x, y) => x.typeName.localeCompare(y.typeName) || x.key.localeCompare(y.key));
     return { onNote: srt(onNote), onSidebar: srt(onSidebar), others: srt(others) };
   }
 
@@ -176,11 +188,19 @@ export class PopupManager {
           }
         };
       };
-      const grp = (title: string, arr: { key: string }[]) => {
+      const grp = (title: string, arr: { key: string; typeName: string }[]) => {
         const f = arr.filter((c) => !q || c.key.toLowerCase().includes(q));
         if (!f.length) return;
         listEl.createDiv({ cls: "ep-pop-group", text: title });
-        for (const c of f.slice(0, 60)) addRow(c);
+        // Sub-group by data type (the candidates arrive type-sorted).
+        let lastType: string | null = null;
+        for (const c of f.slice(0, 60)) {
+          if (c.typeName !== lastType) {
+            lastType = c.typeName;
+            listEl.createDiv({ cls: "ep-pop-subgroup", text: c.typeName });
+          }
+          addRow(c);
+        }
       };
       if (q && !this.allKeys().some((k) => k.toLowerCase() === q)) {
         const row = listEl.createDiv({ cls: "ep-pop-row ep-pop-create" });
@@ -241,21 +261,34 @@ export class PopupManager {
     side.createDiv({ cls: "ep-side-title", text: multi ? t("add.pickValues", { key }) : key });
 
     const body = side.createDiv({ cls: "ep-side-body" });
-    const sel = new Set<string>();
     const vals = view.props.valuesFor(key);
     const custom = side.createEl("input", { cls: "ep-edit-input ep-side-custom" });
     custom.type = "text";
     custom.placeholder = multi ? t("add.customValue") : t("add.typeValue");
     new TextLinkSuggest(view.app, custom); // [[ note autocomplete
-    let addBtn: HTMLButtonElement | null = null;
-    const updateCount = () => {
-      if (addBtn) addBtn.setText(t("add.addN", { n: sel.size + (custom.value.trim() ? 1 : 0) }));
+    // Multi (list property): clicking an existing value adds it IMMEDIATELY —
+    // no checkbox/confirm round-trip. The first pick creates the entry with
+    // that value; later picks append. Only a typed custom value still goes
+    // through the Add button (Enter).
+    let appended = false;
+    const instantAdd = (v: string, it: HTMLElement): void => {
+      if (appended) view.note.set(file, key, [...view.note.list(key), v]);
+      else {
+        this.addEntryWithValue(file, section, key, [v], target);
+        appended = true;
+      }
+      it.remove();
+      if (!body.querySelector(".ep-pop-row")) body.createDiv({ cls: "ep-empty-sub", text: t("add.noValues") });
     };
     const commit = (single?: string) => {
       if (multi) {
-        const arr = [...sel];
-        if (custom.value.trim()) arr.push(custom.value.trim());
-        this.addEntryWithValue(file, section, key, arr, target);
+        const v = custom.value.trim();
+        if (v) {
+          if (appended) view.note.set(file, key, [...view.note.list(key), v]);
+          else this.addEntryWithValue(file, section, key, [v], target);
+        } else if (!appended) {
+          this.addEntryWithValue(file, section, key, [], target);
+        }
       } else {
         const v = single ?? custom.value.trim();
         this.addEntryWithValue(file, section, key, v === "" ? undefined : v, target);
@@ -269,23 +302,10 @@ export class PopupManager {
         nt = window.setTimeout(() => this.openNotesWindow(it, key, v), 500);
       };
       it.onmouseleave = () => window.clearTimeout(nt);
-      if (multi) {
-        const cb = it.createEl("input");
-        cb.type = "checkbox";
-        it.createSpan({ text: v });
-        it.onclick = (e) => {
-          if ((e.target as HTMLElement) !== cb) cb.checked = !cb.checked;
-          if (cb.checked) sel.add(v);
-          else sel.delete(v);
-          updateCount();
-        };
-      } else {
-        it.createSpan({ text: v });
-        it.onclick = () => commit(v);
-      }
+      it.createSpan({ text: v });
+      it.onclick = () => (multi ? instantAdd(v, it) : commit(v));
     }
     if (!vals.length) body.createDiv({ cls: "ep-empty-sub", text: t("add.noValues") });
-    custom.oninput = () => updateCount();
     custom.onkeydown = (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -294,7 +314,7 @@ export class PopupManager {
     };
     const foot = side.createDiv({ cls: "ep-side-foot" });
     if (multi) {
-      addBtn = foot.createEl("button", { cls: "mod-cta", text: t("add.addN", { n: 0 }) });
+      const addBtn = foot.createEl("button", { cls: "mod-cta", text: t("add.addCustom") });
       addBtn.onclick = () => commit();
     } else {
       const ab = foot.createEl("button", { cls: "ep-mini-btn", text: t("add.addEmpty") });
@@ -344,28 +364,25 @@ export class PopupManager {
     side.style.minWidth = "170px";
     side.createDiv({ cls: "ep-side-title", text: t("list.addTo", { key }) });
     const body = side.createDiv({ cls: "ep-side-body" });
-    const sel = new Set<string>();
     const opts = view.props.valuesFor(key).filter((o) => !cur.some((c) => c.toLowerCase() === o.toLowerCase()));
     const custom = side.createEl("input", { cls: "ep-edit-input ep-side-custom" });
     custom.type = "text";
     custom.placeholder = t("add.customValue");
     new TextLinkSuggest(view.app, custom); // [[ note autocomplete
-    let addBtn: HTMLButtonElement;
-    const updateCount = () => addBtn.setText(t("add.addN", { n: sel.size + (custom.value.trim() ? 1 : 0) }));
+    // Existing values add IMMEDIATELY on click (the picker stays open for
+    // more picks); only a typed custom value goes through the Add button.
     for (const v of opts) {
       const it = body.createDiv({ cls: "ep-pop-row" });
-      const cb = it.createEl("input");
-      cb.type = "checkbox";
       it.createSpan({ text: v });
-      it.onclick = (e) => {
-        if ((e.target as HTMLElement) !== cb) cb.checked = !cb.checked;
-        if (cb.checked) sel.add(v);
-        else sel.delete(v);
-        updateCount();
+      it.onclick = () => {
+        view.note.set(file, key, [...view.note.list(key), v]);
+        it.remove();
+        if (!body.querySelector(".ep-pop-row"))
+          body.createDiv({ cls: "ep-empty-sub", text: t("list.noMoreValues") });
       };
     }
     if (!opts.length) body.createDiv({ cls: "ep-empty-sub", text: t("list.noMoreValues") });
-    custom.oninput = () => updateCount();
+    let addBtn: HTMLButtonElement;
     custom.onkeydown = (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -373,11 +390,10 @@ export class PopupManager {
       }
     };
     const foot = side.createDiv({ cls: "ep-side-foot" });
-    addBtn = foot.createEl("button", { cls: "mod-cta", text: t("add.addN", { n: 0 }) });
+    addBtn = foot.createEl("button", { cls: "mod-cta", text: t("add.addCustom") });
     addBtn.onclick = () => {
-      const add = [...sel];
-      if (custom.value.trim()) add.push(custom.value.trim());
-      if (add.length) view.note.set(file, key, [...cur, ...add]);
+      const v = custom.value.trim();
+      if (v) view.note.set(file, key, [...view.note.list(key), v]);
       this.closeAll();
     };
     this.fitToViewport(side, left, left);

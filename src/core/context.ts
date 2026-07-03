@@ -165,9 +165,13 @@ export interface ViewCtx {
   openListValuePicker(x: number, y: number, key: string): void;
   scrollToSection(id: string): void;
   /**
-   * Candidate keys for property pickers ({key, onNote} sorted note-first).
+   * Candidate keys for property pickers, each with its resolved data type
+   * (id + display name), sorted note-first, then by type, then by key — the
+   * shared grouping every property list renders.
    * @param includeShown also list keys already shown in the layout
    *                     (e.g. for roll sources or re-pointing an entry)
    */
-  propCandidates(includeShown?: boolean): { key: string; onNote: boolean }[];
+  propCandidates(
+    includeShown?: boolean
+  ): { key: string; onNote: boolean; type: string; typeName: string }[];
 }
