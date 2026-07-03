@@ -1,11 +1,18 @@
 /**
- * "image" and "iframe" value types — media rendered in the entry's
- * full-width area.
+ * Media value types rendered in the entry's full-width area: "image",
+ * "iframe", and the embedded players — "audio", "video" and "pdf".
+ *
+ * Audio and video accept vault-local files (paths or wikilinks, resolved
+ * like image sources) and web URLs; service pages rewrite to their embed
+ * players (YouTube/Vimeo for video, Spotify/SoundCloud for audio — see
+ * `utils/embed.ts`, pure and unit-tested).
  */
 
 import { Setting } from "obsidian";
+import type { EntryRenderCtx } from "../../../core/context";
 import type { ValueTypeDef } from "../../../core/registry";
 import type { SectionSize } from "../../../core/model";
+import { audioEmbed, videoEmbed } from "../../../utils/embed";
 import { TextPromptModal } from "../../modals/dialogs";
 import { ImageViewerModal } from "../../modals/image-viewer";
 
@@ -88,6 +95,201 @@ export const imageType: ValueTypeDef = {
       )
     );
   },
+};
+
+// ---------------------------------------------------------------------------
+// Shared plumbing for the embedded players (audio / video / pdf)
+// ---------------------------------------------------------------------------
+
+/** Prompt for the entry's source (path, wikilink or URL) and store it. */
+function promptSource(ctx: EntryRenderCtx, promptKey: string): void {
+  const { view, file, entry } = ctx;
+  const key = entry.key as string;
+  new TextPromptModal(view.app, view.i18n, view.i18n.t(promptKey), view.note.str(key), (val) =>
+    view.note.set(file, key, val.trim() === "" ? undefined : val.trim())
+  ).open();
+}
+
+/**
+ * Wire an embed holder: a "Set source" row in edit mode (the players own
+ * their clicks, so the holder can't double as the editor), plus a rebuild
+ * only when the value actually changed — media elements are expensive.
+ */
+function bindEmbed(ctx: EntryRenderCtx, holder: HTMLElement, promptKey: string, draw: () => void): void {
+  const { view, entry } = ctx;
+  const key = entry.key as string;
+  draw();
+  if (view.editMode) {
+    const edit = ctx.extra.createDiv({ cls: "ep-iframe-edit" });
+    const btn = edit.createEl("button", { cls: "ep-mini-btn", text: view.i18n.t("media.setSource") });
+    btn.onclick = () => promptSource(ctx, promptKey);
+  } else {
+    // Empty state is clickable to set a source even outside edit mode.
+    holder.onclick = () => {
+      if (!view.note.str(key).trim()) promptSource(ctx, promptKey);
+    };
+  }
+  let cur = view.note.str(key);
+  view.registerUpdater(() => {
+    const u = view.note.str(key);
+    if (u !== cur) {
+      cur = u;
+      draw();
+    }
+  });
+}
+
+/** Shared "Set source…" context-menu item for the embed types. */
+function sourceMenuItem(promptKey: string): ValueTypeDef["menuItems"] {
+  return (menu, ref) => {
+    const { view, file, entry } = ref;
+    const key = entry.key as string;
+    menu.addItem((i) =>
+      i.setTitle(view.i18n.t("media.setSource")).setIcon("link").onClick(() =>
+        new TextPromptModal(view.app, view.i18n, view.i18n.t(promptKey), view.note.str(key), (v) =>
+          view.note.set(file, key, v.trim() === "" ? undefined : v.trim())
+        ).open()
+      )
+    );
+  };
+}
+
+/** Video max-height presets in px (0 = natural / aspect-driven). */
+const VIDEO_HEIGHTS: Record<string, number> = { s: 180, m: 300, l: 420 };
+
+export const audioType: ValueTypeDef = {
+  id: "audio",
+  name: (i18n) => i18n.t("type.audio"),
+
+  render(ctx) {
+    const { view, entry } = ctx;
+    const key = entry.key as string;
+    const holder = ctx.extra.createDiv({ cls: "ep-audio" });
+    const draw = (): void => {
+      holder.empty();
+      holder.removeClass("ep-image-empty");
+      const src = view.note.str(key).trim();
+      if (!src) {
+        holder.addClass("ep-image-empty");
+        holder.setText(view.i18n.t("audio.emptyHint"));
+        return;
+      }
+      const em = audioEmbed(src);
+      if (em.kind === "iframe") {
+        const f = holder.createEl("iframe", { cls: "ep-audio-frame" });
+        f.setAttr("src", em.src);
+        f.setAttr("allow", "encrypted-media");
+      } else {
+        const a = holder.createEl("audio", { cls: "ep-audio-el" });
+        a.controls = true;
+        a.preload = "metadata";
+        a.src = view.resolveImage(src); // resolves wikilinks/vault paths; URLs pass through
+      }
+    };
+    bindEmbed(ctx, holder, "audio.srcPrompt", draw);
+  },
+
+  menuItems: sourceMenuItem("audio.srcPrompt"),
+};
+
+export const videoType: ValueTypeDef = {
+  id: "video",
+  name: (i18n) => i18n.t("type.video"),
+
+  render(ctx) {
+    const { view, entry } = ctx;
+    const key = entry.key as string;
+    const holder = ctx.extra.createDiv({ cls: "ep-video" });
+    const maxH = VIDEO_HEIGHTS[(entry.size as string) ?? ""] ?? 0;
+    const draw = (): void => {
+      holder.empty();
+      holder.removeClass("ep-image-empty");
+      const src = view.note.str(key).trim();
+      if (!src) {
+        holder.addClass("ep-image-empty");
+        holder.setText(view.i18n.t("video.emptyHint"));
+        return;
+      }
+      const em = videoEmbed(src);
+      if (em.kind === "iframe") {
+        // Service player (YouTube, Vimeo, …): a 16:9 frame.
+        const wrap = holder.createDiv({ cls: "ep-video-framewrap" });
+        if (maxH) wrap.style.maxHeight = maxH + "px";
+        const f = wrap.createEl("iframe", { cls: "ep-video-frame" });
+        f.setAttr("src", em.src);
+        f.setAttr("allow", "fullscreen; encrypted-media; picture-in-picture");
+        f.setAttr("allowfullscreen", "true");
+      } else {
+        const v = holder.createEl("video", { cls: "ep-video-el" });
+        v.controls = true;
+        v.preload = "metadata";
+        if (maxH) v.style.maxHeight = maxH + "px";
+        v.src = view.resolveImage(src);
+      }
+    };
+    bindEmbed(ctx, holder, "video.srcPrompt", draw);
+  },
+
+  renderOptions(octx) {
+    const { view, entry, container: c, changed } = octx;
+    const t = view.i18n.t.bind(view.i18n);
+    c.createEl("h4", { text: t("options.videoHeading") });
+    new Setting(c).setName(t("options.maxHeight")).addDropdown((d) => {
+      d.addOption("unlimited", t("size.unlimited"));
+      d.addOption("s", t("size.small"));
+      d.addOption("m", t("size.medium"));
+      d.addOption("l", t("size.large"));
+      d.setValue((entry.size as string) || "unlimited");
+      d.onChange((v) => {
+        entry.size = v as SectionSize;
+        changed();
+      });
+    });
+  },
+
+  menuItems: sourceMenuItem("video.srcPrompt"),
+};
+
+export const pdfType: ValueTypeDef = {
+  id: "pdf",
+  name: (i18n) => i18n.t("type.pdf"),
+
+  render(ctx) {
+    const { view, entry } = ctx;
+    const key = entry.key as string;
+    const holder = ctx.extra.createDiv({ cls: "ep-pdf" });
+    const height = entry.iframeHeight && entry.iframeHeight > 0 ? entry.iframeHeight : 360;
+    const draw = (): void => {
+      holder.empty();
+      holder.removeClass("ep-image-empty");
+      holder.style.removeProperty("height");
+      const src = view.note.str(key).trim();
+      if (!src) {
+        holder.addClass("ep-image-empty");
+        holder.setText(view.i18n.t("pdf.emptyHint"));
+        return;
+      }
+      holder.style.height = height + "px";
+      const f = holder.createEl("iframe", { cls: "ep-pdf-frame" });
+      f.setAttr("src", view.resolveImage(src)); // local PDFs resolve to app:// resources
+    };
+    bindEmbed(ctx, holder, "pdf.srcPrompt", draw);
+  },
+
+  renderOptions(octx) {
+    const { view, entry, container: c, changed } = octx;
+    const t = view.i18n.t.bind(view.i18n);
+    c.createEl("h4", { text: t("options.embedHeading") });
+    new Setting(c).setName(t("options.embedHeight")).addText((tx) => {
+      tx.setValue(String(entry.iframeHeight ?? 360)).onChange((v) => {
+        const n = Number(v);
+        entry.iframeHeight = Number.isFinite(n) && n > 0 ? n : undefined;
+        changed();
+      });
+    });
+  },
+
+  menuItems: sourceMenuItem("pdf.srcPrompt"),
 };
 
 export const iframeType: ValueTypeDef = {

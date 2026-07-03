@@ -10,7 +10,7 @@ import { textType } from "./text";
 import { numberType, decimalType, formulaType } from "./numeric";
 import { derivedType } from "./derived";
 import { checkboxType, listType, colorType } from "./basic";
-import { imageType, iframeType } from "./media";
+import { audioType, iframeType, imageType, pdfType, videoType } from "./media";
 import { ratingType, linkType, unitType, datetimeType } from "./richer";
 import { modifierAddon } from "../modifier-addon";
 import { propKind, blankKind, tocKind } from "../entry-kinds/core-kinds";
@@ -28,6 +28,9 @@ export function registerCore(ctx: FeatureContext): void {
   r.valueTypes.add(colorType);
   r.valueTypes.add(formulaType);
   r.valueTypes.add(imageType);
+  r.valueTypes.add(audioType);
+  r.valueTypes.add(videoType);
+  r.valueTypes.add(pdfType);
   r.valueTypes.add(iframeType);
   r.valueTypes.add(ratingType);
   r.valueTypes.add(linkType);

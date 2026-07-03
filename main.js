@@ -220,6 +220,9 @@ var en_default = {
   "type.color": "color",
   "type.formula": "formula",
   "type.image": "image",
+  "type.audio": "audio",
+  "type.video": "video",
+  "type.pdf": "PDF",
   "type.iframe": "iframe",
   "type.rating": "rating",
   "type.link": "link",
@@ -305,6 +308,14 @@ var en_default = {
   "image.linkPromptShort": "Image link",
   "iframe.emptyHint": "No URL \u2014 click to set",
   "iframe.urlPrompt": "Embed URL",
+  "media.setSource": "Set source\u2026",
+  "audio.emptyHint": "No audio \u2014 click to set a file or URL",
+  "audio.srcPrompt": "Audio source (vault file, [[wikilink]] or URL \u2014 Spotify/SoundCloud links embed their player)",
+  "video.emptyHint": "No video \u2014 click to set a file or URL",
+  "video.srcPrompt": "Video source (vault file, [[wikilink]] or URL \u2014 YouTube/Vimeo links embed their player)",
+  "pdf.emptyHint": "No PDF \u2014 click to set a file or URL",
+  "pdf.srcPrompt": "PDF source (vault file, [[wikilink]] or URL)",
+  "options.videoHeading": "Video",
   "iframe.setUrl": "Set URL",
   "add.searchPlaceholder": "Add a property to \u201C{section}\u201D\u2026",
   "add.hiddenBadge": "hidden",
@@ -4275,6 +4286,43 @@ var colorType = {
 // src/ui/render/value-types/media.ts
 var import_obsidian12 = require("obsidian");
 
+// src/utils/embed.ts
+var VIDEO_EXT = /\.(mp4|webm|ogv|mov|m4v|mkv)(\?[^ ]*)?$/i;
+var AUDIO_EXT = /\.(mp3|wav|ogg|oga|m4a|flac|aac|opus|3gp)(\?[^ ]*)?$/i;
+var isWebUrl = (s) => /^https?:\/\//i.test(s.trim());
+function youtubeEmbed(url) {
+  const m = /(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/|embed\/)|youtu\.be\/)([\w-]{6,})/i.exec(
+    url
+  );
+  if (!m) return null;
+  const t = /[?&](?:t|start)=(\d+)/.exec(url);
+  return `https://www.youtube.com/embed/${m[1]}${t ? `?start=${t[1]}` : ""}`;
+}
+function vimeoEmbed(url) {
+  const m = /vimeo\.com\/(?:video\/)?(\d+)/i.exec(url);
+  return m ? `https://player.vimeo.com/video/${m[1]}` : null;
+}
+function videoEmbed(src) {
+  const s = src.trim();
+  if (!isWebUrl(s)) return { kind: "file" };
+  const yt = youtubeEmbed(s);
+  if (yt) return { kind: "iframe", src: yt };
+  const vm = vimeoEmbed(s);
+  if (vm) return { kind: "iframe", src: vm };
+  if (VIDEO_EXT.test(s)) return { kind: "file" };
+  return { kind: "iframe", src: s };
+}
+function audioEmbed(src) {
+  const s = src.trim();
+  if (!isWebUrl(s)) return { kind: "file" };
+  if (AUDIO_EXT.test(s)) return { kind: "file" };
+  const sp = /open\.spotify\.com\/(?:embed\/)?(track|album|playlist|episode|show)\/([A-Za-z0-9]+)/.exec(s);
+  if (sp) return { kind: "iframe", src: `https://open.spotify.com/embed/${sp[1]}/${sp[2]}` };
+  if (/soundcloud\.com\//i.test(s))
+    return { kind: "iframe", src: `https://w.soundcloud.com/player/?url=${encodeURIComponent(s)}` };
+  return { kind: "file" };
+}
+
 // src/ui/modals/image-viewer.ts
 var import_obsidian11 = require("obsidian");
 var ImageViewerModal = class extends import_obsidian11.Modal {
@@ -4412,6 +4460,182 @@ var imageType = {
       )
     );
   }
+};
+function promptSource(ctx2, promptKey) {
+  const { view, file, entry } = ctx2;
+  const key = entry.key;
+  new TextPromptModal(
+    view.app,
+    view.i18n,
+    view.i18n.t(promptKey),
+    view.note.str(key),
+    (val) => view.note.set(file, key, val.trim() === "" ? void 0 : val.trim())
+  ).open();
+}
+function bindEmbed(ctx2, holder, promptKey, draw) {
+  const { view, entry } = ctx2;
+  const key = entry.key;
+  draw();
+  if (view.editMode) {
+    const edit = ctx2.extra.createDiv({ cls: "ep-iframe-edit" });
+    const btn = edit.createEl("button", { cls: "ep-mini-btn", text: view.i18n.t("media.setSource") });
+    btn.onclick = () => promptSource(ctx2, promptKey);
+  } else {
+    holder.onclick = () => {
+      if (!view.note.str(key).trim()) promptSource(ctx2, promptKey);
+    };
+  }
+  let cur = view.note.str(key);
+  view.registerUpdater(() => {
+    const u = view.note.str(key);
+    if (u !== cur) {
+      cur = u;
+      draw();
+    }
+  });
+}
+function sourceMenuItem(promptKey) {
+  return (menu, ref) => {
+    const { view, file, entry } = ref;
+    const key = entry.key;
+    menu.addItem(
+      (i) => i.setTitle(view.i18n.t("media.setSource")).setIcon("link").onClick(
+        () => new TextPromptModal(
+          view.app,
+          view.i18n,
+          view.i18n.t(promptKey),
+          view.note.str(key),
+          (v) => view.note.set(file, key, v.trim() === "" ? void 0 : v.trim())
+        ).open()
+      )
+    );
+  };
+}
+var VIDEO_HEIGHTS = { s: 180, m: 300, l: 420 };
+var audioType = {
+  id: "audio",
+  name: (i18n) => i18n.t("type.audio"),
+  render(ctx2) {
+    const { view, entry } = ctx2;
+    const key = entry.key;
+    const holder = ctx2.extra.createDiv({ cls: "ep-audio" });
+    const draw = () => {
+      holder.empty();
+      holder.removeClass("ep-image-empty");
+      const src = view.note.str(key).trim();
+      if (!src) {
+        holder.addClass("ep-image-empty");
+        holder.setText(view.i18n.t("audio.emptyHint"));
+        return;
+      }
+      const em = audioEmbed(src);
+      if (em.kind === "iframe") {
+        const f = holder.createEl("iframe", { cls: "ep-audio-frame" });
+        f.setAttr("src", em.src);
+        f.setAttr("allow", "encrypted-media");
+      } else {
+        const a = holder.createEl("audio", { cls: "ep-audio-el" });
+        a.controls = true;
+        a.preload = "metadata";
+        a.src = view.resolveImage(src);
+      }
+    };
+    bindEmbed(ctx2, holder, "audio.srcPrompt", draw);
+  },
+  menuItems: sourceMenuItem("audio.srcPrompt")
+};
+var videoType = {
+  id: "video",
+  name: (i18n) => i18n.t("type.video"),
+  render(ctx2) {
+    var _a, _b;
+    const { view, entry } = ctx2;
+    const key = entry.key;
+    const holder = ctx2.extra.createDiv({ cls: "ep-video" });
+    const maxH = (_b = VIDEO_HEIGHTS[(_a = entry.size) != null ? _a : ""]) != null ? _b : 0;
+    const draw = () => {
+      holder.empty();
+      holder.removeClass("ep-image-empty");
+      const src = view.note.str(key).trim();
+      if (!src) {
+        holder.addClass("ep-image-empty");
+        holder.setText(view.i18n.t("video.emptyHint"));
+        return;
+      }
+      const em = videoEmbed(src);
+      if (em.kind === "iframe") {
+        const wrap = holder.createDiv({ cls: "ep-video-framewrap" });
+        if (maxH) wrap.style.maxHeight = maxH + "px";
+        const f = wrap.createEl("iframe", { cls: "ep-video-frame" });
+        f.setAttr("src", em.src);
+        f.setAttr("allow", "fullscreen; encrypted-media; picture-in-picture");
+        f.setAttr("allowfullscreen", "true");
+      } else {
+        const v = holder.createEl("video", { cls: "ep-video-el" });
+        v.controls = true;
+        v.preload = "metadata";
+        if (maxH) v.style.maxHeight = maxH + "px";
+        v.src = view.resolveImage(src);
+      }
+    };
+    bindEmbed(ctx2, holder, "video.srcPrompt", draw);
+  },
+  renderOptions(octx) {
+    const { view, entry, container: c, changed } = octx;
+    const t = view.i18n.t.bind(view.i18n);
+    c.createEl("h4", { text: t("options.videoHeading") });
+    new import_obsidian12.Setting(c).setName(t("options.maxHeight")).addDropdown((d) => {
+      d.addOption("unlimited", t("size.unlimited"));
+      d.addOption("s", t("size.small"));
+      d.addOption("m", t("size.medium"));
+      d.addOption("l", t("size.large"));
+      d.setValue(entry.size || "unlimited");
+      d.onChange((v) => {
+        entry.size = v;
+        changed();
+      });
+    });
+  },
+  menuItems: sourceMenuItem("video.srcPrompt")
+};
+var pdfType = {
+  id: "pdf",
+  name: (i18n) => i18n.t("type.pdf"),
+  render(ctx2) {
+    const { view, entry } = ctx2;
+    const key = entry.key;
+    const holder = ctx2.extra.createDiv({ cls: "ep-pdf" });
+    const height = entry.iframeHeight && entry.iframeHeight > 0 ? entry.iframeHeight : 360;
+    const draw = () => {
+      holder.empty();
+      holder.removeClass("ep-image-empty");
+      holder.style.removeProperty("height");
+      const src = view.note.str(key).trim();
+      if (!src) {
+        holder.addClass("ep-image-empty");
+        holder.setText(view.i18n.t("pdf.emptyHint"));
+        return;
+      }
+      holder.style.height = height + "px";
+      const f = holder.createEl("iframe", { cls: "ep-pdf-frame" });
+      f.setAttr("src", view.resolveImage(src));
+    };
+    bindEmbed(ctx2, holder, "pdf.srcPrompt", draw);
+  },
+  renderOptions(octx) {
+    const { view, entry, container: c, changed } = octx;
+    const t = view.i18n.t.bind(view.i18n);
+    c.createEl("h4", { text: t("options.embedHeading") });
+    new import_obsidian12.Setting(c).setName(t("options.embedHeight")).addText((tx) => {
+      var _a;
+      tx.setValue(String((_a = entry.iframeHeight) != null ? _a : 360)).onChange((v) => {
+        const n = Number(v);
+        entry.iframeHeight = Number.isFinite(n) && n > 0 ? n : void 0;
+        changed();
+      });
+    });
+  },
+  menuItems: sourceMenuItem("pdf.srcPrompt")
 };
 var iframeType = {
   id: "iframe",
@@ -4977,6 +5201,9 @@ function registerCore(ctx2) {
   r.valueTypes.add(colorType);
   r.valueTypes.add(formulaType);
   r.valueTypes.add(imageType);
+  r.valueTypes.add(audioType);
+  r.valueTypes.add(videoType);
+  r.valueTypes.add(pdfType);
   r.valueTypes.add(iframeType);
   r.valueTypes.add(ratingType);
   r.valueTypes.add(linkType);
