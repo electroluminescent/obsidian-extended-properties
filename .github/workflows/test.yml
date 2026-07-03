@@ -19,3 +19,8 @@ jobs:
       - run: npm test
       - run: npm run i18n
       - run: npm run build
+      # N2 release-integrity guard: the committed bundle must match a fresh
+      # build of the committed sources (it drifted a release behind twice
+      # before v3.7.1). Reproducible because package-lock.json pins esbuild.
+      - name: Committed main.js must be fresh
+        run: git diff --exit-code -- main.js

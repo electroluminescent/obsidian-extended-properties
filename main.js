@@ -2272,61 +2272,124 @@ var PropertyIndex = class {
      * delete, rename and `metadataCache.changed` events.
      */
     this.cache = null;
+    /**
+     * Type-bucket index (N1): lower-cased `Type` value → paths of the notes
+     * carrying it. Built with the snapshot cache and maintained by the same
+     * invalidation events, it serves {@link rowsByType} and the aggregate
+     * candidate sets, so per-type reads cost O(notes of that type) instead of
+     * scanning every snapshot in the vault.
+     */
+    this.buckets = /* @__PURE__ */ new Map();
+    /**
+     * Memoized aggregate candidate values (N1), keyed `type\u0000key` (both
+     * lower-cased). Invalidated whenever any note of that type changes —
+     * including notes *entering or leaving* the type: a `Type`-list change
+     * dirties both the old and new buckets' aggregates.
+     */
+    this.aggValues = /* @__PURE__ */ new Map();
   }
-  snapshots() {
+  ensure() {
     var _a;
     if (!this.cache) {
       this.cache = /* @__PURE__ */ new Map();
+      this.buckets.clear();
+      this.aggValues.clear();
       for (const f of this.app.vault.getMarkdownFiles()) {
-        this.cache.set(f.path, {
-          file: f,
-          fm: (_a = this.app.metadataCache.getFileCache(f)) == null ? void 0 : _a.frontmatter
-        });
+        const fm = (_a = this.app.metadataCache.getFileCache(f)) == null ? void 0 : _a.frontmatter;
+        this.cache.set(f.path, { file: f, fm });
+        this.bucketAdd(f.path, fm);
       }
     }
-    return this.cache.values();
+    return this.cache;
+  }
+  snapshots() {
+    return this.ensure().values();
+  }
+  bucketAdd(path, fm) {
+    if (!fm) return;
+    for (const t of typesOf(fm)) {
+      let b = this.buckets.get(t);
+      if (!b) this.buckets.set(t, b = /* @__PURE__ */ new Set());
+      b.add(path);
+    }
+  }
+  bucketRemove(path, fm) {
+    var _a;
+    if (!fm) return;
+    for (const t of typesOf(fm)) (_a = this.buckets.get(t)) == null ? void 0 : _a.delete(path);
+  }
+  /** Drop every memoized aggregate of the given (lower-cased) types. */
+  dirtyTypes(types) {
+    for (const t of types) {
+      const prefix = t + "\0";
+      for (const k of [...this.aggValues.keys()]) if (k.startsWith(prefix)) this.aggValues.delete(k);
+    }
   }
   /** Refresh one file's cached frontmatter (called on modify/rename/metadata-changed). */
   invalidateFile(file, oldPath) {
     var _a;
     if (!this.cache) return;
-    if (oldPath && oldPath !== file.path) this.cache.delete(oldPath);
-    this.cache.set(file.path, {
-      file,
-      fm: (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter
-    });
+    if (oldPath && oldPath !== file.path) this.invalidatePath(oldPath);
+    const old = this.cache.get(file.path);
+    const fm = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter;
+    if (old) this.bucketRemove(file.path, old.fm);
+    this.cache.set(file.path, { file, fm });
+    this.bucketAdd(file.path, fm);
+    this.dirtyTypes(/* @__PURE__ */ new Set([...(old == null ? void 0 : old.fm) ? typesOf(old.fm) : [], ...fm ? typesOf(fm) : []]));
   }
   /** Drop one file (called on delete). */
   invalidatePath(path) {
-    var _a;
-    (_a = this.cache) == null ? void 0 : _a.delete(path);
+    if (!this.cache) return;
+    const old = this.cache.get(path);
+    if (old) {
+      this.bucketRemove(path, old.fm);
+      this.dirtyTypes(old.fm ? typesOf(old.fm) : []);
+    }
+    this.cache.delete(path);
   }
   /** Drop the whole cache — cheap escape hatch, rebuilt lazily on next read. */
   invalidateAll() {
     this.cache = null;
+    this.buckets.clear();
+    this.aggValues.clear();
   }
-  /** Numeric values of `key` across every note whose `Type` includes `typeKey`. */
+  /**
+   * Numeric values of `key` across every note whose `Type` includes
+   * `typeKey`. Memoized (N1): repeated reads return the cached array until a
+   * note of that type — or one entering/leaving it — invalidates. Callers
+   * must treat the result as read-only.
+   */
   valuesByType(typeKey, key) {
+    var _a, _b;
     const want = typeKey.trim().toLowerCase();
+    const ck = want + "\0" + key.toLowerCase();
+    const hit = this.aggValues.get(ck);
+    if (hit) return hit;
+    const cache = this.ensure();
     const out = [];
-    for (const { fm } of this.snapshots()) {
-      if (!fm || !typesOf(fm).includes(want)) continue;
+    for (const path of (_a = this.buckets.get(want)) != null ? _a : []) {
+      const fm = (_b = cache.get(path)) == null ? void 0 : _b.fm;
+      if (!fm) continue;
       const n = parseNumeric(getCI(fm, key));
       if (n !== null) out.push(n);
     }
+    this.aggValues.set(ck, out);
     return out;
   }
   /**
    * Files (with their cached frontmatter) whose `Type` includes `typeKey` —
-   * the row projection the type table view renders. Served from the snapshot
-   * cache so a table render never re-scans the vault.
+   * the row projection the type table view renders. Served from the type
+   * bucket (N1), so the cost is O(notes of the type), not O(vault).
    */
   rowsByType(typeKey) {
+    var _a;
     const want = typeKey.trim().toLowerCase();
     const out = [];
     if (!want) return out;
-    for (const { file, fm } of this.snapshots()) {
-      if (fm && typesOf(fm).includes(want)) out.push({ file, fm });
+    const cache = this.ensure();
+    for (const path of (_a = this.buckets.get(want)) != null ? _a : []) {
+      const snap = cache.get(path);
+      if (snap == null ? void 0 : snap.fm) out.push({ file: snap.file, fm: snap.fm });
     }
     return out;
   }

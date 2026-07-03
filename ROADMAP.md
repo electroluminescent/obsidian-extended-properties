@@ -1,6 +1,6 @@
 # Extended Properties — roadmap
 
-**Status: v3.8.0.** The original feature roadmap (milestones 1–6) is fully
+**Status: v3.14.0.** The original feature roadmap (milestones 1–6) is fully
 implemented, and forward-roadmap items **L1 (history & safe sync, v3.1.0)**,
 **G2 (inline charts & sparklines, v3.2.0)** and **M1 (accessibility completion,
 v3.6.0)** have shipped. Releases v3.3.0–v3.5.5 added the 3D-dice presentation plus
@@ -8,9 +8,13 @@ a run of roll, mobile and robustness polish (see *Dice presentation & polish*
 below). v3.7.0–v3.8.0 were quality passes over a codebase audit (see *Hardening
 pass* and *Audit fixes* below); their findings drove a re-planning of the
 forward roadmap into **milestones 12–17** — sequenced by dependency, with
-sizes, risks and done-when criteria — at the bottom of this document. This
-document is consolidated: it records what shipped — without the original
-per-feature planning notes — and lays out the sequenced forward plan.
+sizes, risks and done-when criteria — at the bottom of this document.
+v3.9–v3.13 shipped a run of user-driven UI work (section pin zones, the
+roll-screen overhaul, vault-wide data types, unit suffixes, list alignment,
+the audio/video/PDF embed types, picker comforts), and **v3.14.0 shipped
+Milestone 12** (N2 + F6 + N1 — see below). This document is consolidated: it
+records what shipped — without the original per-feature planning notes — and
+lays out the sequenced forward plan.
 
 Legend: ✅ done · ◑ partial · ○ planned.
 
@@ -217,9 +221,9 @@ Sizes are rough: **S** fits a patch/point release, **M** a minor release,
 - **v3.10.0** — shipped: vault-wide (per-key) property data types with a
   one-time unification migration, plus the edit-mode data-type switcher on
   the type hint.
-- **Next free minor** — Milestone 12 (N2, F6, N1 completion). User-driven UI
-  work keeps slotting in ahead of the plan (v3.9–v3.11 so far); the milestone
-  takes the first minor with room rather than a pinned number.
+- **v3.14.0** — Milestone 12 **shipped** (N2, F6, N1 — only N1's optional
+  aggregation worker stays deferred behind its vault-size gate). User-driven
+  UI work slotted in ahead of it as v3.9–v3.13.
 - **v4.0.0** — Milestone 13 (G1 query blocks + G3 chart cells) — the flagship
   release; the shared-renderer extraction is the largest internal refactor
   since the registry split, which is what earns the major.
@@ -244,7 +248,7 @@ Likelihood/impact: L low · M medium · H high.
 | Community-review friction | P1 | M | M | Pre-submission self-review: the `window.ExtendedProperties` global, the two private-API call sites and command naming are the likely flags — prepare rationale or alternatives before submitting. |
 | Single-locale i18n debt | non-English users | L | L | The locale *mechanism* and parity checker are kept (F4); community dictionaries can slot back in without code changes. |
 
-### Milestone 12 — Foundations: measure, test, finish the index ○ (next free minor)
+### Milestone 12 — Foundations: measure, test, finish the index ✅ (shipped in v3.14.0)
 
 **Goal.** Turn the two things the v3.7.0–v3.8.0 audits could only check by
 reading code — performance and the Obsidian seam — into things a failing check
@@ -253,8 +257,19 @@ catches automatically, then finish N1 against that gate.
 data-loss-risk flows run under Vitest against the vault fake; aggregate reads
 no longer re-reduce the full snapshot set on the benchmark fixture; CI fails
 on a stale `main.js`.
+**Shipped in v3.14.0.** All of the above: `tests/bench/` (synthetic fixture +
+five deterministic scaling assertions on work counts and memo identity, never
+wall-clock), `tests/stubs/fake-app.ts` + `tests/seam.test.ts` (the write
+queue, three-way auto-merge, unload flushes, edit-session revert and the
+roll-history migration run end to end against an in-memory vault), the type
+buckets + aggregate memoization in `PropertyIndex`, a committed
+`package-lock.json` for reproducible builds, and the CI bundle-freshness
+guard. The only deferral is N1's optional worker — it stays gated until a
+real vault shows aggregate cost the caches don't remove. The conflict
+*prompt* path still needs a DOM and remains manually tested (the auto-merge
+path is covered).
 
-#### N2 — Performance benchmark & regression harness ○ (S)
+#### N2 — Performance benchmark & regression harness ✅ (S)
 
 - **What.** A reproducible large-vault benchmark: a synthetic fixture
   generator (N notes × M types, cross-note references, aggregates) plus timed
@@ -277,7 +292,7 @@ on a stale `main.js`.
   fail when the committed bundle differs (it drifted a release behind twice
   before v3.7.1).
 
-#### F6 — Integration tests over the Obsidian seam ○ (M)
+#### F6 — Integration tests over the Obsidian seam ✅ (M)
 
 - **What.** The pure modules sit at 162 unit tests, but the seam — the write
   queue, the three-way merge, settings load, the unload flushes, the
@@ -299,7 +314,7 @@ on a stale `main.js`.
   corrupt-load tests → unload-flush tests → history-migration test →
   optional jsdom render smoke.
 
-#### N1 — Aggregate memoization & large-vault scale ◑ (M)
+#### N1 — Aggregate memoization & large-vault scale ✅ (M; optional worker deferred)
 
 - **What.** Memoize cross-note aggregates with dependency tracking, add
   per-type file buckets, and optionally move heavy aggregation to a worker

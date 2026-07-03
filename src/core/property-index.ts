@@ -43,65 +43,132 @@ export class PropertyIndex {
    * delete, rename and `metadataCache.changed` events.
    */
   private cache: Map<string, FileSnap> | null = null;
+  /**
+   * Type-bucket index (N1): lower-cased `Type` value → paths of the notes
+   * carrying it. Built with the snapshot cache and maintained by the same
+   * invalidation events, it serves {@link rowsByType} and the aggregate
+   * candidate sets, so per-type reads cost O(notes of that type) instead of
+   * scanning every snapshot in the vault.
+   */
+  private buckets = new Map<string, Set<string>>();
+  /**
+   * Memoized aggregate candidate values (N1), keyed `type\u0000key` (both
+   * lower-cased). Invalidated whenever any note of that type changes —
+   * including notes *entering or leaving* the type: a `Type`-list change
+   * dirties both the old and new buckets' aggregates.
+   */
+  private aggValues = new Map<string, number[]>();
 
-  private snapshots(): Iterable<FileSnap> {
+  private ensure(): Map<string, FileSnap> {
     if (!this.cache) {
       this.cache = new Map();
+      this.buckets.clear();
+      this.aggValues.clear();
       for (const f of this.app.vault.getMarkdownFiles()) {
-        this.cache.set(f.path, {
-          file: f,
-          fm: this.app.metadataCache.getFileCache(f)?.frontmatter as Record<string, unknown> | undefined,
-        });
+        const fm = this.app.metadataCache.getFileCache(f)?.frontmatter as Record<string, unknown> | undefined;
+        this.cache.set(f.path, { file: f, fm });
+        this.bucketAdd(f.path, fm);
       }
     }
+    return this.cache;
+  }
+
+  private snapshots(): Iterable<FileSnap> {
     // An iterator, not a copied array — queries run per render, so avoiding
     // the per-call allocation matters on large vaults.
-    return this.cache.values();
+    return this.ensure().values();
+  }
+
+  private bucketAdd(path: string, fm?: Record<string, unknown>): void {
+    if (!fm) return;
+    for (const t of typesOf(fm)) {
+      let b = this.buckets.get(t);
+      if (!b) this.buckets.set(t, (b = new Set()));
+      b.add(path);
+    }
+  }
+
+  private bucketRemove(path: string, fm?: Record<string, unknown>): void {
+    if (!fm) return;
+    for (const t of typesOf(fm)) this.buckets.get(t)?.delete(path);
+  }
+
+  /** Drop every memoized aggregate of the given (lower-cased) types. */
+  private dirtyTypes(types: Iterable<string>): void {
+    for (const t of types) {
+      const prefix = t + "\u0000";
+      for (const k of [...this.aggValues.keys()]) if (k.startsWith(prefix)) this.aggValues.delete(k);
+    }
   }
 
   /** Refresh one file's cached frontmatter (called on modify/rename/metadata-changed). */
   invalidateFile(file: TFile, oldPath?: string): void {
     if (!this.cache) return;
-    if (oldPath && oldPath !== file.path) this.cache.delete(oldPath);
-    this.cache.set(file.path, {
-      file,
-      fm: this.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined,
-    });
+    if (oldPath && oldPath !== file.path) this.invalidatePath(oldPath);
+    const old = this.cache.get(file.path);
+    const fm = this.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined;
+    if (old) this.bucketRemove(file.path, old.fm);
+    this.cache.set(file.path, { file, fm });
+    this.bucketAdd(file.path, fm);
+    // Dirty the aggregates of every type the note belonged to OR now belongs
+    // to — the broader dependency N1 tracks (bucket moves hit both sides).
+    this.dirtyTypes(new Set([...(old?.fm ? typesOf(old.fm) : []), ...(fm ? typesOf(fm) : [])]));
   }
 
   /** Drop one file (called on delete). */
   invalidatePath(path: string): void {
-    this.cache?.delete(path);
+    if (!this.cache) return;
+    const old = this.cache.get(path);
+    if (old) {
+      this.bucketRemove(path, old.fm);
+      this.dirtyTypes(old.fm ? typesOf(old.fm) : []);
+    }
+    this.cache.delete(path);
   }
 
   /** Drop the whole cache — cheap escape hatch, rebuilt lazily on next read. */
   invalidateAll(): void {
     this.cache = null;
+    this.buckets.clear();
+    this.aggValues.clear();
   }
 
-  /** Numeric values of `key` across every note whose `Type` includes `typeKey`. */
+  /**
+   * Numeric values of `key` across every note whose `Type` includes
+   * `typeKey`. Memoized (N1): repeated reads return the cached array until a
+   * note of that type — or one entering/leaving it — invalidates. Callers
+   * must treat the result as read-only.
+   */
   valuesByType(typeKey: string, key: string): number[] {
     const want = typeKey.trim().toLowerCase();
+    const ck = want + "\u0000" + key.toLowerCase();
+    const hit = this.aggValues.get(ck);
+    if (hit) return hit;
+    const cache = this.ensure();
     const out: number[] = [];
-    for (const { fm } of this.snapshots()) {
-      if (!fm || !typesOf(fm).includes(want)) continue;
+    for (const path of this.buckets.get(want) ?? []) {
+      const fm = cache.get(path)?.fm;
+      if (!fm) continue;
       const n = parseNumeric(getCI(fm, key));
       if (n !== null) out.push(n);
     }
+    this.aggValues.set(ck, out);
     return out;
   }
 
   /**
    * Files (with their cached frontmatter) whose `Type` includes `typeKey` —
-   * the row projection the type table view renders. Served from the snapshot
-   * cache so a table render never re-scans the vault.
+   * the row projection the type table view renders. Served from the type
+   * bucket (N1), so the cost is O(notes of the type), not O(vault).
    */
   rowsByType(typeKey: string): { file: TFile; fm: Record<string, unknown> }[] {
     const want = typeKey.trim().toLowerCase();
     const out: { file: TFile; fm: Record<string, unknown> }[] = [];
     if (!want) return out;
-    for (const { file, fm } of this.snapshots()) {
-      if (fm && typesOf(fm).includes(want)) out.push({ file, fm });
+    const cache = this.ensure();
+    for (const path of this.buckets.get(want) ?? []) {
+      const snap = cache.get(path);
+      if (snap?.fm) out.push({ file: snap.file, fm: snap.fm });
     }
     return out;
   }
