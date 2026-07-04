@@ -55,8 +55,8 @@ export const derivedType: ValueTypeDef = {
     };
     const refs = view.buildCluster(ctx.head, ctx.flags, { display: disp(), slots });
     refs.val.addClass("ep-num-join");
-    if (entry.valueSize) refs.val.style.fontSize = entry.valueSize + "px";
-    if (entry.valueColor) refs.val.style.color = entry.valueColor as string;
+    if (entry.valueSize) refs.val.setCssStyles({ fontSize: entry.valueSize + "px" });
+    if (entry.valueColor) refs.val.setCssStyles({ color: entry.valueColor as string });
     const sync = () => {
       const info = modifierInfo(view, entry);
       if (info.value === undefined) {

@@ -125,8 +125,8 @@ export function openRollMenu(
   opts?: { onEdit?: () => void }
 ): void {
   const pop = document.body.createDiv({ cls: "ep-popup ep-rollmenu" });
-  pop.style.left = ev.clientX + "px";
-  pop.style.top = ev.clientY + 2 + "px";
+  pop.setCssStyles({ left: ev.clientX + "px" });
+  pop.setCssStyles({ top: ev.clientY + 2 + "px" });
 
   let mode: RollMode = current;
   const row = pop.createDiv({ cls: "ep-mode" });
@@ -187,8 +187,8 @@ export function openRollMenu(
   // Keep within the window.
   const w = pop.offsetWidth;
   const h = pop.offsetHeight;
-  if (ev.clientX + w > window.innerWidth - 4) pop.style.left = Math.max(4, window.innerWidth - w - 4) + "px";
-  if (ev.clientY + h > window.innerHeight - 4) pop.style.top = Math.max(4, ev.clientY - h - 2) + "px";
+  if (ev.clientX + w > window.innerWidth - 4) pop.setCssStyles({ left: Math.max(4, window.innerWidth - w - 4) + "px" });
+  if (ev.clientY + h > window.innerHeight - 4) pop.setCssStyles({ top: Math.max(4, ev.clientY - h - 2) + "px" });
 }
 
 /**

@@ -104,8 +104,8 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
     commit: (v) => view.note.set(file, key, shouldClamp(entry.constraints) ? clampToConstraints(v, entry.constraints) : v),
     slots,
   });
-  if (entry.valueColor) refs.val.style.color = entry.valueColor;
-  if (entry.valueSize) refs.val.style.fontSize = entry.valueSize + "px";
+  if (entry.valueColor) refs.val.setCssStyles({ color: entry.valueColor });
+  if (entry.valueSize) refs.val.setCssStyles({ fontSize: entry.valueSize + "px" });
 
   // Optional unit suffix, rendered as a muted tag right after the value
   // (same `entry.unit` field the dedicated unit value type uses). Every
@@ -149,7 +149,7 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
     const fmt = (v: number): number => (isDecimal || isFormula ? v : Math.round(v));
     const pctForValue = (v: number): number => (span <= 0 ? 0 : clamp((toPosition(v) - min) / span, 0, 1) * 100);
     const place = (v: number): void => {
-      slider.style.setProperty("--ep-knob", pctForValue(v) + "%");
+      slider.setCssProps({ "--ep-knob": pctForValue(v) + "%" });
       knob.setAttr("aria-valuenow", String(fmt(v)));
     };
     syncKnob = () => place(get());

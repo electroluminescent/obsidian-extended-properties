@@ -107,7 +107,7 @@ export class ColorPickerModal extends Modal {
 
   private updatePreviewHex(): void {
     const hex = rgbToHex(this.rgb.r, this.rgb.g, this.rgb.b);
-    this.preview.style.background = hex;
+    this.preview.setCssStyles({ background: hex });
     if (this.hexInput) this.hexInput.value = hex;
   }
 
@@ -140,10 +140,10 @@ export class ColorPickerModal extends Modal {
     let cur = val;
     const place = () => {
       const t = max > min ? (cur - min) / (max - min) : 0;
-      thumb.style.left = clamp(t, 0, 1) * 100 + "%";
+      thumb.setCssStyles({ left: clamp(t, 0, 1) * 100 + "%" });
     };
     const update = () => {
-      track.style.background = grad();
+      track.setCssStyles({ background: grad() });
     };
     const setVal = (v: number, fire: boolean) => {
       cur = clamp(v, min, max);
@@ -206,8 +206,8 @@ export class ColorPickerModal extends Modal {
     };
     const place = () => {
       const [x, y] = getXY();
-      cursor.style.left = x * 100 + "%";
-      cursor.style.top = y * 100 + "%";
+      cursor.setCssStyles({ left: x * 100 + "%" });
+      cursor.setCssStyles({ top: y * 100 + "%" });
     };
     const fromEv = (e: PointerEvent) => {
       const r = canvas.getBoundingClientRect();
@@ -317,11 +317,11 @@ export class ColorPickerModal extends Modal {
     // Animate height differences between spaces.
     const newH = this.body.scrollHeight;
     if (this.lastBodyH !== undefined && this.lastBodyH !== newH) {
-      this.body.style.height = this.lastBodyH + "px";
+      this.body.setCssStyles({ height: this.lastBodyH + "px" });
       void this.body.offsetWidth;
-      this.body.style.height = newH + "px";
+      this.body.setCssStyles({ height: newH + "px" });
       const done = () => {
-        this.body.style.height = "auto";
+        this.body.setCssStyles({ height: "auto" });
         this.body.removeEventListener("transitionend", done);
       };
       this.body.addEventListener("transitionend", done);

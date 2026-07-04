@@ -31,14 +31,11 @@ export function flipMove(view: ViewCtx, fn: () => void): void {
       const dx = f.left - n.left, dy = f.top - n.top;
       if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
       const h = el as HTMLElement;
-      h.style.transition = "none";
-      h.style.transform = `translate(${dx}px, ${dy}px)`;
+      h.setCssStyles({ transition: "none", transform: `translate(${dx}px, ${dy}px)` });
       requestAnimationFrame(() => {
-        h.style.transition = "transform .25s ease";
-        h.style.transform = "";
+        h.setCssStyles({ transition: "transform .25s ease", transform: "" });
         const done = () => {
-          h.style.transition = "";
-          h.style.transform = "";
+          h.setCssStyles({ transition: "", transform: "" });
           h.removeEventListener("transitionend", done);
         };
         h.addEventListener("transitionend", done);
@@ -124,16 +121,18 @@ export class DragController {
     // Floating clone follows the pointer; the original becomes a placeholder.
     const clone = wrap.cloneNode(true) as HTMLElement;
     clone.addClass("ep-drag-clone");
-    clone.style.position = "fixed";
-    clone.style.left = "0";
-    clone.style.top = "0";
-    clone.style.width = rect.width + "px";
-    clone.style.margin = "0";
-    clone.style.pointerEvents = "none";
-    clone.style.zIndex = "9999";
+    clone.setCssStyles({
+      position: "fixed",
+      left: "0",
+      top: "0",
+      width: rect.width + "px",
+      margin: "0",
+      pointerEvents: "none",
+      zIndex: "9999",
+    });
     document.body.appendChild(clone);
     const moveClone = (cx: number, cy: number) => {
-      clone.style.transform = `translate(${cx - ox}px, ${cy - oy}px)`;
+      clone.setCssStyles({ transform: `translate(${cx - ox}px, ${cy - oy}px)` });
     };
     moveClone(ev.clientX, ev.clientY);
     wrap.addClass("ep-drag-placeholder");
@@ -157,13 +156,11 @@ export class DragController {
         const n = el.getBoundingClientRect();
         const dx = f.left - n.left, dy = f.top - n.top;
         if (!dx && !dy) return;
-        el.style.transition = "none";
-        el.style.transform = `translate(${dx}px, ${dy}px)`;
+        el.setCssStyles({ transition: "none", transform: `translate(${dx}px, ${dy}px)` });
         requestAnimationFrame(() => {
-          el.style.transition = "transform .18s ease";
-          el.style.transform = "";
+          el.setCssStyles({ transition: "transform .18s ease", transform: "" });
           const done = () => {
-            el.style.transition = "";
+            el.setCssStyles({ transition: "" });
             el.removeEventListener("transitionend", done);
           };
           el.addEventListener("transitionend", done);

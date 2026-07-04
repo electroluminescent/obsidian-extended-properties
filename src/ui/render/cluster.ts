@@ -56,7 +56,7 @@ export function buildCluster(
   cols.push("minmax(2.1em, auto)");
   if (flags.steppers) cols.push("var(--ep-step-col, 20px)");
   for (const _ of flags.after) cols.push("auto");
-  cl.style.gridTemplateColumns = cols.join(" ");
+  cl.setCssStyles({ gridTemplateColumns: cols.join(" ") });
 
   const cells: Record<string, HTMLElement> = {};
   const editable = !!(o.commit && o.get);

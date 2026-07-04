@@ -140,8 +140,8 @@ class InlineViewCtx implements ViewCtx {
     const { entry } = ctx;
     if (entry.hideLabel) return;
     const span = head.createSpan({ cls: "ep-line-name" });
-    if (entry.labelSize) span.style.fontSize = entry.labelSize + "px";
-    if (entry.labelColor) span.style.color = entry.labelColor as string;
+    if (entry.labelSize) span.setCssStyles({ fontSize: entry.labelSize + "px" });
+    if (entry.labelColor) span.setCssStyles({ color: entry.labelColor as string });
     span.setText((entry.alias as string) || this.defaultLabelFor(entry));
     span.addClass("ep-clickname");
     if (entry.kind === "prop" && entry.showType !== false) {
@@ -231,8 +231,7 @@ export function makeValsEl(ctx: InlineCtx, file: TFile, body: string, onEditSour
   // mobile editor (chips are span-only, which is why they survived); a div
   // with an explicit inline-block display renders inline on both platforms.
   const wrap = createDiv({ cls: "ep-inline-vals" });
-  wrap.style.display = "inline-block";
-  wrap.style.verticalAlign = "middle";
+  wrap.setCssStyles({ display: "inline-block", verticalAlign: "middle" });
   const t = ctx.i18n.t.bind(ctx.i18n);
 
   const draw = (): void => {
@@ -285,7 +284,7 @@ export function makeValsEl(ctx: InlineCtx, file: TFile, body: string, onEditSour
     if (entry.icon) {
       const ic = head.createSpan({ cls: "ep-picon" });
       setIcon(ic, entry.icon as string);
-      if (entry.iconColor) ic.style.color = entry.iconColor as string;
+      if (entry.iconColor) ic.setCssStyles({ color: entry.iconColor as string });
     }
     const extra = wrap.createDiv({ cls: "ep-entry-extra" });
 

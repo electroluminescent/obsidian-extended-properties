@@ -42,10 +42,10 @@ export class PopupManager {
   /** Keep a popup on-screen, flipping left/up when it would overflow. */
   private fitToViewport(pop: HTMLElement, leftPx: number, anchorLeft: number): void {
     const w = pop.offsetWidth;
-    if (leftPx + w > window.innerWidth - 4) pop.style.left = Math.max(4, anchorLeft - w - 4) + "px";
+    if (leftPx + w > window.innerWidth - 4) pop.setCssStyles({ left: Math.max(4, anchorLeft - w - 4) + "px" });
     const h = pop.offsetHeight;
     const top = parseFloat(pop.style.top || "0");
-    if (top + h > window.innerHeight - 4) pop.style.top = Math.max(4, window.innerHeight - h - 4) + "px";
+    if (top + h > window.innerHeight - 4) pop.setCssStyles({ top: Math.max(4, window.innerHeight - h - 4) + "px" });
   }
 
   /** Dismiss when clicking outside the popups and their anchor. */
@@ -142,9 +142,7 @@ export class PopupManager {
     const pop = document.body.createDiv({ cls: "ep-popup ep-addmenu" });
     this.popups.push(pop);
     const r = anchor.getBoundingClientRect();
-    pop.style.left = r.left + "px";
-    pop.style.top = r.bottom + 2 + "px";
-    pop.style.minWidth = "220px";
+    pop.setCssStyles({ left: r.left + "px", top: r.bottom + 2 + "px", minWidth: "220px" });
     // Keep the menu fully inside the window: clamp horizontally, flip above
     // the anchor when it would overflow the bottom, clamp as a last resort.
     const fit = () => {
@@ -155,8 +153,8 @@ export class PopupManager {
       if (left + w > window.innerWidth - 4) left = Math.max(4, window.innerWidth - w - 4);
       if (top + h > window.innerHeight - 4) top = r.top - h - 2;
       if (top < 4) top = Math.max(4, Math.min(r.bottom + 2, window.innerHeight - h - 4));
-      pop.style.left = left + "px";
-      pop.style.top = top + "px";
+      pop.setCssStyles({ left: left + "px" });
+      pop.setCssStyles({ top: top + "px" });
     };
 
     const search = pop.createEl("input", { cls: "ep-edit-input ep-addsearch" });
@@ -255,9 +253,7 @@ export class PopupManager {
     const side = document.body.createDiv({ cls: "ep-popup ep-side" });
     this.popups.push(side);
     const r = row.getBoundingClientRect();
-    side.style.left = r.right + 2 + "px";
-    side.style.top = r.top + "px";
-    side.style.minWidth = "170px";
+    side.setCssStyles({ left: r.right + 2 + "px", top: r.top + "px", minWidth: "170px" });
     side.createDiv({ cls: "ep-side-title", text: multi ? t("add.pickValues", { key }) : key });
 
     const body = side.createDiv({ cls: "ep-side-body" });
@@ -338,9 +334,7 @@ export class PopupManager {
     this.popups.push(w);
     this.notesWin = w;
     const r = anchor.getBoundingClientRect();
-    w.style.left = r.right + 4 + "px";
-    w.style.top = r.top + "px";
-    w.style.minWidth = "160px";
+    w.setCssStyles({ left: r.right + 4 + "px", top: r.top + "px", minWidth: "160px" });
     w.createDiv({ cls: "ep-side-title", text: view.i18n.t("add.notesWith", { value }) });
     const body = w.createDiv({ cls: "ep-side-body" });
     const notes = view.props.notesWithValue(key, value);
@@ -359,9 +353,7 @@ export class PopupManager {
     const cur = view.note.list(key);
     const side = document.body.createDiv({ cls: "ep-popup ep-side" });
     this.popups.push(side);
-    side.style.left = left + "px";
-    side.style.top = top + "px";
-    side.style.minWidth = "170px";
+    side.setCssStyles({ left: left + "px", top: top + "px", minWidth: "170px" });
     side.createDiv({ cls: "ep-side-title", text: t("list.addTo", { key }) });
     const body = side.createDiv({ cls: "ep-side-body" });
     const opts = view.props.valuesFor(key).filter((o) => !cur.some((c) => c.toLowerCase() === o.toLowerCase()));

@@ -297,8 +297,7 @@ export class TableView extends ItemView {
   private spacer(tbody: HTMLElement, colspan: number, h: number): void {
     const tr = tbody.createEl("tr", { cls: "ep-table-spacer" });
     const td = tr.createEl("td", { attr: { colspan: String(colspan) } });
-    td.style.height = h + "px";
-    td.style.padding = "0";
+    td.setCssStyles({ height: h + "px", padding: "0" });
   }
 
   private detachScroll(): void {
@@ -358,7 +357,7 @@ export class TableView extends ItemView {
       const s = fmtCell(raw);
       if (s) {
         const sw = td.createSpan({ cls: "ep-cell-swatch" });
-        sw.style.background = s;
+        sw.setCssStyles({ background: s });
       }
       td.createSpan({ cls: "ep-cell-muted", text: s });
       return;
@@ -505,8 +504,8 @@ export class TableView extends ItemView {
     if (meta) {
       const w = layout.widths?.[key];
       if (w && w > 0) {
-        th.style.width = w + "px";
-        th.style.minWidth = w + "px";
+        th.setCssStyles({ width: w + "px" });
+        th.setCssStyles({ minWidth: w + "px" });
       }
     } else {
       th.addClass("ep-table-namecol");
@@ -550,8 +549,8 @@ export class TableView extends ItemView {
       e.preventDefault();
       e.stopPropagation();
       const w = Math.max(48, th.offsetWidth + (e.key === "ArrowRight" ? 8 : -8));
-      th.style.width = w + "px";
-      th.style.minWidth = w + "px";
+      th.setCssStyles({ width: w + "px" });
+      th.setCssStyles({ minWidth: w + "px" });
       if (!layout.widths) layout.widths = {};
       layout.widths[key] = w;
       void this.plugin.saveSettings();
@@ -565,8 +564,8 @@ export class TableView extends ItemView {
       grip.setPointerCapture(e.pointerId);
       const move = (ev: PointerEvent) => {
         const w = Math.max(48, startW + (ev.clientX - startX));
-        th.style.width = w + "px";
-        th.style.minWidth = w + "px";
+        th.setCssStyles({ width: w + "px" });
+        th.setCssStyles({ minWidth: w + "px" });
       };
       const up = (ev: PointerEvent) => {
         grip.releasePointerCapture(e.pointerId);

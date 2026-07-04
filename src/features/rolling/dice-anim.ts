@@ -152,12 +152,10 @@ function prepareCardFlip(host: HTMLElement | null, except?: HTMLElement): () => 
       const dx = rect.left - now.left;
       const dy = rect.top - now.top;
       if (!dx && !dy) continue;
-      el.style.transition = "none";
-      el.style.transform = `translate(${dx}px, ${dy}px)`;
+      el.setCssStyles({ transition: "none", transform: `translate(${dx}px, ${dy}px)` });
       requestAnimationFrame(() => {
-        el.style.transition = "transform .18s ease";
-        el.style.transform = "";
-        window.setTimeout(() => (el.style.transition = ""), 240);
+        el.setCssStyles({ transition: "transform .18s ease", transform: "" });
+        window.setTimeout(() => el.setCssStyles({ transition: "" }), 240);
       });
     }
   };
@@ -168,7 +166,7 @@ function prepareCardFlip(host: HTMLElement | null, except?: HTMLElement): () => 
 function measureReserve(): void {
   if (!layer) return;
   if (summaryEl && summaryEl.isConnected) {
-    layer.style.setProperty("--ep-roll-reserve", Math.max(150, summaryEl.offsetHeight + 32) + "px");
+    layer.setCssProps({ "--ep-roll-reserve": Math.max(150, summaryEl.offsetHeight + 32) + "px" });
   } else {
     layer.style.removeProperty("--ep-roll-reserve");
   }
@@ -264,11 +262,9 @@ function updateSummary(i18n: I18n): void {
         const dx = a.left - b.left;
         const dy = a.top - b.top;
         if (!dx && !dy) continue;
-        x.el.style.transition = "none";
-        x.el.style.transform = `translate(${dx}px, ${dy}px)`;
+        x.el.setCssStyles({ transition: "none", transform: `translate(${dx}px, ${dy}px)` });
         requestAnimationFrame(() => {
-          x.el.style.transition = "";
-          x.el.style.transform = "";
+          x.el.setCssStyles({ transition: "", transform: "" });
         });
       }
     }
@@ -287,19 +283,11 @@ function updateSummary(i18n: I18n): void {
     const w = el.offsetWidth;
     const h = el.offsetHeight;
     if (Math.abs(w - prevRect.width) >= 1 || Math.abs(h - prevRect.height) >= 1) {
-      el.style.transition = "none";
-      el.style.overflow = "hidden";
-      el.style.width = prevRect.width + "px";
-      el.style.height = prevRect.height + "px";
+      el.setCssStyles({ transition: "none", overflow: "hidden", width: prevRect.width + "px", height: prevRect.height + "px" });
       void el.offsetWidth;
-      el.style.transition = "width .2s ease-out, height .2s ease-out";
-      el.style.width = w + "px";
-      el.style.height = h + "px";
+      el.setCssStyles({ transition: "width .2s ease-out, height .2s ease-out", width: w + "px", height: h + "px" });
       window.setTimeout(() => {
-        el.style.transition = "";
-        el.style.width = "";
-        el.style.height = "";
-        el.style.overflow = "";
+        el.setCssStyles({ transition: "", width: "", height: "", overflow: "" });
         measureReserve(); // re-measure at the settled size
       }, 230);
     }
@@ -462,7 +450,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     const die = dies[i].el;
     const offset = Math.max(0, die.offsetLeft + die.offsetWidth - cw);
     diceRow.toggleClass("ep-overflow", offset > 0);
-    diceTrack.style.transform = offset > 0 ? `translateX(${-offset}px)` : "";
+    diceTrack.setCssStyles({ transform: offset > 0 ? `translateX(${-offset}px)` : "" });
   };
 
   const timers: number[] = [];
@@ -559,10 +547,10 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     cell.createDiv({ cls: "ep-roll-cellval", text: valueText });
     cell.createDiv({ cls: "ep-roll-celllab", text: labelText });
     // Measure the natural size with the new row in place...
-    box.style.transition = "none";
-    box.style.width = "";
-    box.style.height = "";
-    chain.style.width = "";
+    box.setCssStyles({ transition: "none" });
+    box.setCssStyles({ width: "" });
+    box.setCssStyles({ height: "" });
+    chain.setCssStyles({ width: "" });
     const nat = box.getBoundingClientRect();
     const w = nat.width;
     const h = nat.height;
@@ -576,25 +564,18 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
       // cell only ever starts a new line when the current one is truly full
       // (the chain's max-width), never because of the animation. The clipped
       // box then simply reveals the final layout as it grows...
-      chain.style.width = Math.ceil(chain.getBoundingClientRect().width) + 1 + "px";
+      chain.setCssStyles({ width: Math.ceil(chain.getBoundingClientRect().width) + 1 + "px" });
       // ...and animate from the current (possibly mid-transition) size to it.
-      box.style.overflow = "hidden";
-      box.style.width = before.width + "px";
-      box.style.height = before.height + "px";
+      box.setCssStyles({ overflow: "hidden", width: before.width + "px", height: before.height + "px" });
       void box.offsetWidth;
-      box.style.transition = "width .2s ease-out, height .2s ease-out";
-      box.style.width = w + "px";
-      box.style.height = h + "px";
+      box.setCssStyles({ transition: "width .2s ease-out, height .2s ease-out", width: w + "px", height: h + "px" });
       window.clearTimeout(sizeTimer);
       sizeTimer = window.setTimeout(() => {
-        box.style.transition = "";
-        box.style.width = "";
-        box.style.height = "";
-        box.style.overflow = "";
-        chain.style.width = "";
+        box.setCssStyles({ transition: "", width: "", height: "", overflow: "" });
+        chain.setCssStyles({ width: "" });
       }, 230);
     } else {
-      box.style.transition = "";
+      box.setCssStyles({ transition: "" });
     }
     requestAnimationFrame(() => cell.addClass("ep-in"));
   };

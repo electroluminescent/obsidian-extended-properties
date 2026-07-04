@@ -16,7 +16,7 @@ export class IconPickerModal extends Modal {
     search.type = "text";
     search.placeholder = this.i18n.t("iconPicker.search");
     search.addClass("ep-edit-input");
-    search.style.width = "100%";
+    search.setCssStyles({ width: "100%" });
     const grid = c.createDiv({ cls: "ep-iconpick-grid" });
     let all: string[] = [];
     try {

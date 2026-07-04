@@ -70,7 +70,7 @@ export const imageType: ValueTypeDef = {
       const src = view.note.str(key);
       if (src) {
         if (h) {
-          holder.style.height = h + "px";
+          holder.setCssStyles({ height: h + "px" });
           holder.addClass("ep-image-fixed");
         } else {
           holder.style.removeProperty("height");
@@ -79,7 +79,7 @@ export const imageType: ValueTypeDef = {
         const img = holder.createEl("img", { cls: "ep-image-img" });
         if (s !== 1) {
           holder.addClass("ep-media-zoom");
-          img.style.transform = `scale(${s})`;
+          img.setCssStyles({ transform: `scale(${s})` });
         }
         img.src = view.resolveImage(src);
       } else {
@@ -259,10 +259,9 @@ export const videoType: ValueTypeDef = {
         // one when an explicit height is set.
         const wrap = holder.createDiv({ cls: "ep-video-framewrap" });
         if (hPx) {
-          wrap.style.aspectRatio = "auto";
-          wrap.style.height = hPx + "px";
+          wrap.setCssStyles({ aspectRatio: "auto", height: hPx + "px" });
         } else if (maxH) {
-          wrap.style.maxHeight = maxH + "px";
+          wrap.setCssStyles({ maxHeight: maxH + "px" });
         }
         const f = wrap.createEl("iframe", { cls: "ep-video-frame" });
         f.setAttr("src", em.src);
@@ -278,11 +277,11 @@ export const videoType: ValueTypeDef = {
         const v = holder.createEl("video", { cls: "ep-video-el" });
         v.controls = true;
         v.preload = "metadata";
-        if (hPx) v.style.height = hPx + "px";
-        else if (maxH) v.style.maxHeight = maxH + "px";
+        if (hPx) v.setCssStyles({ height: hPx + "px" });
+        else if (maxH) v.setCssStyles({ maxHeight: maxH + "px" });
         if (s !== 1) {
           holder.addClass("ep-media-zoom");
-          v.style.transform = `scale(${s})`;
+          v.setCssStyles({ transform: `scale(${s})` });
         }
         v.src = view.resolveImage(src);
       }
@@ -331,7 +330,7 @@ export const pdfType: ValueTypeDef = {
         holder.setText(view.i18n.t("pdf.emptyHint"));
         return;
       }
-      holder.style.height = height + "px";
+      holder.setCssStyles({ height: height + "px" });
       const f = holder.createEl("iframe", { cls: "ep-pdf-frame" });
       f.setAttr("src", view.resolveImage(src)); // local PDFs resolve to app:// resources
       // Same scaling technique as the iframe type.
@@ -376,7 +375,7 @@ export const iframeType: ValueTypeDef = {
         return;
       }
       holder.removeClass("ep-image-empty");
-      holder.style.height = height + "px";
+      holder.setCssStyles({ height: height + "px" });
       const f = holder.createEl("iframe");
       f.setAttr("src", url);
       f.setAttr(

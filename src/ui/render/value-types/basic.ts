@@ -30,7 +30,7 @@ export const checkboxType: ValueTypeDef = {
     const { view, file, entry } = ctx;
     const key = entry.key as string;
     const v = ctx.head.createDiv({ cls: "ep-val-right" });
-    if (entry.valueColor) v.style.color = entry.valueColor;
+    if (entry.valueColor) v.setCssStyles({ color: entry.valueColor });
     const cb = v.createEl("input");
     cb.type = "checkbox";
     cb.addClass("ep-prof");
@@ -109,8 +109,8 @@ export const listType: ValueTypeDef = {
     const holder = ctx.extra.createDiv({ cls: "ep-list-holder" });
     const align = (entry.listAlign as string) || "";
     if (align === "center" || align === "right") holder.addClass("ep-align-" + align);
-    if (entry.valueSize) holder.style.fontSize = entry.valueSize + "px";
-    if (entry.valueColor) holder.style.color = entry.valueColor;
+    if (entry.valueSize) holder.setCssStyles({ fontSize: entry.valueSize + "px" });
+    if (entry.valueColor) holder.setCssStyles({ color: entry.valueColor });
     const key = entry.key as string;
     const checkValid = () => applyValidity(holder, entry, "list", view.note.raw[key], view.i18n);
     buildList(ctx, holder, view.editMode);
@@ -164,14 +164,14 @@ export const colorType: ValueTypeDef = {
     const { view, file, entry } = ctx;
     const key = entry.key as string;
     const v = ctx.head.createDiv({ cls: "ep-val-right" });
-    if (entry.valueSize) v.style.fontSize = entry.valueSize + "px";
-    if (entry.valueColor) v.style.color = entry.valueColor;
+    if (entry.valueSize) v.setCssStyles({ fontSize: entry.valueSize + "px" });
+    if (entry.valueColor) v.setCssStyles({ color: entry.valueColor });
     const sw = v.createSpan({ cls: "ep-swatch" });
     const txt = v.createSpan({ cls: "ep-color-text" });
     const draw = () => {
       const hex = view.note.str(key);
       const ok = hexToRgb(hex);
-      sw.style.background = ok ? hex : "transparent";
+      sw.setCssStyles({ background: ok ? hex : "transparent" });
       sw.toggleClass("ep-swatch-empty", !ok);
       txt.setText(hex || "-");
     };

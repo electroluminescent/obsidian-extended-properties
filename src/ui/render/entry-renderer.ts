@@ -69,7 +69,7 @@ export function renderEntry(
     wrap.addClass("ep-cond-off");
     wrap.setAttr("title", view.i18n.t("options.showWhenActive", { expr: entry.showWhen as string }));
   }
-  if (wide) wrap.style.gridColumn = "1 / -1";
+  if (wide) wrap.setCssStyles({ gridColumn: "1 / -1" });
 
   const head = wrap.createDiv({ cls: "ep-entry-head" });
   let grip: HTMLElement | null = null;
@@ -81,7 +81,7 @@ export function renderEntry(
   if (entry.icon) {
     const ic = head.createSpan({ cls: "ep-picon" });
     setIcon(ic, entry.icon as string);
-    if (entry.iconColor) ic.style.color = entry.iconColor as string;
+    if (entry.iconColor) ic.setCssStyles({ color: entry.iconColor as string });
   }
   const extra = wrap.createDiv({ cls: "ep-entry-extra" });
 

@@ -628,8 +628,8 @@ export class SidebarView extends ItemView implements ViewCtx {
     const showLabel = this.editMode || !entry.hideLabel;
     if (!showLabel) return;
     const span = head.createSpan({ cls: "ep-line-name" });
-    if (entry.labelSize) span.style.fontSize = entry.labelSize + "px";
-    if (entry.labelColor) span.style.color = entry.labelColor as string;
+    if (entry.labelSize) span.setCssStyles({ fontSize: entry.labelSize + "px" });
+    if (entry.labelColor) span.setCssStyles({ color: entry.labelColor as string });
     if (this.editMode && entry.hideLabel) span.addClass("ep-dim");
 
     if (this.editMode && entry.kind === "prop") {
@@ -794,7 +794,7 @@ export class SidebarView extends ItemView implements ViewCtx {
             x.addClass("ep-squeezed");
             // Reclaim the column width the hidden element reserved.
             const cell = x.closest("[data-ep-slot]") as HTMLElement | null;
-            if (cell) cell.style.minWidth = "";
+            if (cell) cell.setCssStyles({ minWidth: "" });
           });
         }
       }
@@ -814,14 +814,13 @@ export class SidebarView extends ItemView implements ViewCtx {
   }
 
   private reflowSticky(): void {
-    if (this.headerEl && this.stickyZoneEl) this.stickyZoneEl.style.top = this.headerEl.offsetHeight + "px";
+    if (this.headerEl && this.stickyZoneEl) this.stickyZoneEl.setCssStyles({ top: this.headerEl.offsetHeight + "px" });
     // Cap both pinned zones so they can never swallow the view: past ~a third
     // of the view height each zone scrolls internally, which keeps every
     // pinned item reachable at any window size (see .ep-sticky-zone /
     // .ep-footer-zone in styles.css).
     const cap = Math.max(90, Math.floor(this.content.clientHeight * 0.34));
-    this.content.style.setProperty("--ep-zone-max", cap + "px");
-    this.content.style.setProperty("--ep-sticky-top", this.stickyTopPx() + "px");
+    this.content.setCssProps({ "--ep-zone-max": cap + "px", "--ep-sticky-top": this.stickyTopPx() + "px" });
   }
 
   /** Animate a container's height change (edit-mode transitions). */
@@ -830,15 +829,11 @@ export class SidebarView extends ItemView implements ViewCtx {
     const toH = el.scrollHeight;
     if (Math.abs(toH - fromH) < 2) return;
     const prevO = el.style.overflow;
-    el.style.overflow = "hidden";
-    el.style.height = fromH + "px";
+    el.setCssStyles({ overflow: "hidden", height: fromH + "px" });
     void el.offsetWidth;
-    el.style.transition = "height .28s ease";
-    el.style.height = toH + "px";
+    el.setCssStyles({ transition: "height .28s ease", height: toH + "px" });
     const done = () => {
-      el.style.height = "";
-      el.style.transition = "";
-      el.style.overflow = prevO;
+      el.setCssStyles({ height: "", transition: "", overflow: prevO });
       el.removeEventListener("transitionend", done);
     };
     el.addEventListener("transitionend", done);
@@ -847,10 +842,10 @@ export class SidebarView extends ItemView implements ViewCtx {
   private applyTypography(container: HTMLElement): void {
     const d = this.settings.defaults;
     const set = (k: string, v: number) => {
-      if (v && v > 0) container.style.setProperty(k, v + "px");
+      if (v && v > 0) container.setCssProps({ [k]: v + "px" });
       else container.style.removeProperty(k);
     };
-    if (d.fontFamily) container.style.setProperty("--ep-font", d.fontFamily);
+    if (d.fontFamily) container.setCssProps({ "--ep-font": d.fontFamily });
     else container.style.removeProperty("--ep-font");
     set("--ep-size-base", d.baseSize);
     set("--ep-size-label", d.labelSize);

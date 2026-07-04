@@ -23,8 +23,8 @@ export const textType: ValueTypeDef = {
     const { view, file, entry } = ctx;
     const key = entry.key as string;
     const v = ctx.head.createDiv({ cls: "ep-val-right" });
-    if (entry.valueSize) v.style.fontSize = entry.valueSize + "px";
-    if (entry.valueColor) v.style.color = entry.valueColor;
+    if (entry.valueSize) v.setCssStyles({ fontSize: entry.valueSize + "px" });
+    if (entry.valueColor) v.setCssStyles({ color: entry.valueColor });
     const s = v.createSpan();
     const draw = () => {
       s.empty();

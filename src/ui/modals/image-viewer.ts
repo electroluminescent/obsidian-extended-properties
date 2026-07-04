@@ -19,7 +19,7 @@ export class ImageViewerModal extends Modal {
 
     let scale = 1, tx = 0, ty = 0, dragging = false, lx = 0, ly = 0;
     const apply = () => {
-      img.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+      img.setCssStyles({ transform: `translate(${tx}px, ${ty}px) scale(${scale})` });
     };
     wrap.addEventListener("wheel", (e: WheelEvent) => {
       e.preventDefault();

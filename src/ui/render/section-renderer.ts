@@ -52,11 +52,11 @@ export function alignClustersNow(det: HTMLElement): void {
     if (els.length < 2) continue;
     let max = 0;
     for (const el of els) {
-      el.style.minWidth = "";
+      el.setCssStyles({ minWidth: "" });
       max = Math.max(max, el.offsetWidth);
     }
     if (max <= 0) continue;
-    for (const el of els) el.style.minWidth = max + "px";
+    for (const el of els) el.setCssStyles({ minWidth: max + "px" });
   }
 }
 
@@ -96,13 +96,12 @@ export function renderSection(
   det.setAttr("data-ep-id", "s:" + section.id);
   if (sectionPin(section) === "body") det.addClass("ep-flow-section");
   if (section.transparent) det.addClass("ep-transparent");
-  if (section.accent) det.style.setProperty("--ep-accent", section.accent);
-  if (section.controlColor) det.style.setProperty("--ep-control", section.controlColor);
-  det.style.setProperty(
-    "--ep-title-bg",
-    section.transparent ? "var(--background-primary)" : section.bg || "var(--background-secondary)"
-  );
-  if (section.bg && !section.transparent) det.style.background = section.bg;
+  if (section.accent) det.setCssProps({ "--ep-accent": section.accent });
+  if (section.controlColor) det.setCssProps({ "--ep-control": section.controlColor });
+  det.setCssProps({
+    "--ep-title-bg": section.transparent ? "var(--background-primary)" : section.bg || "var(--background-secondary)",
+  });
+  if (section.bg && !section.transparent) det.setCssStyles({ background: section.bg });
 
   // -- title bar -------------------------------------------------------
   const collapsible = section.collapsible !== false;
@@ -120,13 +119,13 @@ export function renderSection(
   if (section.icon) {
     const ic = sum.createSpan({ cls: "ep-ticon" });
     setIcon(ic, section.icon);
-    if (section.iconColor) ic.style.color = section.iconColor;
+    if (section.iconColor) ic.setCssStyles({ color: section.iconColor });
   }
   const showLabel = view.editMode || !section.hideLabel;
   if (showLabel) {
     const titleSpan = sum.createSpan({ cls: "ep-sec-name" });
-    if (section.titleSize) titleSpan.style.fontSize = section.titleSize + "px";
-    if (section.accent) titleSpan.style.color = section.accent;
+    if (section.titleSize) titleSpan.setCssStyles({ fontSize: section.titleSize + "px" });
+    if (section.accent) titleSpan.setCssStyles({ color: section.accent });
     if (view.editMode) {
       bindRename(titleSpan, section.title, t("section.namePlaceholder"), t("section.renameHint"), (v) => {
         section.title = v || t("section.namePlaceholder");
@@ -202,8 +201,7 @@ export function renderSection(
   if (section.vdividers) grid.addClass("ep-vdividers");
   if (section.size && section.size !== "unlimited") {
     const rows = SIZE_ROWS[section.size] ?? 12;
-    grid.style.maxHeight = rows * ROW_PX + "px";
-    grid.style.overflowY = "auto";
+    grid.setCssStyles({ maxHeight: rows * ROW_PX + "px", overflowY: "auto" });
   }
 
   if (mode === "list") {
@@ -214,7 +212,7 @@ export function renderSection(
       ab.onclick = () => view.openAddMenu(ab, section);
     }
   } else if (mode === "columns") {
-    grid.style.gridTemplateColumns = `repeat(${ncol}, minmax(0, 1fr))`;
+    grid.setCssStyles({ gridTemplateColumns: `repeat(${ncol}, minmax(0, 1fr))` });
     const per = Math.max(1, Math.ceil(section.entries.length / ncol));
     for (let cc = 0; cc < ncol; cc++) {
       const col = grid.createDiv({ cls: "ep-col" });
@@ -228,8 +226,8 @@ export function renderSection(
       }
     }
   } else {
-    grid.style.gridTemplateColumns = `repeat(${ncol}, minmax(0, 1fr))`;
-    if (section.rows && section.rows > 0) grid.style.gridTemplateRows = `repeat(${section.rows}, auto)`;
+    grid.setCssStyles({ gridTemplateColumns: `repeat(${ncol}, minmax(0, 1fr))` });
+    if (section.rows && section.rows > 0) grid.setCssStyles({ gridTemplateRows: `repeat(${section.rows}, auto)` });
     for (const entry of section.entries) {
       if (isHiddenEntry(view, entry)) grid.createDiv({ cls: "ep-empty-cell" });
       else renderEntry(grid, view, file, section, entry, flags, drag);
@@ -265,8 +263,8 @@ export function renderSection(
   if (colRail || rowRail) renderRails(view, section, grid, colRail, rowRail);
   if (view.editMode) drag.attachSection(det, grid, section);
   if (collapsible) {
-    collapseWrap.style.overflow = "hidden";
-    if (section.collapsed) collapseWrap.style.height = "0px";
+    collapseWrap.setCssStyles({ overflow: "hidden" });
+    if (section.collapsed) collapseWrap.setCssStyles({ height: "0px" });
     // Accessible disclosure (M1): the title bar is a keyboard-operable button
     // that reports its expanded/collapsed state.
     sum.setAttr("role", "button");
@@ -301,18 +299,18 @@ function toggleSection(
   if (chev) (chev as HTMLElement).toggleClass("ep-open", !section.collapsed);
   if (section.collapsed) {
     const h = wrap.scrollHeight;
-    wrap.style.height = h + "px";
+    wrap.setCssStyles({ height: h + "px" });
     requestAnimationFrame(() => {
-      wrap.style.height = "0px";
+      wrap.setCssStyles({ height: "0px" });
     });
   } else {
-    wrap.style.height = "0px";
+    wrap.setCssStyles({ height: "0px" });
     const target = wrap.scrollHeight;
     requestAnimationFrame(() => {
-      wrap.style.height = target + "px";
+      wrap.setCssStyles({ height: target + "px" });
     });
     const done = () => {
-      wrap.style.height = "auto";
+      wrap.setCssStyles({ height: "auto" });
       wrap.removeEventListener("transitionend", done);
     };
     wrap.addEventListener("transitionend", done);
@@ -399,13 +397,13 @@ function renderRails(
       boundsOf(spans).forEach((x, i) => {
         mkBtn(colRail, "ep-addbar", "plus", t("grid.addColumnHint"), () =>
           commit(() => ops.addColumnAt(section, i, isGrid))
-        ).style.left = off + x + "px";
+        ).setCssStyles({ left: off + x + "px" });
       });
       if (spans.length > 1)
         spans.forEach(([a, b], i) => {
           mkBtn(colRail, "ep-rmbar", "minus", t("grid.removeColumnHint"), () =>
             commit(() => ops.removeColumnAt(section, i, isGrid))
-          ).style.left = off + (a + b) / 2 + "px";
+          ).setCssStyles({ left: off + (a + b) / 2 + "px" });
         });
     }
 
@@ -416,12 +414,12 @@ function renderRails(
       boundsOf(spans).forEach((y, i) => {
         mkBtn(rowRail, "ep-addbar", "plus", t("grid.addRowHint"), () =>
           commit(() => ops.addRowAt(section, i))
-        ).style.top = off + y + "px";
+        ).setCssStyles({ top: off + y + "px" });
       });
       spans.forEach(([a, b], i) => {
         mkBtn(rowRail, "ep-rmbar", "minus", t("grid.removeRowHint"), () =>
           commit(() => ops.removeRowAt(section, i))
-        ).style.top = off + (a + b) / 2 + "px";
+        ).setCssStyles({ top: off + (a + b) / 2 + "px" });
       });
     }
   });

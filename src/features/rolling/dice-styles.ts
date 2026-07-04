@@ -138,22 +138,22 @@ const cube3d: DiceStyle = {
     if (SS > 1) {
       // The face box (and its clip-path coords) are SSx big; size the stage to
       // match and pre-apply the downscale so it never flashes at full size.
-      wrap.style.width = wrap.style.height = `${BOX * SS}px`;
-      wrap.style.transform = sc.trim();
+      wrap.setCssStyles({ width: `${BOX * SS}px`, height: `${BOX * SS}px` });
+      wrap.setCssStyles({ transform: sc.trim() });
     }
     const faceEls = solid.map((f, k) => {
       const fe = wrap.createDiv({ cls: "ep-solid-face" });
-      fe.style.transform = f.place;
+      fe.setCssStyles({ transform: f.place });
       const edge = fe.createDiv({ cls: "ep-solid-edge" });
-      edge.style.clipPath = f.clip;
+      edge.setCssStyles({ clipPath: f.clip });
       const fill = fe.createDiv({ cls: "ep-solid-fill" });
-      fill.style.clipPath = f.clipInner;
+      fill.setCssStyles({ clipPath: f.clipInner });
       // The number is a sibling of the (clipped) fill so it's never clipped, and
       // rotated so its top points at the face's pointiest vertex / edge midpoint.
       const num = fe.createDiv({ cls: "ep-solid-num", text: String(k + 1) });
       // em resolves before the 1/SS downscale, so size the digit SSx to keep it.
-      if (SS > 1) num.style.fontSize = `${(1.05 * SS).toFixed(3)}em`;
-      num.style.transform = `rotate(${f.numRot.toFixed(1)}deg)`;
+      if (SS > 1) num.setCssStyles({ fontSize: `${(1.05 * SS).toFixed(3)}em` });
+      num.setCssStyles({ transform: `rotate(${f.numRot.toFixed(1)}deg)` });
       return fe;
     });
     const idxOf = (v: number): number => (v >= 1 && v <= solid.length ? v - 1 : 0);
@@ -179,12 +179,12 @@ const cube3d: DiceStyle = {
         const tf = (ang: number): string => `${pre}${ang}${post}`;
         const end = tf(0); // exact landing pose (result face front, upright)
         if (reduce) {
-          wrap.style.transform = end; // no motion for reduced-motion users
+          wrap.setCssStyles({ transform: end }); // no motion for reduced-motion users
           return;
         }
         const spins = 3 + Math.floor(Math.random() * 2); // 3-4 full turns
         const dur = Math.max(450, Math.min(1600, durationMs || 700));
-        wrap.style.transform = tf(360 * spins); // wound-up start (no pre-animation flash)
+        wrap.setCssStyles({ transform: tf(360 * spins) }); // wound-up start (no pre-animation flash)
         wrap.animate(
           [
             // Decelerate quickly from the wound-up spin down onto the face...
@@ -201,7 +201,7 @@ const cube3d: DiceStyle = {
         const idx = idxOf(v);
         // roll() already lands the die (fill: forwards); set the pose too so it's
         // correct even if roll() was skipped, and brighten the landed face.
-        wrap.style.transform = landed(idx);
+        wrap.setCssStyles({ transform: landed(idx) });
         faceEls[idx]?.addClass("ep-solid-on");
         el.addClass("ep-settled");
       },

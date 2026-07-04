@@ -42,7 +42,7 @@ export class EPSettingTab extends PluginSettingTab {
     c.createEl("p", { text: t("settings.intro") });
 
     // -- types ---------------------------------------------------------------
-    c.createEl("h3", { text: t("settings.typesHeading") });
+    new Setting(c).setName(t("settings.typesHeading")).setHeading();
     c.createEl("p", { cls: "setting-item-description", text: t("settings.typesDesc") });
     for (const type of plugin.settings.types) {
       new Setting(c)
@@ -96,7 +96,7 @@ export class EPSettingTab extends PluginSettingTab {
 
     // -- defaults --------------------------------------------------------------
     const d = plugin.settings.defaults;
-    c.createEl("h3", { text: t("settings.defaultsHeading") });
+    new Setting(c).setName(t("settings.defaultsHeading")).setHeading();
     new Setting(c)
       .setName(t("settings.defaultDataType"))
       .setDesc(t("settings.defaultDataTypeDesc"))
@@ -121,7 +121,7 @@ export class EPSettingTab extends PluginSettingTab {
     });
 
     // -- new-section defaults ----------------------------------------------------
-    c.createEl("h3", { text: t("settings.newSectionHeading") });
+    new Setting(c).setName(t("settings.newSectionHeading")).setHeading();
     new Setting(c).setName(t("sectionOptions.columns")).addDropdown((dd) => {
       dd.addOption("1", "1");
       dd.addOption("2", "2");
@@ -155,7 +155,7 @@ export class EPSettingTab extends PluginSettingTab {
     });
 
     // -- modifier building blocks --------------------------------------------------
-    c.createEl("h3", { text: t("settings.derivationsHeading") });
+    new Setting(c).setName(t("settings.derivationsHeading")).setHeading();
     c.createEl("p", { cls: "setting-item-description", text: t("settings.derivationsDesc") });
     const applyDerivations = () => {
       plugin.rebuildRegistries();
@@ -229,7 +229,7 @@ export class EPSettingTab extends PluginSettingTab {
       );
 
     // -- short forms ------------------------------------------------------------------
-    c.createEl("h3", { text: t("settings.abbrHeading") });
+    new Setting(c).setName(t("settings.abbrHeading")).setHeading();
     c.createEl("p", { cls: "setting-item-description", text: t("settings.abbrDesc") });
     new Setting(c)
       .setName(t("settings.modSuffix"))
@@ -333,7 +333,7 @@ export class EPSettingTab extends PluginSettingTab {
     );
 
     // -- dice ----------------------------------------------------------------------
-    c.createEl("h3", { text: t("settings.diceHeading") });
+    new Setting(c).setName(t("settings.diceHeading")).setHeading();
     new Setting(c)
       .setName(t("settings.diceAnim"))
       .setDesc(t("settings.diceAnimDesc"))
@@ -476,7 +476,7 @@ export class EPSettingTab extends PluginSettingTab {
 
     // -- rolls: history & macros ---------------------------------------------
     if (plugin.settings.features["rolling"] !== false) {
-      c.createEl("h3", { text: t("settings.rollsHeading") });
+      new Setting(c).setName(t("settings.rollsHeading")).setHeading();
       new Setting(c)
         .setName(t("settings.rollHistory"))
         .setDesc(t("settings.rollHistoryDesc"))
@@ -510,7 +510,7 @@ export class EPSettingTab extends PluginSettingTab {
       );
 
       // Macros ("custom roll objects"): name - notation - mode - scope - delete.
-      c.createEl("h4", { text: t("settings.macrosHeading") });
+      new Setting(c).setName(t("settings.macrosHeading")).setHeading();
       c.createEl("p", { cls: "setting-item-description", text: t("settings.macrosDesc") });
       const macros = plugin.settings.macros;
       for (const m of [...macros]) {
@@ -572,7 +572,7 @@ export class EPSettingTab extends PluginSettingTab {
     }
 
     // -- typography ---------------------------------------------------------------
-    c.createEl("h3", { text: t("settings.typographyHeading") });
+    new Setting(c).setName(t("settings.typographyHeading")).setHeading();
     c.createEl("p", { cls: "setting-item-description", text: t("settings.typographyDesc") });
     new Setting(c).setName(t("settings.fontFamily")).addText((tx) => {
       tx.setPlaceholder(t("settings.fontPlaceholder"))
@@ -599,11 +599,11 @@ export class EPSettingTab extends PluginSettingTab {
     sizeRow(t("settings.listSize"), () => d.listSize, (n) => (d.listSize = n));
 
     // -- UI text (per-string overrides; English is the built-in locale) --------------
-    c.createEl("h3", { text: t("settings.languageHeading") });
+    new Setting(c).setName(t("settings.languageHeading")).setHeading();
     this.renderOverrideEditor(c);
 
     // -- Obsidian integration ----------------------------------------------------------
-    c.createEl("h3", { text: t("settings.obsidianHeading") });
+    new Setting(c).setName(t("settings.obsidianHeading")).setHeading();
     new Setting(c)
       .setName(t("settings.hideShown"))
       .setDesc(t("settings.hideShownDesc"))
@@ -624,7 +624,7 @@ export class EPSettingTab extends PluginSettingTab {
       });
 
     // -- always-hidden properties ---------------------------------------------------------
-    c.createEl("h3", { text: t("settings.hiddenHeading") });
+    new Setting(c).setName(t("settings.hiddenHeading")).setHeading();
     c.createEl("p", { cls: "setting-item-description", text: t("settings.hiddenDesc") });
     for (const k of plugin.settings.manualHide) {
       new Setting(c).setName(k).addButton((b) =>
@@ -648,7 +648,7 @@ export class EPSettingTab extends PluginSettingTab {
     );
 
     // -- features -----------------------------------------------------------------------
-    c.createEl("h3", { text: t("settings.featuresHeading") });
+    new Setting(c).setName(t("settings.featuresHeading")).setHeading();
     c.createEl("p", { cls: "setting-item-description", text: t("settings.featuresDesc") });
     for (const mod of plugin.featureModules) {
       new Setting(c)
@@ -690,7 +690,7 @@ export class EPSettingTab extends PluginSettingTab {
     const search = c.createEl("input", { cls: "ep-edit-input" });
     search.type = "text";
     search.placeholder = t("settings.overridesSearch");
-    search.style.width = "100%";
+    search.setCssStyles({ width: "100%" });
     const listEl = c.createDiv();
 
     const renderList = () => {
@@ -731,7 +731,7 @@ export class EPSettingTab extends PluginSettingTab {
     renderList();
 
     // -- reset (danger zone) -------------------------------------------------
-    c.createEl("h3", { text: t("settings.resetHeading") });
+    new Setting(c).setName(t("settings.resetHeading")).setHeading();
     new Setting(c)
       .setName(t("settings.resetAll"))
       .setDesc(t("settings.resetAllDesc"))

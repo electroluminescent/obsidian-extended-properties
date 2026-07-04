@@ -311,7 +311,7 @@ export function makeValEl(ctx: InlineCtx, file: TFile, body: string, onEditSourc
   if (entry?.icon) {
     const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });
     setIcon(ic, entry.icon);
-    if (entry.iconColor) ic.style.color = entry.iconColor as string;
+    if (entry.iconColor) ic.setCssStyles({ color: entry.iconColor as string });
   }
   // The property's full name, in small text before the value. For a cross-note
   // reference, show "<note>/<property>" - the accessor resolved to that note's
