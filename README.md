@@ -24,6 +24,8 @@ The core is domain-agnostic: it renders sections of property entries with rich v
    ```
 
    If a note has no matching Type yet, the panel lists the Types you've defined with one-click *Set Type* buttons. The first time you use a new Type it's adopted with an **empty** layout — there's no built-in default, so every type starts blank and is yours to shape. (Add or rename Types in **Settings → Extended Properties → Types**.)
+
+   ![Setting a note's Type](assets/gifs/Setting%20Type.gif)
 3. **Arrange the layout.** Click **Edit** at the top of the panel to enter arrangement mode: add sections and properties, drag the ⠿ handles to reorder, click a section title to rename it, and use the ⋯ / right-click *Configure* menus to set a property's data type, options and styling. Click **Done** to keep the changes (or undo the whole session).
 4. **Use it (locked mode).** Out of edit mode the panel is safe to interact with: tick checkboxes, nudge numbers with − / +, drag sliders, **double-click** a value to edit it inline, and **right-click** any entry for quick actions. Everything is keyboard-operable too — see [ACCESSIBILITY.md](ACCESSIBILITY.md).
 
@@ -59,14 +61,20 @@ Every property entry has a configurable data type that controls how it renders a
 
 - **Text**: Plain text with vault-wide property autocompletion, Obsidian link rendering (`[[note]]` support), and multi-line input.
 - **Number**: Integer values with toggleable - / + steppers, optional slider (linear, root, or exponential response curve), min/max bounds (blank bounds default to the property's range across all notes), and clamping. Roll buttons integrate with the dice system.
+
+  ![Number sliders and steppers](assets/gifs/Sliders.gif)
 - **Decimal**: Floating-point values with step controls and formula support.
 - **Derived**: A read-only number computed by the influence engine (see below) - the sum of other properties' contributions. Click the value to store a per-note override; clear it to return to the derived sum.
 - **Formula**: Advanced numeric type-enter an expression like `sqrt(x)` or `level * 2 - 1`. The expression maps to a slider, and typing a value solves the formula backwards to update the source property.
 - **List**: Renders as chips/tags. Edit inline or via a modal list editor.
+
+  ![Adding list properties](assets/gifs/Adding%20List%20Properties.gif)
 - **Checkbox**: Boolean toggles, editable in locked mode.
 - **Color**: Interactive color picker with multiple color space support (RGB, HSL, OKLCH, OKLab), eyedropper tool, out-of-gamut indicator, and direct hex/input entry. Select your preferred color space globally in settings.
 - **Image**: Render images from URLs or Obsidian embeds (`![[image]]`). Includes a zoomable modal viewer and height preset controls (small, medium, large, unlimited).
 - **Iframe**: Embed external web content with configurable width, height, and scaling.
+
+  ![An embedded iframe property](assets/gifs/Adding%20iframes.gif)
 - **Rating**: A star/pip rating with a configurable maximum; click to set, click again to clear. Stored as a plain number.
 - **Link**: An internal `[[note]]` reference rendered as a clickable link, with `[[`-triggered note autocomplete while editing.
 - **Unit**: A number carrying a unit suffix (e.g. `30 ft`, `5 kg`); the unit is stripped when the value is referenced in expressions or rolls.
@@ -101,17 +109,23 @@ Rows display the chain as short forms (`INT + DEX - AGE`), the dice breakdown (`
 Enable the rolling feature (default-on; toggle in Settings -> Features) for full dice support:
 
 - **Roll buttons** on numeric and derived properties roll the configured dice plus the entry's influence sum; the row reads like the roll (`STR + PRO 2d20 +5`).
+
+  ![Rolling dice from the sidebar](assets/gifs/Rolling%20Dice.gif)
 - **Preset dice**: d2, d4, d6, d8, d10, d12, d20, d100, or custom die sizes with any quantity - with isometric die icons in the dice menus and inline before the notation (sources in `assets/dice/`).
 - **Dice notation**: Type any roll in the dice roller - `2d6kh1 + 1d8 + DEX + 3` - with keep/drop (`kh`/`kl`/`dh`/`dl`), exploding (`!`/`!N`), reroll (`rN`/`roN`), success counting (`>=N`, `>N`, `<=N`, `<N`, `=N`) and property references (by name or short form). The chips and the text field are two views of one roll. A **function bar** inserts notation (die picker, keep/drop, explode, reroll, success), and references autocomplete as you type. Crit thresholds per die size and the fail-on-1 rule are configurable in Settings -> Dice.
 - **Roll history panel**: A durable, plugin-wide log that survives note switches and reloads (capped, configurable in Settings -> Rolls). Toggle the full chain vs. label & result, filter to the current note, clear it, and re-run any in-session roll by clicking it. *Export roll history to a note* writes it out as a Markdown table.
 - **Saved rolls (macros)**: Reusable "custom roll objects" - name a chain like `2d6 + 1d8 + 3`, then roll it from the dice roller, from the command palette (one command per macro), with optional per-type scope. Build one in the roller and *save as macro*, or manage them in Settings -> Rolls.
 - **Roll modes**: Normal, advantage (roll twice, take higher), and disadvantage (roll twice, take lower)-selectable per roll.
 - **Roll animation & on-screen dialog**: Rolls play out as cards in an on-screen dialog rather than a plain notice. Choose the per-die animation style - classic cycling numbers, a spinning icon, or true **3D polyhedra** (d4/d6/d8/d10/d12/d20, built from real solid geometry) that spin on a single axis, decelerate quickly with a slight bounce, and settle showing the result face - and set its duration. Cards can be kept (click to pin) or dismissed, and several rolls resolve side by side. While the dialog is enabled it *is* the result display, so the redundant result notification is suppressed (turn the animation off for a plain notice instead). On mobile, multiple roll cards wrap into as many columns as fit the screen and scroll vertically. Honors `prefers-reduced-motion` (the die lands without the spin).
+
+  ![The on-screen roll dialog](assets/gifs/Roll%20Dialog.gif)
 - **Skills value type (removed)**: The record-based list type was removed in v4.0. Existing data renders read-only - nothing is lost - and a one-click *Convert to property entries* turns each record into a derived property (proficiency becomes a togglable influence backed by a list property). New layouts use sections of derived properties instead.
 
 ### Inline Rolls & Properties
 
 Enable the inline feature (default-on; toggle in Settings -> Features) to project the sidebar's engine into note bodies (reading mode):
+
+![Embedding live properties and rolls in a note](assets/gifs/Embedding%20Properties%20in%20Notes.gif)
 
 - **Inline rolls**: `` `roll: 2d6+DEX` `` becomes a clickable roll chip - full dice notation and property references, with `` `roll(adv):` `` / `` `roll(dis):` `` for advantage/disadvantage. Rolls go through the same animation and history as the sidebar, with no view open.
 - **Inline properties**: `` `prop: Strength` `` shows the note's live value and is click-to-edit, writing back to frontmatter.
@@ -148,6 +162,8 @@ Share a layout or a single section as a portable JSON snippet. *Export* on a typ
 **Per-property styling**: Icon, icon color, label text override (alias), label size, value size, label color, value color, and show toggles (label, data type tag, when empty, modifier chain, dice, die icon, per-term chain visibility and checkboxes, Obsidian panel).
 
 **Tabbed section options**: A property's settings open inside its section's options modal, which has one tab per property plus the section itself. Ctrl/Cmd-click toggles tabs, Shift-click selects ranges, and dragging across tabs sweeps a selection - multi-selections show only the shared settings (identical across data types and sections), and only the settings you change are written to every selected tab. Tabs can be grouped by column, by row, or by data type.
+
+![The property and section options modal](assets/gifs/Property%20Settings%20Screen.gif)
 
 **Typography controls**: Set global font family, base font size, and separate sizing for labels, values, list items, and section titles-use 0 for theme defaults.
 
