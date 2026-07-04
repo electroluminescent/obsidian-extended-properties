@@ -12,6 +12,31 @@ The core is domain-agnostic: it renders sections of property entries with rich v
 
 **Manual:** download `main.js`, `manifest.json`, and `styles.css` from the [latest release](../../releases/latest) and copy them into `<your vault>/.obsidian/plugins/extended-properties/`, then enable the plugin in *Settings -> Community plugins*.
 
+## Getting started
+
+1. **Open the panel.** After enabling the plugin, click the **Extended Properties** ribbon icon on the left, or run **Extended Properties: Open sidebar** from the command palette (`Ctrl/Cmd-P`). The panel docks in the **right** sidebar and always reflects the note you're viewing.
+2. **Give a note a `Type`.** The panel activates for any note whose frontmatter has a `Type` property matching a configured type. Add one in the note's frontmatter:
+
+   ```yaml
+   ---
+   Type: Character
+   ---
+   ```
+
+   If a note has no matching Type yet, the panel lists the Types you've defined with one-click *Set Type* buttons. The first time you use a new Type it's adopted with an **empty** layout — there's no built-in default, so every type starts blank and is yours to shape. (Add or rename Types in **Settings → Extended Properties → Types**.)
+3. **Arrange the layout.** Click **Edit** at the top of the panel to enter arrangement mode: add sections and properties, drag the ⠿ handles to reorder, click a section title to rename it, and use the ⋯ / right-click *Configure* menus to set a property's data type, options and styling. Click **Done** to keep the changes (or undo the whole session).
+4. **Use it (locked mode).** Out of edit mode the panel is safe to interact with: tick checkboxes, nudge numbers with − / +, drag sliders, **double-click** a value to edit it inline, and **right-click** any entry for quick actions. Everything is keyboard-operable too — see [ACCESSIBILITY.md](ACCESSIBILITY.md).
+
+### Typical usage
+
+- **Build a sheet fast** with section templates: in edit mode the toolbar offers one-click sections (enable the bundled **D&D 5e** module in *Settings → Features* for *Ability scores*, *Skills*, *Vitals*, and more). Applying a template also creates the underlying properties on the note.
+- **Compute values**: give a *Number* or *Derived* property a list of *influences* — sum other properties (by name or short form) through formula blocks like *Ability modifier*. The row then reads like the math (`STR + PRO 2d20 +5`).
+- **Roll dice**: use the roll button on numeric/derived rows, the dice roller (type `2d6kh1 + DEX + 3`), or an inline `` `roll: 2d6+DEX` `` in a note body. Results play in the roll dialog and land in the history panel.
+- **Project into notes** (reading mode / Live Preview): `` `prop: Strength` `` (live & editable), `` `val: INT` `` (a value chip), `` `vals: HP` `` (a full interactive card), and charts like `` `radar: STR, DEX, CON, INT, WIS, CHA` ``.
+- **See everything at once**: run **Open type table** (ribbon + command) for a sortable, filterable, in-place-editable table of every note of a type.
+
+Most capabilities are optional modules — turn dice, inline projection, the D&D 5e sheet, sounds and more on or off in **Settings → Features** without touching your data.
+
 ## Features
 
 ### Core Sidebar UI
@@ -226,6 +251,17 @@ Toggle **Flat sections** in Style Settings (or add the `ep-flat-sections` class 
 - Feature modules extend entries using open-ended field storage; disabling a module preserves its data (displayed as "Unavailable" stubs until the module is re-enabled).
 - Migrations are applied automatically for schema updates, via a versioned, idempotent runner; the pre-migration `data.json` is backed up first (last 5 kept).
 - Customizations carry across plugin versions: settings written by a newer version (or by a third-party module) are preserved rather than dropped on load, and any version change snapshots `data.json` so an upgrade can always be rolled back.
+
+## Privacy & network use
+
+Extended Properties is built for private, offline use and complies with the [Obsidian developer policies](https://docs.obsidian.md/Developer+policies):
+
+- **No telemetry, analytics or tracking** — client- or server-side. Nothing about you or your vault is collected or transmitted.
+- **No ads, no account, no payment** — every feature works offline.
+- **No network requests of its own.** The plugin never contacts a remote service. The only outbound traffic is browser-level rendering of addresses *you* enter: the **Image** and **Iframe** value types display remote `https://` URLs you type (exactly like Obsidian's own `![](url)` embeds). Reference only local/vault content and the plugin is entirely offline.
+- **No file access outside your vault.** Data lives as plain YAML frontmatter in your notes, plus the plugin's own `data.json` and optional layout / snapshot / backup files inside the vault. Nothing is written elsewhere.
+- **Encryption stays local.** The optional AES-256-GCM property encryption holds your passphrase only in memory and stores only the ciphertext envelope in the note — no keys or plaintext leave the vault.
+- **No self-update or remote code.** The plugin downloads and executes nothing at runtime; `main.js` is a standard, un-obfuscated esbuild bundle of the public, MIT-licensed TypeScript source in this repository.
 
 ## Development
 

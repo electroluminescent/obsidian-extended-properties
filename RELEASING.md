@@ -84,3 +84,22 @@ the three assets attached, submit to the directory:
   `author`, `isDesktopOnly`.
 - [x] `authorUrl` set (`https://github.com/electroluminescent/obsidian-extended-properties`); `fundingUrl` optional - add if desired.
 - [ ] Repo pushed public with a published release.
+
+### Developer-policy compliance ([policy](https://docs.obsidian.md/Developer+policies))
+
+- [x] No obfuscation - `main.js` is a plain esbuild bundle of the public TS source.
+- [x] No dynamic or static ads anywhere.
+- [x] No client-side telemetry / analytics - the plugin makes no network calls at
+  all (verified: no `fetch` / `requestUrl` / `XMLHttpRequest` / `WebSocket` /
+  `sendBeacon` in `src/`).
+- [x] No plugin self-update mechanism and no remote code execution.
+- [x] No network use by the plugin itself; the Image / Iframe value types render
+  only user-entered URLs (browser-level), disclosed under *Privacy & network use*
+  in the README.
+- [x] No file access outside the vault (note frontmatter plus the plugin folder's
+  `data.json` / layouts / snapshots / backups only).
+- [x] No payment or account required; every feature works offline.
+- [x] MIT `LICENSE` present and indicated (README + `package.json`); no bundled
+  third-party runtime code (no runtime `dependencies`), so no attribution owed.
+- [x] "Obsidian" trademark used only descriptively; the plugin is named "Extended
+  Properties" (the `obsidian-` repo prefix is the recommended community convention).
