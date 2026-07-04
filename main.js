@@ -13120,7 +13120,7 @@ var SKILLS = [
 
 // src/features/dnd5e/sections.ts
 function prop(key, extra = {}) {
-  return { id: genId(), kind: "prop", key, ...extra };
+  return { id: genId(), kind: "prop", key, hideIfEmpty: false, ...extra };
 }
 function derived(key, mods2, extra = {}) {
   return prop(key, { dataType: "derived", hideIfEmpty: false, mods: mods2, ...extra });

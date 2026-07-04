@@ -23,9 +23,11 @@ import {
   ABILITIES, INIT_KEY, LEVEL_KEY, PROF_KEY, SAVE_PROF_KEY, SKILL_PROF_KEY, SKILLS,
 } from "./rules";
 
-/** Shorthand for a property entry. */
+/** Shorthand for a property entry. Template properties default to
+ *  visible-when-empty (`hideIfEmpty: false`), so a freshly-applied section shows
+ *  every field ready to fill in; pass `hideIfEmpty: true` in `extra` to override. */
 function prop(key: string, extra: Partial<Entry> = {}): Entry {
-  return { id: genId(), kind: "prop", key, ...extra } as Entry;
+  return { id: genId(), kind: "prop", key, hideIfEmpty: false, ...extra } as Entry;
 }
 
 /** Shorthand for a derived (computed) property entry. */
