@@ -9,5 +9,11 @@
   "dnd.tpl.contents": "Contents",
   "dnd.tpl.details": "Details",
   "dnd.tpl.vitals": "Vitals",
-  "dnd.tpl.abilities": "Ability scores"
+  "dnd.tpl.abilities": "Ability scores",
+  "dnd.tpl.description": "Description",
+  "dnd.tpl.spellcasting": "Spellcasting",
+  "dnd.tpl.proficiencies": "Proficiencies & Languages",
+  "dnd.tpl.features": "Features & Traits",
+  "dnd.tpl.equipment": "Equipment",
+  "dnd.tpl.personality": "Personality"
 }

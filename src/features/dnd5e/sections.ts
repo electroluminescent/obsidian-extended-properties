@@ -114,7 +114,7 @@ const builders: Record<string, (i18n: I18n) => Section> = {
     layoutMode: "columns",
     pin: "header",
     collapsible: true,
-    entries: [{ id: genId(), kind: "toc" }, { id: genId(), kind: "rolls" }],
+    entries: [{ id: genId(), kind: "toc" }],
   }),
   details: (i18n) => ({
     id: "details",
@@ -136,6 +136,13 @@ const builders: Record<string, (i18n: I18n) => Section> = {
       prop("Speed", { dataType: "number", min: 0, max: 200 }),
       prop("Current HP", { dataType: "number", min: 0, max: 9999 }),
       prop("Max HP", { dataType: "number", min: 0, max: 9999 }),
+      prop("Temporary HP", { dataType: "number", min: 0, max: 9999 }),
+      prop("Hit Dice"),
+      prop("Death Save Successes", { dataType: "number", min: 0, max: 3 }),
+      prop("Death Save Failures", { dataType: "number", min: 0, max: 3 }),
+      prop("Inspiration", { dataType: "checkbox" }),
+      prop("Passive Perception", { dataType: "number", min: 0, max: 40 }),
+      prop("Experience Points", { dataType: "number", min: 0, max: 999999 }),
       initiativeEntry(),
     ],
   }),
@@ -160,18 +167,87 @@ const builders: Record<string, (i18n: I18n) => Section> = {
     dividers: true,
     entries: skillsEntries(),
   }),
+  spellcasting: (i18n) => ({
+    id: "spellcasting",
+    title: i18n.t("dnd.tpl.spellcasting"),
+    columns: 2,
+    layoutMode: "columns",
+    dividers: true,
+    entries: [
+      prop("Spellcasting Ability"),
+      prop("Spell Save DC", { dataType: "number", min: 0, max: 40 }),
+      prop("Spell Attack Bonus", { dataType: "number", min: -5, max: 40 }),
+      prop("Cantrips Known", { dataType: "number", min: 0, max: 30 }),
+    ],
+  }),
+  proficiencies: (i18n) => ({
+    id: "proficiencies",
+    title: i18n.t("dnd.tpl.proficiencies"),
+    columns: 1,
+    dividers: true,
+    entries: [
+      prop("Armor Proficiencies", { dataType: "list" }),
+      prop("Weapon Proficiencies", { dataType: "list" }),
+      prop("Tool Proficiencies", { dataType: "list" }),
+      prop("Languages", { dataType: "list" }),
+    ],
+  }),
+  features: (i18n) => ({
+    id: "features",
+    title: i18n.t("dnd.tpl.features"),
+    columns: 1,
+    entries: [prop("Features & Traits")],
+  }),
+  equipment: (i18n) => ({
+    id: "equipment",
+    title: i18n.t("dnd.tpl.equipment"),
+    columns: 1,
+    dividers: true,
+    entries: [
+      prop("Equipment", { dataType: "list" }),
+      prop("Copper", { dataType: "number", min: 0 }),
+      prop("Silver", { dataType: "number", min: 0 }),
+      prop("Electrum", { dataType: "number", min: 0 }),
+      prop("Gold", { dataType: "number", min: 0 }),
+      prop("Platinum", { dataType: "number", min: 0 }),
+    ],
+  }),
+  personality: (i18n) => ({
+    id: "personality",
+    title: i18n.t("dnd.tpl.personality"),
+    columns: 1,
+    dividers: true,
+    entries: [prop("Personality Traits"), prop("Ideals"), prop("Bonds"), prop("Flaws")],
+  }),
+  description: (i18n) => ({
+    id: "description",
+    title: i18n.t("dnd.tpl.description"),
+    columns: 2,
+    layoutMode: "columns",
+    dividers: true,
+    entries: [prop("Age"), prop("Height"), prop("Weight"), prop("Eyes"), prop("Skin"), prop("Hair")],
+  }),
 };
 
 /** Template order shown in the toolbar (matches the preset layout order). */
-const TEMPLATE_ORDER = ["rolls", "details", "vitals", "abilities", "saves", "skills"];
+const TEMPLATE_ORDER = [
+  "rolls", "details", "description", "vitals", "abilities", "saves", "skills",
+  "spellcasting", "proficiencies", "features", "equipment", "personality",
+];
 
 const TEMPLATE_NAMES: Record<string, string> = {
   rolls: "dnd.tpl.contents",
   details: "dnd.tpl.details",
+  description: "dnd.tpl.description",
   vitals: "dnd.tpl.vitals",
   abilities: "dnd.tpl.abilities",
   saves: "dnd.savingThrows",
   skills: "dnd.skills",
+  spellcasting: "dnd.tpl.spellcasting",
+  proficiencies: "dnd.tpl.proficiencies",
+  features: "dnd.tpl.features",
+  equipment: "dnd.tpl.equipment",
+  personality: "dnd.tpl.personality",
 };
 
 /** Templates whose influences rely on the shared source entries. */
@@ -181,7 +257,7 @@ export function sectionTemplates(): SectionTemplateDef[] {
   return TEMPLATE_ORDER.map((id) => ({
     id,
     name: (i18n: I18n) => i18n.t(TEMPLATE_NAMES[id]),
-    build: (i18n: I18n) => builders[id](i18n),
+    build: (i18n: I18n) => ({ ...builders[id](i18n), hideIfEmpty: false }),
     sources: NEEDS_SOURCES.has(id) ? () => rollSources() : undefined,
   }));
 }
@@ -192,6 +268,6 @@ export const characterPreset: LayoutPresetDef = {
   name: (i18n) => i18n.t("dnd.presetName"),
   build: (i18n) => ({
     version: LAYOUT_VERSION,
-    sections: TEMPLATE_ORDER.map((id) => builders[id](i18n)),
+    sections: TEMPLATE_ORDER.map((id) => ({ ...builders[id](i18n), hideIfEmpty: false })),
   }),
 };

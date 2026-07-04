@@ -140,7 +140,10 @@ function applyMode(ast: RollAst, mode: RollMode): RollAst {
   if (first) {
     const dn = first.node as DiceNode;
     dn.count += 1;
-    dn.ops.push(mode === "advantage" ? { t: "dl", n: 1 } : { t: "dh", n: 1 });
+    // Prepend so the advantage/disadvantage drop removes the extra die BEFORE the
+    // roll's own keep/drop ops — appending would let a `kh1`/`kl1` collapse the
+    // pool to one die and then this drop remove it, leaving no value.
+    dn.ops.unshift(mode === "advantage" ? { t: "dl", n: 1 } : { t: "dh", n: 1 });
   }
   return { terms };
 }

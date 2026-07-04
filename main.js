@@ -10466,7 +10466,7 @@ function runRoll(svc2, i18n, o) {
       if (first) {
         const dn = first.node;
         dn.count += 1;
-        dn.ops = [...dn.ops, mode === "advantage" ? { t: "dl", n: 1 } : { t: "dh", n: 1 }];
+        dn.ops = [mode === "advantage" ? { t: "dl", n: 1 } : { t: "dh", n: 1 }, ...dn.ops];
       }
     }
     svc2.rollAst(n > 1 ? `${o.label} #${i + 1}` : o.label, ast, { stay: n > 1, tag, mode, resolve: o.resolve });
@@ -13240,7 +13240,7 @@ var builders = {
     layoutMode: "columns",
     pin: "header",
     collapsible: true,
-    entries: [{ id: genId(), kind: "toc" }, { id: genId(), kind: "rolls" }]
+    entries: [{ id: genId(), kind: "toc" }]
   }),
   details: (i18n) => ({
     id: "details",
@@ -13262,6 +13262,13 @@ var builders = {
       prop("Speed", { dataType: "number", min: 0, max: 200 }),
       prop("Current HP", { dataType: "number", min: 0, max: 9999 }),
       prop("Max HP", { dataType: "number", min: 0, max: 9999 }),
+      prop("Temporary HP", { dataType: "number", min: 0, max: 9999 }),
+      prop("Hit Dice"),
+      prop("Death Save Successes", { dataType: "number", min: 0, max: 3 }),
+      prop("Death Save Failures", { dataType: "number", min: 0, max: 3 }),
+      prop("Inspiration", { dataType: "checkbox" }),
+      prop("Passive Perception", { dataType: "number", min: 0, max: 40 }),
+      prop("Experience Points", { dataType: "number", min: 0, max: 999999 }),
       initiativeEntry()
     ]
   }),
@@ -13285,23 +13292,102 @@ var builders = {
     columns: 1,
     dividers: true,
     entries: skillsEntries()
+  }),
+  spellcasting: (i18n) => ({
+    id: "spellcasting",
+    title: i18n.t("dnd.tpl.spellcasting"),
+    columns: 2,
+    layoutMode: "columns",
+    dividers: true,
+    entries: [
+      prop("Spellcasting Ability"),
+      prop("Spell Save DC", { dataType: "number", min: 0, max: 40 }),
+      prop("Spell Attack Bonus", { dataType: "number", min: -5, max: 40 }),
+      prop("Cantrips Known", { dataType: "number", min: 0, max: 30 })
+    ]
+  }),
+  proficiencies: (i18n) => ({
+    id: "proficiencies",
+    title: i18n.t("dnd.tpl.proficiencies"),
+    columns: 1,
+    dividers: true,
+    entries: [
+      prop("Armor Proficiencies", { dataType: "list" }),
+      prop("Weapon Proficiencies", { dataType: "list" }),
+      prop("Tool Proficiencies", { dataType: "list" }),
+      prop("Languages", { dataType: "list" })
+    ]
+  }),
+  features: (i18n) => ({
+    id: "features",
+    title: i18n.t("dnd.tpl.features"),
+    columns: 1,
+    entries: [prop("Features & Traits")]
+  }),
+  equipment: (i18n) => ({
+    id: "equipment",
+    title: i18n.t("dnd.tpl.equipment"),
+    columns: 1,
+    dividers: true,
+    entries: [
+      prop("Equipment", { dataType: "list" }),
+      prop("Copper", { dataType: "number", min: 0 }),
+      prop("Silver", { dataType: "number", min: 0 }),
+      prop("Electrum", { dataType: "number", min: 0 }),
+      prop("Gold", { dataType: "number", min: 0 }),
+      prop("Platinum", { dataType: "number", min: 0 })
+    ]
+  }),
+  personality: (i18n) => ({
+    id: "personality",
+    title: i18n.t("dnd.tpl.personality"),
+    columns: 1,
+    dividers: true,
+    entries: [prop("Personality Traits"), prop("Ideals"), prop("Bonds"), prop("Flaws")]
+  }),
+  description: (i18n) => ({
+    id: "description",
+    title: i18n.t("dnd.tpl.description"),
+    columns: 2,
+    layoutMode: "columns",
+    dividers: true,
+    entries: [prop("Age"), prop("Height"), prop("Weight"), prop("Eyes"), prop("Skin"), prop("Hair")]
   })
 };
-var TEMPLATE_ORDER = ["rolls", "details", "vitals", "abilities", "saves", "skills"];
+var TEMPLATE_ORDER = [
+  "rolls",
+  "details",
+  "description",
+  "vitals",
+  "abilities",
+  "saves",
+  "skills",
+  "spellcasting",
+  "proficiencies",
+  "features",
+  "equipment",
+  "personality"
+];
 var TEMPLATE_NAMES = {
   rolls: "dnd.tpl.contents",
   details: "dnd.tpl.details",
+  description: "dnd.tpl.description",
   vitals: "dnd.tpl.vitals",
   abilities: "dnd.tpl.abilities",
   saves: "dnd.savingThrows",
-  skills: "dnd.skills"
+  skills: "dnd.skills",
+  spellcasting: "dnd.tpl.spellcasting",
+  proficiencies: "dnd.tpl.proficiencies",
+  features: "dnd.tpl.features",
+  equipment: "dnd.tpl.equipment",
+  personality: "dnd.tpl.personality"
 };
 var NEEDS_SOURCES = /* @__PURE__ */ new Set(["vitals", "saves", "skills"]);
 function sectionTemplates() {
   return TEMPLATE_ORDER.map((id) => ({
     id,
     name: (i18n) => i18n.t(TEMPLATE_NAMES[id]),
-    build: (i18n) => builders[id](i18n),
+    build: (i18n) => ({ ...builders[id](i18n), hideIfEmpty: false }),
     sources: NEEDS_SOURCES.has(id) ? () => rollSources() : void 0
   }));
 }
@@ -13310,7 +13396,7 @@ var characterPreset = {
   name: (i18n) => i18n.t("dnd.presetName"),
   build: (i18n) => ({
     version: LAYOUT_VERSION,
-    sections: TEMPLATE_ORDER.map((id) => builders[id](i18n))
+    sections: TEMPLATE_ORDER.map((id) => ({ ...builders[id](i18n), hideIfEmpty: false }))
   })
 };
 
@@ -13326,7 +13412,13 @@ var strings_default2 = {
   "dnd.tpl.contents": "Contents",
   "dnd.tpl.details": "Details",
   "dnd.tpl.vitals": "Vitals",
-  "dnd.tpl.abilities": "Ability scores"
+  "dnd.tpl.abilities": "Ability scores",
+  "dnd.tpl.description": "Description",
+  "dnd.tpl.spellcasting": "Spellcasting",
+  "dnd.tpl.proficiencies": "Proficiencies & Languages",
+  "dnd.tpl.features": "Features & Traits",
+  "dnd.tpl.equipment": "Equipment",
+  "dnd.tpl.personality": "Personality"
 };
 
 // src/features/dnd5e/strings.ts
@@ -13985,7 +14077,7 @@ function applyMode(ast, mode) {
   if (first) {
     const dn = first.node;
     dn.count += 1;
-    dn.ops.push(mode === "advantage" ? { t: "dl", n: 1 } : { t: "dh", n: 1 });
+    dn.ops.unshift(mode === "advantage" ? { t: "dl", n: 1 } : { t: "dh", n: 1 });
   }
   return { terms };
 }

@@ -89,7 +89,9 @@ export function runRoll(
       if (first) {
         const dn = first.node as DiceNode;
         dn.count += 1;
-        dn.ops = [...dn.ops, mode === "advantage" ? { t: "dl", n: 1 } : { t: "dh", n: 1 }];
+        // Prepend so the adv/dis drop removes the extra die before the roll's own
+        // keep/drop ops (appending can collapse a kh1/kl1 roll to no value).
+        dn.ops = [mode === "advantage" ? { t: "dl", n: 1 } : { t: "dh", n: 1 }, ...dn.ops];
       }
     }
     svc.rollAst(n > 1 ? `${o.label} #${i + 1}` : o.label, ast, { stay: n > 1, tag, mode, resolve: o.resolve });
