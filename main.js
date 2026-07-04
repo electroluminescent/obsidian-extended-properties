@@ -119,6 +119,12 @@ var en_default = {
   "a11y.removeItem": "Remove {item}",
   "a11y.toggleSection": "Toggle section {name}",
   "a11y.entryMenu": "Entry options",
+  "settings.resetHeading": "Reset",
+  "settings.resetAll": "Reset plugin",
+  "settings.resetAllDesc": "Reset all Extended Properties settings, types and layouts to their defaults. Your current configuration is backed up to the plugin's backups folder first. Your note properties (frontmatter) are not touched. Tip: hold Shift while clicking to skip the confirmation.",
+  "settings.resetAllBtn": "Reset plugin",
+  "settings.resetAllConfirm": "Reset all Extended Properties settings, types and layouts to defaults? Your current configuration is backed up first; your note data is left untouched.",
+  "settings.resetAllDone": "Extended Properties was reset to defaults.",
   "section.namePlaceholder": "Section",
   "section.newName": "New section",
   "section.untitled": "Untitled",
@@ -2915,12 +2921,39 @@ function bindRename(span, current, placeholder, tooltip, commit2) {
 
 // src/ui/modals/dialogs.ts
 var import_obsidian5 = require("obsidian");
+
+// src/ui/modifiers.ts
+var shift = false;
+function isShiftHeld() {
+  return shift;
+}
+function trackModifiers(plugin) {
+  const upd = (e) => {
+    shift = e.shiftKey;
+  };
+  plugin.registerDomEvent(document, "keydown", upd, true);
+  plugin.registerDomEvent(document, "keyup", upd, true);
+  plugin.registerDomEvent(document, "mousedown", upd, true);
+  plugin.registerDomEvent(window, "blur", () => {
+    shift = false;
+  });
+}
+
+// src/ui/modals/dialogs.ts
 var ConfirmModal = class extends import_obsidian5.Modal {
   constructor(app, i18n, message, onConfirm) {
     super(app);
     this.i18n = i18n;
     this.message = message;
     this.onConfirm = onConfirm;
+  }
+  /** Shift-click a confirming button to skip the dialog and confirm directly. */
+  open() {
+    if (isShiftHeld()) {
+      this.onConfirm();
+      return;
+    }
+    super.open();
   }
   onOpen() {
     this.contentEl.createEl("p", { text: this.message });
@@ -2941,6 +2974,14 @@ var ExitEditModal = class extends import_obsidian5.Modal {
     this.i18n = i18n;
     this.onSave = onSave;
     this.onDiscard = onDiscard;
+  }
+  /** Shift-click to skip the prompt and take the default (Save). */
+  open() {
+    if (isShiftHeld()) {
+      this.onSave();
+      return;
+    }
+    super.open();
   }
   onOpen() {
     const { contentEl } = this;
@@ -2968,6 +3009,14 @@ var ConfirmChangesModal = class extends import_obsidian5.Modal {
     this.i18n = i18n;
     this.onKeep = onKeep;
     this.onUndo = onUndo;
+  }
+  /** Shift-click to skip the prompt and take the default (Keep changes). */
+  open() {
+    if (isShiftHeld()) {
+      this.onKeep();
+      return;
+    }
+    super.open();
   }
   onOpen() {
     const c = this.contentEl;
@@ -11309,6 +11358,17 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
     };
     search.addEventListener("input", renderList);
     renderList();
+    c.createEl("h3", { text: t("settings.resetHeading") });
+    new import_obsidian30.Setting(c).setName(t("settings.resetAll")).setDesc(t("settings.resetAllDesc")).addButton(
+      (b) => b.setButtonText(t("settings.resetAllBtn")).setWarning().onClick(
+        () => new ConfirmModal(this.app, i18n, t("settings.resetAllConfirm"), () => {
+          void plugin.resetAll().then(() => {
+            new import_obsidian30.Notice(t("settings.resetAllDone"));
+            this.display();
+          });
+        }).open()
+      )
+    );
   }
 };
 
@@ -14600,6 +14660,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian42.Plugin {
     var _a, _b, _c;
     this.props = new PropertyIndex(this.app);
     registerDiceIcons();
+    trackModifiers(this);
     this.i18n.register("en", coreEn, "English");
     let data = null;
     try {
@@ -15063,6 +15124,22 @@ var ExtendedPropertiesPlugin = class extends import_obsidian42.Plugin {
   resetLayout(typeKey) {
     this.settings.layouts[typeKey] = this.defaultLayout();
     this.saveSettings();
+    this.refreshViews();
+  }
+  /** Reset the plugin completely: all settings, types and layouts back to their
+   *  defaults. The current `data.json` is backed up first (to the plugin's
+   *  `backups/` folder) so a reset can be recovered. */
+  async resetAll() {
+    try {
+      await this.backupData(this.settings);
+    } catch (e) {
+      console.error("Extended Properties: pre-reset backup failed", e);
+    }
+    this.settings = normalizeSettings(null, () => ({ version: 4, sections: [] }));
+    this.rebuildRegistries();
+    this.settings = normalizeSettings(null, () => this.defaultLayout());
+    await this.saveSettings();
+    this.rebuildRegistries();
     this.refreshViews();
   }
   refreshViews() {

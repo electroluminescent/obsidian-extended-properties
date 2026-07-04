@@ -729,5 +729,24 @@ export class EPSettingTab extends PluginSettingTab {
     };
     search.addEventListener("input", renderList);
     renderList();
+
+    // -- reset (danger zone) -------------------------------------------------
+    c.createEl("h3", { text: t("settings.resetHeading") });
+    new Setting(c)
+      .setName(t("settings.resetAll"))
+      .setDesc(t("settings.resetAllDesc"))
+      .addButton((b) =>
+        b
+          .setButtonText(t("settings.resetAllBtn"))
+          .setWarning()
+          .onClick(() =>
+            new ConfirmModal(this.app, i18n, t("settings.resetAllConfirm"), () => {
+              void plugin.resetAll().then(() => {
+                new Notice(t("settings.resetAllDone"));
+                this.display();
+              });
+            }).open()
+          )
+      );
   }
 }

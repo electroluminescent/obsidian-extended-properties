@@ -6,11 +6,21 @@
 import { App, Modal, Setting } from "obsidian";
 import type { I18n } from "../../i18n/i18n";
 import { ValueSuggest } from "../components/suggest";
+import { isShiftHeld } from "../modifiers";
 
 /** "Are you sure?" with Cancel / Confirm. */
 export class ConfirmModal extends Modal {
   constructor(app: App, private i18n: I18n, private message: string, private onConfirm: () => void) {
     super(app);
+  }
+
+  /** Shift-click a confirming button to skip the dialog and confirm directly. */
+  open(): void {
+    if (isShiftHeld()) {
+      this.onConfirm();
+      return;
+    }
+    super.open();
   }
 
   onOpen(): void {
@@ -34,6 +44,15 @@ export class ConfirmModal extends Modal {
 export class ExitEditModal extends Modal {
   constructor(app: App, private i18n: I18n, private onSave: () => void, private onDiscard: () => void) {
     super(app);
+  }
+
+  /** Shift-click to skip the prompt and take the default (Save). */
+  open(): void {
+    if (isShiftHeld()) {
+      this.onSave();
+      return;
+    }
+    super.open();
   }
 
   onOpen(): void {
@@ -65,6 +84,15 @@ export class ExitEditModal extends Modal {
 export class ConfirmChangesModal extends Modal {
   constructor(app: App, private i18n: I18n, private onKeep: () => void, private onUndo: () => void) {
     super(app);
+  }
+
+  /** Shift-click to skip the prompt and take the default (Keep changes). */
+  open(): void {
+    if (isShiftHeld()) {
+      this.onKeep();
+      return;
+    }
+    super.open();
   }
 
   onOpen(): void {

@@ -114,6 +114,10 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
 .ep-section-title { font-size: var(--ep-size-title, var(--font-ui-smaller)); text-transform: uppercase; letter-spacing: 0.05em; color: var(--ep-accent); font-weight: 700; cursor: pointer; padding: 3px 0; display: flex; align-items: center; gap: 5px; }
 /* non-sticky section headers pin while the section is in view (rounded corners persist) */
 .ep-flow-section > .ep-section-title { position: sticky; top: var(--ep-sticky-top, 0); z-index: 2; background: var(--ep-title-bg); margin: -4px -8px 4px; padding: 5px 8px; border-radius: 7px 7px 0 0; }
+/* Pinned top/bottom zones scroll internally when they hold several sections;
+   keep each pinned section's header stuck to the top of its zone so it stays
+   clear which section is being navigated while scrolling the zone. */
+.ep-sticky-zone .ep-section-title, .ep-footer-zone .ep-section-title { position: sticky; top: 0; z-index: 2; background: var(--ep-title-bg); margin: -4px -8px 4px; padding: 5px 8px; border-radius: 7px 7px 0 0; }
 .ep-spacer { flex: 1; }
 .ep-sec-name { text-transform: none; letter-spacing: 0; }
 .ep-chev { display: inline-flex; align-items: center; color: var(--text-muted); transition: transform .2s ease; }
@@ -265,7 +269,10 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
 .ep-picon, .ep-ticon { margin-right: -2px; }
 
 /* round 10 additions */
-.ep-sidebar { padding-top: 0 !important; }
+/* Zero top + bottom padding so the sticky header sits flush at the top and the
+   sticky footer zone fills flush to the bottom edge (no transparent gap below it
+   through which scrolled content would show). */
+.ep-sidebar { padding-top: 0 !important; padding-bottom: 0 !important; }
 
 /* round 12 additions */
 .ep-grid.ep-mode-list { display: flex; flex-direction: column; }

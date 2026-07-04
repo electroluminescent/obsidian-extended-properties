@@ -26,6 +26,7 @@ import { registerDiceIcons } from "./ui/render/dice-icons";
 import { SidebarView, VIEW_TYPE } from "./ui/view";
 import { TableView, VIEW_TYPE_TABLE } from "./ui/table-view";
 import { EPSettingTab } from "./ui/settings-tab";
+import { trackModifiers } from "./ui/modifiers";
 import { TextPromptModal } from "./ui/modals/dialogs";
 import { SnapshotPickerModal } from "./ui/modals/snapshot-picker";
 import { augmentPropsMenu, showPropMenu } from "./ui/menus/prop-panel-menu";
@@ -87,6 +88,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
   async onload(): Promise<void> {
     this.props = new PropertyIndex(this.app);
     registerDiceIcons();
+    trackModifiers(this); // Shift-to-bypass-confirmations power-user shortcut
 
     // Settings must exist before registries: feature toggles live there.
     // The default layout depends on registries, so bootstrap in two steps:
@@ -613,6 +615,24 @@ export default class ExtendedPropertiesPlugin extends Plugin {
   resetLayout(typeKey: string): void {
     this.settings.layouts[typeKey] = this.defaultLayout();
     this.saveSettings();
+    this.refreshViews();
+  }
+
+  /** Reset the plugin completely: all settings, types and layouts back to their
+   *  defaults. The current `data.json` is backed up first (to the plugin's
+   *  `backups/` folder) so a reset can be recovered. */
+  async resetAll(): Promise<void> {
+    try {
+      await this.backupData(this.settings);
+    } catch (e) {
+      console.error("Extended Properties: pre-reset backup failed", e);
+    }
+    // Mirror onload's two-pass settings bootstrap, but from empty (defaults).
+    this.settings = normalizeSettings(null, () => ({ version: 4, sections: [] }));
+    this.rebuildRegistries();
+    this.settings = normalizeSettings(null, () => this.defaultLayout());
+    await this.saveSettings();
+    this.rebuildRegistries();
     this.refreshViews();
   }
 
