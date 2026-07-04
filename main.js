@@ -2487,24 +2487,33 @@ var PropertyIndex = class {
 };
 
 // src/core/hide-service.ts
-var HIDE_STYLE_ID = "ep-hide-properties";
 var HideService = class {
   constructor(host) {
     this.host = host;
-    this.styleEl = null;
+    this.keys = /* @__PURE__ */ new Set();
+    this.observer = null;
+    this.raf = 0;
   }
-  /** Create the style element. Returns a disposer for `Plugin.register`. */
+  /** Start hiding. Returns a disposer for `Plugin.register`. */
   install() {
-    this.styleEl = document.head.createEl("style", { attr: { id: HIDE_STYLE_ID } });
-    this.update();
+    this.recompute();
+    this.observer = new MutationObserver(() => this.schedule());
+    this.observer.observe(activeDocument.body, { childList: true, subtree: true });
+    this.apply();
     return () => {
       var _a;
-      return (_a = this.styleEl) == null ? void 0 : _a.remove();
+      (_a = this.observer) == null ? void 0 : _a.disconnect();
+      this.observer = null;
+      if (this.raf) activeWindow.cancelAnimationFrame(this.raf);
+      this.unapplyAll();
     };
   }
-  /** Recompute the CSS from current settings. Call after every save. */
+  /** Recompute the hidden set from settings and re-apply. Call after each save. */
   update() {
-    if (!this.styleEl) return;
+    this.recompute();
+    this.apply();
+  }
+  recompute() {
     const s = this.host.settings;
     const keys = /* @__PURE__ */ new Set();
     if (s.hideShown) {
@@ -2514,8 +2523,24 @@ var HideService = class {
             if (e.kind === "prop" && e.key && !e.showInObsidian) keys.add(e.key.toLowerCase());
     }
     for (const k of s.manualHide || []) keys.add(k.toLowerCase());
-    const esc = (k) => k.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-    this.styleEl.textContent = [...keys].map((k) => `.metadata-property[data-property-key="${esc(k)}"]{display:none!important;}`).join("\n");
+    this.keys = keys;
+  }
+  /** Coalesce bursts of DOM mutations into a single apply on the next frame. */
+  schedule() {
+    if (this.raf) return;
+    this.raf = activeWindow.requestAnimationFrame(() => {
+      this.raf = 0;
+      this.apply();
+    });
+  }
+  apply() {
+    activeDocument.querySelectorAll(".metadata-property[data-property-key]").forEach((row) => {
+      const key = (row.getAttribute("data-property-key") || "").toLowerCase();
+      row.toggleClass("ep-prop-hidden", this.keys.has(key));
+    });
+  }
+  unapplyAll() {
+    activeDocument.querySelectorAll(".metadata-property.ep-prop-hidden").forEach((row) => row.removeClass("ep-prop-hidden"));
   }
   /** Whether `key` is currently hidden (manual or via a sidebar entry). */
   isHidden(key) {

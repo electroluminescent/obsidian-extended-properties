@@ -7,13 +7,12 @@
  *    in a sidebar layout is hidden from Obsidian unless the entry opts out
  *    via `showInObsidian`.
  *
- * Hiding is implemented with an injected `<style>` element so it applies to
- * every properties panel without patching Obsidian internals.
+ * Hiding is implemented by toggling a CSS class (`ep-prop-hidden`, styled in
+ * styles.css) on Obsidian's property rows as they render — so no `<style>`
+ * element is injected and no Obsidian internals are patched.
  */
 
 import type { EPSettings } from "./model";
-
-const HIDE_STYLE_ID = "ep-hide-properties";
 
 /** Host hooks: persistence and view refresh are owned by the plugin. */
 export interface HideServiceHost {
@@ -23,20 +22,34 @@ export interface HideServiceHost {
 }
 
 export class HideService {
-  private styleEl: HTMLStyleElement | null = null;
+  private keys = new Set<string>();
+  private observer: MutationObserver | null = null;
+  private raf = 0;
 
   constructor(private host: HideServiceHost) {}
 
-  /** Create the style element. Returns a disposer for `Plugin.register`. */
+  /** Start hiding. Returns a disposer for `Plugin.register`. */
   install(): () => void {
-    this.styleEl = document.head.createEl("style", { attr: { id: HIDE_STYLE_ID } });
-    this.update();
-    return () => this.styleEl?.remove();
+    this.recompute();
+    // Re-apply the hide class whenever the properties panel re-renders.
+    this.observer = new MutationObserver(() => this.schedule());
+    this.observer.observe(activeDocument.body, { childList: true, subtree: true });
+    this.apply();
+    return () => {
+      this.observer?.disconnect();
+      this.observer = null;
+      if (this.raf) activeWindow.cancelAnimationFrame(this.raf);
+      this.unapplyAll();
+    };
   }
 
-  /** Recompute the CSS from current settings. Call after every save. */
+  /** Recompute the hidden set from settings and re-apply. Call after each save. */
   update(): void {
-    if (!this.styleEl) return;
+    this.recompute();
+    this.apply();
+  }
+
+  private recompute(): void {
     const s = this.host.settings;
     const keys = new Set<string>();
     if (s.hideShown) {
@@ -46,10 +59,31 @@ export class HideService {
             if (e.kind === "prop" && e.key && !e.showInObsidian) keys.add(e.key.toLowerCase());
     }
     for (const k of s.manualHide || []) keys.add(k.toLowerCase());
-    const esc = (k: string) => k.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-    this.styleEl.textContent = [...keys]
-      .map((k) => `.metadata-property[data-property-key="${esc(k)}"]{display:none!important;}`)
-      .join("\n");
+    this.keys = keys;
+  }
+
+  /** Coalesce bursts of DOM mutations into a single apply on the next frame. */
+  private schedule(): void {
+    if (this.raf) return;
+    this.raf = activeWindow.requestAnimationFrame(() => {
+      this.raf = 0;
+      this.apply();
+    });
+  }
+
+  private apply(): void {
+    activeDocument
+      .querySelectorAll<HTMLElement>(".metadata-property[data-property-key]")
+      .forEach((row) => {
+        const key = (row.getAttribute("data-property-key") || "").toLowerCase();
+        row.toggleClass("ep-prop-hidden", this.keys.has(key));
+      });
+  }
+
+  private unapplyAll(): void {
+    activeDocument
+      .querySelectorAll<HTMLElement>(".metadata-property.ep-prop-hidden")
+      .forEach((row) => row.removeClass("ep-prop-hidden"));
   }
 
   /** Whether `key` is currently hidden (manual or via a sidebar entry). */
