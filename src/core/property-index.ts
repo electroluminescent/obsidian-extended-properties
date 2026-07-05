@@ -197,10 +197,10 @@ export class PropertyIndex {
   knownProps(): string[] {
     const names = new Set<string>();
     try {
-      const mc: any = this.app.metadataCache;
+      const mc = this.app.metadataCache as { getAllPropertyInfos?: () => Record<string, { name?: string }> | undefined };
       const infos = mc.getAllPropertyInfos?.();
       if (infos) for (const k of Object.keys(infos)) names.add(infos[k]?.name ?? k);
-      const mt: any = (this.app as any).metadataTypeManager;
+      const mt = (this.app as { metadataTypeManager?: { getAssignedType?: (k: string) => string | undefined; properties?: Record<string, { name?: string; type?: string }> } }).metadataTypeManager;
       if (mt?.properties) for (const k of Object.keys(mt.properties)) names.add(mt.properties[k]?.name ?? k);
     } catch {
       /* fall through to the scan */
@@ -260,7 +260,7 @@ export class PropertyIndex {
    */
   obsidianType(key: string): string | null {
     try {
-      const mt: any = (this.app as any).metadataTypeManager;
+      const mt = (this.app as { metadataTypeManager?: { getAssignedType?: (k: string) => string | undefined; properties?: Record<string, { name?: string; type?: string }> } }).metadataTypeManager;
       const t: string | undefined = mt?.getAssignedType?.(key) ?? mt?.properties?.[key.toLowerCase()]?.type;
       if (!t) return null;
       if (t === "number") return "number";

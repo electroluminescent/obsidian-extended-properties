@@ -40,8 +40,8 @@ export function showPropMenu(host: PropPanelHost, e: MouseEvent, key: string): v
   if (fm) for (const k of Object.keys(fm)) if (k.toLowerCase() !== "position") noteKeys.add(k);
   const typeValues: string[] = [];
   if (fm) {
-    const raw: any = (fm as any)["Type"] ?? (fm as any)["type"];
-    if (Array.isArray(raw)) raw.forEach((x) => typeValues.push(String(x)));
+    const raw: unknown = (fm as Record<string, unknown>)["Type"] ?? (fm as Record<string, unknown>)["type"];
+    if (Array.isArray(raw)) (raw as unknown[]).forEach((x) => typeValues.push(String(x)));
     else if (raw != null) typeValues.push(String(raw));
   }
   const typeKey = settings.types.find((tp) => typeValues.some((x) => x.toLowerCase() === tp.toLowerCase()))?.toLowerCase();
@@ -64,14 +64,15 @@ export function showPropMenu(host: PropPanelHost, e: MouseEvent, key: string): v
   if (groups.length || inNotes.length || others.length) {
     menu.addItem((i) => {
       i.setTitle(t("propPanel.hideShow")).setIcon("eye");
-      const sub = (i as any).setSubmenu ? (i as any).setSubmenu() : null;
+      const withSub = i as { setSubmenu?: () => Menu };
+      const sub = withSub.setSubmenu ? withSub.setSubmenu() : null;
       if (!sub) return;
       const addGroup = (title: string, keys: string[]) => {
         if (!keys.length) return;
-        sub.addItem((h: any) => h.setTitle(title).setDisabled(true));
+        sub.addItem((h) => h.setTitle(title).setDisabled(true));
         for (const k of [...new Set(keys)].sort((a, b) => a.localeCompare(b))) {
           const kHidden = hide.isHidden(k);
-          sub.addItem((si: any) =>
+          sub.addItem((si) =>
             si.setTitle(kHidden ? t("propPanel.showKey", { key: k }) : t("propPanel.hideKey", { key: k }))
               .setIcon(kHidden ? "eye" : "eye-off")
               .onClick(() => {

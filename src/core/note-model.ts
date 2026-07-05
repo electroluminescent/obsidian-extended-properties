@@ -221,7 +221,7 @@ export class NoteModel {
     this.clearBatch(file.path);
     this.stampWrite(file);
     try {
-      await this.app.fileManager.processFrontMatter(file, (fm) => {
+      await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
         for (const k of keys) {
           const cur = this.raw[k];
           if (cur === undefined) delete fm[k];
@@ -324,7 +324,7 @@ export class NoteModel {
         const f = this.app.vault.getAbstractFileByPath(path);
         if (!(f instanceof TFile)) return;
         try {
-          await this.app.fileManager.processFrontMatter(f, (fm) => {
+          await this.app.fileManager.processFrontMatter(f, (fm: Record<string, unknown>) => {
             for (const { key, old } of changes) {
               if (old === undefined) delete fm[key];
               else fm[key] = old;
@@ -476,7 +476,7 @@ export class NoteFacade {
     this.lastWriteAt.set(file.path, Date.now());
     this.bases.set(file.path, file.stat?.mtime ?? 0);
     this.app.fileManager
-      .processFrontMatter(file, (fm) => {
+      .processFrontMatter(file, (fm: Record<string, unknown>) => {
         for (const [k, v] of m) {
           if (v === undefined) delete fm[k];
           else fm[k] = v;

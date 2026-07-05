@@ -607,7 +607,7 @@ export class SidebarView extends ItemView implements ViewCtx {
       () => {
         // Undo: restore the layout snapshot and revert edited values.
         if (this.layoutSnapshot && this.activeTypeKey) {
-          this.settings.layouts[this.activeTypeKey] = JSON.parse(this.layoutSnapshot);
+          this.settings.layouts[this.activeTypeKey] = JSON.parse(this.layoutSnapshot) as Layout;
           void this.plugin.saveSettings();
         }
         // Reload only after every revert write has landed; the metadata echo
@@ -798,7 +798,6 @@ export class SidebarView extends ItemView implements ViewCtx {
           });
         }
       }
-      range.detach();
       void sec.offsetWidth;
       sec.removeClass("ep-measuring");
       if (id) this.respSig.set(id, sig);

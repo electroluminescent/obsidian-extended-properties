@@ -39,7 +39,7 @@ export interface TransferDoc {
 }
 
 function clone<T>(x: T): T {
-  return JSON.parse(JSON.stringify(x));
+  return JSON.parse(JSON.stringify(x)) as T;
 }
 
 /** Derivation ids referenced by any influence's `mode` (excluding built-ins). */

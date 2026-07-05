@@ -1674,9 +1674,10 @@ function cleanLayouts(raw) {
   }
   return out;
 }
-function normalizeSettings(data, defaultLayout) {
+function normalizeSettings(raw, defaultLayout) {
   var _a, _b, _c;
   const s = defaultSettings();
+  const data = raw && typeof raw === "object" ? raw : null;
   if (data) {
     if (data.layouts && data.types) {
       s.types = cleanTypes(data.types);
@@ -1689,11 +1690,15 @@ function normalizeSettings(data, defaultLayout) {
     if (data.defaults) s.defaults = { ...DEFAULT_DEFAULTS, ...data.defaults };
     if (Array.isArray(data.manualHide)) s.manualHide = data.manualHide;
     if (typeof data.propMenu === "boolean") s.propMenu = data.propMenu;
-    if (data.stringOverrides && typeof data.stringOverrides === "object") s.stringOverrides = data.stringOverrides;
+    if (data.stringOverrides && typeof data.stringOverrides === "object")
+      s.stringOverrides = data.stringOverrides;
     if (data.features && typeof data.features === "object") s.features = data.features;
     if (Array.isArray(data.derivations))
-      s.derivations = data.derivations.filter((d) => d && typeof d.id === "string");
-    if (data.sourceAbbrs && typeof data.sourceAbbrs === "object") s.sourceAbbrs = data.sourceAbbrs;
+      s.derivations = data.derivations.filter(
+        (d) => !!d && typeof d.id === "string"
+      );
+    if (data.sourceAbbrs && typeof data.sourceAbbrs === "object")
+      s.sourceAbbrs = data.sourceAbbrs;
     if (typeof data.modDepth === "number" && data.modDepth >= 0)
       s.modDepth = Math.min(32, Math.floor(data.modDepth));
     if (typeof data.diceAnim === "boolean") s.diceAnim = data.diceAnim;
@@ -1712,16 +1717,23 @@ function normalizeSettings(data, defaultLayout) {
     if (typeof data.modsOffProp === "string" && data.modsOffProp.trim())
       s.modsOffProp = data.modsOffProp.trim();
     if (Array.isArray(data.macros))
-      s.macros = data.macros.filter((m) => m && typeof m.id === "string" && typeof m.name === "string").map((m) => ({
-        id: m.id,
-        name: m.name,
-        segs: Array.isArray(m.segs) ? m.segs.filter((x) => x && typeof x === "object") : [],
-        mode: m.mode === "advantage" || m.mode === "disadvantage" ? m.mode : void 0,
-        times: typeof m.times === "number" && m.times > 1 ? Math.min(20, Math.floor(m.times)) : void 0,
-        typeKey: typeof m.typeKey === "string" && m.typeKey ? m.typeKey : void 0
-      }));
+      s.macros = data.macros.filter(
+        (m) => !!m && typeof m.id === "string" && typeof m.name === "string"
+      ).map((m) => {
+        const o = m;
+        return {
+          id: o.id,
+          name: o.name,
+          segs: Array.isArray(o.segs) ? o.segs.filter((x) => !!x && typeof x === "object") : [],
+          mode: o.mode === "advantage" || o.mode === "disadvantage" ? o.mode : void 0,
+          times: typeof o.times === "number" && o.times > 1 ? Math.min(20, Math.floor(o.times)) : void 0,
+          typeKey: typeof o.typeKey === "string" && o.typeKey ? o.typeKey : void 0
+        };
+      });
     if (Array.isArray(data.rollHistory))
-      s.rollHistory = data.rollHistory.filter((r) => r && typeof r === "object" && typeof r.id === "string");
+      s.rollHistory = data.rollHistory.filter(
+        (r) => !!r && typeof r === "object" && typeof r.id === "string"
+      );
     if (typeof data.rollHistoryLimit === "number" && data.rollHistoryLimit > 0)
       s.rollHistoryLimit = Math.min(5e3, Math.floor(data.rollHistoryLimit));
     if (data.rollHistoryEnabled === false) s.rollHistoryEnabled = false;
@@ -1737,7 +1749,8 @@ function normalizeSettings(data, defaultLayout) {
     if (typeof data.modifierSuffix === "string") s.modifierSuffix = data.modifierSuffix;
     if (data.crossNote === false) s.crossNote = false;
     if (data.conflictGuard === false) s.conflictGuard = false;
-    if (data.tableLayouts && typeof data.tableLayouts === "object") s.tableLayouts = data.tableLayouts;
+    if (data.tableLayouts && typeof data.tableLayouts === "object")
+      s.tableLayouts = data.tableLayouts;
     if (data.inlineEntries && typeof data.inlineEntries === "object") {
       const clean = {};
       for (const [k, v] of Object.entries(data.inlineEntries)) {
@@ -9306,7 +9319,6 @@ var SidebarView = class extends import_obsidian26.ItemView {
           });
         }
       }
-      range.detach();
       void sec.offsetWidth;
       sec.removeClass("ep-measuring");
       if (id) this.respSig.set(id, sig);
@@ -11443,7 +11455,8 @@ function showPropMenu(host, e, key) {
   if (groups.length || inNotes.length || others.length) {
     menu.addItem((i) => {
       i.setTitle(t("propPanel.hideShow")).setIcon("eye");
-      const sub2 = i.setSubmenu ? i.setSubmenu() : null;
+      const withSub = i;
+      const sub2 = withSub.setSubmenu ? withSub.setSubmenu() : null;
       if (!sub2) return;
       const addGroup = (title, keys) => {
         if (!keys.length) return;

@@ -86,7 +86,7 @@ export function radarPoints(values: number[], max: number, cx: number, cy: numbe
 
 /** The outer ring (all axes at full radius) for an N-axis radar. */
 export function ringPoints(n: number, cx: number, cy: number, r: number): Pt[] {
-  return radarPoints(new Array(n).fill(1), 1, cx, cy, r);
+  return radarPoints(new Array<number>(n).fill(1), 1, cx, cy, r);
 }
 
 /** `"x,y x,y ..."` for an SVG `<polygon points>` / `<polyline>`. */

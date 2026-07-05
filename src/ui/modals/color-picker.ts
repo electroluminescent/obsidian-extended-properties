@@ -61,13 +61,13 @@ export class ColorPickerModal extends Modal {
 
     const bar = contentEl.createDiv({ cls: "ep-cp-bar" });
     this.preview = bar.createDiv({ cls: "ep-cp-preview" });
-    if ((window as any).EyeDropper) {
+    if ((window as { EyeDropper?: unknown }).EyeDropper) {
       const ed = bar.createEl("button", { cls: "ep-icon-btn" });
       setIcon(ed, "pipette");
       ed.setAttr("title", t("colorPicker.eyedropper"));
       ed.onclick = async () => {
         try {
-          const c = await new (window as any).EyeDropper().open();
+          const c = await new (window as unknown as { EyeDropper: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper().open();
           const rgb = hexToRgb(c.sRGBHex);
           if (rgb) {
             this.rgb = rgb;

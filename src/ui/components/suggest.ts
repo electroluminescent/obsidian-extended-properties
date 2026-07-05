@@ -51,7 +51,7 @@ export class PropSuggest extends AbstractInputSuggest<PropSuggestion> {
   selectSuggestion(c: PropSuggestion): void {
     this.onChoose(c.key);
     this.setValue(this.clearOnSelect ? "" : c.key);
-    (this as any).close?.();
+    (this as { close?: () => void }).close?.();
   }
 }
 
@@ -136,7 +136,7 @@ export class ValueSuggest extends AbstractInputSuggest<string> {
   selectSuggestion(v: string): void {
     this.onChoose(v);
     this.setValue(this.clearOnSelect ? "" : v);
-    (this as any).close?.();
+    (this as { close?: () => void }).close?.();
   }
 }
 

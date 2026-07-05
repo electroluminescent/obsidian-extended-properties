@@ -122,30 +122,35 @@ function cleanLayouts(raw: unknown): Record<string, Layout> {
  * Merge persisted `data` (any historical shape, possibly null) into a valid
  * settings object.
  */
-export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSettings {
+export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EPSettings {
   const s = defaultSettings();
+  const data = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
   if (data) {
     if (data.layouts && data.types) {
       s.types = cleanTypes(data.types);
       s.layouts = cleanLayouts(data.layouts);
-    } else if (data.layout?.sections?.length) {
+    } else if ((data.layout as { sections?: unknown[] } | undefined)?.sections?.length) {
       // v1 stored a single layout for the "Character" type.
       s.types = ["Character"];
       s.layouts = cleanLayouts({ character: data.layout });
     }
     if (typeof data.hideShown === "boolean") s.hideShown = data.hideShown;
-    if (data.defaults) s.defaults = { ...DEFAULT_DEFAULTS, ...data.defaults };
-    if (Array.isArray(data.manualHide)) s.manualHide = data.manualHide;
+    if (data.defaults) s.defaults = { ...DEFAULT_DEFAULTS, ...(data.defaults as Partial<Defaults>) };
+    if (Array.isArray(data.manualHide)) s.manualHide = data.manualHide as string[];
     if (typeof data.propMenu === "boolean") s.propMenu = data.propMenu;
     // "language" stays handled (never carried as unknown) but is fixed to
     // "en": the German dictionary was retired in v2.41 and the selector was
     // removed in v4.0. Modules can still register locales via the API.
-    if (data.stringOverrides && typeof data.stringOverrides === "object") s.stringOverrides = data.stringOverrides;
-    if (data.features && typeof data.features === "object") s.features = data.features;
+    if (data.stringOverrides && typeof data.stringOverrides === "object")
+      s.stringOverrides = data.stringOverrides as EPSettings["stringOverrides"];
+    if (data.features && typeof data.features === "object") s.features = data.features as EPSettings["features"];
     // An explicitly persisted (even empty) list wins over the seeds.
     if (Array.isArray(data.derivations))
-      s.derivations = data.derivations.filter((d: any) => d && typeof d.id === "string");
-    if (data.sourceAbbrs && typeof data.sourceAbbrs === "object") s.sourceAbbrs = data.sourceAbbrs;
+      s.derivations = (data.derivations as unknown[]).filter(
+        (d) => !!d && typeof (d as { id?: unknown }).id === "string"
+      ) as EPSettings["derivations"];
+    if (data.sourceAbbrs && typeof data.sourceAbbrs === "object")
+      s.sourceAbbrs = data.sourceAbbrs as EPSettings["sourceAbbrs"];
     if (typeof data.modDepth === "number" && data.modDepth >= 0)
       s.modDepth = Math.min(32, Math.floor(data.modDepth));
     if (typeof data.diceAnim === "boolean") s.diceAnim = data.diceAnim;
@@ -164,18 +169,35 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
     if (typeof data.modsOffProp === "string" && data.modsOffProp.trim())
       s.modsOffProp = data.modsOffProp.trim();
     if (Array.isArray(data.macros))
-      s.macros = data.macros
-        .filter((m: any) => m && typeof m.id === "string" && typeof m.name === "string")
-        .map((m: any) => ({
-          id: m.id,
-          name: m.name,
-          segs: Array.isArray(m.segs) ? m.segs.filter((x: any) => x && typeof x === "object") : [],
-          mode: m.mode === "advantage" || m.mode === "disadvantage" ? m.mode : undefined,
-          times: typeof m.times === "number" && m.times > 1 ? Math.min(20, Math.floor(m.times)) : undefined,
-          typeKey: typeof m.typeKey === "string" && m.typeKey ? m.typeKey : undefined,
-        }));
+      s.macros = (data.macros as unknown[])
+        .filter(
+          (m) =>
+            !!m &&
+            typeof (m as { id?: unknown }).id === "string" &&
+            typeof (m as { name?: unknown }).name === "string"
+        )
+        .map((m) => {
+          const o = m as {
+            id: string;
+            name: string;
+            segs?: unknown;
+            mode?: unknown;
+            times?: unknown;
+            typeKey?: unknown;
+          };
+          return {
+            id: o.id,
+            name: o.name,
+            segs: Array.isArray(o.segs) ? (o.segs as unknown[]).filter((x) => !!x && typeof x === "object") : [],
+            mode: o.mode === "advantage" || o.mode === "disadvantage" ? o.mode : undefined,
+            times: typeof o.times === "number" && o.times > 1 ? Math.min(20, Math.floor(o.times)) : undefined,
+            typeKey: typeof o.typeKey === "string" && o.typeKey ? o.typeKey : undefined,
+          };
+        }) as EPSettings["macros"];
     if (Array.isArray(data.rollHistory))
-      s.rollHistory = data.rollHistory.filter((r: any) => r && typeof r === "object" && typeof r.id === "string");
+      s.rollHistory = (data.rollHistory as unknown[]).filter(
+        (r) => !!r && typeof r === "object" && typeof (r as { id?: unknown }).id === "string"
+      ) as EPSettings["rollHistory"];
     if (typeof data.rollHistoryLimit === "number" && data.rollHistoryLimit > 0)
       s.rollHistoryLimit = Math.min(5000, Math.floor(data.rollHistoryLimit));
     if (data.rollHistoryEnabled === false) s.rollHistoryEnabled = false;
@@ -191,7 +213,8 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
     if (typeof data.modifierSuffix === "string") s.modifierSuffix = data.modifierSuffix;
     if (data.crossNote === false) s.crossNote = false;
     if (data.conflictGuard === false) s.conflictGuard = false;
-    if (data.tableLayouts && typeof data.tableLayouts === "object") s.tableLayouts = data.tableLayouts;
+    if (data.tableLayouts && typeof data.tableLayouts === "object")
+      s.tableLayouts = data.tableLayouts as EPSettings["tableLayouts"];
     // Inline `ep-sheet` entries keyed by block id - validate the shape so a
     // corrupt/foreign value can't crash the inline renderer (it only ever
     // reads `Entry`-shaped objects out of this map).
@@ -227,7 +250,7 @@ export function normalizeSettings(data: any, defaultLayout: () => Layout): EPSet
     // (forward-compat settings from a newer version, or top-level keys written
     // by a third-party module) so user customizations are never lost on load.
     for (const k of Object.keys(data))
-      if (!HANDLED_KEYS.has(k)) (s as unknown as Record<string, unknown>)[k] = (data as Record<string, unknown>)[k];
+      if (!HANDLED_KEYS.has(k)) (s as unknown as Record<string, unknown>)[k] = data[k];
   }
   for (const t of s.types) {
     const k = t.toLowerCase();
