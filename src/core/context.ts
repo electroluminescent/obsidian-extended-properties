@@ -74,9 +74,9 @@ export interface OptionsCtx extends EntryRef {
   /** Container to append `Setting` rows into. */
   container: HTMLElement;
   /** Persist + live-refresh after a change. */
-  changed(): void;
+  changed: () => void;
   /** Rebuild the modal (after changes that alter which options apply). */
-  redraw(): void;
+  redraw: () => void;
 }
 
 /**

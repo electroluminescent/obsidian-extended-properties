@@ -21,6 +21,7 @@ const PREFIX = "ep-enc:1:";
 const ITERATIONS = 150_000;
 
 const subtle = (): SubtleCrypto => {
+  // eslint-disable-next-line obsidianmd/no-global-this -- crypto is identical across popout windows; window/activeWindow are undefined in the unit-test env
   const c = (globalThis as { crypto?: Crypto }).crypto;
   if (!c?.subtle) throw new Error("Web Crypto unavailable");
   return c.subtle;
@@ -59,6 +60,7 @@ export function isEnvelope(v: unknown): v is string {
 
 /** Encrypt `plain` under `passphrase`, returning a self-describing envelope. */
 export async function encryptValue(plain: string, passphrase: string): Promise<string> {
+  // eslint-disable-next-line obsidianmd/no-global-this -- crypto is identical across popout windows; window/activeWindow are undefined in the unit-test env
   const c = (globalThis as { crypto?: Crypto }).crypto!;
   const salt = c.getRandomValues(new Uint8Array(16));
   const iv = c.getRandomValues(new Uint8Array(12));

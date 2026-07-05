@@ -169,7 +169,7 @@ export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EP
     if (typeof data.modsOffProp === "string" && data.modsOffProp.trim())
       s.modsOffProp = data.modsOffProp.trim();
     if (Array.isArray(data.macros))
-      s.macros = (data.macros as unknown[])
+      s.macros = data.macros
         .filter(
           (m) =>
             !!m &&
