@@ -103,7 +103,7 @@ export class SnapshotStore {
   }
 
   /** Parsed `data` payload of a snapshot, or null if unreadable. */
-  async read(path: string): Promise<unknown | null> {
+  async read(path: string): Promise<unknown> {
     try {
       const env = JSON.parse(await this.app.vault.adapter.read(path)) as Partial<SnapshotEnvelope>;
       return env && env.ep === "extended-properties-snapshot" ? env.data ?? null : null;

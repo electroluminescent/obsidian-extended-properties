@@ -33,23 +33,23 @@ function writeConflictNotice(
   onTakeTheirs: () => void,
   conflictKeys: string[] = []
 ): void {
-  const frag = document.createDocumentFragment();
-  const msg = document.createElement("div");
+  const frag = activeDocument.createDocumentFragment();
+  const msg = activeDocument.createElement("div");
   msg.className = "ep-conflict-msg";
   msg.textContent = i18n.t("conflict.message", { note: fileName });
   frag.appendChild(msg);
   if (conflictKeys.length) {
-    const keys = document.createElement("div");
+    const keys = activeDocument.createElement("div");
     keys.className = "ep-conflict-keys";
     keys.textContent = i18n.t("conflict.keys", { keys: conflictKeys.join(", ") });
     frag.appendChild(keys);
   }
-  const row = document.createElement("div");
+  const row = activeDocument.createElement("div");
   row.className = "ep-conflict-actions";
-  const mine = document.createElement("button");
+  const mine = activeDocument.createElement("button");
   mine.className = "mod-warning";
   mine.textContent = i18n.t("conflict.keepMine");
-  const theirs = document.createElement("button");
+  const theirs = activeDocument.createElement("button");
   theirs.textContent = i18n.t("conflict.takeTheirs");
   row.appendChild(mine);
   row.appendChild(theirs);

@@ -12,7 +12,7 @@ import { barLayout, clampFrac, pointsAttr, radarPoints, ringPoints, sparklinePat
 const NS = "http://www.w3.org/2000/svg";
 
 function svgEl(tag: string, attrs: Record<string, string | number>): SVGElement {
-  const e = document.createElementNS(NS, tag);
+  const e = activeDocument.createElementNS(NS, tag);
   for (const k in attrs) e.setAttribute(k, String(attrs[k]));
   return e;
 }

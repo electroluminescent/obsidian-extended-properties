@@ -99,7 +99,7 @@ export class SidebarView extends ItemView implements ViewCtx {
   /** Vault reads for cross-note aggregates / `prop()` in expressions. */
   get vault(): VaultAccess { return makeVaultAccess(this.plugin.props, () => this.note.path ?? ""); }
 
-  saveLayout(): void { this.plugin.saveSettings(); }
+  saveLayout(): void { void this.plugin.saveSettings(); }
   rerender(): void { this.render(); }
 
   refreshValues(): void {
@@ -359,7 +359,7 @@ export class SidebarView extends ItemView implements ViewCtx {
         getColorSpace: () => this.settings.defaults.colorSpace,
         setColorSpace: (sp) => {
           this.settings.defaults.colorSpace = sp;
-          this.plugin.saveSettings();
+          void this.plugin.saveSettings();
         },
       },
       initial,
@@ -455,7 +455,7 @@ export class SidebarView extends ItemView implements ViewCtx {
       sec.collapsed = false;
       this.saveLayout();
       this.render();
-      requestAnimationFrame(() => this.scrollToSection(id));
+      window.requestAnimationFrame(() => this.scrollToSection(id));
       return;
     }
     const el = this.sectionEls[id];
@@ -608,7 +608,7 @@ export class SidebarView extends ItemView implements ViewCtx {
         // Undo: restore the layout snapshot and revert edited values.
         if (this.layoutSnapshot && this.activeTypeKey) {
           this.settings.layouts[this.activeTypeKey] = JSON.parse(this.layoutSnapshot);
-          this.plugin.saveSettings();
+          void this.plugin.saveSettings();
         }
         // Reload only after every revert write has landed; the metadata echo
         // then reconciles the view once the cache catches up.
@@ -656,7 +656,7 @@ export class SidebarView extends ItemView implements ViewCtx {
             if (v && v !== entry.key) this.renameKey(entry, v);
           }
         };
-        input.onblur = () => setTimeout(() => finish(true), 120);
+        input.onblur = () => window.setTimeout(() => finish(true), 120);
         input.onkeydown = (e: KeyboardEvent) => {
           if (e.key === "Escape") {
             e.preventDefault();
@@ -894,7 +894,7 @@ export class SidebarView extends ItemView implements ViewCtx {
       match = types[0];
       if (!this.settings.types.some((tp) => tp.toLowerCase() === match!.toLowerCase())) this.settings.types.push(match);
       this.plugin.ensureLayout(match.toLowerCase());
-      this.plugin.saveSettings();
+      void this.plugin.saveSettings();
     }
     this.activeTypeKey = match ? match.toLowerCase() : null;
 
@@ -989,10 +989,10 @@ export class SidebarView extends ItemView implements ViewCtx {
     this.initRovingFocus();
 
     container.scrollTop = prevScroll;
-    requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       this.reflowSticky();
       // After the per-section alignment passes have run.
-      requestAnimationFrame(() => this.responsivePass());
+      window.requestAnimationFrame(() => this.responsivePass());
     });
     if (this.resizeObs) {
       this.resizeObs.disconnect();
@@ -1002,7 +1002,7 @@ export class SidebarView extends ItemView implements ViewCtx {
       if (this.flowEl) this.resizeObs.observe(this.flowEl);
     }
     if (animate)
-      requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
         this.animateHeight(this.flowEl, oldFlowH);
         this.animateHeight(this.stickyZoneEl, oldZoneH);
         this.animateHeight(this.footerZoneEl, oldFootH);

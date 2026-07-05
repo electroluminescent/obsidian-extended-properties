@@ -112,7 +112,7 @@ export function closeAllRolls(): void {
 
 function getLayer(block: boolean): HTMLElement {
   if (!layer || !layer.isConnected) {
-    layer = document.body.createDiv({ cls: "ep-roll-layer" });
+    layer = activeDocument.body.createDiv({ cls: "ep-roll-layer" });
     // Cards live in a centered, vertically scrollable host.
     layer.createDiv({ cls: "ep-roll-cards" });
   }
@@ -153,7 +153,7 @@ function prepareCardFlip(host: HTMLElement | null, except?: HTMLElement): () => 
       const dy = rect.top - now.top;
       if (!dx && !dy) continue;
       el.setCssStyles({ transition: "none", transform: `translate(${dx}px, ${dy}px)` });
-      requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
         el.setCssStyles({ transition: "transform .18s ease", transform: "" });
         window.setTimeout(() => el.setCssStyles({ transition: "" }), 240);
       });
@@ -263,7 +263,7 @@ function updateSummary(i18n: I18n): void {
         const dy = a.top - b.top;
         if (!dx && !dy) continue;
         x.el.setCssStyles({ transition: "none", transform: `translate(${dx}px, ${dy}px)` });
-        requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
           x.el.setCssStyles({ transition: "", transform: "" });
         });
       }
@@ -292,7 +292,7 @@ function updateSummary(i18n: I18n): void {
       }, 230);
     }
   }
-  requestAnimationFrame(measureReserve);
+  window.requestAnimationFrame(measureReserve);
 }
 
 /**
@@ -327,7 +327,7 @@ function renderSummarySettings(host: HTMLElement, i18n: I18n): void {
     tog.setAttr("aria-expanded", String(summaryOpen));
     host.toggleClass("ep-sum-open", summaryOpen);
     // Track the dialog while it animates, then land on the exact height.
-    requestAnimationFrame(measureReserve);
+    window.requestAnimationFrame(measureReserve);
     window.setTimeout(measureReserve, 120);
     window.setTimeout(measureReserve, 260);
   };
@@ -420,7 +420,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
   // changes don't fire CSS transitions, so each appended chain cell measures
   // the card before/after and animates between the two sizes explicitly.
   // Keep the newest card in view; previous rolls scroll off to the left.
-  requestAnimationFrame(() => {
+  window.requestAnimationFrame(() => {
     host.scrollLeft = host.scrollWidth;
   });
 
@@ -577,7 +577,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     } else {
       box.setCssStyles({ transition: "" });
     }
-    requestAnimationFrame(() => cell.addClass("ep-in"));
+    window.requestAnimationFrame(() => cell.addClass("ep-in"));
   };
 
   const resolve = () => {

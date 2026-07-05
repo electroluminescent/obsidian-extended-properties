@@ -61,7 +61,7 @@ export function alignClustersNow(det: HTMLElement): void {
 }
 
 function alignClusters(det: HTMLElement): void {
-  requestAnimationFrame(() => alignClustersNow(det));
+  window.requestAnimationFrame(() => alignClustersNow(det));
 }
 
 export interface SectionHost {
@@ -300,13 +300,13 @@ function toggleSection(
   if (section.collapsed) {
     const h = wrap.scrollHeight;
     wrap.setCssStyles({ height: h + "px" });
-    requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       wrap.setCssStyles({ height: "0px" });
     });
   } else {
     wrap.setCssStyles({ height: "0px" });
     const target = wrap.scrollHeight;
-    requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       wrap.setCssStyles({ height: target + "px" });
     });
     const done = () => {
@@ -315,7 +315,7 @@ function toggleSection(
     };
     wrap.addEventListener("transitionend", done);
   }
-  requestAnimationFrame(() => host.reflowSticky());
+  window.requestAnimationFrame(() => host.reflowSticky());
 }
 
 /** Cluster cell spans on one axis, merging cells of the same column/row. */
@@ -348,7 +348,7 @@ function renderRails(
   const t = view.i18n.t.bind(view.i18n);
   const isGrid = sectionMode(section) === "grid";
 
-  requestAnimationFrame(() => {
+  window.requestAnimationFrame(() => {
     if (!grid.isConnected) return;
     const gr = grid.getBoundingClientRect();
     // Cells that define the column/row geometry. Wide (full-span) entries

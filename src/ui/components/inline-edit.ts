@@ -80,7 +80,7 @@ export function openTextInput(
     if (save) { sfx.tick(); commit(input.value.trim()); }
   };
   // Delay so a suggestion click can land before the blur commits.
-  input.onblur = () => setTimeout(() => finish(true), 150);
+  input.onblur = () => window.setTimeout(() => finish(true), 150);
   input.onkeydown = (e: KeyboardEvent) => {
     if (e.key === "Enter") { e.preventDefault(); finish(true); }
     else if (e.key === "Escape") { e.preventDefault(); finish(false); }

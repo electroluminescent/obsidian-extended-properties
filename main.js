@@ -833,7 +833,7 @@ function parseExpr(text) {
     if (tok.t === "str") return { kind: "str", value: tok.v };
     if (tok.t === "(") {
       const e = parseBp(0);
-      if (next().t !== ")") throw 0;
+      if (next().t !== ")") throw new Error("parse");
       return e;
     }
     if (tok.t === "op" && (tok.v === "-" || tok.v === "+" || tok.v === "!")) {
@@ -852,12 +852,12 @@ function parseExpr(text) {
             args.push(parseBp(0));
           }
         }
-        if (next().t !== ")") throw 0;
+        if (next().t !== ")") throw new Error("parse");
         return { kind: "call", name: tok.v, args };
       }
       return { kind: "ref", name: tok.v };
     }
-    throw 0;
+    throw new Error("parse");
   }
 }
 var ExprError = class extends Error {
@@ -951,7 +951,7 @@ function evalBinary(node, env) {
     case ">=":
       return x >= y ? 1 : 0;
   }
-  throw new ExprError("op: " + op);
+  throw new ExprError("op: " + String(op));
 }
 function evalCall(node, env) {
   var _a, _b, _c, _d, _e, _f, _g;
@@ -2528,7 +2528,7 @@ var HideService = class {
   /** Coalesce bursts of DOM mutations into a single apply on the next frame. */
   schedule() {
     if (this.raf) return;
-    this.raf = activeWindow.requestAnimationFrame(() => {
+    this.raf = window.requestAnimationFrame(() => {
       this.raf = 0;
       this.apply();
     });
@@ -2899,7 +2899,7 @@ function openTextInput(app, span, key, value, valuesFor, commit2) {
       commit2(input.value.trim());
     }
   };
-  input.onblur = () => setTimeout(() => finish(true), 150);
+  input.onblur = () => window.setTimeout(() => finish(true), 150);
   input.onkeydown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -3184,8 +3184,8 @@ var textType = {
     const { view, file, entry } = ctx2;
     const key = entry.key;
     const v = ctx2.head.createDiv({ cls: "ep-val-right" });
-    if (entry.valueSize) v.style.fontSize = entry.valueSize + "px";
-    if (entry.valueColor) v.style.color = entry.valueColor;
+    if (entry.valueSize) v.setCssStyles({ fontSize: entry.valueSize + "px" });
+    if (entry.valueColor) v.setCssStyles({ color: entry.valueColor });
     const s = v.createSpan();
     const draw = () => {
       var _a, _b;
@@ -3287,12 +3287,12 @@ function buildCluster(head, flags, o, bindOpen) {
   var _a, _b, _c;
   const cl = head.createDiv({ cls: "ep-cluster" });
   const cols = [];
-  for (const _ of flags.before) cols.push("auto");
+  flags.before.forEach(() => cols.push("auto"));
   if (flags.steppers) cols.push("var(--ep-step-col, 20px)");
   cols.push("minmax(2.1em, auto)");
   if (flags.steppers) cols.push("var(--ep-step-col, 20px)");
-  for (const _ of flags.after) cols.push("auto");
-  cl.style.gridTemplateColumns = cols.join(" ");
+  flags.after.forEach(() => cols.push("auto"));
+  cl.setCssStyles({ gridTemplateColumns: cols.join(" ") });
   const cells = {};
   const editable = !!(o.commit && o.get);
   const min = (_a = o.min) != null ? _a : -Infinity;
@@ -3407,8 +3407,8 @@ function render(kind, ctx2) {
     commit: (v) => view.note.set(file, key, shouldClamp(entry.constraints) ? clampToConstraints(v, entry.constraints) : v),
     slots
   });
-  if (entry.valueColor) refs.val.style.color = entry.valueColor;
-  if (entry.valueSize) refs.val.style.fontSize = entry.valueSize + "px";
+  if (entry.valueColor) refs.val.setCssStyles({ color: entry.valueColor });
+  if (entry.valueSize) refs.val.setCssStyles({ fontSize: entry.valueSize + "px" });
   const unit = ((_b = entry.unit) != null ? _b : "").trim();
   const setVal = (v) => {
     refs.val.setText(fmtNum(v));
@@ -3439,7 +3439,7 @@ function render(kind, ctx2) {
     const fmt = (v) => isDecimal || isFormula ? v : Math.round(v);
     const pctForValue = (v) => span <= 0 ? 0 : clamp((toPosition(v) - min) / span, 0, 1) * 100;
     const place = (v) => {
-      slider.style.setProperty("--ep-knob", pctForValue(v) + "%");
+      slider.setCssProps({ "--ep-knob": pctForValue(v) + "%" });
       knob.setAttr("aria-valuenow", String(fmt(v)));
     };
     syncKnob = () => place(get());
@@ -4098,8 +4098,8 @@ var derivedType = {
     };
     const refs = view.buildCluster(ctx2.head, ctx2.flags, { display: disp(), slots });
     refs.val.addClass("ep-num-join");
-    if (entry.valueSize) refs.val.style.fontSize = entry.valueSize + "px";
-    if (entry.valueColor) refs.val.style.color = entry.valueColor;
+    if (entry.valueSize) refs.val.setCssStyles({ fontSize: entry.valueSize + "px" });
+    if (entry.valueColor) refs.val.setCssStyles({ color: entry.valueColor });
     const sync = () => {
       const info = modifierInfo(view, entry);
       if (info.value === void 0) {
@@ -4270,7 +4270,7 @@ var checkboxType = {
     const { view, file, entry } = ctx2;
     const key = entry.key;
     const v = ctx2.head.createDiv({ cls: "ep-val-right" });
-    if (entry.valueColor) v.style.color = entry.valueColor;
+    if (entry.valueColor) v.setCssStyles({ color: entry.valueColor });
     const cb = v.createEl("input");
     cb.type = "checkbox";
     cb.addClass("ep-prof");
@@ -4348,8 +4348,8 @@ var listType = {
     const holder = ctx2.extra.createDiv({ cls: "ep-list-holder" });
     const align = entry.listAlign || "";
     if (align === "center" || align === "right") holder.addClass("ep-align-" + align);
-    if (entry.valueSize) holder.style.fontSize = entry.valueSize + "px";
-    if (entry.valueColor) holder.style.color = entry.valueColor;
+    if (entry.valueSize) holder.setCssStyles({ fontSize: entry.valueSize + "px" });
+    if (entry.valueColor) holder.setCssStyles({ color: entry.valueColor });
     const key = entry.key;
     const checkValid = () => applyValidity(holder, entry, "list", view.note.raw[key], view.i18n);
     buildList(ctx2, holder, view.editMode);
@@ -4392,14 +4392,14 @@ var colorType = {
     const { view, file, entry } = ctx2;
     const key = entry.key;
     const v = ctx2.head.createDiv({ cls: "ep-val-right" });
-    if (entry.valueSize) v.style.fontSize = entry.valueSize + "px";
-    if (entry.valueColor) v.style.color = entry.valueColor;
+    if (entry.valueSize) v.setCssStyles({ fontSize: entry.valueSize + "px" });
+    if (entry.valueColor) v.setCssStyles({ color: entry.valueColor });
     const sw = v.createSpan({ cls: "ep-swatch" });
     const txt = v.createSpan({ cls: "ep-color-text" });
     const draw = () => {
       const hex = view.note.str(key);
       const ok = hexToRgb(hex);
-      sw.style.background = ok ? hex : "transparent";
+      sw.setCssStyles({ background: ok ? hex : "transparent" });
       sw.toggleClass("ep-swatch-empty", !ok);
       txt.setText(hex || "-");
     };
@@ -4477,7 +4477,7 @@ var ImageViewerModal = class extends import_obsidian11.Modal {
     img.src = this.src;
     let scale = 1, tx = 0, ty = 0, dragging = false, lx = 0, ly = 0;
     const apply = () => {
-      img.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+      img.setCssStyles({ transform: `translate(${tx}px, ${ty}px) scale(${scale})` });
     };
     wrap.addEventListener("wheel", (e) => {
       e.preventDefault();
@@ -4553,7 +4553,7 @@ var imageType = {
       const src = view.note.str(key);
       if (src) {
         if (h) {
-          holder.style.height = h + "px";
+          holder.setCssStyles({ height: h + "px" });
           holder.addClass("ep-image-fixed");
         } else {
           holder.style.removeProperty("height");
@@ -4562,7 +4562,7 @@ var imageType = {
         const img = holder.createEl("img", { cls: "ep-image-img" });
         if (s !== 1) {
           holder.addClass("ep-media-zoom");
-          img.style.transform = `scale(${s})`;
+          img.setCssStyles({ transform: `scale(${s})` });
         }
         img.src = view.resolveImage(src);
       } else {
@@ -4732,10 +4732,9 @@ var videoType = {
       if (em.kind === "iframe") {
         const wrap = holder.createDiv({ cls: "ep-video-framewrap" });
         if (hPx) {
-          wrap.style.aspectRatio = "auto";
-          wrap.style.height = hPx + "px";
+          wrap.setCssStyles({ aspectRatio: "auto", height: hPx + "px" });
         } else if (maxH) {
-          wrap.style.maxHeight = maxH + "px";
+          wrap.setCssStyles({ maxHeight: maxH + "px" });
         }
         const f = wrap.createEl("iframe", { cls: "ep-video-frame" });
         f.setAttr("src", em.src);
@@ -4750,11 +4749,11 @@ var videoType = {
         const v = holder.createEl("video", { cls: "ep-video-el" });
         v.controls = true;
         v.preload = "metadata";
-        if (hPx) v.style.height = hPx + "px";
-        else if (maxH) v.style.maxHeight = maxH + "px";
+        if (hPx) v.setCssStyles({ height: hPx + "px" });
+        else if (maxH) v.setCssStyles({ maxHeight: maxH + "px" });
         if (s !== 1) {
           holder.addClass("ep-media-zoom");
-          v.style.transform = `scale(${s})`;
+          v.setCssStyles({ transform: `scale(${s})` });
         }
         v.src = view.resolveImage(src);
       }
@@ -4799,7 +4798,7 @@ var pdfType = {
         holder.setText(view.i18n.t("pdf.emptyHint"));
         return;
       }
-      holder.style.height = height + "px";
+      holder.setCssStyles({ height: height + "px" });
       const f = holder.createEl("iframe", { cls: "ep-pdf-frame" });
       f.setAttr("src", view.resolveImage(src));
       if (s !== 1) {
@@ -4839,7 +4838,7 @@ var iframeType = {
         return;
       }
       holder.removeClass("ep-image-empty");
-      holder.style.height = height + "px";
+      holder.setCssStyles({ height: height + "px" });
       const f = holder.createEl("iframe");
       f.setAttr("src", url);
       f.setAttr(
@@ -4890,7 +4889,7 @@ var ratingType = {
     const max = Math.max(1, Math.min(20, Math.round(Number(entry.ratingMax) || 5)));
     const icon = entry.ratingIcon || "star";
     const v = ctx2.head.createDiv({ cls: "ep-val-right ep-rating" });
-    if (entry.valueColor) v.style.color = entry.valueColor;
+    if (entry.valueColor) v.setCssStyles({ color: entry.valueColor });
     v.setAttr("role", "slider");
     v.tabIndex = 0;
     v.setAttr("aria-label", view.i18n.t("a11y.rating", { name: view.defaultLabelFor(entry) }));
@@ -4973,7 +4972,7 @@ var linkType = {
     const { view, file, entry } = ctx2;
     const key = entry.key;
     const v = ctx2.head.createDiv({ cls: "ep-val-right ep-linkval" });
-    if (entry.valueColor) v.style.color = entry.valueColor;
+    if (entry.valueColor) v.setCssStyles({ color: entry.valueColor });
     const draw = () => {
       v.empty();
       v.removeClass("ep-link-unresolved");
@@ -5009,7 +5008,7 @@ var unitType = {
     const unit = entry.unit || "";
     const factor = Number(entry.unitFactor) > 0 ? Number(entry.unitFactor) : 1;
     const cell = ctx2.head.createDiv({ cls: "ep-val-right ep-unitval" });
-    if (entry.valueColor) cell.style.color = entry.valueColor;
+    if (entry.valueColor) cell.setCssStyles({ color: entry.valueColor });
     const num = cell.createSpan({ cls: "ep-num ep-editable" });
     if (unit) cell.createSpan({ cls: "ep-unit-suffix", text: " " + unit });
     const draw = () => num.setText(fmtNum(view.note.num(key, 0) * factor));
@@ -5057,7 +5056,7 @@ var datetimeType = {
     const { view, file, entry } = ctx2;
     const key = entry.key;
     const cell = ctx2.head.createDiv({ cls: "ep-val-right ep-dateval" });
-    if (entry.valueColor) cell.style.color = entry.valueColor;
+    if (entry.valueColor) cell.setCssStyles({ color: entry.valueColor });
     const txt = cell.createSpan({ cls: "ep-editable" });
     const rel = cell.createSpan({ cls: "ep-date-rel" });
     const draw = () => {
@@ -5426,23 +5425,23 @@ var WRITE_DEBOUNCE_MS = 300;
 var WRITE_MAXWAIT_MS = 1e3;
 var CONFLICT_EPS_MS = 400;
 function writeConflictNotice(i18n, fileName, onKeepMine, onTakeTheirs, conflictKeys = []) {
-  const frag = document.createDocumentFragment();
-  const msg = document.createElement("div");
+  const frag = activeDocument.createDocumentFragment();
+  const msg = activeDocument.createElement("div");
   msg.className = "ep-conflict-msg";
   msg.textContent = i18n.t("conflict.message", { note: fileName });
   frag.appendChild(msg);
   if (conflictKeys.length) {
-    const keys = document.createElement("div");
+    const keys = activeDocument.createElement("div");
     keys.className = "ep-conflict-keys";
     keys.textContent = i18n.t("conflict.keys", { keys: conflictKeys.join(", ") });
     frag.appendChild(keys);
   }
-  const row = document.createElement("div");
+  const row = activeDocument.createElement("div");
   row.className = "ep-conflict-actions";
-  const mine = document.createElement("button");
+  const mine = activeDocument.createElement("button");
   mine.className = "mod-warning";
   mine.textContent = i18n.t("conflict.keepMine");
-  const theirs = document.createElement("button");
+  const theirs = activeDocument.createElement("button");
   theirs.textContent = i18n.t("conflict.takeTheirs");
   row.appendChild(mine);
   row.appendChild(theirs);
@@ -6105,7 +6104,7 @@ function renderEntry(grid, view, file, section, entry, flags, drag) {
     wrap.addClass("ep-cond-off");
     wrap.setAttr("title", view.i18n.t("options.showWhenActive", { expr: entry.showWhen }));
   }
-  if (wide) wrap.style.gridColumn = "1 / -1";
+  if (wide) wrap.setCssStyles({ gridColumn: "1 / -1" });
   const head = wrap.createDiv({ cls: "ep-entry-head" });
   let grip = null;
   if (view.editMode) {
@@ -6116,7 +6115,7 @@ function renderEntry(grid, view, file, section, entry, flags, drag) {
   if (entry.icon) {
     const ic = head.createSpan({ cls: "ep-picon" });
     (0, import_obsidian18.setIcon)(ic, entry.icon);
-    if (entry.iconColor) ic.style.color = entry.iconColor;
+    if (entry.iconColor) ic.setCssStyles({ color: entry.iconColor });
   }
   const extra = wrap.createDiv({ cls: "ep-entry-extra" });
   const ctx2 = { view, file, section, entry, head, extra, flags, wrap };
@@ -6320,7 +6319,7 @@ var ColorPickerModal = class extends import_obsidian19.Modal {
   }
   updatePreviewHex() {
     const hex = rgbToHex(this.rgb.r, this.rgb.g, this.rgb.b);
-    this.preview.style.background = hex;
+    this.preview.setCssStyles({ background: hex });
     if (this.hexInput) this.hexInput.value = hex;
   }
   /** One labelled gradient slider with a numeric input. */
@@ -6342,10 +6341,10 @@ var ColorPickerModal = class extends import_obsidian19.Modal {
     let cur = val;
     const place = () => {
       const t = max > min ? (cur - min) / (max - min) : 0;
-      thumb.style.left = clamp(t, 0, 1) * 100 + "%";
+      thumb.setCssStyles({ left: clamp(t, 0, 1) * 100 + "%" });
     };
     const update = () => {
-      track.style.background = grad();
+      track.setCssStyles({ background: grad() });
     };
     const setVal = (v, fire) => {
       cur = clamp(v, min, max);
@@ -6402,8 +6401,8 @@ var ColorPickerModal = class extends import_obsidian19.Modal {
     };
     const place = () => {
       const [x, y] = getXY();
-      cursor.style.left = x * 100 + "%";
-      cursor.style.top = y * 100 + "%";
+      cursor.setCssStyles({ left: x * 100 + "%" });
+      cursor.setCssStyles({ top: y * 100 + "%" });
     };
     const fromEv = (e) => {
       const r = canvas.getBoundingClientRect();
@@ -6626,11 +6625,11 @@ var ColorPickerModal = class extends import_obsidian19.Modal {
     }
     const newH = this.body.scrollHeight;
     if (this.lastBodyH !== void 0 && this.lastBodyH !== newH) {
-      this.body.style.height = this.lastBodyH + "px";
+      this.body.setCssStyles({ height: this.lastBodyH + "px" });
       void this.body.offsetWidth;
-      this.body.style.height = newH + "px";
+      this.body.setCssStyles({ height: newH + "px" });
       const done = () => {
-        this.body.style.height = "auto";
+        this.body.setCssStyles({ height: "auto" });
         this.body.removeEventListener("transitionend", done);
       };
       this.body.addEventListener("transitionend", done);
@@ -6659,7 +6658,7 @@ var IconPickerModal = class extends import_obsidian20.Modal {
     search.type = "text";
     search.placeholder = this.i18n.t("iconPicker.search");
     search.addClass("ep-edit-input");
-    search.style.width = "100%";
+    search.setCssStyles({ width: "100%" });
     const grid = c.createDiv({ cls: "ep-iconpick-grid" });
     let all = [];
     try {
@@ -6700,7 +6699,7 @@ function addColorSetting(host, container, name, desc, get, set) {
   const update = () => {
     const h = get();
     const ok = h && hexToRgb(h);
-    sw.style.background = ok ? h : "transparent";
+    sw.setCssStyles({ background: ok ? h : "transparent" });
     sw.toggleClass("ep-swatch-empty", !ok);
   };
   update();
@@ -7085,7 +7084,7 @@ var SectionOptionsModal = class extends import_obsidian23.Modal {
         dragging = true;
         dragBase = ev.ctrlKey || ev.metaKey ? new Set(this.selected) : /* @__PURE__ */ new Set();
         applySelection();
-        document.addEventListener(
+        activeDocument.addEventListener(
           "pointerup",
           () => {
             dragging = false;
@@ -7583,7 +7582,7 @@ function flipMove(view, fn) {
   const first = /* @__PURE__ */ new Map();
   view.containerEl.findAll("[data-ep-id]").forEach((el) => first.set(el.getAttribute("data-ep-id"), el.getBoundingClientRect()));
   fn();
-  requestAnimationFrame(() => {
+  window.requestAnimationFrame(() => {
     view.containerEl.findAll("[data-ep-id]").forEach((el) => {
       const id = el.getAttribute("data-ep-id");
       const f = id ? first.get(id) : void 0;
@@ -7592,14 +7591,11 @@ function flipMove(view, fn) {
       const dx = f.left - n.left, dy = f.top - n.top;
       if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
       const h = el;
-      h.style.transition = "none";
-      h.style.transform = `translate(${dx}px, ${dy}px)`;
-      requestAnimationFrame(() => {
-        h.style.transition = "transform .25s ease";
-        h.style.transform = "";
+      h.setCssStyles({ transition: "none", transform: `translate(${dx}px, ${dy}px)` });
+      window.requestAnimationFrame(() => {
+        h.setCssStyles({ transition: "transform .25s ease", transform: "" });
         const done = () => {
-          h.style.transition = "";
-          h.style.transform = "";
+          h.setCssStyles({ transition: "", transform: "" });
           h.removeEventListener("transitionend", done);
         };
         h.addEventListener("transitionend", done);
@@ -7629,7 +7625,7 @@ var DragController = class {
     let after = false;
     const onMove = (e) => {
       var _a;
-      const under = document.elementFromPoint(e.clientX, e.clientY);
+      const under = activeDocument.elementFromPoint(e.clientX, e.clientY);
       const sec = (_a = under == null ? void 0 : under.closest(".ep-section")) != null ? _a : null;
       this.clearMarks();
       target = null;
@@ -7640,9 +7636,9 @@ var DragController = class {
       target = sec;
     };
     const onUp = () => {
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup", onUp);
-      document.removeEventListener("pointercancel", onUp);
+      activeDocument.removeEventListener("pointermove", onMove);
+      activeDocument.removeEventListener("pointerup", onUp);
+      activeDocument.removeEventListener("pointercancel", onUp);
       det.removeClass("ep-drag-placeholder");
       const t = target;
       const a = after;
@@ -7657,9 +7653,9 @@ var DragController = class {
         }
       });
     };
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp);
-    document.addEventListener("pointercancel", onUp);
+    activeDocument.addEventListener("pointermove", onMove);
+    activeDocument.addEventListener("pointerup", onUp);
+    activeDocument.addEventListener("pointercancel", onUp);
   }
   // -- entries (pointer drag with clone) ------------------------------------
   attachEntry(wrap, grip, section, entry) {
@@ -7675,16 +7671,18 @@ var DragController = class {
     const ox = ev.clientX - rect.left, oy = ev.clientY - rect.top;
     const clone2 = wrap.cloneNode(true);
     clone2.addClass("ep-drag-clone");
-    clone2.style.position = "fixed";
-    clone2.style.left = "0";
-    clone2.style.top = "0";
-    clone2.style.width = rect.width + "px";
-    clone2.style.margin = "0";
-    clone2.style.pointerEvents = "none";
-    clone2.style.zIndex = "9999";
-    document.body.appendChild(clone2);
+    clone2.setCssStyles({
+      position: "fixed",
+      left: "0",
+      top: "0",
+      width: rect.width + "px",
+      margin: "0",
+      pointerEvents: "none",
+      zIndex: "9999"
+    });
+    activeDocument.body.appendChild(clone2);
     const moveClone = (cx, cy) => {
-      clone2.style.transform = `translate(${cx - ox}px, ${cy - oy}px)`;
+      clone2.setCssStyles({ transform: `translate(${cx - ox}px, ${cy - oy}px)` });
     };
     moveClone(ev.clientX, ev.clientY);
     wrap.addClass("ep-drag-placeholder");
@@ -7711,13 +7709,11 @@ var DragController = class {
         const n = el.getBoundingClientRect();
         const dx = f.left - n.left, dy = f.top - n.top;
         if (!dx && !dy) return;
-        el.style.transition = "none";
-        el.style.transform = `translate(${dx}px, ${dy}px)`;
-        requestAnimationFrame(() => {
-          el.style.transition = "transform .18s ease";
-          el.style.transform = "";
+        el.setCssStyles({ transition: "none", transform: `translate(${dx}px, ${dy}px)` });
+        window.requestAnimationFrame(() => {
+          el.setCssStyles({ transition: "transform .18s ease", transform: "" });
           const done = () => {
-            el.style.transition = "";
+            el.setCssStyles({ transition: "" });
             el.removeEventListener("transitionend", done);
           };
           el.addEventListener("transitionend", done);
@@ -7726,7 +7722,7 @@ var DragController = class {
     };
     const onMove = (e) => {
       moveClone(e.clientX, e.clientY);
-      const under = document.elementFromPoint(e.clientX, e.clientY);
+      const under = activeDocument.elementFromPoint(e.clientX, e.clientY);
       if (!under) return;
       const grid = under.closest(".ep-grid");
       if (!grid) return;
@@ -7762,9 +7758,9 @@ var DragController = class {
       }
     };
     const onUp = () => {
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup", onUp);
-      document.removeEventListener("pointercancel", onUp);
+      activeDocument.removeEventListener("pointermove", onMove);
+      activeDocument.removeEventListener("pointerup", onUp);
+      activeDocument.removeEventListener("pointercancel", onUp);
       clone2.remove();
       wrap.removeClass("ep-drag-placeholder");
       const commit2 = (mutate) => {
@@ -7793,9 +7789,9 @@ var DragController = class {
       const order = secEl ? Array.from(secEl.querySelectorAll(".ep-entry")).map((el) => (el.getAttribute("data-ep-id") || "").slice(2)).filter(Boolean) : [];
       commit2(() => reorderByDomOrder(view.layout, entry.id, section.id, toId, order));
     };
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp);
-    document.addEventListener("pointercancel", onUp);
+    activeDocument.addEventListener("pointermove", onMove);
+    activeDocument.addEventListener("pointerup", onUp);
+    activeDocument.addEventListener("pointercancel", onUp);
   }
   // -- drop markers ---------------------------------------------------------
   mark(el, after) {
@@ -7923,15 +7919,15 @@ function alignClustersNow(det) {
     if (els.length < 2) continue;
     let max = 0;
     for (const el of els) {
-      el.style.minWidth = "";
+      el.setCssStyles({ minWidth: "" });
       max = Math.max(max, el.offsetWidth);
     }
     if (max <= 0) continue;
-    for (const el of els) el.style.minWidth = max + "px";
+    for (const el of els) el.setCssStyles({ minWidth: max + "px" });
   }
 }
 function alignClusters(det) {
-  requestAnimationFrame(() => alignClustersNow(det));
+  window.requestAnimationFrame(() => alignClustersNow(det));
 }
 function renderSection(parent, view, file, section, drag, host) {
   var _a;
@@ -7947,13 +7943,12 @@ function renderSection(parent, view, file, section, drag, host) {
   det.setAttr("data-ep-id", "s:" + section.id);
   if (sectionPin(section) === "body") det.addClass("ep-flow-section");
   if (section.transparent) det.addClass("ep-transparent");
-  if (section.accent) det.style.setProperty("--ep-accent", section.accent);
-  if (section.controlColor) det.style.setProperty("--ep-control", section.controlColor);
-  det.style.setProperty(
-    "--ep-title-bg",
-    section.transparent ? "var(--background-primary)" : section.bg || "var(--background-secondary)"
-  );
-  if (section.bg && !section.transparent) det.style.background = section.bg;
+  if (section.accent) det.setCssProps({ "--ep-accent": section.accent });
+  if (section.controlColor) det.setCssProps({ "--ep-control": section.controlColor });
+  det.setCssProps({
+    "--ep-title-bg": section.transparent ? "var(--background-primary)" : section.bg || "var(--background-secondary)"
+  });
+  if (section.bg && !section.transparent) det.setCssStyles({ background: section.bg });
   const collapsible = section.collapsible !== false;
   const sum = det.createDiv({ cls: "ep-section-title" });
   if (collapsible) {
@@ -7969,13 +7964,13 @@ function renderSection(parent, view, file, section, drag, host) {
   if (section.icon) {
     const ic = sum.createSpan({ cls: "ep-ticon" });
     (0, import_obsidian25.setIcon)(ic, section.icon);
-    if (section.iconColor) ic.style.color = section.iconColor;
+    if (section.iconColor) ic.setCssStyles({ color: section.iconColor });
   }
   const showLabel = view.editMode || !section.hideLabel;
   if (showLabel) {
     const titleSpan = sum.createSpan({ cls: "ep-sec-name" });
-    if (section.titleSize) titleSpan.style.fontSize = section.titleSize + "px";
-    if (section.accent) titleSpan.style.color = section.accent;
+    if (section.titleSize) titleSpan.setCssStyles({ fontSize: section.titleSize + "px" });
+    if (section.accent) titleSpan.setCssStyles({ color: section.accent });
     if (view.editMode) {
       bindRename(titleSpan, section.title, t("section.namePlaceholder"), t("section.renameHint"), (v) => {
         section.title = v || t("section.namePlaceholder");
@@ -8043,8 +8038,7 @@ function renderSection(parent, view, file, section, drag, host) {
   if (section.vdividers) grid.addClass("ep-vdividers");
   if (section.size && section.size !== "unlimited") {
     const rows = (_a = SIZE_ROWS[section.size]) != null ? _a : 12;
-    grid.style.maxHeight = rows * ROW_PX + "px";
-    grid.style.overflowY = "auto";
+    grid.setCssStyles({ maxHeight: rows * ROW_PX + "px", overflowY: "auto" });
   }
   if (mode === "list") {
     for (const entry of section.entries) renderEntry(grid, view, file, section, entry, flags, drag);
@@ -8054,7 +8048,7 @@ function renderSection(parent, view, file, section, drag, host) {
       ab.onclick = () => view.openAddMenu(ab, section);
     }
   } else if (mode === "columns") {
-    grid.style.gridTemplateColumns = `repeat(${ncol}, minmax(0, 1fr))`;
+    grid.setCssStyles({ gridTemplateColumns: `repeat(${ncol}, minmax(0, 1fr))` });
     const per = Math.max(1, Math.ceil(section.entries.length / ncol));
     for (let cc = 0; cc < ncol; cc++) {
       const col = grid.createDiv({ cls: "ep-col" });
@@ -8068,8 +8062,8 @@ function renderSection(parent, view, file, section, drag, host) {
       }
     }
   } else {
-    grid.style.gridTemplateColumns = `repeat(${ncol}, minmax(0, 1fr))`;
-    if (section.rows && section.rows > 0) grid.style.gridTemplateRows = `repeat(${section.rows}, auto)`;
+    grid.setCssStyles({ gridTemplateColumns: `repeat(${ncol}, minmax(0, 1fr))` });
+    if (section.rows && section.rows > 0) grid.setCssStyles({ gridTemplateRows: `repeat(${section.rows}, auto)` });
     for (const entry of section.entries) {
       if (isHiddenEntry(view, entry)) grid.createDiv({ cls: "ep-empty-cell" });
       else renderEntry(grid, view, file, section, entry, flags, drag);
@@ -8101,8 +8095,8 @@ function renderSection(parent, view, file, section, drag, host) {
   if (colRail || rowRail) renderRails(view, section, grid, colRail, rowRail);
   if (view.editMode) drag.attachSection(det, grid, section);
   if (collapsible) {
-    collapseWrap.style.overflow = "hidden";
-    if (section.collapsed) collapseWrap.style.height = "0px";
+    collapseWrap.setCssStyles({ overflow: "hidden" });
+    if (section.collapsed) collapseWrap.setCssStyles({ height: "0px" });
     sum.setAttr("role", "button");
     sum.tabIndex = 0;
     sum.setAttr("aria-label", t("a11y.toggleSection", { name: section.title }));
@@ -8127,23 +8121,23 @@ function toggleSection(view, section, det, wrap, host) {
   if (chev) chev.toggleClass("ep-open", !section.collapsed);
   if (section.collapsed) {
     const h = wrap.scrollHeight;
-    wrap.style.height = h + "px";
-    requestAnimationFrame(() => {
-      wrap.style.height = "0px";
+    wrap.setCssStyles({ height: h + "px" });
+    window.requestAnimationFrame(() => {
+      wrap.setCssStyles({ height: "0px" });
     });
   } else {
-    wrap.style.height = "0px";
+    wrap.setCssStyles({ height: "0px" });
     const target = wrap.scrollHeight;
-    requestAnimationFrame(() => {
-      wrap.style.height = target + "px";
+    window.requestAnimationFrame(() => {
+      wrap.setCssStyles({ height: target + "px" });
     });
     const done = () => {
-      wrap.style.height = "auto";
+      wrap.setCssStyles({ height: "auto" });
       wrap.removeEventListener("transitionend", done);
     };
     wrap.addEventListener("transitionend", done);
   }
-  requestAnimationFrame(() => host.reflowSticky());
+  window.requestAnimationFrame(() => host.reflowSticky());
 }
 function clusterSpans(spans) {
   const sorted = [...spans].sort((x, y) => x[0] - y[0]);
@@ -8158,7 +8152,7 @@ function clusterSpans(spans) {
 function renderRails(view, section, grid, colRail, rowRail) {
   const t = view.i18n.t.bind(view.i18n);
   const isGrid = sectionMode(section) === "grid";
-  requestAnimationFrame(() => {
+  window.requestAnimationFrame(() => {
     if (!grid.isConnected) return;
     const gr = grid.getBoundingClientRect();
     const cells = Array.from(grid.children).filter(
@@ -8202,7 +8196,7 @@ function renderRails(view, section, grid, colRail, rowRail) {
           "plus",
           t("grid.addColumnHint"),
           () => commit2(() => addColumnAt(section, i, isGrid))
-        ).style.left = off + x + "px";
+        ).setCssStyles({ left: off + x + "px" });
       });
       if (spans.length > 1)
         spans.forEach(([a, b], i) => {
@@ -8212,7 +8206,7 @@ function renderRails(view, section, grid, colRail, rowRail) {
             "minus",
             t("grid.removeColumnHint"),
             () => commit2(() => removeColumnAt(section, i, isGrid))
-          ).style.left = off + (a + b) / 2 + "px";
+          ).setCssStyles({ left: off + (a + b) / 2 + "px" });
         });
     }
     if (rowRail && rowRail.isConnected) {
@@ -8226,7 +8220,7 @@ function renderRails(view, section, grid, colRail, rowRail) {
           "plus",
           t("grid.addRowHint"),
           () => commit2(() => addRowAt(section, i))
-        ).style.top = off + y + "px";
+        ).setCssStyles({ top: off + y + "px" });
       });
       spans.forEach(([a, b], i) => {
         mkBtn(
@@ -8235,7 +8229,7 @@ function renderRails(view, section, grid, colRail, rowRail) {
           "minus",
           t("grid.removeRowHint"),
           () => commit2(() => removeRowAt(section, i))
-        ).style.top = off + (a + b) / 2 + "px";
+        ).setCssStyles({ top: off + (a + b) / 2 + "px" });
       });
     }
   });
@@ -8261,16 +8255,16 @@ var PopupManager = class {
   /** Keep a popup on-screen, flipping left/up when it would overflow. */
   fitToViewport(pop, leftPx, anchorLeft) {
     const w = pop.offsetWidth;
-    if (leftPx + w > window.innerWidth - 4) pop.style.left = Math.max(4, anchorLeft - w - 4) + "px";
+    if (leftPx + w > window.innerWidth - 4) pop.setCssStyles({ left: Math.max(4, anchorLeft - w - 4) + "px" });
     const h = pop.offsetHeight;
     const top = parseFloat(pop.style.top || "0");
-    if (top + h > window.innerHeight - 4) pop.style.top = Math.max(4, window.innerHeight - h - 4) + "px";
+    if (top + h > window.innerHeight - 4) pop.setCssStyles({ top: Math.max(4, window.innerHeight - h - 4) + "px" });
   }
   /** Dismiss when clicking outside the popups and their anchor. */
   dismissOnOutsideClick(anchor) {
     const cleanup = () => {
-      document.removeEventListener("mousedown", h);
-      document.removeEventListener("keydown", esc, true);
+      activeDocument.removeEventListener("mousedown", h);
+      activeDocument.removeEventListener("keydown", esc, true);
     };
     const h = (e) => {
       var _a;
@@ -8287,8 +8281,8 @@ var PopupManager = class {
       this.closeAll();
     };
     window.setTimeout(() => {
-      document.addEventListener("mousedown", h);
-      document.addEventListener("keydown", esc, true);
+      activeDocument.addEventListener("mousedown", h);
+      activeDocument.addEventListener("keydown", esc, true);
     }, 0);
   }
   // -- add-property menu --------------------------------------------------
@@ -8345,12 +8339,10 @@ var PopupManager = class {
     const view = this.view;
     const t = view.i18n.t.bind(view.i18n);
     this.closeAll();
-    const pop = document.body.createDiv({ cls: "ep-popup ep-addmenu" });
+    const pop = activeDocument.body.createDiv({ cls: "ep-popup ep-addmenu" });
     this.popups.push(pop);
     const r = anchor.getBoundingClientRect();
-    pop.style.left = r.left + "px";
-    pop.style.top = r.bottom + 2 + "px";
-    pop.style.minWidth = "220px";
+    pop.setCssStyles({ left: r.left + "px", top: r.bottom + 2 + "px", minWidth: "220px" });
     const fit = () => {
       const w = pop.offsetWidth;
       const h = pop.offsetHeight;
@@ -8359,8 +8351,8 @@ var PopupManager = class {
       if (left + w > window.innerWidth - 4) left = Math.max(4, window.innerWidth - w - 4);
       if (top + h > window.innerHeight - 4) top = r.top - h - 2;
       if (top < 4) top = Math.max(4, Math.min(r.bottom + 2, window.innerHeight - h - 4));
-      pop.style.left = left + "px";
-      pop.style.top = top + "px";
+      pop.setCssStyles({ left: left + "px" });
+      pop.setCssStyles({ top: top + "px" });
     };
     const search = pop.createEl("input", { cls: "ep-edit-input ep-addsearch" });
     search.type = "text";
@@ -8445,12 +8437,10 @@ var PopupManager = class {
     const view = this.view;
     const t = view.i18n.t.bind(view.i18n);
     while (this.popups.length > 1) (_a = this.popups.pop()) == null ? void 0 : _a.remove();
-    const side = document.body.createDiv({ cls: "ep-popup ep-side" });
+    const side = activeDocument.body.createDiv({ cls: "ep-popup ep-side" });
     this.popups.push(side);
     const r = row.getBoundingClientRect();
-    side.style.left = r.right + 2 + "px";
-    side.style.top = r.top + "px";
-    side.style.minWidth = "170px";
+    side.setCssStyles({ left: r.right + 2 + "px", top: r.top + "px", minWidth: "170px" });
     side.createDiv({ cls: "ep-side-title", text: multi ? t("add.pickValues", { key }) : key });
     const body = side.createDiv({ cls: "ep-side-body" });
     const vals = view.props.valuesFor(key);
@@ -8521,13 +8511,11 @@ var PopupManager = class {
       const k = this.popups.indexOf(this.notesWin);
       if (k >= 0) this.popups.splice(k, 1);
     }
-    const w = document.body.createDiv({ cls: "ep-popup ep-noteswin" });
+    const w = activeDocument.body.createDiv({ cls: "ep-popup ep-noteswin" });
     this.popups.push(w);
     this.notesWin = w;
     const r = anchor.getBoundingClientRect();
-    w.style.left = r.right + 4 + "px";
-    w.style.top = r.top + "px";
-    w.style.minWidth = "160px";
+    w.setCssStyles({ left: r.right + 4 + "px", top: r.top + "px", minWidth: "160px" });
     w.createDiv({ cls: "ep-side-title", text: view.i18n.t("add.notesWith", { value }) });
     const body = w.createDiv({ cls: "ep-side-body" });
     const notes = view.props.notesWithValue(key, value);
@@ -8542,11 +8530,9 @@ var PopupManager = class {
     const t = view.i18n.t.bind(view.i18n);
     this.closeAll();
     const cur = view.note.list(key);
-    const side = document.body.createDiv({ cls: "ep-popup ep-side" });
+    const side = activeDocument.body.createDiv({ cls: "ep-popup ep-side" });
     this.popups.push(side);
-    side.style.left = left + "px";
-    side.style.top = top + "px";
-    side.style.minWidth = "170px";
+    side.setCssStyles({ left: left + "px", top: top + "px", minWidth: "170px" });
     side.createDiv({ cls: "ep-side-title", text: t("list.addTo", { key }) });
     const body = side.createDiv({ cls: "ep-side-body" });
     const opts = view.props.valuesFor(key).filter((o) => !cur.some((c) => c.toLowerCase() === o.toLowerCase()));
@@ -8603,7 +8589,7 @@ function renderLinkedText(app, el, text, sourcePath) {
         a.onclick = (ev) => {
           ev.preventDefault();
           ev.stopPropagation();
-          app.workspace.openLinkText(target, sourcePath, ev.ctrlKey || ev.metaKey);
+          void app.workspace.openLinkText(target, sourcePath, ev.ctrlKey || ev.metaKey);
         };
       }
     } else {
@@ -8695,7 +8681,7 @@ var SidebarView = class extends import_obsidian26.ItemView {
     });
   }
   saveLayout() {
-    this.plugin.saveSettings();
+    void this.plugin.saveSettings();
   }
   rerender() {
     this.render();
@@ -8946,7 +8932,7 @@ var SidebarView = class extends import_obsidian26.ItemView {
         getColorSpace: () => this.settings.defaults.colorSpace,
         setColorSpace: (sp) => {
           this.settings.defaults.colorSpace = sp;
-          this.plugin.saveSettings();
+          void this.plugin.saveSettings();
         }
       },
       initial,
@@ -9029,7 +9015,7 @@ var SidebarView = class extends import_obsidian26.ItemView {
       sec.collapsed = false;
       this.saveLayout();
       this.render();
-      requestAnimationFrame(() => this.scrollToSection(id));
+      window.requestAnimationFrame(() => this.scrollToSection(id));
       return;
     }
     const el = this.sectionEls[id];
@@ -9173,7 +9159,7 @@ var SidebarView = class extends import_obsidian26.ItemView {
       () => {
         if (this.layoutSnapshot && this.activeTypeKey) {
           this.settings.layouts[this.activeTypeKey] = JSON.parse(this.layoutSnapshot);
-          this.plugin.saveSettings();
+          void this.plugin.saveSettings();
         }
         void this.note.revertUndo().then(() => {
           const active = this.app.workspace.getActiveFile();
@@ -9190,8 +9176,8 @@ var SidebarView = class extends import_obsidian26.ItemView {
     const showLabel = this.editMode || !entry.hideLabel;
     if (!showLabel) return;
     const span = head.createSpan({ cls: "ep-line-name" });
-    if (entry.labelSize) span.style.fontSize = entry.labelSize + "px";
-    if (entry.labelColor) span.style.color = entry.labelColor;
+    if (entry.labelSize) span.setCssStyles({ fontSize: entry.labelSize + "px" });
+    if (entry.labelColor) span.setCssStyles({ color: entry.labelColor });
     if (this.editMode && entry.hideLabel) span.addClass("ep-dim");
     if (this.editMode && entry.kind === "prop") {
       span.setText(entry.alias || ((_a = entry.key) != null ? _a : ""));
@@ -9217,7 +9203,7 @@ var SidebarView = class extends import_obsidian26.ItemView {
             if (v && v !== entry.key) this.renameKey(entry, v);
           }
         };
-        input.onblur = () => setTimeout(() => finish(true), 120);
+        input.onblur = () => window.setTimeout(() => finish(true), 120);
         input.onkeydown = (e) => {
           if (e.key === "Escape") {
             e.preventDefault();
@@ -9316,7 +9302,7 @@ var SidebarView = class extends import_obsidian26.ItemView {
           h.findAll(cls).forEach((x) => {
             x.addClass("ep-squeezed");
             const cell = x.closest("[data-ep-slot]");
-            if (cell) cell.style.minWidth = "";
+            if (cell) cell.setCssStyles({ minWidth: "" });
           });
         }
       }
@@ -9334,10 +9320,9 @@ var SidebarView = class extends import_obsidian26.ItemView {
     return hh + zh;
   }
   reflowSticky() {
-    if (this.headerEl && this.stickyZoneEl) this.stickyZoneEl.style.top = this.headerEl.offsetHeight + "px";
+    if (this.headerEl && this.stickyZoneEl) this.stickyZoneEl.setCssStyles({ top: this.headerEl.offsetHeight + "px" });
     const cap = Math.max(90, Math.floor(this.content.clientHeight * 0.34));
-    this.content.style.setProperty("--ep-zone-max", cap + "px");
-    this.content.style.setProperty("--ep-sticky-top", this.stickyTopPx() + "px");
+    this.content.setCssProps({ "--ep-zone-max": cap + "px", "--ep-sticky-top": this.stickyTopPx() + "px" });
   }
   /** Animate a container's height change (edit-mode transitions). */
   animateHeight(el, fromH) {
@@ -9345,15 +9330,11 @@ var SidebarView = class extends import_obsidian26.ItemView {
     const toH = el.scrollHeight;
     if (Math.abs(toH - fromH) < 2) return;
     const prevO = el.style.overflow;
-    el.style.overflow = "hidden";
-    el.style.height = fromH + "px";
+    el.setCssStyles({ overflow: "hidden", height: fromH + "px" });
     void el.offsetWidth;
-    el.style.transition = "height .28s ease";
-    el.style.height = toH + "px";
+    el.setCssStyles({ transition: "height .28s ease", height: toH + "px" });
     const done = () => {
-      el.style.height = "";
-      el.style.transition = "";
-      el.style.overflow = prevO;
+      el.setCssStyles({ height: "", transition: "", overflow: prevO });
       el.removeEventListener("transitionend", done);
     };
     el.addEventListener("transitionend", done);
@@ -9361,10 +9342,10 @@ var SidebarView = class extends import_obsidian26.ItemView {
   applyTypography(container) {
     const d = this.settings.defaults;
     const set = (k, v) => {
-      if (v && v > 0) container.style.setProperty(k, v + "px");
+      if (v && v > 0) container.setCssProps({ [k]: v + "px" });
       else container.style.removeProperty(k);
     };
-    if (d.fontFamily) container.style.setProperty("--ep-font", d.fontFamily);
+    if (d.fontFamily) container.setCssProps({ "--ep-font": d.fontFamily });
     else container.style.removeProperty("--ep-font");
     set("--ep-size-base", d.baseSize);
     set("--ep-size-label", d.labelSize);
@@ -9409,7 +9390,7 @@ var SidebarView = class extends import_obsidian26.ItemView {
       match = types[0];
       if (!this.settings.types.some((tp) => tp.toLowerCase() === match.toLowerCase())) this.settings.types.push(match);
       this.plugin.ensureLayout(match.toLowerCase());
-      this.plugin.saveSettings();
+      void this.plugin.saveSettings();
     }
     this.activeTypeKey = match ? match.toLowerCase() : null;
     if (!match) {
@@ -9495,9 +9476,9 @@ var SidebarView = class extends import_obsidian26.ItemView {
     this.lastEmptySig = this.emptySig();
     this.initRovingFocus();
     container.scrollTop = prevScroll;
-    requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       this.reflowSticky();
-      requestAnimationFrame(() => this.responsivePass());
+      window.requestAnimationFrame(() => this.responsivePass());
     });
     if (this.resizeObs) {
       this.resizeObs.disconnect();
@@ -9507,7 +9488,7 @@ var SidebarView = class extends import_obsidian26.ItemView {
       if (this.flowEl) this.resizeObs.observe(this.flowEl);
     }
     if (animate)
-      requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
         this.animateHeight(this.flowEl, oldFlowH);
         this.animateHeight(this.stickyZoneEl, oldZoneH);
         this.animateHeight(this.footerZoneEl, oldFootH);
@@ -9785,8 +9766,7 @@ var TableView = class extends import_obsidian27.ItemView {
   spacer(tbody, colspan, h) {
     const tr = tbody.createEl("tr", { cls: "ep-table-spacer" });
     const td = tr.createEl("td", { attr: { colspan: String(colspan) } });
-    td.style.height = h + "px";
-    td.style.padding = "0";
+    td.setCssStyles({ height: h + "px", padding: "0" });
   }
   detachScroll() {
     if (this.scrollEl && this.scrollFn) this.scrollEl.removeEventListener("scroll", this.scrollFn);
@@ -9841,7 +9821,7 @@ var TableView = class extends import_obsidian27.ItemView {
       const s = fmtCell(raw);
       if (s) {
         const sw = td.createSpan({ cls: "ep-cell-swatch" });
-        sw.style.background = s;
+        sw.setCssStyles({ background: s });
       }
       td.createSpan({ cls: "ep-cell-muted", text: s });
       return;
@@ -9929,7 +9909,7 @@ var TableView = class extends import_obsidian27.ItemView {
           td.createSpan({ text: input.value.trim() });
         } else this.render();
       };
-      input.onblur = () => setTimeout(() => finish(true), 150);
+      input.onblur = () => window.setTimeout(() => finish(true), 150);
       input.onkeydown = (e) => {
         if (e.key === "Enter") {
           e.preventDefault();
@@ -9977,8 +9957,8 @@ var TableView = class extends import_obsidian27.ItemView {
     if (meta) {
       const w = (_a = layout.widths) == null ? void 0 : _a[key];
       if (w && w > 0) {
-        th.style.width = w + "px";
-        th.style.minWidth = w + "px";
+        th.setCssStyles({ width: w + "px" });
+        th.setCssStyles({ minWidth: w + "px" });
       }
     } else {
       th.addClass("ep-table-namecol");
@@ -10021,8 +10001,8 @@ var TableView = class extends import_obsidian27.ItemView {
       e.preventDefault();
       e.stopPropagation();
       const w = Math.max(48, th.offsetWidth + (e.key === "ArrowRight" ? 8 : -8));
-      th.style.width = w + "px";
-      th.style.minWidth = w + "px";
+      th.setCssStyles({ width: w + "px" });
+      th.setCssStyles({ minWidth: w + "px" });
       if (!layout.widths) layout.widths = {};
       layout.widths[key] = w;
       void this.plugin.saveSettings();
@@ -10036,8 +10016,8 @@ var TableView = class extends import_obsidian27.ItemView {
       grip.setPointerCapture(e.pointerId);
       const move = (ev) => {
         const w = Math.max(48, startW + (ev.clientX - startX));
-        th.style.width = w + "px";
-        th.style.minWidth = w + "px";
+        th.setCssStyles({ width: w + "px" });
+        th.setCssStyles({ minWidth: w + "px" });
       };
       const up = (ev) => {
         grip.releasePointerCapture(e.pointerId);
@@ -10760,19 +10740,19 @@ var cube3d = {
     const k = (1 / SS).toFixed(4);
     const sc = SS > 1 ? `scale3d(${k}, ${k}, ${k}) ` : "";
     if (SS > 1) {
-      wrap.style.width = wrap.style.height = `${BOX * SS}px`;
-      wrap.style.transform = sc.trim();
+      wrap.setCssStyles({ width: `${BOX * SS}px`, height: `${BOX * SS}px` });
+      wrap.setCssStyles({ transform: sc.trim() });
     }
     const faceEls = solid.map((f, k2) => {
       const fe = wrap.createDiv({ cls: "ep-solid-face" });
-      fe.style.transform = f.place;
+      fe.setCssStyles({ transform: f.place });
       const edge = fe.createDiv({ cls: "ep-solid-edge" });
-      edge.style.clipPath = f.clip;
+      edge.setCssStyles({ clipPath: f.clip });
       const fill = fe.createDiv({ cls: "ep-solid-fill" });
-      fill.style.clipPath = f.clipInner;
+      fill.setCssStyles({ clipPath: f.clipInner });
       const num = fe.createDiv({ cls: "ep-solid-num", text: String(k2 + 1) });
-      if (SS > 1) num.style.fontSize = `${(1.05 * SS).toFixed(3)}em`;
-      num.style.transform = `rotate(${f.numRot.toFixed(1)}deg)`;
+      if (SS > 1) num.setCssStyles({ fontSize: `${(1.05 * SS).toFixed(3)}em` });
+      num.setCssStyles({ transform: `rotate(${f.numRot.toFixed(1)}deg)` });
       return fe;
     });
     const idxOf = (v) => v >= 1 && v <= solid.length ? v - 1 : 0;
@@ -10794,12 +10774,12 @@ var cube3d = {
         const tf = (ang) => `${pre}${ang}${post}`;
         const end = tf(0);
         if (reduce) {
-          wrap.style.transform = end;
+          wrap.setCssStyles({ transform: end });
           return;
         }
         const spins = 3 + Math.floor(Math.random() * 2);
         const dur = Math.max(450, Math.min(1600, durationMs || 700));
-        wrap.style.transform = tf(360 * spins);
+        wrap.setCssStyles({ transform: tf(360 * spins) });
         wrap.animate(
           [
             // Decelerate quickly from the wound-up spin down onto the face...
@@ -10815,7 +10795,7 @@ var cube3d = {
       settle: (v) => {
         var _a;
         const idx = idxOf(v);
-        wrap.style.transform = landed(idx);
+        wrap.setCssStyles({ transform: landed(idx) });
         (_a = faceEls[idx]) == null ? void 0 : _a.addClass("ep-solid-on");
         el.addClass("ep-settled");
       }
@@ -10841,13 +10821,13 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
     const i18n = plugin.i18n;
     const t = i18n.t.bind(i18n);
     const save = () => {
-      plugin.saveSettings();
+      void plugin.saveSettings();
       plugin.refreshViews();
     };
     c.empty();
     c.addClass("ep-settings");
     c.createEl("p", { text: t("settings.intro") });
-    c.createEl("h3", { text: t("settings.typesHeading") });
+    new import_obsidian30.Setting(c).setName(t("settings.typesHeading")).setHeading();
     c.createEl("p", { cls: "setting-item-description", text: t("settings.typesDesc") });
     for (const type of plugin.settings.types) {
       new import_obsidian30.Setting(c).setName(type).addButton(
@@ -10895,7 +10875,7 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
     );
     new import_obsidian30.Setting(c).setName(t("transfer.importHeading")).setDesc(t("transfer.importHeadingDesc")).addButton((b) => b.setButtonText(t("transfer.importBtn")).setCta().onClick(() => new ImportModal(plugin).open()));
     const d = plugin.settings.defaults;
-    c.createEl("h3", { text: t("settings.defaultsHeading") });
+    new import_obsidian30.Setting(c).setName(t("settings.defaultsHeading")).setHeading();
     new import_obsidian30.Setting(c).setName(t("settings.defaultDataType")).setDesc(t("settings.defaultDataTypeDesc")).addDropdown((dd) => {
       for (const def of plugin.registries.valueTypes.all()) {
         if (def.deprecated) continue;
@@ -10915,7 +10895,7 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
         save();
       });
     });
-    c.createEl("h3", { text: t("settings.newSectionHeading") });
+    new import_obsidian30.Setting(c).setName(t("settings.newSectionHeading")).setHeading();
     new import_obsidian30.Setting(c).setName(t("sectionOptions.columns")).addDropdown((dd) => {
       dd.addOption("1", "1");
       dd.addOption("2", "2");
@@ -10946,7 +10926,7 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
         save();
       });
     });
-    c.createEl("h3", { text: t("settings.derivationsHeading") });
+    new import_obsidian30.Setting(c).setName(t("settings.derivationsHeading")).setHeading();
     c.createEl("p", { cls: "setting-item-description", text: t("settings.derivationsDesc") });
     const applyDerivations = () => {
       plugin.rebuildRegistries();
@@ -11001,7 +10981,7 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
         this.display();
       })
     );
-    c.createEl("h3", { text: t("settings.abbrHeading") });
+    new import_obsidian30.Setting(c).setName(t("settings.abbrHeading")).setHeading();
     c.createEl("p", { cls: "setting-item-description", text: t("settings.abbrDesc") });
     new import_obsidian30.Setting(c).setName(t("settings.modSuffix")).setDesc(t("settings.modSuffixDesc")).addText((tx) => {
       var _a;
@@ -11076,7 +11056,7 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
         }, () => plugin.props.knownProps()).open()
       )
     );
-    c.createEl("h3", { text: t("settings.diceHeading") });
+    new import_obsidian30.Setting(c).setName(t("settings.diceHeading")).setHeading();
     new import_obsidian30.Setting(c).setName(t("settings.diceAnim")).setDesc(t("settings.diceAnimDesc")).addToggle((tg) => {
       tg.setValue(plugin.settings.diceAnim).onChange((v) => {
         plugin.settings.diceAnim = v;
@@ -11181,7 +11161,7 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
       )
     );
     if (plugin.settings.features["rolling"] !== false) {
-      c.createEl("h3", { text: t("settings.rollsHeading") });
+      new import_obsidian30.Setting(c).setName(t("settings.rollsHeading")).setHeading();
       new import_obsidian30.Setting(c).setName(t("settings.rollHistory")).setDesc(t("settings.rollHistoryDesc")).addToggle((tg) => {
         tg.setValue(plugin.settings.rollHistoryEnabled !== false).onChange((v) => {
           plugin.settings.rollHistoryEnabled = v;
@@ -11205,7 +11185,7 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
           }).open()
         )
       );
-      c.createEl("h4", { text: t("settings.macrosHeading") });
+      new import_obsidian30.Setting(c).setName(t("settings.macrosHeading")).setHeading();
       c.createEl("p", { cls: "setting-item-description", text: t("settings.macrosDesc") });
       const macros = plugin.settings.macros;
       for (const m of [...macros]) {
@@ -11261,7 +11241,7 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
         })
       );
     }
-    c.createEl("h3", { text: t("settings.typographyHeading") });
+    new import_obsidian30.Setting(c).setName(t("settings.typographyHeading")).setHeading();
     c.createEl("p", { cls: "setting-item-description", text: t("settings.typographyDesc") });
     new import_obsidian30.Setting(c).setName(t("settings.fontFamily")).addText((tx) => {
       tx.setPlaceholder(t("settings.fontPlaceholder")).setValue(d.fontFamily).onChange((v) => {
@@ -11280,9 +11260,9 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
     sizeRow(t("options.valueSize"), () => d.valueSize, (n) => d.valueSize = n);
     sizeRow(t("sectionOptions.titleSize"), () => d.titleSize, (n) => d.titleSize = n);
     sizeRow(t("settings.listSize"), () => d.listSize, (n) => d.listSize = n);
-    c.createEl("h3", { text: t("settings.languageHeading") });
+    new import_obsidian30.Setting(c).setName(t("settings.languageHeading")).setHeading();
     this.renderOverrideEditor(c);
-    c.createEl("h3", { text: t("settings.obsidianHeading") });
+    new import_obsidian30.Setting(c).setName(t("settings.obsidianHeading")).setHeading();
     new import_obsidian30.Setting(c).setName(t("settings.hideShown")).setDesc(t("settings.hideShownDesc")).addToggle((tg) => {
       tg.setValue(plugin.settings.hideShown).onChange((v) => {
         plugin.settings.hideShown = v;
@@ -11295,7 +11275,7 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
         save();
       });
     });
-    c.createEl("h3", { text: t("settings.hiddenHeading") });
+    new import_obsidian30.Setting(c).setName(t("settings.hiddenHeading")).setHeading();
     c.createEl("p", { cls: "setting-item-description", text: t("settings.hiddenDesc") });
     for (const k of plugin.settings.manualHide) {
       new import_obsidian30.Setting(c).setName(k).addButton(
@@ -11317,7 +11297,7 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
         }, () => plugin.props.knownProps()).open()
       )
     );
-    c.createEl("h3", { text: t("settings.featuresHeading") });
+    new import_obsidian30.Setting(c).setName(t("settings.featuresHeading")).setHeading();
     c.createEl("p", { cls: "setting-item-description", text: t("settings.featuresDesc") });
     for (const mod of plugin.featureModules) {
       new import_obsidian30.Setting(c).setName(mod.name(i18n)).setDesc(mod.description(i18n)).addToggle((tg) => {
@@ -11342,7 +11322,7 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
       (b) => b.setButtonText(t("settings.overridesReset")).onClick(() => {
         plugin.settings.stringOverrides = {};
         i18n.setOverrides({});
-        plugin.saveSettings();
+        void plugin.saveSettings();
         plugin.refreshViews();
         this.display();
       })
@@ -11350,7 +11330,7 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
     const search = c.createEl("input", { cls: "ep-edit-input" });
     search.type = "text";
     search.placeholder = t("settings.overridesSearch");
-    search.style.width = "100%";
+    search.setCssStyles({ width: "100%" });
     const listEl = c.createDiv();
     const renderList = () => {
       listEl.empty();
@@ -11370,7 +11350,7 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
             if (v) plugin.settings.stringOverrides[key] = v;
             else delete plugin.settings.stringOverrides[key];
             i18n.setOverrides(plugin.settings.stringOverrides);
-            plugin.saveSettings();
+            void plugin.saveSettings();
             plugin.refreshViews();
           });
         });
@@ -11383,7 +11363,7 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
     };
     search.addEventListener("input", renderList);
     renderList();
-    c.createEl("h3", { text: t("settings.resetHeading") });
+    new import_obsidian30.Setting(c).setName(t("settings.resetHeading")).setHeading();
     new import_obsidian30.Setting(c).setName(t("settings.resetAll")).setDesc(t("settings.resetAllDesc")).addButton(
       (b) => b.setButtonText(t("settings.resetAllBtn")).setWarning().onClick(
         () => new ConfirmModal(this.app, i18n, t("settings.resetAllConfirm"), () => {
@@ -11488,7 +11468,7 @@ function showPropMenu(host, e, key) {
 function augmentPropsMenu(host) {
   const { i18n, hide } = host;
   const t = i18n.t.bind(i18n);
-  const menus = document.querySelectorAll(".menu");
+  const menus = activeDocument.querySelectorAll(".menu");
   const menu = menus[menus.length - 1];
   if (!menu || menu.querySelector(".ep-injected")) return;
   menu.createDiv({ cls: "menu-separator ep-injected" });
@@ -11613,11 +11593,11 @@ var import_obsidian34 = require("obsidian");
 var region = null;
 function live() {
   if (!region || !region.isConnected) {
-    region = document.createElement("div");
+    region = activeDocument.createElement("div");
     region.className = "ep-sr-only";
     region.setAttribute("aria-live", "polite");
     region.setAttribute("aria-atomic", "true");
-    document.body.appendChild(region);
+    activeDocument.body.appendChild(region);
   }
   return region;
 }
@@ -11674,7 +11654,7 @@ function closeAllRolls() {
 }
 function getLayer(block) {
   if (!layer || !layer.isConnected) {
-    layer = document.body.createDiv({ cls: "ep-roll-layer" });
+    layer = activeDocument.body.createDiv({ cls: "ep-roll-layer" });
     layer.createDiv({ cls: "ep-roll-cards" });
   }
   if (block) layer.addClass("ep-roll-block");
@@ -11703,12 +11683,10 @@ function prepareCardFlip(host, except) {
       const dx = rect.left - now.left;
       const dy = rect.top - now.top;
       if (!dx && !dy) continue;
-      el.style.transition = "none";
-      el.style.transform = `translate(${dx}px, ${dy}px)`;
-      requestAnimationFrame(() => {
-        el.style.transition = "transform .18s ease";
-        el.style.transform = "";
-        window.setTimeout(() => el.style.transition = "", 240);
+      el.setCssStyles({ transition: "none", transform: `translate(${dx}px, ${dy}px)` });
+      window.requestAnimationFrame(() => {
+        el.setCssStyles({ transition: "transform .18s ease", transform: "" });
+        window.setTimeout(() => el.setCssStyles({ transition: "" }), 240);
       });
     }
   };
@@ -11716,7 +11694,7 @@ function prepareCardFlip(host, except) {
 function measureReserve() {
   if (!layer) return;
   if (summaryEl && summaryEl.isConnected) {
-    layer.style.setProperty("--ep-roll-reserve", Math.max(150, summaryEl.offsetHeight + 32) + "px");
+    layer.setCssProps({ "--ep-roll-reserve": Math.max(150, summaryEl.offsetHeight + 32) + "px" });
   } else {
     layer.style.removeProperty("--ep-roll-reserve");
   }
@@ -11799,11 +11777,9 @@ function updateSummary(i18n) {
         const dx = a.left - b.left;
         const dy = a.top - b.top;
         if (!dx && !dy) continue;
-        x.el.style.transition = "none";
-        x.el.style.transform = `translate(${dx}px, ${dy}px)`;
-        requestAnimationFrame(() => {
-          x.el.style.transition = "";
-          x.el.style.transform = "";
+        x.el.setCssStyles({ transition: "none", transform: `translate(${dx}px, ${dy}px)` });
+        window.requestAnimationFrame(() => {
+          x.el.setCssStyles({ transition: "", transform: "" });
         });
       }
     }
@@ -11819,24 +11795,16 @@ function updateSummary(i18n) {
     const w = el.offsetWidth;
     const h = el.offsetHeight;
     if (Math.abs(w - prevRect.width) >= 1 || Math.abs(h - prevRect.height) >= 1) {
-      el.style.transition = "none";
-      el.style.overflow = "hidden";
-      el.style.width = prevRect.width + "px";
-      el.style.height = prevRect.height + "px";
+      el.setCssStyles({ transition: "none", overflow: "hidden", width: prevRect.width + "px", height: prevRect.height + "px" });
       void el.offsetWidth;
-      el.style.transition = "width .2s ease-out, height .2s ease-out";
-      el.style.width = w + "px";
-      el.style.height = h + "px";
+      el.setCssStyles({ transition: "width .2s ease-out, height .2s ease-out", width: w + "px", height: h + "px" });
       window.setTimeout(() => {
-        el.style.transition = "";
-        el.style.width = "";
-        el.style.height = "";
-        el.style.overflow = "";
+        el.setCssStyles({ transition: "", width: "", height: "", overflow: "" });
         measureReserve();
       }, 230);
     }
   }
-  requestAnimationFrame(measureReserve);
+  window.requestAnimationFrame(measureReserve);
 }
 var rsId = 0;
 function renderSummarySettings(host, i18n) {
@@ -11860,7 +11828,7 @@ function renderSummarySettings(host, i18n) {
     chev.toggleClass("ep-open", summaryOpen);
     tog.setAttr("aria-expanded", String(summaryOpen));
     host.toggleClass("ep-sum-open", summaryOpen);
-    requestAnimationFrame(measureReserve);
+    window.requestAnimationFrame(measureReserve);
     window.setTimeout(measureReserve, 120);
     window.setTimeout(measureReserve, 260);
   };
@@ -11932,7 +11900,7 @@ function playRollAnimation(job, i18n, done) {
   const diceRow = box.createDiv({ cls: "ep-roll-dice" });
   const diceTrack = diceRow.createDiv({ cls: "ep-roll-dice-track" });
   const chain = box.createDiv({ cls: "ep-roll-chain" });
-  requestAnimationFrame(() => {
+  window.requestAnimationFrame(() => {
     host.scrollLeft = host.scrollWidth;
   });
   const flat = [];
@@ -11953,7 +11921,7 @@ function playRollAnimation(job, i18n, done) {
     const die = dies[i].el;
     const offset = Math.max(0, die.offsetLeft + die.offsetWidth - cw);
     diceRow.toggleClass("ep-overflow", offset > 0);
-    diceTrack.style.transform = offset > 0 ? `translateX(${-offset}px)` : "";
+    diceTrack.setCssStyles({ transform: offset > 0 ? `translateX(${-offset}px)` : "" });
   };
   const timers = [];
   let interval = 0;
@@ -12038,34 +12006,27 @@ function playRollAnimation(job, i18n, done) {
     const cell = chain.createDiv({ cls: "ep-roll-cell" + (cls ? " " + cls : "") });
     cell.createDiv({ cls: "ep-roll-cellval", text: valueText });
     cell.createDiv({ cls: "ep-roll-celllab", text: labelText });
-    box.style.transition = "none";
-    box.style.width = "";
-    box.style.height = "";
-    chain.style.width = "";
+    box.setCssStyles({ transition: "none" });
+    box.setCssStyles({ width: "" });
+    box.setCssStyles({ height: "" });
+    chain.setCssStyles({ width: "" });
     const nat = box.getBoundingClientRect();
     const w = nat.width;
     const h = nat.height;
     if (Math.abs(w - before.width) >= 1 || Math.abs(h - before.height) >= 1) {
-      chain.style.width = Math.ceil(chain.getBoundingClientRect().width) + 1 + "px";
-      box.style.overflow = "hidden";
-      box.style.width = before.width + "px";
-      box.style.height = before.height + "px";
+      chain.setCssStyles({ width: Math.ceil(chain.getBoundingClientRect().width) + 1 + "px" });
+      box.setCssStyles({ overflow: "hidden", width: before.width + "px", height: before.height + "px" });
       void box.offsetWidth;
-      box.style.transition = "width .2s ease-out, height .2s ease-out";
-      box.style.width = w + "px";
-      box.style.height = h + "px";
+      box.setCssStyles({ transition: "width .2s ease-out, height .2s ease-out", width: w + "px", height: h + "px" });
       window.clearTimeout(sizeTimer);
       sizeTimer = window.setTimeout(() => {
-        box.style.transition = "";
-        box.style.width = "";
-        box.style.height = "";
-        box.style.overflow = "";
-        chain.style.width = "";
+        box.setCssStyles({ transition: "", width: "", height: "", overflow: "" });
+        chain.setCssStyles({ width: "" });
       }, 230);
     } else {
-      box.style.transition = "";
+      box.setCssStyles({ transition: "" });
     }
-    requestAnimationFrame(() => cell.addClass("ep-in"));
+    window.requestAnimationFrame(() => cell.addClass("ep-in"));
   };
   const resolve = () => {
     var _a2, _b2;
@@ -12365,9 +12326,9 @@ function addDiceSettings(container, i18n, binding) {
   });
 }
 function openRollMenu(ev, i18n, current, run, opts) {
-  const pop = document.body.createDiv({ cls: "ep-popup ep-rollmenu" });
-  pop.style.left = ev.clientX + "px";
-  pop.style.top = ev.clientY + 2 + "px";
+  const pop = activeDocument.body.createDiv({ cls: "ep-popup ep-rollmenu" });
+  pop.setCssStyles({ left: ev.clientX + "px" });
+  pop.setCssStyles({ top: ev.clientY + 2 + "px" });
   let mode = current;
   const row = pop.createDiv({ cls: "ep-mode" });
   const btns = /* @__PURE__ */ new Map();
@@ -12394,7 +12355,7 @@ function openRollMenu(ev, i18n, current, run, opts) {
   input.value = "1";
   const dismiss = () => {
     pop.remove();
-    document.removeEventListener("mousedown", outside);
+    activeDocument.removeEventListener("mousedown", outside);
   };
   const go = pop.createEl("button", { cls: "mod-cta ep-rollmenu-go", text: i18n.t("roll.menu.go") });
   go.onclick = () => {
@@ -12421,11 +12382,11 @@ function openRollMenu(ev, i18n, current, run, opts) {
   const outside = (e) => {
     if (!pop.contains(e.target)) dismiss();
   };
-  window.setTimeout(() => document.addEventListener("mousedown", outside), 0);
+  window.setTimeout(() => activeDocument.addEventListener("mousedown", outside), 0);
   const w = pop.offsetWidth;
   const h = pop.offsetHeight;
-  if (ev.clientX + w > window.innerWidth - 4) pop.style.left = Math.max(4, window.innerWidth - w - 4) + "px";
-  if (ev.clientY + h > window.innerHeight - 4) pop.style.top = Math.max(4, ev.clientY - h - 2) + "px";
+  if (ev.clientX + w > window.innerWidth - 4) pop.setCssStyles({ left: Math.max(4, window.innerWidth - w - 4) + "px" });
+  if (ev.clientY + h > window.innerHeight - 4) pop.setCssStyles({ top: Math.max(4, ev.clientY - h - 2) + "px" });
 }
 
 // src/features/rolling/roller.ts
@@ -13643,7 +13604,7 @@ var HistoryService = class {
       this.save();
     }
   }
-  /** Render the history (optionally one note's) as a Markdown table document. */
+  /** Render the history (optionally one note's) as a Markdown table activeDocument. */
   exportMarkdown(i18n, note) {
     const rows = this.query({ note: note != null ? note : void 0 });
     const cell = (s) => (s != null ? s : "").replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
@@ -13756,8 +13717,8 @@ var InlineViewCtx = class {
     const { entry } = ctx2;
     if (entry.hideLabel) return;
     const span = head.createSpan({ cls: "ep-line-name" });
-    if (entry.labelSize) span.style.fontSize = entry.labelSize + "px";
-    if (entry.labelColor) span.style.color = entry.labelColor;
+    if (entry.labelSize) span.setCssStyles({ fontSize: entry.labelSize + "px" });
+    if (entry.labelColor) span.setCssStyles({ color: entry.labelColor });
     span.setText(entry.alias || this.defaultLabelFor(entry));
     span.addClass("ep-clickname");
     if (entry.kind === "prop" && entry.showType !== false) {
@@ -13840,8 +13801,7 @@ var InlineViewCtx = class {
 };
 function makeValsEl(ctx2, file, body, onEditSource) {
   const wrap = createDiv({ cls: "ep-inline-vals" });
-  wrap.style.display = "inline-block";
-  wrap.style.verticalAlign = "middle";
+  wrap.setCssStyles({ display: "inline-block", verticalAlign: "middle" });
   const t = ctx2.i18n.t.bind(ctx2.i18n);
   const draw = () => {
     var _a, _b, _c, _d, _e, _f;
@@ -13886,7 +13846,7 @@ function makeValsEl(ctx2, file, body, onEditSource) {
     if (entry.icon) {
       const ic = head.createSpan({ cls: "ep-picon" });
       (0, import_obsidian39.setIcon)(ic, entry.icon);
-      if (entry.iconColor) ic.style.color = entry.iconColor;
+      if (entry.iconColor) ic.setCssStyles({ color: entry.iconColor });
     }
     const extra = wrap.createDiv({ cls: "ep-entry-extra" });
     const flags = emptyFlags();
@@ -13994,7 +13954,7 @@ function clampFrac(value, max) {
 // src/ui/render/charts.ts
 var NS = "http://www.w3.org/2000/svg";
 function svgEl(tag, attrs) {
-  const e = document.createElementNS(NS, tag);
+  const e = activeDocument.createElementNS(NS, tag);
   for (const k in attrs) e.setAttribute(k, String(attrs[k]));
   return e;
 }
@@ -14238,7 +14198,7 @@ function makeValEl(ctx2, file, body, onEditSource) {
   if (entry == null ? void 0 : entry.icon) {
     const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });
     (0, import_obsidian40.setIcon)(ic, entry.icon);
-    if (entry.iconColor) ic.style.color = entry.iconColor;
+    if (entry.iconColor) ic.setCssStyles({ color: entry.iconColor });
   }
   let crossName = null;
   if (noteRef) {
@@ -14804,7 +14764,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian42.Plugin {
     if (materializeShortForms(this.settings)) migrated = true;
     this.hide = new HideService({
       settings: this.settings,
-      save: () => this.saveSettings(),
+      save: () => void this.saveSettings(),
       refreshViews: () => this.refreshViews()
     });
     this.register(this.hide.install());
@@ -14922,7 +14882,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian42.Plugin {
       props: this.props,
       hide: this.hide,
       history: this.history,
-      save: () => this.saveSettings()
+      save: () => void this.saveSettings()
     });
     this.registerEvent(this.app.metadataCache.on("changed", (file) => this.props.invalidateFile(file)));
     this.registerEvent(this.app.vault.on("delete", (file) => this.props.invalidatePath(file.path)));
@@ -15240,7 +15200,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian42.Plugin {
   }
   resetLayout(typeKey) {
     this.settings.layouts[typeKey] = this.defaultLayout();
-    this.saveSettings();
+    void this.saveSettings();
     this.refreshViews();
   }
   /** Reset the plugin completely: all settings, types and layouts back to their
@@ -15310,13 +15270,13 @@ var ExtendedPropertiesPlugin = class extends import_obsidian42.Plugin {
       leaf = right;
       await leaf.setViewState({ type: VIEW_TYPE, active: true });
     }
-    workspace.revealLeaf(leaf);
+    void workspace.revealLeaf(leaf);
   }
   /** Open (or focus) the type table view in a main tab. */
   async activateTableView() {
     const existing = this.app.workspace.getLeavesOfType(VIEW_TYPE_TABLE)[0];
     const leaf = existing != null ? existing : this.app.workspace.getLeaf(true);
     if (!existing) await leaf.setViewState({ type: VIEW_TYPE_TABLE, active: true });
-    this.app.workspace.revealLeaf(leaf);
+    void this.app.workspace.revealLeaf(leaf);
   }
 };

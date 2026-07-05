@@ -94,7 +94,7 @@ export function showPropMenu(host: PropPanelHost, e: MouseEvent, key: string): v
 export function augmentPropsMenu(host: PropPanelHost): void {
   const { i18n, hide } = host;
   const t = i18n.t.bind(i18n);
-  const menus = document.querySelectorAll(".menu");
+  const menus = activeDocument.querySelectorAll(".menu");
   const menu = menus[menus.length - 1] as HTMLElement | undefined;
   if (!menu || menu.querySelector(".ep-injected")) return;
   menu.createDiv({ cls: "menu-separator ep-injected" });

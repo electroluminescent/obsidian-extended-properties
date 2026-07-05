@@ -65,7 +65,7 @@ export class HideService {
   /** Coalesce bursts of DOM mutations into a single apply on the next frame. */
   private schedule(): void {
     if (this.raf) return;
-    this.raf = activeWindow.requestAnimationFrame(() => {
+    this.raf = window.requestAnimationFrame(() => {
       this.raf = 0;
       this.apply();
     });

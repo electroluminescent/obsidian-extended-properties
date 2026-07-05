@@ -451,7 +451,7 @@ export class TableView extends ItemView {
         } else this.render();
       };
       // Delay so a suggestion click can land before the blur commits.
-      input.onblur = () => setTimeout(() => finish(true), 150);
+      input.onblur = () => window.setTimeout(() => finish(true), 150);
       input.onkeydown = (e: KeyboardEvent) => {
         if (e.key === "Enter") {
           e.preventDefault();

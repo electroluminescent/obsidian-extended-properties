@@ -194,7 +194,7 @@ export class HistoryService {
     }
   }
 
-  /** Render the history (optionally one note's) as a Markdown table document. */
+  /** Render the history (optionally one note's) as a Markdown table activeDocument. */
   exportMarkdown(i18n: I18n, note?: string | null): string {
     const rows = this.query({ note: note ?? undefined });
     const cell = (s: string) => (s ?? "").replace(/\|/g, "\\|").replace(/\r?\n/g, " ");

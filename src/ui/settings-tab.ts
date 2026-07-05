@@ -33,7 +33,7 @@ export class EPSettingTab extends PluginSettingTab {
     const i18n = plugin.i18n;
     const t = i18n.t.bind(i18n);
     const save = () => {
-      plugin.saveSettings();
+      void plugin.saveSettings();
       plugin.refreshViews();
     };
     c.empty();
@@ -681,7 +681,7 @@ export class EPSettingTab extends PluginSettingTab {
         b.setButtonText(t("settings.overridesReset")).onClick(() => {
           plugin.settings.stringOverrides = {};
           i18n.setOverrides({});
-          plugin.saveSettings();
+          void plugin.saveSettings();
           plugin.refreshViews();
           this.display();
         })
@@ -716,7 +716,7 @@ export class EPSettingTab extends PluginSettingTab {
                 if (v) plugin.settings.stringOverrides[key] = v;
                 else delete plugin.settings.stringOverrides[key];
                 i18n.setOverrides(plugin.settings.stringOverrides);
-                plugin.saveSettings();
+                void plugin.saveSettings();
                 plugin.refreshViews();
               });
           });

@@ -124,7 +124,7 @@ export function openRollMenu(
   run: (mode: RollMode, times: number) => void,
   opts?: { onEdit?: () => void }
 ): void {
-  const pop = document.body.createDiv({ cls: "ep-popup ep-rollmenu" });
+  const pop = activeDocument.body.createDiv({ cls: "ep-popup ep-rollmenu" });
   pop.setCssStyles({ left: ev.clientX + "px" });
   pop.setCssStyles({ top: ev.clientY + 2 + "px" });
 
@@ -156,7 +156,7 @@ export function openRollMenu(
 
   const dismiss = () => {
     pop.remove();
-    document.removeEventListener("mousedown", outside);
+    activeDocument.removeEventListener("mousedown", outside);
   };
   const go = pop.createEl("button", { cls: "mod-cta ep-rollmenu-go", text: i18n.t("roll.menu.go") });
   go.onclick = () => {
@@ -182,7 +182,7 @@ export function openRollMenu(
   const outside = (e: MouseEvent) => {
     if (!pop.contains(e.target as Node)) dismiss();
   };
-  window.setTimeout(() => document.addEventListener("mousedown", outside), 0);
+  window.setTimeout(() => activeDocument.addEventListener("mousedown", outside), 0);
 
   // Keep within the window.
   const w = pop.offsetWidth;

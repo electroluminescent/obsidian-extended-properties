@@ -129,7 +129,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
 
     this.hide = new HideService({
       settings: this.settings,
-      save: () => this.saveSettings(),
+      save: () => void this.saveSettings(),
       refreshViews: () => this.refreshViews(),
     });
     this.register(this.hide.install());
@@ -264,7 +264,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       props: this.props,
       hide: this.hide,
       history: this.history,
-      save: () => this.saveSettings(),
+      save: () => void this.saveSettings(),
     });
 
     // Keep the cross-note PropertyIndex cache (perf: avoids a full vault
@@ -614,7 +614,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
 
   resetLayout(typeKey: string): void {
     this.settings.layouts[typeKey] = this.defaultLayout();
-    this.saveSettings();
+    void this.saveSettings();
     this.refreshViews();
   }
 
@@ -694,7 +694,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       leaf = right;
       await leaf.setViewState({ type: VIEW_TYPE, active: true });
     }
-    workspace.revealLeaf(leaf);
+    void workspace.revealLeaf(leaf);
   }
 
   /** Open (or focus) the type table view in a main tab. */
@@ -702,6 +702,6 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     const existing = this.app.workspace.getLeavesOfType(VIEW_TYPE_TABLE)[0];
     const leaf = existing ?? this.app.workspace.getLeaf(true);
     if (!existing) await leaf.setViewState({ type: VIEW_TYPE_TABLE, active: true });
-    this.app.workspace.revealLeaf(leaf);
+    void this.app.workspace.revealLeaf(leaf);
   }
 }

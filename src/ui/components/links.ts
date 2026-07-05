@@ -28,7 +28,7 @@ export function renderLinkedText(app: App, el: HTMLElement, text: string, source
         a.onclick = (ev) => {
           ev.preventDefault();
           ev.stopPropagation();
-          app.workspace.openLinkText(target, sourcePath, ev.ctrlKey || ev.metaKey);
+          void app.workspace.openLinkText(target, sourcePath, ev.ctrlKey || ev.metaKey);
         };
       }
     } else {

@@ -51,8 +51,8 @@ export class PopupManager {
   /** Dismiss when clicking outside the popups and their anchor. */
   private dismissOnOutsideClick(anchor: HTMLElement): void {
     const cleanup = () => {
-      document.removeEventListener("mousedown", h);
-      document.removeEventListener("keydown", esc, true);
+      activeDocument.removeEventListener("mousedown", h);
+      activeDocument.removeEventListener("keydown", esc, true);
     };
     const h = (e: MouseEvent) => {
       const t = e.target as HTMLElement;
@@ -70,8 +70,8 @@ export class PopupManager {
       this.closeAll();
     };
     window.setTimeout(() => {
-      document.addEventListener("mousedown", h);
-      document.addEventListener("keydown", esc, true);
+      activeDocument.addEventListener("mousedown", h);
+      activeDocument.addEventListener("keydown", esc, true);
     }, 0);
   }
 
@@ -139,7 +139,7 @@ export class PopupManager {
     const view = this.view;
     const t = view.i18n.t.bind(view.i18n);
     this.closeAll();
-    const pop = document.body.createDiv({ cls: "ep-popup ep-addmenu" });
+    const pop = activeDocument.body.createDiv({ cls: "ep-popup ep-addmenu" });
     this.popups.push(pop);
     const r = anchor.getBoundingClientRect();
     pop.setCssStyles({ left: r.left + "px", top: r.bottom + 2 + "px", minWidth: "220px" });
@@ -250,7 +250,7 @@ export class PopupManager {
     const view = this.view;
     const t = view.i18n.t.bind(view.i18n);
     while (this.popups.length > 1) this.popups.pop()?.remove();
-    const side = document.body.createDiv({ cls: "ep-popup ep-side" });
+    const side = activeDocument.body.createDiv({ cls: "ep-popup ep-side" });
     this.popups.push(side);
     const r = row.getBoundingClientRect();
     side.setCssStyles({ left: r.right + 2 + "px", top: r.top + "px", minWidth: "170px" });
@@ -330,7 +330,7 @@ export class PopupManager {
       const k = this.popups.indexOf(this.notesWin);
       if (k >= 0) this.popups.splice(k, 1);
     }
-    const w = document.body.createDiv({ cls: "ep-popup ep-noteswin" });
+    const w = activeDocument.body.createDiv({ cls: "ep-popup ep-noteswin" });
     this.popups.push(w);
     this.notesWin = w;
     const r = anchor.getBoundingClientRect();
@@ -351,7 +351,7 @@ export class PopupManager {
     const t = view.i18n.t.bind(view.i18n);
     this.closeAll();
     const cur = view.note.list(key);
-    const side = document.body.createDiv({ cls: "ep-popup ep-side" });
+    const side = activeDocument.body.createDiv({ cls: "ep-popup ep-side" });
     this.popups.push(side);
     side.setCssStyles({ left: left + "px", top: top + "px", minWidth: "170px" });
     side.createDiv({ cls: "ep-side-title", text: t("list.addTo", { key }) });

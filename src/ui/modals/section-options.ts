@@ -117,7 +117,7 @@ export class SectionOptionsModal extends Modal {
         dragging = true;
         dragBase = ev.ctrlKey || ev.metaKey ? new Set(this.selected) : new Set<string>();
         applySelection();
-        document.addEventListener(
+        activeDocument.addEventListener(
           "pointerup",
           () => {
             dragging = false;

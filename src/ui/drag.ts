@@ -22,7 +22,7 @@ export function flipMove(view: ViewCtx, fn: () => void): void {
   const first = new Map<string, DOMRect>();
   view.containerEl.findAll("[data-ep-id]").forEach((el) => first.set(el.getAttribute("data-ep-id")!, el.getBoundingClientRect()));
   fn();
-  requestAnimationFrame(() => {
+  window.requestAnimationFrame(() => {
     view.containerEl.findAll("[data-ep-id]").forEach((el) => {
       const id = el.getAttribute("data-ep-id");
       const f = id ? first.get(id) : undefined;
@@ -32,7 +32,7 @@ export function flipMove(view: ViewCtx, fn: () => void): void {
       if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
       const h = el as HTMLElement;
       h.setCssStyles({ transition: "none", transform: `translate(${dx}px, ${dy}px)` });
-      requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
         h.setCssStyles({ transition: "transform .25s ease", transform: "" });
         const done = () => {
           h.setCssStyles({ transition: "", transform: "" });
@@ -67,7 +67,7 @@ export class DragController {
     let after = false;
 
     const onMove = (e: PointerEvent) => {
-      const under = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+      const under = activeDocument.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
       const sec = (under?.closest(".ep-section") as HTMLElement | null) ?? null;
       this.clearMarks();
       target = null;
@@ -80,9 +80,9 @@ export class DragController {
     };
 
     const onUp = () => {
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup", onUp);
-      document.removeEventListener("pointercancel", onUp);
+      activeDocument.removeEventListener("pointermove", onMove);
+      activeDocument.removeEventListener("pointerup", onUp);
+      activeDocument.removeEventListener("pointercancel", onUp);
       det.removeClass("ep-drag-placeholder");
       const t = target;
       const a = after;
@@ -98,9 +98,9 @@ export class DragController {
       });
     };
 
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp);
-    document.addEventListener("pointercancel", onUp);
+    activeDocument.addEventListener("pointermove", onMove);
+    activeDocument.addEventListener("pointerup", onUp);
+    activeDocument.addEventListener("pointercancel", onUp);
   }
 
   // -- entries (pointer drag with clone) ------------------------------------
@@ -130,7 +130,7 @@ export class DragController {
       pointerEvents: "none",
       zIndex: "9999",
     });
-    document.body.appendChild(clone);
+    activeDocument.body.appendChild(clone);
     const moveClone = (cx: number, cy: number) => {
       clone.setCssStyles({ transform: `translate(${cx - ox}px, ${cy - oy}px)` });
     };
@@ -157,7 +157,7 @@ export class DragController {
         const dx = f.left - n.left, dy = f.top - n.top;
         if (!dx && !dy) return;
         el.setCssStyles({ transition: "none", transform: `translate(${dx}px, ${dy}px)` });
-        requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
           el.setCssStyles({ transition: "transform .18s ease", transform: "" });
           const done = () => {
             el.setCssStyles({ transition: "" });
@@ -170,7 +170,7 @@ export class DragController {
 
     const onMove = (e: PointerEvent) => {
       moveClone(e.clientX, e.clientY);
-      const under = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+      const under = activeDocument.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
       if (!under) return;
       const grid = under.closest(".ep-grid") as HTMLElement | null;
       if (!grid) return;
@@ -208,9 +208,9 @@ export class DragController {
     };
 
     const onUp = () => {
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup", onUp);
-      document.removeEventListener("pointercancel", onUp);
+      activeDocument.removeEventListener("pointermove", onMove);
+      activeDocument.removeEventListener("pointerup", onUp);
+      activeDocument.removeEventListener("pointercancel", onUp);
       clone.remove();
       wrap.removeClass("ep-drag-placeholder");
       const commit = (mutate: () => boolean) => {
@@ -245,9 +245,9 @@ export class DragController {
       commit(() => ops.reorderByDomOrder(view.layout, entry.id, section.id, toId, order));
     };
 
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp);
-    document.addEventListener("pointercancel", onUp);
+    activeDocument.addEventListener("pointermove", onMove);
+    activeDocument.addEventListener("pointerup", onUp);
+    activeDocument.addEventListener("pointercancel", onUp);
   }
 
   // -- drop markers ---------------------------------------------------------

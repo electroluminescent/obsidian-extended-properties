@@ -216,7 +216,7 @@ export function parseExpr(text: string): ExprNode | null {
     if (tok.t === "str") return { kind: "str", value: tok.v };
     if (tok.t === "(") {
       const e = parseBp(0);
-      if (next().t !== ")") throw 0;
+      if (next().t !== ")") throw new Error("parse");
       return e;
     }
     if (tok.t === "op" && (tok.v === "-" || tok.v === "+" || tok.v === "!")) {
@@ -235,12 +235,12 @@ export function parseExpr(text: string): ExprNode | null {
             args.push(parseBp(0));
           }
         }
-        if (next().t !== ")") throw 0;
+        if (next().t !== ")") throw new Error("parse");
         return { kind: "call", name: tok.v, args };
       }
       return { kind: "ref", name: tok.v };
     }
-    throw 0;
+    throw new Error("parse");
   }
 }
 
@@ -332,7 +332,7 @@ function evalBinary(node: Extract<ExprNode, { kind: "binary" }>, env: ExprEnv): 
     case ">": return x > y ? 1 : 0;
     case ">=": return x >= y ? 1 : 0;
   }
-  throw new ExprError("op: " + op);
+  throw new ExprError("op: " + String(op));
 }
 
 function evalCall(node: Extract<ExprNode, { kind: "call" }>, env: ExprEnv): Val {
