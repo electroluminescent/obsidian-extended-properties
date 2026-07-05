@@ -45,9 +45,9 @@ export function alignClustersNow(det: HTMLElement): void {
   for (const el of det.findAll(".ep-cluster [data-ep-slot]")) {
     const id = el.getAttribute("data-ep-slot") ?? "";
     if (!groups.has(id)) groups.set(id, []);
-    groups.get(id)!.push(el as HTMLElement);
+    groups.get(id)!.push(el);
   }
-  groups.set(" num", det.findAll(".ep-cluster .ep-num") as HTMLElement[]);
+  groups.set(" num", det.findAll(".ep-cluster .ep-num"));
   for (const els of groups.values()) {
     if (els.length < 2) continue;
     let max = 0;
@@ -175,7 +175,7 @@ export function renderSection(
     menuBtn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      openSectionMenu(e as MouseEvent, view, section);
+      openSectionMenu(e, view, section);
     };
   }
   sum.addEventListener("contextmenu", (e) => {

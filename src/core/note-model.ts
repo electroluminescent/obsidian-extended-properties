@@ -107,7 +107,7 @@ export class NoteModel {
   load(file: TFile): void {
     // Persist any queued writes for the note we're leaving before switching.
     if (this.path && this.path !== file.path) this.flushPending(this.path);
-    const fm = this.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined;
+    const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
     this.raw = fm ? { ...fm } : {};
     this.path = file.path;
   }
@@ -361,7 +361,7 @@ export class NoteFacade {
 
   /** Shallow copy of a file's frontmatter (empty object when none). */
   raw(file: TFile): Record<string, unknown> {
-    const fm = this.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined;
+    const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
     return fm ? { ...fm } : {};
   }
 

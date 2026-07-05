@@ -101,7 +101,7 @@ export class TableView extends ItemView {
    */
   refresh(file?: TFile): void {
     if (file && !this.shownPaths.has(file.path)) {
-      const fm = this.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined;
+      const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
       const tv = fm ? getCI(fm, "Type") : undefined;
       const types = Array.isArray(tv)
         ? tv.map((x) => String(x).toLowerCase())
@@ -217,7 +217,7 @@ export class TableView extends ItemView {
     };
 
     const colBtn = bar.createEl("button", { cls: "ep-table-btn", text: t("table.columns") });
-    colBtn.onclick = (e) => this.openColumnsMenu(e as MouseEvent);
+    colBtn.onclick = (e) => this.openColumnsMenu(e);
 
     const filt = bar.createEl("input", { cls: "ep-table-filter" });
     filt.type = "search";
@@ -532,7 +532,7 @@ export class TableView extends ItemView {
             this.render();
           })
         );
-        menu.showAtMouseEvent(e as MouseEvent);
+        menu.showAtMouseEvent(e);
       };
     if (meta) this.attachResize(th, key, layout);
   }

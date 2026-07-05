@@ -272,8 +272,8 @@ function cmpHit(face: number, cmp: string, v: number): boolean {
 function rollDice(node: DiceNode, env: RollEnv): DiceGroupResult {
   const sides = node.sides;
   const count = Math.min(MAX_DICE, Math.max(1, node.count));
-  const reroll = node.ops.find((o) => o.t === "reroll") as Extract<DiceOp, { t: "reroll" }> | undefined;
-  const explode = node.ops.find((o) => o.t === "explode") as Extract<DiceOp, { t: "explode" }> | undefined;
+  const reroll = node.ops.find((o) => o.t === "reroll");
+  const explode = node.ops.find((o) => o.t === "explode");
   const explodeOn = explode ? (explode.on < 0 ? sides : explode.on) : Infinity;
 
   const faces: number[] = [];
@@ -327,7 +327,7 @@ function rollDice(node: DiceNode, env: RollEnv): DiceGroupResult {
   }
 
   const keptFaces = counted.filter((idx) => !dropped[idx]).map((idx) => faces[idx]);
-  const success = node.ops.find((o) => o.t === "success") as Extract<DiceOp, { t: "success" }> | undefined;
+  const success = node.ops.find((o) => o.t === "success");
   const value = success
     ? keptFaces.filter((f) => cmpHit(f, success.cmp, success.v)).length
     : keptFaces.reduce((a, b) => a + b, 0);

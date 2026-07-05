@@ -44,7 +44,7 @@ function layoutFor(settings: EPSettings, raw: Record<string, unknown>): Layout |
 
 /** A read-only influence environment for any file (frontmatter + its type layout). */
 export function envForFile(app: App, settings: EPSettings, registries: Registries, file: TFile): InfluenceEnv {
-  const fm = app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined;
+  const fm = app.metadataCache.getFileCache(file)?.frontmatter;
   const raw = fm ? { ...fm } : {};
   const note = {
     raw,

@@ -30,7 +30,7 @@ export function flipMove(view: ViewCtx, fn: () => void): void {
       const n = el.getBoundingClientRect();
       const dx = f.left - n.left, dy = f.top - n.top;
       if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
-      const h = el as HTMLElement;
+      const h = el;
       h.setCssStyles({ transition: "none", transform: `translate(${dx}px, ${dy}px)` });
       window.requestAnimationFrame(() => {
         h.setCssStyles({ transition: "transform .25s ease", transform: "" });
@@ -50,7 +50,7 @@ export class DragController {
   // -- sections (pointer drag, touch-friendly) ------------------------------
 
   attachSection(det: HTMLElement, _grid: HTMLElement, section: Section): void {
-    const grip = det.querySelector(".ep-section-title .ep-grip") as HTMLElement | null;
+    const grip = det.querySelector<HTMLElement>(".ep-section-title .ep-grip");
     if (!grip) return;
     grip.addEventListener("pointerdown", (e: PointerEvent) => {
       if (e.button !== 0) return;
@@ -68,7 +68,7 @@ export class DragController {
 
     const onMove = (e: PointerEvent) => {
       const under = activeDocument.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
-      const sec = (under?.closest(".ep-section") as HTMLElement | null) ?? null;
+      const sec = (under?.closest<HTMLElement>(".ep-section")) ?? null;
       this.clearMarks();
       target = null;
       if (!sec || sec === det) return;
@@ -146,7 +146,7 @@ export class DragController {
 
     /** FLIP within a container while live-reordering the placeholder. */
     const flip = (container: HTMLElement, fn: () => void) => {
-      const els = Array.from(container.querySelectorAll(".ep-entry")) as HTMLElement[];
+      const els = Array.from(container.querySelectorAll<HTMLElement>(".ep-entry"));
       const first = new Map<HTMLElement, DOMRect>();
       els.forEach((el) => first.set(el, el.getBoundingClientRect()));
       fn();
@@ -172,20 +172,20 @@ export class DragController {
       moveClone(e.clientX, e.clientY);
       const under = activeDocument.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
       if (!under) return;
-      const grid = under.closest(".ep-grid") as HTMLElement | null;
+      const grid = under.closest<HTMLElement>(".ep-grid");
       if (!grid) return;
       const isGrid = grid.classList.contains("ep-mode-grid");
       clearSwap();
       if (isGrid) {
         // Grid mode: highlight the hovered cell as a swap target.
-        const cell = under.closest(".ep-entry, .ep-empty-cell") as HTMLElement | null;
+        const cell = under.closest<HTMLElement>(".ep-entry, .ep-empty-cell");
         if (cell && cell !== wrap) {
           gridTarget = cell;
           cell.addClass("ep-swap-target");
         }
         return;
       }
-      const targetEntry = under.closest(".ep-entry") as HTMLElement | null;
+      const targetEntry = under.closest<HTMLElement>(".ep-entry");
       if (targetEntry && targetEntry !== wrap) {
         const r = targetEntry.getBoundingClientRect();
         const relX = e.clientX - (r.left + r.width / 2);
@@ -196,11 +196,11 @@ export class DragController {
         if (wrap.parentElement !== parent || wrap.nextSibling !== refNode)
           flip(grid, () => parent.insertBefore(wrap, refNode));
       } else {
-        const cell = under.closest(".ep-empty-cell") as HTMLElement | null;
+        const cell = under.closest<HTMLElement>(".ep-empty-cell");
         if (cell) {
           flip(grid, () => grid.insertBefore(wrap, cell));
         } else {
-          const cont = (under.closest(".ep-col") as HTMLElement | null) || grid;
+          const cont = (under.closest<HTMLElement>(".ep-col")) || grid;
           if ((cont.classList.contains("ep-col") || cont.classList.contains("ep-grid")) && wrap.parentElement !== cont)
             flip(grid, () => cont.appendChild(wrap));
         }
@@ -235,10 +235,10 @@ export class DragController {
         }
       }
       // Read the final DOM position and mirror it into the model.
-      const secEl = wrap.closest(".ep-section") as HTMLElement | null;
+      const secEl = wrap.closest<HTMLElement>(".ep-section");
       const toId = secEl ? (secEl.getAttribute("data-ep-id") || "s:").slice(2) : section.id;
       const order = secEl
-        ? (Array.from(secEl.querySelectorAll(".ep-entry")) as HTMLElement[])
+        ? (Array.from(secEl.querySelectorAll<HTMLElement>(".ep-entry")))
             .map((el) => (el.getAttribute("data-ep-id") || "").slice(2))
             .filter(Boolean)
         : [];

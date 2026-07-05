@@ -67,7 +67,7 @@ const enabled = (ctx: InlineCtx): boolean => ctx.settings.features["inline"] !==
 /** Markdown post-processor: replace `roll:`/`prop:` inline code with live UI. */
 export function processInline(el: HTMLElement, mdctx: MarkdownPostProcessorContext, ctx: InlineCtx): void {
   if (!enabled(ctx)) return;
-  const codes = Array.from(el.querySelectorAll("code")) as HTMLElement[];
+  const codes = Array.from(el.querySelectorAll("code"));
   if (!codes.length) return;
   const file = ctx.app.vault.getAbstractFileByPath(mdctx.sourcePath);
   if (!(file instanceof TFile)) return;
@@ -311,7 +311,7 @@ export function makeValEl(ctx: InlineCtx, file: TFile, body: string, onEditSourc
   if (entry?.icon) {
     const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });
     setIcon(ic, entry.icon);
-    if (entry.iconColor) ic.setCssStyles({ color: entry.iconColor as string });
+    if (entry.iconColor) ic.setCssStyles({ color: entry.iconColor });
   }
   // The property's full name, in small text before the value. For a cross-note
   // reference, show "<note>/<property>" - the accessor resolved to that note's
@@ -366,7 +366,7 @@ export function makeValEl(ctx: InlineCtx, file: TFile, body: string, onEditSourc
       ev.stopPropagation();
       const menu = new Menu();
       if (editValue && directKey)
-        menu.addItem((i) => i.setTitle(t("inline.editValue", { prop: directKey })).setIcon("pencil").onClick(editValue!));
+        menu.addItem((i) => i.setTitle(t("inline.editValue", { prop: directKey })).setIcon("pencil").onClick(editValue));
       if (onEditSource) menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
       menu.showAtMouseEvent(ev);
     };
@@ -652,7 +652,7 @@ class SheetInline extends MarkdownRenderChild {
   private row(parent: HTMLElement, env: InfluenceEnv, entry: Entry): void {
     const t = this.ctx.i18n.t.bind(this.ctx.i18n);
     const row = parent.createDiv({ cls: "ep-inline-sheet-row" });
-    row.createSpan({ cls: "ep-inline-sheet-lab", text: (entry.alias as string) || (entry.key as string) });
+    row.createSpan({ cls: "ep-inline-sheet-lab", text: (entry.alias) || (entry.key) });
     const valEl = row.createSpan({ cls: "ep-inline-sheet-val" });
     if (entry.dataType === "derived") {
       const info = modifierInfo(env, entry);

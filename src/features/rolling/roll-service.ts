@@ -202,7 +202,7 @@ export class RollService implements ViewService {
     return (name) => {
       const file = app?.workspace.getActiveFile();
       if (!file || !app) return undefined;
-      const fm = app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined;
+      const fm = app.metadataCache.getFileCache(file)?.frontmatter;
       if (!fm) return undefined;
       const key = Object.keys(fm).find((k) => k.toLowerCase() === name.toLowerCase());
       if (key === undefined) return undefined;

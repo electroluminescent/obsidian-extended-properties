@@ -65,7 +65,7 @@ export class PropertyIndex {
       this.buckets.clear();
       this.aggValues.clear();
       for (const f of this.app.vault.getMarkdownFiles()) {
-        const fm = this.app.metadataCache.getFileCache(f)?.frontmatter as Record<string, unknown> | undefined;
+        const fm = this.app.metadataCache.getFileCache(f)?.frontmatter;
         this.cache.set(f.path, { file: f, fm });
         this.bucketAdd(f.path, fm);
       }
@@ -106,7 +106,7 @@ export class PropertyIndex {
     if (!this.cache) return;
     if (oldPath && oldPath !== file.path) this.invalidatePath(oldPath);
     const old = this.cache.get(file.path);
-    const fm = this.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined;
+    const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
     if (old) this.bucketRemove(file.path, old.fm);
     this.cache.set(file.path, { file, fm });
     this.bucketAdd(file.path, fm);
@@ -177,7 +177,7 @@ export class PropertyIndex {
   linkedValue(sourcePath: string, linkProp: string, key: string): number | undefined {
     const src = this.app.vault.getAbstractFileByPath(sourcePath);
     const sfm = src instanceof TFile
-      ? (this.app.metadataCache.getFileCache(src)?.frontmatter as Record<string, unknown> | undefined)
+      ? (this.app.metadataCache.getFileCache(src)?.frontmatter)
       : undefined;
     if (!sfm) return undefined;
     const raw = getCI(sfm, linkProp);
@@ -186,7 +186,7 @@ export class PropertyIndex {
     if (!target) return undefined;
     const dest = this.app.metadataCache.getFirstLinkpathDest(target, sourcePath);
     if (!dest) return undefined;
-    const dfm = this.app.metadataCache.getFileCache(dest)?.frontmatter as Record<string, unknown> | undefined;
+    const dfm = this.app.metadataCache.getFileCache(dest)?.frontmatter;
     return dfm ? parseNumeric(getCI(dfm, key)) ?? undefined : undefined;
   }
 

@@ -195,7 +195,6 @@ export class EPSettingTab extends PluginSettingTab {
       .addSlider((sl) => {
         sl.setLimits(0, 16, 1)
           .setValue(plugin.settings.modDepth ?? 8)
-          .setDynamicTooltip()
           .onChange((v) => {
             plugin.settings.modDepth = v;
             save();
@@ -367,7 +366,6 @@ export class EPSettingTab extends PluginSettingTab {
       .addSlider((sl) => {
         sl.setLimits(0.3, 5, 0.1)
           .setValue((plugin.settings.diceAnimMs ?? 1500) / 1000)
-          .setDynamicTooltip()
           .onChange((v) => {
             plugin.settings.diceAnimMs = Math.round(v * 1000);
             save();
@@ -408,7 +406,6 @@ export class EPSettingTab extends PluginSettingTab {
         .addSlider((sl) => {
           sl.setLimits(0, 1, 0.05)
             .setValue(plugin.settings.soundVolume ?? 0.3)
-            .setDynamicTooltip()
             .onChange((v) => {
               plugin.settings.soundVolume = v;
               save();
@@ -493,7 +490,6 @@ export class EPSettingTab extends PluginSettingTab {
         .addSlider((sl) => {
           sl.setLimits(50, 2000, 50)
             .setValue(plugin.settings.rollHistoryLimit ?? 500)
-            .setDynamicTooltip()
             .onChange((v) => {
               plugin.settings.rollHistoryLimit = v;
               plugin.history.applyLimit();
@@ -586,7 +582,6 @@ export class EPSettingTab extends PluginSettingTab {
       new Setting(c).setName(name).addSlider((sl) => {
         sl.setLimits(0, 32, 1)
           .setValue(get())
-          .setDynamicTooltip()
           .onChange((v) => {
             set(v);
             save();

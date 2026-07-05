@@ -45,7 +45,6 @@ function addEmbedSizeRows(octx: OptionsCtx, scaleDefault: number, heightPlacehol
   new Setting(c).setName(t("options.embedScale")).addSlider((sl) => {
     sl.setLimits(0.25, 2, 0.05)
       .setValue(entry.iframeScale ?? scaleDefault)
-      .setDynamicTooltip()
       .onChange((v) => {
         entry.iframeScale = v;
         changed();

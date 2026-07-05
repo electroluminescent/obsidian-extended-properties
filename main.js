@@ -2956,9 +2956,9 @@ function trackModifiers(plugin) {
   const upd = (e) => {
     shift = e.shiftKey;
   };
-  plugin.registerDomEvent(document, "keydown", upd, true);
-  plugin.registerDomEvent(document, "keyup", upd, true);
-  plugin.registerDomEvent(document, "mousedown", upd, true);
+  plugin.registerDomEvent(activeDocument, "keydown", upd, true);
+  plugin.registerDomEvent(activeDocument, "keyup", upd, true);
+  plugin.registerDomEvent(activeDocument, "mousedown", upd, true);
   plugin.registerDomEvent(window, "blur", () => {
     shift = false;
   });
@@ -4531,7 +4531,7 @@ function addEmbedSizeRows(octx, scaleDefault, heightPlaceholder) {
   });
   new import_obsidian12.Setting(c).setName(t("options.embedScale")).addSlider((sl) => {
     var _a;
-    sl.setLimits(0.25, 2, 0.05).setValue((_a = entry.iframeScale) != null ? _a : scaleDefault).setDynamicTooltip().onChange((v) => {
+    sl.setLimits(0.25, 2, 0.05).setValue((_a = entry.iframeScale) != null ? _a : scaleDefault).onChange((v) => {
       entry.iframeScale = v;
       changed();
     });
@@ -4933,7 +4933,7 @@ var ratingType = {
     const t = view.i18n.t.bind(view.i18n);
     c.createEl("h4", { text: t("type.rating") });
     new import_obsidian13.Setting(c).setName(t("options.ratingMax")).addSlider(
-      (sl) => sl.setLimits(1, 10, 1).setValue(Math.round(Number(entry.ratingMax) || 5)).setDynamicTooltip().onChange((val) => {
+      (sl) => sl.setLimits(1, 10, 1).setValue(Math.round(Number(entry.ratingMax) || 5)).onChange((val) => {
         entry.ratingMax = val;
         changed();
       })
@@ -6911,14 +6911,14 @@ function renderEntryOptionsBody(octx, onDone, onRemoved, opts = {}) {
   });
   new import_obsidian22.Setting(c).setName(t("options.labelSize")).setDesc(t("options.sizeDesc")).addSlider((sl) => {
     var _a2;
-    sl.setLimits(0, 40, 1).setValue((_a2 = e.labelSize) != null ? _a2 : 0).setDynamicTooltip().onChange((v) => {
+    sl.setLimits(0, 40, 1).setValue((_a2 = e.labelSize) != null ? _a2 : 0).onChange((v) => {
       e.labelSize = v || void 0;
       changed();
     });
   });
   new import_obsidian22.Setting(c).setName(t("options.valueSize")).setDesc(t("options.sizeDesc")).addSlider((sl) => {
     var _a2;
-    sl.setLimits(0, 40, 1).setValue((_a2 = e.valueSize) != null ? _a2 : 0).setDynamicTooltip().onChange((v) => {
+    sl.setLimits(0, 40, 1).setValue((_a2 = e.valueSize) != null ? _a2 : 0).onChange((v) => {
       e.valueSize = v || void 0;
       changed();
     });
@@ -7341,7 +7341,7 @@ var SectionOptionsModal = class extends import_obsidian23.Modal {
           return (_a = x[field]) != null ? _a : 0;
         });
         new import_obsidian23.Setting(c).setName(t(nameKey)).setDesc(s.mixed ? t("options.mixed") : t("options.sizeDesc")).addSlider((sl) => {
-          sl.setLimits(0, 40, 1).setValue(s.v).setDynamicTooltip().onChange((v) => apply((x) => x[field] = v || void 0));
+          sl.setLimits(0, 40, 1).setValue(s.v).onChange((v) => apply((x) => x[field] = v || void 0));
         });
       };
       sizeRow("options.labelSize", "labelSize");
@@ -7558,7 +7558,7 @@ var SectionOptionsModal = class extends import_obsidian23.Modal {
     c.createEl("h4", { text: t("sectionOptions.titleHeading") });
     new import_obsidian23.Setting(c).setName(t("sectionOptions.titleSize")).setDesc(t("options.sizeDesc")).addSlider((sl) => {
       var _a;
-      sl.setLimits(0, 48, 1).setValue((_a = s.titleSize) != null ? _a : 0).setDynamicTooltip().onChange((v) => {
+      sl.setLimits(0, 48, 1).setValue((_a = s.titleSize) != null ? _a : 0).onChange((v) => {
         s.titleSize = v || void 0;
         this.changed();
       });
@@ -10956,7 +10956,7 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
     }
     new import_obsidian30.Setting(c).setName(t("settings.modDepth")).setDesc(t("settings.modDepthDesc")).addSlider((sl) => {
       var _a;
-      sl.setLimits(0, 16, 1).setValue((_a = plugin.settings.modDepth) != null ? _a : 8).setDynamicTooltip().onChange((v) => {
+      sl.setLimits(0, 16, 1).setValue((_a = plugin.settings.modDepth) != null ? _a : 8).onChange((v) => {
         plugin.settings.modDepth = v;
         save();
       });
@@ -11076,7 +11076,7 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
     });
     new import_obsidian30.Setting(c).setName(t("settings.diceAnimMs")).setDesc(t("settings.diceAnimMsDesc")).addSlider((sl) => {
       var _a;
-      sl.setLimits(0.3, 5, 0.1).setValue(((_a = plugin.settings.diceAnimMs) != null ? _a : 1500) / 1e3).setDynamicTooltip().onChange((v) => {
+      sl.setLimits(0.3, 5, 0.1).setValue(((_a = plugin.settings.diceAnimMs) != null ? _a : 1500) / 1e3).onChange((v) => {
         plugin.settings.diceAnimMs = Math.round(v * 1e3);
         save();
       });
@@ -11103,7 +11103,7 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
     if (plugin.settings.sound !== false) {
       new import_obsidian30.Setting(c).setName(t("settings.soundVolume")).setDesc(t("settings.soundVolumeDesc")).addSlider((sl) => {
         var _a;
-        sl.setLimits(0, 1, 0.05).setValue((_a = plugin.settings.soundVolume) != null ? _a : 0.3).setDynamicTooltip().onChange((v) => {
+        sl.setLimits(0, 1, 0.05).setValue((_a = plugin.settings.soundVolume) != null ? _a : 0.3).onChange((v) => {
           plugin.settings.soundVolume = v;
           save();
         });
@@ -11171,7 +11171,7 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
       });
       new import_obsidian30.Setting(c).setName(t("settings.rollHistoryLimit")).setDesc(t("settings.rollHistoryLimitDesc")).addSlider((sl) => {
         var _a;
-        sl.setLimits(50, 2e3, 50).setValue((_a = plugin.settings.rollHistoryLimit) != null ? _a : 500).setDynamicTooltip().onChange((v) => {
+        sl.setLimits(50, 2e3, 50).setValue((_a = plugin.settings.rollHistoryLimit) != null ? _a : 500).onChange((v) => {
           plugin.settings.rollHistoryLimit = v;
           plugin.history.applyLimit();
           save();
@@ -11250,7 +11250,7 @@ var EPSettingTab = class extends import_obsidian30.PluginSettingTab {
       });
     });
     const sizeRow = (name, get, set) => new import_obsidian30.Setting(c).setName(name).addSlider((sl) => {
-      sl.setLimits(0, 32, 1).setValue(get()).setDynamicTooltip().onChange((v) => {
+      sl.setLimits(0, 32, 1).setValue(get()).onChange((v) => {
         set(v);
         save();
       });
@@ -14908,7 +14908,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian42.Plugin {
     this.registerEvent(this.app.workspace.on("file-open", () => void this.primeSecrets()));
     const host = { app: this.app, i18n: this.i18n, settings: this.settings, hide: this.hide };
     this.registerDomEvent(
-      document,
+      activeDocument,
       "contextmenu",
       (e) => {
         var _a2;
@@ -14924,7 +14924,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian42.Plugin {
       },
       true
     );
-    this.registerDomEvent(document, "contextmenu", (e) => {
+    this.registerDomEvent(activeDocument, "contextmenu", (e) => {
       var _a2;
       if (!this.settings.propMenu) return;
       const target = e.target;

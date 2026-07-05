@@ -50,7 +50,7 @@ function findPropEntry(layout: Layout, key: string): { section: Section; entry: 
   const kl = key.toLowerCase();
   for (const section of layout.sections)
     for (const entry of section.entries)
-      if (entry.kind === "prop" && entry.key && (entry.key as string).toLowerCase() === kl)
+      if (entry.kind === "prop" && entry.key && (entry.key).toLowerCase() === kl)
         return { section, entry };
   return null;
 }
@@ -141,7 +141,7 @@ class InlineViewCtx implements ViewCtx {
     if (entry.hideLabel) return;
     const span = head.createSpan({ cls: "ep-line-name" });
     if (entry.labelSize) span.setCssStyles({ fontSize: entry.labelSize + "px" });
-    if (entry.labelColor) span.setCssStyles({ color: entry.labelColor as string });
+    if (entry.labelColor) span.setCssStyles({ color: entry.labelColor });
     span.setText((entry.alias as string) || this.defaultLabelFor(entry));
     span.addClass("ep-clickname");
     if (entry.kind === "prop" && entry.showType !== false) {
@@ -283,8 +283,8 @@ export function makeValsEl(ctx: InlineCtx, file: TFile, body: string, onEditSour
     const head = wrap.createDiv({ cls: "ep-entry-head" });
     if (entry.icon) {
       const ic = head.createSpan({ cls: "ep-picon" });
-      setIcon(ic, entry.icon as string);
-      if (entry.iconColor) ic.setCssStyles({ color: entry.iconColor as string });
+      setIcon(ic, entry.icon);
+      if (entry.iconColor) ic.setCssStyles({ color: entry.iconColor });
     }
     const extra = wrap.createDiv({ cls: "ep-entry-extra" });
 
@@ -318,7 +318,7 @@ export function makeValsEl(ctx: InlineCtx, file: TFile, body: string, onEditSour
         )
       );
       if (entry.kind === "prop" && entry.key) {
-        const key2 = entry.key as string;
+        const key2 = entry.key;
         menu.addSeparator();
         menu.addItem((i) =>
           i.setTitle(t("entry.menu.clearValue", { key: key2 })).setIcon("eraser").onClick(() =>

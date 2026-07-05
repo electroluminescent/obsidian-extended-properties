@@ -24,9 +24,9 @@ export function trackModifiers(plugin: Plugin): void {
   };
   // Capture phase so we see the state even if a handler stops propagation, and
   // before the click handler that opens a confirmation runs.
-  plugin.registerDomEvent(document, "keydown", upd, true);
-  plugin.registerDomEvent(document, "keyup", upd, true);
-  plugin.registerDomEvent(document, "mousedown", upd, true);
+  plugin.registerDomEvent(activeDocument, "keydown", upd, true);
+  plugin.registerDomEvent(activeDocument, "keyup", upd, true);
+  plugin.registerDomEvent(activeDocument, "mousedown", upd, true);
   // A window blur can swallow the keyup, which would leave Shift stuck on.
   plugin.registerDomEvent(window, "blur", () => {
     shift = false;

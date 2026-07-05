@@ -122,7 +122,7 @@ export class SidebarView extends ItemView implements ViewCtx {
 
   /** One roving tab-stop across entries; the rest are arrow-reachable only. */
   private initRovingFocus(): void {
-    const entries = Array.from(this.content.querySelectorAll(".ep-entry")) as HTMLElement[];
+    const entries = Array.from(this.content.querySelectorAll<HTMLElement>(".ep-entry"));
     entries.forEach((el, i) => (el.tabIndex = i === 0 ? 0 : -1));
   }
 
@@ -130,9 +130,9 @@ export class SidebarView extends ItemView implements ViewCtx {
   private onSidebarKey(e: KeyboardEvent): void {
     const target = e.target as HTMLElement | null;
     if (!target || target.matches("input, textarea, select, [contenteditable='true']")) return;
-    const entry = target.closest(".ep-entry") as HTMLElement | null;
+    const entry = target.closest<HTMLElement>(".ep-entry");
     if (!entry || !this.content.contains(entry)) return;
-    const entries = Array.from(this.content.querySelectorAll(".ep-entry")) as HTMLElement[];
+    const entries = Array.from(this.content.querySelectorAll<HTMLElement>(".ep-entry"));
     const i = entries.indexOf(entry);
     if (i < 0) return;
     const focusAt = (j: number) => {
@@ -368,7 +368,7 @@ export class SidebarView extends ItemView implements ViewCtx {
   }
 
   highlight(el: HTMLElement): void {
-    const wrap = el.closest(".ep-entry") as HTMLElement | null;
+    const wrap = el.closest<HTMLElement>(".ep-entry");
     const c = this.content;
     if (!wrap) return;
     c.findAll(".ep-highlight").forEach((x) => x.removeClass("ep-highlight"));
@@ -629,7 +629,7 @@ export class SidebarView extends ItemView implements ViewCtx {
     if (!showLabel) return;
     const span = head.createSpan({ cls: "ep-line-name" });
     if (entry.labelSize) span.setCssStyles({ fontSize: entry.labelSize + "px" });
-    if (entry.labelColor) span.setCssStyles({ color: entry.labelColor as string });
+    if (entry.labelColor) span.setCssStyles({ color: entry.labelColor });
     if (this.editMode && entry.hideLabel) span.addClass("ep-dim");
 
     if (this.editMode && entry.kind === "prop") {
@@ -741,14 +741,14 @@ export class SidebarView extends ItemView implements ViewCtx {
     const TIERS = [".ep-type-hint", ".ep-dice-tag", ".ep-denote", ".ep-tog-cell", ".ep-mod-badge"];
     const mode = this.editMode ? "e" : "v";
     for (const el of this.content.findAll(".ep-section")) {
-      const sec = el as HTMLElement;
+      const sec = el;
       // Everything below happens synchronously (no paint in between), so
       // unchanged elements never flicker.
       // Skip sections that aren't laid out (collapsed, hidden tab, view
       // off-screen): zero-width measurements would wrongly hide everything.
       // The next pass on a visible section re-decides.
       if (sec.clientWidth === 0) continue;
-      const heads = (sec.findAll(".ep-entry-head") as HTMLElement[]).filter((h) => h.clientWidth > 0);
+      const heads = (sec.findAll(".ep-entry-head")).filter((h) => h.clientWidth > 0);
 
       // F2 step 1: early-exit sections whose geometry is unchanged since the
       // last pass (resize storms, sticky/height reflows). A section width, its
@@ -775,7 +775,7 @@ export class SidebarView extends ItemView implements ViewCtx {
         return n.getBoundingClientRect().width - cw;
       };
       const isTight = (h: HTMLElement): boolean => {
-        const name = h.querySelector(".ep-line-name") as HTMLElement | null;
+        const name = h.querySelector<HTMLElement>(".ep-line-name");
         return h.scrollWidth > h.clientWidth + 1 || (!!name && spareOf(name) < SLACK);
       };
 
@@ -793,7 +793,7 @@ export class SidebarView extends ItemView implements ViewCtx {
           h.findAll(cls).forEach((x) => {
             x.addClass("ep-squeezed");
             // Reclaim the column width the hidden element reserved.
-            const cell = x.closest("[data-ep-slot]") as HTMLElement | null;
+            const cell = x.closest<HTMLElement>("[data-ep-slot]");
             if (cell) cell.setCssStyles({ minWidth: "" });
           });
         }
@@ -955,7 +955,7 @@ export class SidebarView extends ItemView implements ViewCtx {
       };
       const reset = tools.createEl("button", { text: t("view.resetAll"), cls: "ep-tool-btn" });
       reset.onclick = () =>
-        new ConfirmModal(this.app, this.i18n, t("view.resetConfirm", { type: match! }), () =>
+        new ConfirmModal(this.app, this.i18n, t("view.resetConfirm", { type: match }), () =>
           this.plugin.resetLayout(this.activeTypeKey!)
         ).open();
 
@@ -1043,7 +1043,7 @@ export class SidebarView extends ItemView implements ViewCtx {
     for (const s of this.layout.sections)
       for (const e of s.entries) if (e.kind === "prop" && e.key) have.add(e.key.toLowerCase());
     const declared = (tpl.sources?.(this.i18n) ?? []).filter(
-      (e) => e.key && !have.has((e.key as string).toLowerCase())
+      (e) => e.key && !have.has((e.key).toLowerCase())
     );
     for (const e of declared) have.add((e.key as string).toLowerCase());
     fresh.entries.unshift(...declared);

@@ -12,7 +12,7 @@ export class ImageViewerModal extends Modal {
   onOpen(): void {
     const c = this.contentEl;
     c.addClass("ep-imgview");
-    (this.modalEl as HTMLElement).addClass("ep-imgview-modal");
+    (this.modalEl).addClass("ep-imgview-modal");
     const wrap = c.createDiv({ cls: "ep-imgview-wrap" });
     const img = wrap.createEl("img");
     img.src = this.src;

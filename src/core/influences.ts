@@ -164,7 +164,7 @@ function findDerivedEntry(env: InfluenceEnv, key: string): Entry | null {
 
 /** Token identifying one influence in the disabled-modifiers list. */
 function offToken(entry: Entry, inf: Influence): string {
-  return `${(entry.key as string) ?? ""}:${inf.source || (entry.key as string) || ""}`;
+  return `${(entry.key as string) ?? ""}:${inf.source || (entry.key) || ""}`;
 }
 
 /**
@@ -347,7 +347,7 @@ class NoteEval {
       });
       return v === undefined ? undefined : sign * v;
     }
-    const key = inf.source || (entry.key as string) || "";
+    const key = inf.source || (entry.key) || "";
     return sign * applyDerivation(this.env, inf, this.sourceValue(key, depth));
   }
 
@@ -454,7 +454,7 @@ export function modifierInfo(env: InfluenceEnv, entry: Entry): ModifierInfo {
 
 /** Whether a derived entry's value is overridden on the current note. */
 export function hasNoteOverride(env: InfluenceEnv, entry: Entry): boolean {
-  return entry.dataType === "derived" && !!entry.key && numericRaw(env, entry.key as string) !== null;
+  return entry.dataType === "derived" && !!entry.key && numericRaw(env, entry.key) !== null;
 }
 
 // ---------------------------------------------------------------------------
@@ -592,7 +592,7 @@ export function materializeShortForms(settings: EPSettings): boolean {
       for (const e of s.entries ?? []) {
         if (e.kind !== "prop" || !e.key) continue;
         const dt = (e as Record<string, unknown>).dataType;
-        if (dt === "number" || dt === "decimal" || dt === "derived") add(e.key as string);
+        if (dt === "number" || dt === "decimal" || dt === "derived") add(e.key);
         const mods = (e as Record<string, unknown>).mods;
         if (Array.isArray(mods)) for (const inf of mods as Influence[]) if (inf && inf.source) add(inf.source);
       }

@@ -27,7 +27,7 @@ import {
  *  visible-when-empty (`hideIfEmpty: false`), so a freshly-applied section shows
  *  every field ready to fill in; pass `hideIfEmpty: true` in `extra` to override. */
 function prop(key: string, extra: Partial<Entry> = {}): Entry {
-  return { id: genId(), kind: "prop", key, hideIfEmpty: false, ...extra } as Entry;
+  return { id: genId(), kind: "prop", key, hideIfEmpty: false, ...extra };
 }
 
 /** Shorthand for a derived (computed) property entry. */

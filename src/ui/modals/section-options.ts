@@ -406,7 +406,6 @@ export class SectionOptionsModal extends Modal {
           .addSlider((sl) => {
             sl.setLimits(0, 40, 1)
               .setValue(s.v)
-              .setDynamicTooltip()
               .onChange((v) => apply((x) => (x[field] = v || undefined)));
           });
       };
@@ -651,7 +650,6 @@ export class SectionOptionsModal extends Modal {
       .addSlider((sl) => {
         sl.setLimits(0, 48, 1)
           .setValue(s.titleSize ?? 0)
-          .setDynamicTooltip()
           .onChange((v) => {
             s.titleSize = v || undefined;
             this.changed();

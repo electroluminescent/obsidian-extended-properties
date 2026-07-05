@@ -125,7 +125,7 @@ export function convertToProperties(ref: EntryRef): void {
           dataType: "derived",
           hideIfEmpty: false,
           mods: [{ source: levelKey, mode: "profBonus" }],
-        } as Entry);
+        });
         ensurePropEntries(view.layout, section, [levelKey]);
       } else {
         ensurePropEntries(view.layout, section, [profKey]);

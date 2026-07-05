@@ -146,7 +146,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     await this.history.init();
 
     // -- D3: versioned schema migration + pre-migration backup --------------
-    const isFresh = !data || Object.keys(data as object).length === 0;
+    const isFresh = !data || Object.keys(data).length === 0;
     if (runSchemaMigrations(this.settings).changed) migrated = true;
     // Carry user customizations across plugin-version upgrades: stamp the
     // running version and, on a real upgrade, snapshot data.json even when the
@@ -298,13 +298,12 @@ export default class ExtendedPropertiesPlugin extends Plugin {
 
     // -- Obsidian properties-panel menus -----------------------------------------
     const host = { app: this.app, i18n: this.i18n, settings: this.settings, hide: this.hide };
-    this.registerDomEvent(
-      document,
+    this.registerDomEvent(activeDocument,
       "contextmenu",
       (e: MouseEvent) => {
         if (!this.settings.propMenu) return;
         const target = e.target as HTMLElement;
-        const el = target?.closest?.(".metadata-property") as HTMLElement | null;
+        const el = target?.closest?.(".metadata-property");
         if (!el) return;
         const key = el.getAttribute("data-property-key");
         if (!key) return;
@@ -314,7 +313,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       },
       true
     );
-    this.registerDomEvent(document, "contextmenu", (e: MouseEvent) => {
+    this.registerDomEvent(activeDocument, "contextmenu", (e: MouseEvent) => {
       if (!this.settings.propMenu) return;
       const target = e.target as HTMLElement;
       if (!target?.closest?.(".metadata-properties-heading")) return;
@@ -601,7 +600,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     if (!this.secrets.isUnlocked()) return;
     const file = this.app.workspace.getActiveFile();
     if (!file) return;
-    const fm = this.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined;
+    const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
     if (!fm) return;
     const n = await this.secrets.prime(Object.values(fm));
     if (n > 0) this.refreshViews();

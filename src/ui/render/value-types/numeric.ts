@@ -120,7 +120,7 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
   // Optional slider (always present for formula entries). The slider
   // position maps through the configured curve (linear / root / exp);
   // formula entries map through their expression instead.
-  const curve = entry.sliderCurve as string | undefined;
+  const curve = entry.sliderCurve;
   const span = max - min;
   const toValue = (x: number): number => {
     if (isFormula && f) return f(x);

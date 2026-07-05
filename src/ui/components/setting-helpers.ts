@@ -32,7 +32,7 @@ export function addColorSetting(
   const update = () => {
     const h = get();
     const ok = h && hexToRgb(h);
-    sw.setCssStyles({ background: ok ? (h as string) : "transparent" });
+    sw.setCssStyles({ background: ok ? (h) : "transparent" });
     sw.toggleClass("ep-swatch-empty", !ok);
   };
   update();

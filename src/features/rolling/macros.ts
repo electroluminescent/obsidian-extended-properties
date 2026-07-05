@@ -23,7 +23,7 @@ export function segsToAst(segs: RollSeg[]): RollAst {
       const parsed = parseRoll(s.dice);
       const node: DiceNode =
         parsed && parsed.terms[0]?.node.kind === "dice"
-          ? (parsed.terms[0].node as DiceNode)
+          ? (parsed.terms[0].node)
           : { kind: "dice", count: 1, sides: 20, ops: [] };
       terms.push({ neg: !!s.neg, node });
     } else if (typeof s.add === "number") {

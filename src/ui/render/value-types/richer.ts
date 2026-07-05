@@ -44,7 +44,7 @@ export const ratingType: ValueTypeDef = {
     const max = Math.max(1, Math.min(20, Math.round(Number(entry.ratingMax) || 5)));
     const icon = (entry.ratingIcon as string) || "star";
     const v = ctx.head.createDiv({ cls: "ep-val-right ep-rating" });
-    if (entry.valueColor) v.setCssStyles({ color: entry.valueColor as string });
+    if (entry.valueColor) v.setCssStyles({ color: entry.valueColor });
     // Accessible as a slider (M1): focusable, arrow-keys change the value, and
     // the pips themselves are decorative (aria-hidden) - the container conveys it.
     v.setAttr("role", "slider");
@@ -95,7 +95,6 @@ export const ratingType: ValueTypeDef = {
       sl
         .setLimits(1, 10, 1)
         .setValue(Math.round(Number(entry.ratingMax) || 5))
-        .setDynamicTooltip()
         .onChange((val) => {
           entry.ratingMax = val;
           changed();
@@ -148,7 +147,7 @@ export const linkType: ValueTypeDef = {
     const { view, file, entry } = ctx;
     const key = entry.key as string;
     const v = ctx.head.createDiv({ cls: "ep-val-right ep-linkval" });
-    if (entry.valueColor) v.setCssStyles({ color: entry.valueColor as string });
+    if (entry.valueColor) v.setCssStyles({ color: entry.valueColor });
     const draw = () => {
       v.empty();
       v.removeClass("ep-link-unresolved");
@@ -192,7 +191,7 @@ export const unitType: ValueTypeDef = {
     const unit = (entry.unit as string) || "";
     const factor = Number(entry.unitFactor) > 0 ? Number(entry.unitFactor) : 1;
     const cell = ctx.head.createDiv({ cls: "ep-val-right ep-unitval" });
-    if (entry.valueColor) cell.setCssStyles({ color: entry.valueColor as string });
+    if (entry.valueColor) cell.setCssStyles({ color: entry.valueColor });
     const num = cell.createSpan({ cls: "ep-num ep-editable" });
     if (unit) cell.createSpan({ cls: "ep-unit-suffix", text: " " + unit });
     const draw = () => num.setText(fmtNum(view.note.num(key, 0) * factor));
@@ -254,7 +253,7 @@ export const datetimeType: ValueTypeDef = {
     const { view, file, entry } = ctx;
     const key = entry.key as string;
     const cell = ctx.head.createDiv({ cls: "ep-val-right ep-dateval" });
-    if (entry.valueColor) cell.setCssStyles({ color: entry.valueColor as string });
+    if (entry.valueColor) cell.setCssStyles({ color: entry.valueColor });
     const txt = cell.createSpan({ cls: "ep-editable" });
     const rel = cell.createSpan({ cls: "ep-date-rel" });
     const draw = () => {

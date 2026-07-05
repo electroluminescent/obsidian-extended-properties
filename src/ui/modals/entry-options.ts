@@ -54,7 +54,7 @@ const NUMERIC_CONSTRAINT_TYPES = new Set(["number", "decimal", "formula", "unit"
 function renderConstraints(octx: OptionsCtx, type: string): void {
   const { view, entry, container: c, changed } = octx;
   const t = view.i18n.t.bind(view.i18n);
-  const cn = (): Constraints => ((entry.constraints ??= {}) as Constraints);
+  const cn = (): Constraints => ((entry.constraints ??= {}));
   c.createEl("h4", { text: t("options.constraintsHeading") });
   new Setting(c).setName(t("options.required")).setDesc(t("options.requiredDesc")).addToggle((tg) => {
     tg.setValue(!!entry.constraints?.required).onChange((v) => {
@@ -172,11 +172,11 @@ export function renderEntryOptionsBody(
   // -- appearance ----------------------------------------------------------
   const host = viewColorHost(view);
   c.createEl("h4", { text: t("options.appearanceHeading") });
-  addIconSetting(view.app, view.i18n, c, t("options.icon"), () => e.icon as string | undefined, (v) => {
+  addIconSetting(view.app, view.i18n, c, t("options.icon"), () => e.icon, (v) => {
     e.icon = v;
     changed();
   });
-  addColorSetting(host, c, t("options.iconColor"), "", () => e.iconColor as string | undefined, (v) => {
+  addColorSetting(host, c, t("options.iconColor"), "", () => e.iconColor, (v) => {
     e.iconColor = v;
     changed();
   });
@@ -231,7 +231,6 @@ export function renderEntryOptionsBody(
     .addSlider((sl) => {
       sl.setLimits(0, 40, 1)
         .setValue((e.labelSize as number) ?? 0)
-        .setDynamicTooltip()
         .onChange((v) => {
           e.labelSize = v || undefined;
           changed();
@@ -243,17 +242,16 @@ export function renderEntryOptionsBody(
     .addSlider((sl) => {
       sl.setLimits(0, 40, 1)
         .setValue((e.valueSize as number) ?? 0)
-        .setDynamicTooltip()
         .onChange((v) => {
           e.valueSize = v || undefined;
           changed();
         });
     });
-  addColorSetting(host, c, t("options.labelColor"), "", () => e.labelColor as string | undefined, (v) => {
+  addColorSetting(host, c, t("options.labelColor"), "", () => e.labelColor, (v) => {
     e.labelColor = v;
     changed();
   });
-  addColorSetting(host, c, t("options.valueColor"), "", () => e.valueColor as string | undefined, (v) => {
+  addColorSetting(host, c, t("options.valueColor"), "", () => e.valueColor, (v) => {
     e.valueColor = v;
     changed();
   });

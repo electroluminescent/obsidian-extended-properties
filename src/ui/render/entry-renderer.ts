@@ -52,7 +52,7 @@ export function renderEntry(
     const ctx: EntryRenderCtx = { view, file, section, entry, head: wrap, extra: wrap, flags, wrap };
     kind.render(ctx);
     if (view.editMode) {
-      const grip = wrap.querySelector(".ep-grip") as HTMLElement | null;
+      const grip = wrap.querySelector<HTMLElement>(".ep-grip");
       if (grip) drag.attachEntry(wrap, grip, section, entry);
     }
     return;
@@ -80,8 +80,8 @@ export function renderEntry(
   }
   if (entry.icon) {
     const ic = head.createSpan({ cls: "ep-picon" });
-    setIcon(ic, entry.icon as string);
-    if (entry.iconColor) ic.setCssStyles({ color: entry.iconColor as string });
+    setIcon(ic, entry.icon);
+    if (entry.iconColor) ic.setCssStyles({ color: entry.iconColor });
   }
   const extra = wrap.createDiv({ cls: "ep-entry-extra" });
 
@@ -108,7 +108,7 @@ export function renderEntry(
     menuBtn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      openEntryMenu(e as MouseEvent, view, file, section, entry);
+      openEntryMenu(e, view, file, section, entry);
     };
     menuBtn.onkeydown = (e) => {
       if (e.key === "Enter" || e.key === " ") {

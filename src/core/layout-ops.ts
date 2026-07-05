@@ -166,7 +166,7 @@ export function ensurePropEntries(
   for (const k of keys) {
     if (!k || have.has(k.toLowerCase())) continue;
     have.add(k.toLowerCase());
-    toAdd.push({ id: genId(), kind: "prop", key: k, dataType: "number", ...defaults } as Entry);
+    toAdd.push({ id: genId(), kind: "prop", key: k, dataType: "number", ...defaults });
   }
   section.entries.unshift(...toAdd);
   return toAdd.length;

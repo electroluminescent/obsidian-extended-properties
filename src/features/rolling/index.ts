@@ -63,7 +63,7 @@ export const rollingModule: FeatureModule = {
           changed = true;
           if (!Array.isArray(x["mods"])) {
             const inf: Influence = {};
-            if (typeof x["rollSource"] === "string" && x["rollSource"]) inf.source = x["rollSource"] as string;
+            if (typeof x["rollSource"] === "string" && x["rollSource"]) inf.source = x["rollSource"];
             if (x["roll"] === "abilityMod") inf.mode = "abilityMod";
             x["mods"] = [inf];
           }

@@ -72,7 +72,7 @@ export function paintDenotation(
     const neg = inf.weight === -1;
     if (i > 0) den.createSpan({ cls: "ep-denote-op", text: neg ? "-" : "+" });
     else if (neg) den.createSpan({ cls: "ep-denote-op", text: "-" });
-    const srcKey = inf.source || (entry.key as string) || "";
+    const srcKey = inf.source || (entry.key) || "";
     const term = den.createSpan({ cls: "ep-line-abbr ep-denote-term", text: termDenotation(view.settings, entry, inf) });
     let title: string;
     if (inf.expr) {
@@ -114,7 +114,7 @@ export function paintDenotation(
 export function paintDice(parent: HTMLElement, entry: Entry): void {
   const e = entry as Record<string, unknown>;
   if (!e["roll"] || e["showDice"] === false) return;
-  const spec = parseDiceOrDefault(typeof e["dice"] === "string" ? (e["dice"] as string) : undefined);
+  const spec = parseDiceOrDefault(typeof e["dice"] === "string" ? (e["dice"]) : undefined);
   const tag = parent.createSpan({ cls: "ep-dice-tag ep-line-abbr" });
   if (e["showDiceIcon"] !== false) {
     // Icon stacked above the notation, both centered.
@@ -253,7 +253,7 @@ export const modifierAddon: ClusterAddon = {
     // Short forms are unique; setting one already in use prompts to overwrite,
     // in which case the previous owner gets a freshly derived short form.
     if (entry.key && (entry as Record<string, unknown>)["__multi"] !== true) {
-      const key = entry.key as string;
+      const key = entry.key;
       if (ensureShortForm(view.settings, key)) changed();
       new Setting(c)
         .setName(t("mods.shortForm"))
@@ -465,7 +465,7 @@ export const modifierAddon: ClusterAddon = {
       // Per-note override: a stored note value replacing the derived sum.
       // Editing the value in the sidebar turns this on; clearing it (or
       // this toggle) turns it off.
-      const key = entry.key as string;
+      const key = entry.key;
       const on = hasNoteOverride(view, entry);
       const ov = new Setting(c).setName(t("mods.overrideNote")).setDesc(t("mods.overrideNoteDesc"));
       ov.addToggle((tg) => {

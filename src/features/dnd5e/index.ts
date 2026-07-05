@@ -59,7 +59,7 @@ export const dnd5eModule: FeatureModule = {
             changed = true;
             const fresh =
               (e as Record<string, unknown>)["computed"] === "proficiency" ? profBonusEntry() : initiativeEntry();
-            out.push({ ...e, ...fresh, id: e.id, alias: e.alias, computed: undefined } as Entry);
+            out.push({ ...e, ...fresh, id: e.id, alias: e.alias, computed: undefined });
           } else {
             out.push(e);
           }
