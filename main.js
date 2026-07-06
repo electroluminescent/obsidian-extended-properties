@@ -2096,7 +2096,7 @@ var SnapshotStore = class {
 var PREFIX2 = "ep-enc:1:";
 var ITERATIONS = 15e4;
 var subtle = () => {
-  const c = globalThis.crypto;
+  const c = window.crypto;
   if (!(c == null ? void 0 : c.subtle)) throw new Error("Web Crypto unavailable");
   return c.subtle;
 };
@@ -2127,7 +2127,7 @@ function isEnvelope(v) {
   return typeof v === "string" && v.startsWith(PREFIX2);
 }
 async function encryptValue(plain, passphrase) {
-  const c = globalThis.crypto;
+  const c = window.crypto;
   const salt = c.getRandomValues(new Uint8Array(16));
   const iv = c.getRandomValues(new Uint8Array(12));
   const key = await deriveKey(passphrase, salt);
@@ -8953,16 +8953,20 @@ var SidebarView = class extends import_obsidian26.ItemView {
     ).open();
   }
   highlight(el) {
+    var _a;
     const wrap = el.closest(".ep-entry");
     const c = this.content;
     if (!wrap) return;
     c.findAll(".ep-highlight").forEach((x) => x.removeClass("ep-highlight"));
+    c.findAll(".ep-has-highlight").forEach((x) => x.removeClass("ep-has-highlight"));
     wrap.addClass("ep-highlight");
+    (_a = wrap.closest(".ep-section")) == null ? void 0 : _a.addClass("ep-has-highlight");
     c.addClass("ep-highlighting");
     window.clearTimeout(this.hlTimer);
     this.hlTimer = window.setTimeout(() => {
       c.removeClass("ep-highlighting");
       wrap.removeClass("ep-highlight");
+      c.findAll(".ep-has-highlight").forEach((x) => x.removeClass("ep-has-highlight"));
     }, 1e3);
   }
   removeEntry(section, entry) {

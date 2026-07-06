@@ -193,7 +193,7 @@ export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EP
             times: typeof o.times === "number" && o.times > 1 ? Math.min(20, Math.floor(o.times)) : undefined,
             typeKey: typeof o.typeKey === "string" && o.typeKey ? o.typeKey : undefined,
           };
-        }) as EPSettings["macros"];
+        });
     if (Array.isArray(data.rollHistory))
       s.rollHistory = (data.rollHistory as unknown[]).filter(
         (r) => !!r && typeof r === "object" && typeof (r as { id?: unknown }).id === "string"

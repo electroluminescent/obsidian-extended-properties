@@ -21,7 +21,7 @@ const PREFIX = "ep-enc:1:";
 const ITERATIONS = 150_000;
 
 const subtle = (): SubtleCrypto => {
-  const c = (globalThis as { crypto?: Crypto }).crypto;
+  const c = window.crypto;
   if (!c?.subtle) throw new Error("Web Crypto unavailable");
   return c.subtle;
 };
@@ -59,7 +59,7 @@ export function isEnvelope(v: unknown): v is string {
 
 /** Encrypt `plain` under `passphrase`, returning a self-describing envelope. */
 export async function encryptValue(plain: string, passphrase: string): Promise<string> {
-  const c = (globalThis as { crypto?: Crypto }).crypto!;
+  const c = window.crypto;
   const salt = c.getRandomValues(new Uint8Array(16));
   const iv = c.getRandomValues(new Uint8Array(12));
   const key = await deriveKey(passphrase, salt);

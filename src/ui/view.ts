@@ -372,12 +372,15 @@ export class SidebarView extends ItemView implements ViewCtx {
     const c = this.content;
     if (!wrap) return;
     c.findAll(".ep-highlight").forEach((x) => x.removeClass("ep-highlight"));
+    c.findAll(".ep-has-highlight").forEach((x) => x.removeClass("ep-has-highlight"));
     wrap.addClass("ep-highlight");
+    wrap.closest<HTMLElement>(".ep-section")?.addClass("ep-has-highlight");
     c.addClass("ep-highlighting");
     window.clearTimeout(this.hlTimer);
     this.hlTimer = window.setTimeout(() => {
       c.removeClass("ep-highlighting");
       wrap.removeClass("ep-highlight");
+      c.findAll(".ep-has-highlight").forEach((x) => x.removeClass("ep-has-highlight"));
     }, 1000);
   }
 
