@@ -480,7 +480,7 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 .ep-mod-badge .ep-dice-tag, .ep-den-cell .ep-dice-tag { margin-right: 0; }
 .ep-den-cell { justify-content: flex-end; }
 .ep-num.ep-num-join { text-align: left; }
-.ep-num.ep-overridden { text-decoration-line: underline; text-decoration-style: dotted; }
+.ep-num.ep-overridden { border-bottom: 1px dotted currentColor; }
 /* datatype hint beside labels (auto-removed when space is tight) */
 .ep-line-name .ep-type-hint { font-style: italic; font-size: 0.78em; color: var(--text-faint); margin-left: 5px; font-weight: 400; }
 /* Unit suffix after a numeric value - muted like the type hint, but it reads
@@ -776,7 +776,7 @@ body.is-mobile .ep-roll-sum-toggle { min-height: 34px; }
 .ep-rating-pip svg { width: 100%; height: 100%; }
 .ep-rating-pip.is-on { opacity: 1; color: var(--ep-rating-color, var(--interactive-accent)); }
 .ep-rating-pip:hover { opacity: 0.8; }
-.ep-linkval .ep-link-unresolved, .ep-linkval.ep-link-unresolved a { color: var(--text-error); text-decoration-line: underline; text-decoration-style: dotted; }
+.ep-linkval .ep-link-unresolved, .ep-linkval.ep-link-unresolved a { color: var(--text-error); text-decoration: none; border-bottom: 1px dotted; }
 .ep-unit-suffix { color: var(--text-muted); margin-left: 1px; }
 .ep-date-rel { color: var(--text-muted); font-size: var(--font-ui-smaller); margin-left: 4px; }
 .ep-date-input { width: auto; }
