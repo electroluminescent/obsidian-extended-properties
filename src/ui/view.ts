@@ -821,7 +821,7 @@ export class SidebarView extends ItemView implements ViewCtx {
       // label + value still won't fit, drop the column count so columns flow to
       // the next row. Edit mode keeps the full grid so the rails line up.
       if (cgrid && !this.editMode) {
-        const MARGIN = 2.5 * fs;
+        const MARGIN = 0.5 * fs;
         const anyTight = (): boolean =>
           cgrid.findAll(".ep-entry-head").some((h) => {
             if (h.clientWidth === 0) return false;

@@ -9339,7 +9339,7 @@ var SidebarView = class extends import_obsidian26.ItemView {
         }
       }
       if (cgrid && !this.editMode) {
-        const MARGIN = 2.5 * fs;
+        const MARGIN = 0.5 * fs;
         const anyTight = () => cgrid.findAll(".ep-entry-head").some((h) => {
           if (h.clientWidth === 0) return false;
           if (h.scrollWidth > h.clientWidth + 1) return true;
