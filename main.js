@@ -9310,28 +9310,10 @@ var SidebarView = class extends import_obsidian26.ItemView {
       sec.addClass("ep-measuring");
       sec.findAll(".ep-squeezed").forEach((x) => x.removeClass("ep-squeezed"));
       const cgrid = sec.querySelector(".ep-grid.ep-mode-columns, .ep-grid.ep-mode-grid");
+      const ncol = cgrid ? Math.max(1, parseInt((_b = cgrid.getAttribute("data-ep-cols")) != null ? _b : "1", 10)) : 1;
       if (cgrid) {
-        const ncol = Math.max(1, parseInt((_b = cgrid.getAttribute("data-ep-cols")) != null ? _b : "1", 10));
-        if (this.editMode) {
-          cgrid.setCssStyles({ gridTemplateColumns: `repeat(${ncol}, minmax(0, 1fr))` });
-          cgrid.removeClass("ep-compact");
-        } else {
-          const GAP2 = 8;
-          const T_BARE = 6.5 * fs;
-          const T_FULL = 12 * fs;
-          const W = cgrid.clientWidth;
-          const colW = (n) => (W - GAP2 * (n - 1)) / n;
-          let cols = ncol;
-          let compact = false;
-          if (colW(ncol) >= T_FULL) compact = false;
-          else if (colW(ncol) >= T_BARE) compact = true;
-          else {
-            while (cols > 1 && colW(cols) < T_BARE) cols--;
-            compact = colW(cols) < T_FULL;
-          }
-          cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
-          cgrid.toggleClass("ep-compact", compact);
-        }
+        cgrid.removeClass("ep-compact");
+        cgrid.setCssStyles({ gridTemplateColumns: `repeat(${ncol}, minmax(0, 1fr))` });
       }
       alignClustersNow(sec);
       const range = sec.ownerDocument.createRange();
@@ -9354,6 +9336,23 @@ var SidebarView = class extends import_obsidian26.ItemView {
             const cell = x.closest("[data-ep-slot]");
             if (cell) cell.setCssStyles({ minWidth: "" });
           });
+        }
+      }
+      if (cgrid && !this.editMode) {
+        const MARGIN = 2.5 * fs;
+        const anyTight = () => cgrid.findAll(".ep-entry-head").some((h) => {
+          if (h.clientWidth === 0) return false;
+          if (h.scrollWidth > h.clientWidth + 1) return true;
+          const nm = h.querySelector(".ep-line-name");
+          return !!nm && spareOf(nm) < MARGIN;
+        });
+        if (anyTight()) {
+          cgrid.addClass("ep-compact");
+          let cols = ncol;
+          while (cols > 1 && anyTight()) {
+            cols--;
+            cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
+          }
         }
       }
       void sec.offsetWidth;
