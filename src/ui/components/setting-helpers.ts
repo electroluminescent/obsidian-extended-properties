@@ -3,11 +3,20 @@
  * a color row (swatch + picker + clear) and an icon row (preview + picker).
  */
 
-import { App, Setting, setIcon } from "obsidian";
+import { App, ButtonComponent, Setting, setIcon } from "obsidian";
 import type { I18n } from "../../i18n/i18n";
 import { hexToRgb, ColorSpace } from "../../utils/color";
 import { ColorPickerModal } from "../modals/color-picker";
 import { IconPickerModal } from "../modals/icon-picker";
+
+/** Mark a button as destructive across Obsidian versions: `setDestructive` (1.13+) or the older `setWarning`. */
+export function destructive(b: ButtonComponent): ButtonComponent {
+  const anyB = b as unknown as { setDestructive?: () => void; setWarning?: () => void };
+  if (typeof anyB.setDestructive === "function") anyB.setDestructive();
+  else anyB.setWarning?.();
+  return b;
+}
+
 
 /** Host for color settings: where the picker reads/writes its color space. */
 export interface ColorHost {

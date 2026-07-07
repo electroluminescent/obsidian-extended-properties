@@ -19,6 +19,7 @@ import { Modal, Setting, TFile } from "obsidian";
 import type { OptionsCtx, ViewCtx } from "../../core/context";
 import type { Entry, Section } from "../../core/model";
 import type { Constraints } from "../../core/validate";
+import { destructive } from "../components/setting-helpers";
 import { parseExpr } from "../../core/expr";
 import { setSharedDataType } from "../../core/layout-ops";
 import { restoreFromSnapshot } from "../../utils/misc";
@@ -274,7 +275,7 @@ export function renderEntryOptionsBody(
   if (!opts.multi) {
     c.createEl("h4", { text: t("options.placementHeading") });
     new Setting(c).addButton((b) =>
-      b.setButtonText(t("entry.menu.remove")).setWarning().onClick(() => {
+      b.setButtonText(t("entry.menu.remove")).then(destructive).onClick(() => {
         view.removeEntry(section, e);
         onRemoved();
       })

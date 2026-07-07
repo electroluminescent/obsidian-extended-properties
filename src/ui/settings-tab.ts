@@ -13,6 +13,7 @@ import { defaultAbbr, defaultDerivations, referenceSuggestions } from "../core/i
 import { compileFormula } from "../utils/formula";
 import { genId } from "../utils/misc";
 import { RefSuggest } from "./components/suggest";
+import { destructive } from "./components/setting-helpers";
 import { ConfirmModal, TextPromptModal } from "./modals/dialogs";
 import { ImportModal } from "./modals/transfer-modal";
 import { packType } from "../core/transfer";
@@ -28,6 +29,10 @@ export class EPSettingTab extends PluginSettingTab {
   }
 
   display(): void {
+    this.render();
+  }
+
+  render(): void {
     const c = this.containerEl;
     const plugin = this.plugin;
     const i18n = plugin.i18n;
@@ -63,13 +68,13 @@ export class EPSettingTab extends PluginSettingTab {
         )
         .addButton((b) =>
           b.setButtonText(t("settings.deleteType"))
-            .setWarning()
+            .then(destructive)
             .onClick(() => {
               plugin.settings.types = plugin.settings.types.filter((x) => x !== type);
               delete plugin.settings.layouts[type.toLowerCase()];
               if (plugin.settings.layoutVault === true) void plugin.layoutStore?.remove(type);
               save();
-              this.display();
+              this.render();
             })
         );
     }
@@ -85,7 +90,7 @@ export class EPSettingTab extends PluginSettingTab {
           plugin.settings.types.push(name);
           plugin.ensureLayout(name.toLowerCase());
           save();
-          this.display();
+          this.render();
         }).open()
       )
     );
@@ -185,7 +190,7 @@ export class EPSettingTab extends PluginSettingTab {
           b.setIcon("trash").setTooltip(t("settings.derivationDelete")).onClick(() => {
             plugin.settings.derivations = plugin.settings.derivations.filter((x) => x !== dv);
             applyDerivations();
-            this.display();
+            this.render();
           })
         );
     }
@@ -215,7 +220,7 @@ export class EPSettingTab extends PluginSettingTab {
         b.setButtonText(t("settings.derivationAddBtn")).onClick(() => {
           plugin.settings.derivations.push({ id: genId(), name: t("settings.newDerivation"), formula: "x" });
           applyDerivations();
-          this.display();
+          this.render();
         })
       )
       .addButton((b) =>
@@ -223,7 +228,7 @@ export class EPSettingTab extends PluginSettingTab {
           const have = new Set(plugin.settings.derivations.map((x) => x.id));
           for (const dv of defaultDerivations()) if (!have.has(dv.id)) plugin.settings.derivations.push(dv);
           applyDerivations();
-          this.display();
+          this.render();
         })
       );
 
@@ -277,7 +282,7 @@ export class EPSettingTab extends PluginSettingTab {
         tg.setValue(plugin.settings.layoutVault === true).onChange(async (v) => {
           if (v) await plugin.enableLayoutVault();
           else await plugin.disableLayoutVault();
-          this.display();
+          this.render();
         });
       });
     if (plugin.settings.layoutVault === true) {
@@ -314,7 +319,7 @@ export class EPSettingTab extends PluginSettingTab {
           b.setIcon("trash").setTooltip(t("settings.abbrDelete")).onClick(() => {
             delete plugin.settings.sourceAbbrs[key];
             save();
-            this.display();
+            this.render();
           })
         );
     }
@@ -326,7 +331,7 @@ export class EPSettingTab extends PluginSettingTab {
           if (!Object.keys(plugin.settings.sourceAbbrs).some((x) => x.toLowerCase() === k.toLowerCase()))
             plugin.settings.sourceAbbrs[k] = defaultAbbr(k);
           save();
-          this.display();
+          this.render();
         }, () => plugin.props.knownProps()).open()
       )
     );
@@ -396,7 +401,7 @@ export class EPSettingTab extends PluginSettingTab {
         tg.setValue(plugin.settings.sound !== false).onChange((v) => {
           plugin.settings.sound = v;
           save();
-          this.display();
+          this.render();
         });
       });
     if (plugin.settings.sound !== false) {
@@ -454,7 +459,7 @@ export class EPSettingTab extends PluginSettingTab {
           b.setIcon("trash").setTooltip(t("settings.critRangeDelete")).onClick(() => {
             delete plugin.settings.critRanges[sides];
             save();
-            this.display();
+            this.render();
           })
         );
     }
@@ -466,7 +471,7 @@ export class EPSettingTab extends PluginSettingTab {
           if (plugin.settings.critRanges[String(sides)] === undefined)
             plugin.settings.critRanges[String(sides)] = sides;
           save();
-          this.display();
+          this.render();
         }).open()
       )
     );
@@ -497,7 +502,7 @@ export class EPSettingTab extends PluginSettingTab {
             });
         });
       new Setting(c).setName(t("settings.rollHistoryClear")).addButton((b) =>
-        b.setButtonText(t("settings.rollHistoryClearBtn")).setWarning().onClick(() =>
+        b.setButtonText(t("settings.rollHistoryClearBtn")).then(destructive).onClick(() =>
           new ConfirmModal(this.app, i18n, t("settings.rollHistoryClearConfirm"), () => {
             plugin.history.clear();
             new Notice(t("settings.rollHistoryCleared"));
@@ -554,7 +559,7 @@ export class EPSettingTab extends PluginSettingTab {
             b.setIcon("trash").setTooltip(t("settings.macroDelete")).onClick(() => {
               plugin.settings.macros = macros.filter((x) => x.id !== m.id);
               save();
-              this.display();
+              this.render();
             })
           );
       }
@@ -562,7 +567,7 @@ export class EPSettingTab extends PluginSettingTab {
         b.setButtonText(t("settings.macroAddBtn")).onClick(() => {
           macros.push({ id: genId(), name: t("settings.macroNewName"), segs: [{ dice: "d20" }] });
           save();
-          this.display();
+          this.render();
         })
       );
     }
@@ -626,7 +631,7 @@ export class EPSettingTab extends PluginSettingTab {
         b.setButtonText(t("settings.unhide")).onClick(() => {
           plugin.settings.manualHide = plugin.settings.manualHide.filter((x) => x !== k);
           save();
-          this.display();
+          this.render();
         })
       );
     }
@@ -637,7 +642,7 @@ export class EPSettingTab extends PluginSettingTab {
           if (!k) return;
           if (!plugin.settings.manualHide.includes(k)) plugin.settings.manualHide.push(k);
           save();
-          this.display();
+          this.render();
         }, () => plugin.props.knownProps()).open()
       )
     );
@@ -654,7 +659,7 @@ export class EPSettingTab extends PluginSettingTab {
             plugin.settings.features[mod.id] = v;
             plugin.rebuildRegistries();
             save();
-            this.display();
+            this.render();
           });
         });
     }
@@ -678,7 +683,7 @@ export class EPSettingTab extends PluginSettingTab {
           i18n.setOverrides({});
           void plugin.saveSettings();
           plugin.refreshViews();
-          this.display();
+          this.render();
         })
       );
 
@@ -733,12 +738,12 @@ export class EPSettingTab extends PluginSettingTab {
       .addButton((b) =>
         b
           .setButtonText(t("settings.resetAllBtn"))
-          .setWarning()
+          .then(destructive)
           .onClick(() =>
             new ConfirmModal(this.app, i18n, t("settings.resetAllConfirm"), () => {
               void plugin.resetAll().then(() => {
                 new Notice(t("settings.resetAllDone"));
-                this.display();
+                this.render();
               });
             }).open()
           )

@@ -7,6 +7,7 @@ import { App, Modal, Setting } from "obsidian";
 import type { I18n } from "../../i18n/i18n";
 import { ValueSuggest } from "../components/suggest";
 import { isShiftHeld } from "../modifiers";
+import { destructive } from "../components/setting-helpers";
 
 /** "Are you sure?" with Cancel / Confirm. */
 export class ConfirmModal extends Modal {
@@ -28,7 +29,7 @@ export class ConfirmModal extends Modal {
     new Setting(this.contentEl)
       .addButton((b) => b.setButtonText(this.i18n.t("common.cancel")).onClick(() => this.close()))
       .addButton((b) =>
-        b.setButtonText(this.i18n.t("common.confirm")).setWarning().onClick(() => {
+        b.setButtonText(this.i18n.t("common.confirm")).then(destructive).onClick(() => {
           this.onConfirm();
           this.close();
         })
@@ -62,7 +63,7 @@ export class ExitEditModal extends Modal {
     new Setting(contentEl)
       .addButton((b) => b.setButtonText(this.i18n.t("exitEdit.keepEditing")).onClick(() => this.close()))
       .addButton((b) =>
-        b.setButtonText(this.i18n.t("exitEdit.undo")).setWarning().onClick(() => {
+        b.setButtonText(this.i18n.t("exitEdit.undo")).then(destructive).onClick(() => {
           this.onDiscard();
           this.close();
         })
@@ -101,7 +102,7 @@ export class ConfirmChangesModal extends Modal {
     c.createEl("p", { text: this.i18n.t("confirmChanges.message") });
     new Setting(c)
       .addButton((b) =>
-        b.setButtonText(this.i18n.t("confirmChanges.undo")).setWarning().onClick(() => {
+        b.setButtonText(this.i18n.t("confirmChanges.undo")).then(destructive).onClick(() => {
           this.onUndo();
           this.close();
         })
