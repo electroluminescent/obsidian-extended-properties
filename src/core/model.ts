@@ -377,6 +377,16 @@ export interface EPSettings {
   failOnOne: boolean;
   /** Suffix that, appended to a reference, resolves to that property's modifier (default "s"). */
   modifierSuffix: string;
+  /**
+   * Suffix that, typed after a property name in any key field (`Class.p`),
+   * opens that property's autofill-pool editor (default "p").
+   */
+  poolSuffix?: string;
+  /**
+   * Extra autofill options per property (lower-cased key) - offered by
+   * autocomplete fields even when no note uses them yet.
+   */
+  poolExtras?: Record<string, string[]>;
   /** Master switch for cross-note references and aggregates (default on). */
   crossNote?: boolean;
   /**

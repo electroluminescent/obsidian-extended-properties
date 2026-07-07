@@ -10,10 +10,14 @@
  * viewport edge flipping.
  */
 
+import { Notice } from "obsidian";
 import type { TFile } from "obsidian";
 import type { ViewCtx } from "../../core/context";
 import type { Section } from "../../core/model";
+import { poolBaseFor } from "../../core/influences";
+import { addPoolExtra, isPoolExtra, poolFor, removePoolExtra } from "../../core/pool";
 import { genId } from "../../utils/misc";
+import { ConfirmModal } from "../modals/dialogs";
 import { TextLinkSuggest } from "./suggest";
 
 /** Insertion options shared by the add flows. */
@@ -118,7 +122,8 @@ export class PopupManager {
     const view = this.view;
     key = (key || "").trim();
     if (!key) return;
-    const isList = Array.isArray(value);
+    const existing = view.note.raw[key];
+    const isList = Array.isArray(value) || Array.isArray(existing);
     const entry = { id: genId(), kind: "prop", key, dataType: isList ? "list" : view.deriveType(key) };
     let idx = target?.index ?? section.entries.length;
     if (target?.replaceId) {
@@ -130,8 +135,20 @@ export class PopupManager {
     }
     section.entries.splice(Math.max(0, Math.min(idx, section.entries.length)), 0, entry);
     view.saveLayout();
-    if (value !== undefined) view.note.set(file, key, value, true);
-    else view.rerender();
+    if (Array.isArray(value)) {
+      // Adding an existing list property must never drop what the note
+      // already has: picked values APPEND to the current list. (The old
+      // behavior replaced the list with just the picks.)
+      const cur = view.note.list(key);
+      const curL = cur.map((x) => x.toLowerCase());
+      const add = value.filter((v): v is string => typeof v === "string" && !curL.includes(v.toLowerCase()));
+      if (add.length || existing === undefined) view.note.set(file, key, [...cur, ...add], true);
+      else view.rerender();
+    } else if (value !== undefined) {
+      view.note.set(file, key, value, true);
+    } else {
+      view.rerender();
+    }
   }
 
   /** Open the add-property popup anchored below `anchor`. */
@@ -200,7 +217,15 @@ export class PopupManager {
           addRow(c);
         }
       };
-      if (q && !this.allKeys().some((k) => k.toLowerCase() === q)) {
+      const poolBase = q ? poolBaseFor(view.settings, search.value.trim()) : null;
+      if (poolBase) {
+        const row = listEl.createDiv({ cls: "ep-pop-row ep-pop-create" });
+        row.setText(t("pool.editRow", { key: poolBase }));
+        row.onclick = () => {
+          const r2 = row.getBoundingClientRect();
+          this.openPoolEditor(r2.left, r2.bottom + 2, poolBase);
+        };
+      } else if (q && !this.allKeys().some((k) => k.toLowerCase() === q)) {
         const row = listEl.createDiv({ cls: "ep-pop-row ep-pop-create" });
         row.setText(t("add.create", { key: search.value.trim() }));
         row.onclick = () => {
@@ -221,7 +246,11 @@ export class PopupManager {
       if (e.key === "Enter") {
         e.preventDefault();
         const v = search.value.trim();
-        if (v) {
+        const base = poolBaseFor(view.settings, v);
+        if (base) {
+          const r2 = search.getBoundingClientRect();
+          this.openPoolEditor(r2.left, r2.bottom + 2, base);
+        } else if (v) {
           this.addEntryWithValue(file, section, v, undefined, target);
           this.closeAll();
         }
@@ -257,7 +286,10 @@ export class PopupManager {
     side.createDiv({ cls: "ep-side-title", text: multi ? t("add.pickValues", { key }) : key });
 
     const body = side.createDiv({ cls: "ep-side-body" });
-    const vals = view.props.valuesFor(key);
+    const curVals = view.note.list(key).map((x) => x.toLowerCase());
+    const vals = poolFor(view.settings, view.props.valuesFor(key), key).filter(
+      (v) => !curVals.includes(v.toLowerCase())
+    );
     const custom = side.createEl("input", { cls: "ep-edit-input ep-side-custom" });
     custom.type = "text";
     custom.placeholder = multi ? t("add.customValue") : t("add.typeValue");
@@ -356,7 +388,9 @@ export class PopupManager {
     side.setCssStyles({ left: left + "px", top: top + "px", minWidth: "170px" });
     side.createDiv({ cls: "ep-side-title", text: t("list.addTo", { key }) });
     const body = side.createDiv({ cls: "ep-side-body" });
-    const opts = view.props.valuesFor(key).filter((o) => !cur.some((c) => c.toLowerCase() === o.toLowerCase()));
+    const opts = poolFor(view.settings, view.props.valuesFor(key), key).filter(
+      (o) => !cur.some((c) => c.toLowerCase() === o.toLowerCase())
+    );
     const custom = side.createEl("input", { cls: "ep-edit-input ep-side-custom" });
     custom.type = "text";
     custom.placeholder = t("add.customValue");
@@ -390,5 +424,115 @@ export class PopupManager {
     };
     this.fitToViewport(side, left, left);
     this.dismissOnOutsideClick(side);
+  }
+
+  // -- autofill pool editor (the `.p` suffix) --------------------------------
+
+  /**
+   * Editor for a property's autofill pool - everything autocomplete offers
+   * for it (vault values + user-added extras). Adding an option makes it
+   * show up in autocomplete fields even before any note uses it; removing an
+   * option also scrubs the value from every note that carries it (confirmed
+   * first, with the affected note count).
+   */
+  openPoolEditor(left: number, top: number, key: string): void {
+    const view = this.view;
+    const t = view.i18n.t.bind(view.i18n);
+    this.closeAll();
+    const side = activeDocument.body.createDiv({ cls: "ep-popup ep-side ep-pool" });
+    this.popups.push(side);
+    side.setCssStyles({ left: left + "px", top: top + "px", minWidth: "220px" });
+    side.createDiv({ cls: "ep-side-title", text: t("pool.title", { key }) });
+    const body = side.createDiv({ cls: "ep-side-body" });
+
+    const rebuild = (): void => {
+      body.empty();
+      const options = poolFor(view.settings, view.props.valuesFor(key), key);
+      if (!options.length) body.createDiv({ cls: "ep-empty-sub", text: t("pool.empty") });
+      for (const v of options) {
+        const row = body.createDiv({ cls: "ep-pop-row ep-pool-row" });
+        row.createSpan({ cls: "ep-pool-val", text: v });
+        const uses = view.props.filesWithValue(key, v).length;
+        row.createSpan({
+          cls: "ep-sug-type",
+          text: !uses && isPoolExtra(view.settings, key, v) ? t("pool.addedTag") : t("pool.usesTag", { n: String(uses) }),
+        });
+        const x = row.createEl("button", { cls: "ep-chip-x ep-pool-x", text: "x" });
+        x.setAttr("aria-label", t("pool.removeAria", { value: v }));
+        x.onclick = () => void this.removePoolOption(key, v, rebuild);
+      }
+    };
+    rebuild();
+
+    const custom = side.createEl("input", { cls: "ep-edit-input ep-side-custom" });
+    custom.type = "text";
+    custom.placeholder = t("pool.addPlaceholder");
+    const foot = side.createDiv({ cls: "ep-side-foot" });
+    const addBtn = foot.createEl("button", { cls: "mod-cta", text: t("pool.addBtn") });
+    const addNow = (): void => {
+      if (addPoolExtra(view.settings, key, custom.value)) {
+        view.saveLayout();
+        custom.value = "";
+        rebuild();
+      }
+    };
+    addBtn.onclick = addNow;
+    custom.onkeydown = (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        addNow();
+      }
+    };
+    this.fitToViewport(side, left, left);
+    this.dismissOnOutsideClick(side);
+  }
+
+  /**
+   * Remove a pool option: drop the user-added extra and scrub the value from
+   * every note that carries it (list items are removed from the list, a
+   * matching scalar clears the key). Vault writes are confirmed first.
+   */
+  private async removePoolOption(key: string, value: string, done: () => void): Promise<void> {
+    const view = this.view;
+    const t = view.i18n.t.bind(view.i18n);
+    const files = view.props.filesWithValue(key, value);
+    if (!files.length) {
+      // An unused extra - nothing to scrub.
+      removePoolExtra(view.settings, key, value);
+      view.saveLayout();
+      done();
+      return;
+    }
+    const apply = async (): Promise<void> => {
+      removePoolExtra(view.settings, key, value);
+      view.saveLayout();
+      let n = 0;
+      for (const f of files) {
+        try {
+          await view.app.fileManager.processFrontMatter(f, (fm: Record<string, unknown>) => {
+            const realKey = Object.keys(fm).find((k) => k.toLowerCase() === key.toLowerCase());
+            if (!realKey) return;
+            const cur = fm[realKey];
+            if (Array.isArray(cur)) {
+              const next = (cur as unknown[]).filter((x) => String(x) !== value);
+              if (next.length !== cur.length) {
+                fm[realKey] = next;
+                n++;
+              }
+            } else if (String(cur) === value) {
+              delete fm[realKey];
+              n++;
+            }
+          });
+        } catch (err) {
+          console.error("Extended Properties: pool scrub failed for", f.path, err);
+        }
+      }
+      new Notice(t("pool.scrubbed", { value, n: String(n) }));
+      done();
+    };
+    new ConfirmModal(view.app, view.i18n, t("pool.removeConfirm", { value, n: String(files.length) }), () => {
+      void apply();
+    }).open();
   }
 }

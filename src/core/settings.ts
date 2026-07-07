@@ -80,6 +80,7 @@ const HANDLED_KEYS: ReadonlySet<string> = new Set([
   "sound", "soundVolume", "diceAnimStay", "diceAnimBlock", "karmicRolls",
   "modsOffProp", "macros", "rollHistory", "rollHistoryLimit",
   "rollHistoryEnabled", "critRanges", "failOnOne", "modifierSuffix",
+  "poolSuffix", "poolExtras",
   "crossNote", "conflictGuard", "tableLayouts", "tableLastType",
   "schemaVersion", "soundUi", "soundDice", "soundCrit", "layoutVault",
   "layoutVaultFolder", "appVersion", "snapshots", "snapshotKeep", "lastSnapshot",
@@ -211,6 +212,17 @@ export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EP
     }
     if (data.failOnOne === false) s.failOnOne = false;
     if (typeof data.modifierSuffix === "string") s.modifierSuffix = data.modifierSuffix;
+    if (typeof data.poolSuffix === "string") s.poolSuffix = data.poolSuffix;
+    // Autofill-pool extras: keep only string arrays of non-empty strings.
+    if (data.poolExtras && typeof data.poolExtras === "object") {
+      const cleanPool: Record<string, string[]> = {};
+      for (const [k, v] of Object.entries(data.poolExtras as Record<string, unknown>)) {
+        if (!Array.isArray(v)) continue;
+        const arr = (v as unknown[]).filter((x): x is string => typeof x === "string" && x.trim() !== "");
+        if (arr.length) cleanPool[k.toLowerCase()] = arr;
+      }
+      if (Object.keys(cleanPool).length) s.poolExtras = cleanPool;
+    }
     if (data.crossNote === false) s.crossNote = false;
     if (data.conflictGuard === false) s.conflictGuard = false;
     if (data.tableLayouts && typeof data.tableLayouts === "object")

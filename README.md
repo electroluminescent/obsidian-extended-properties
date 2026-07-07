@@ -281,6 +281,8 @@ Extended Properties is built for private, offline use and complies with the [Obs
 - **Encryption stays local.** The optional AES-256-GCM property encryption holds your passphrase only in memory and stores only the ciphertext envelope in the note — no keys or plaintext leave the vault.
 - **No self-update or remote code.** The plugin downloads and executes nothing at runtime; `main.js` is a standard, un-obfuscated esbuild bundle of the public, MIT-licensed TypeScript source in this repository.
 
+- **Vault-wide edits happen only on explicit action**: removing an option from a property's autofill pool (the `.p` pool editor) rewrites that property in the notes that carry the value - always behind a confirmation that names the value and the affected note count.
+
 ## License
 
 MIT

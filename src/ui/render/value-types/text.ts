@@ -13,6 +13,7 @@ import type { ValueTypeDef } from "../../../core/registry";
 import { openTextInput } from "../../components/inline-edit";
 import { TextPromptModal } from "../../modals/dialogs";
 import { applyValidity } from "../validity";
+import { poolFor } from "../../../core/pool";
 import { isEnvelope } from "../../../core/secure";
 
 export const textType: ValueTypeDef = {
@@ -60,7 +61,7 @@ export const textType: ValueTypeDef = {
         new Notice(view.i18n.t("secure.editLocked"));
         return;
       }
-      openTextInput(view.app, s, key, view.note.str(key), (k) => view.props.valuesFor(k), (nv) =>
+      openTextInput(view.app, s, key, view.note.str(key), (k) => poolFor(view.settings, view.props.valuesFor(k), k), (nv) =>
         view.note.set(file, key, nv === "" ? undefined : nv)
       );
     });
@@ -83,7 +84,7 @@ export const textType: ValueTypeDef = {
           view.i18n.t("prompt.editValue", { name: entry.alias || key }),
           view.note.str(key),
           (v: string) => view.note.set(file, key, v.trim() === "" ? undefined : v.trim()),
-          () => view.props.valuesFor(key)
+          () => poolFor(view.settings, view.props.valuesFor(key), key)
         ).open();
       })
     );

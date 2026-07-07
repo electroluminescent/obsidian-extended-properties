@@ -18,7 +18,7 @@ import type { ClusterFlags, ClusterOptions, ClusterRefs, EntryRenderCtx, ViewCtx
 import { Entry, Layout, Section, sectionPin } from "../core/model";
 import { ServiceHub, SectionTemplateDef } from "../core/registry";
 import { NoteModel } from "../core/note-model";
-import { influenceSources, VaultAccess } from "../core/influences";
+import { influenceSources, poolBaseFor, VaultAccess } from "../core/influences";
 import { parseExpr, evalCondition } from "../core/expr";
 import type { ExprEnv, ExprNode } from "../core/expr";
 import { makeVaultAccess } from "../core/note-ref";
@@ -405,6 +405,14 @@ export class SidebarView extends ItemView implements ViewCtx {
   renameKey(entry: Entry, newKey: string): void {
     newKey = newKey.trim();
     if (!newKey || newKey === entry.key) return;
+    // `Key.p` in a key field opens that property's autofill-pool editor
+    // instead of renaming (see settings.poolSuffix).
+    const poolBase = poolBaseFor(this.settings, newKey);
+    if (poolBase) {
+      const r = this.containerEl.getBoundingClientRect();
+      this.popupsMgr.openPoolEditor(r.left + 24, r.top + 96, poolBase);
+      return;
+    }
     entry.key = newKey;
     // Core (EntryBase) settings rarely survive a key change meaningfully.
     entry.alias = undefined;

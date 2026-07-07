@@ -254,6 +254,19 @@ export class PropertyIndex {
     return out;
   }
 
+  /** Files whose `key` contains `value` (exact match) - pool scrubbing. */
+  filesWithValue(key: string, value: string): TFile[] {
+    const out: TFile[] = [];
+    for (const { file, fm } of this.snapshots()) {
+      const v = fm ? getCI(fm, key) : undefined;
+      const has = Array.isArray(v)
+        ? v.some((x) => String(x) === value)
+        : v !== undefined && v !== null && String(v) === value;
+      if (has) out.push(file);
+    }
+    return out;
+  }
+
   /**
    * The value-type id corresponding to the property type assigned in
    * Obsidian's type manager, or null when unassigned/unknown.

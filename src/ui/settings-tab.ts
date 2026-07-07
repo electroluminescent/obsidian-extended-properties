@@ -247,6 +247,17 @@ export class EPSettingTab extends PluginSettingTab {
           });
       });
     new Setting(c)
+      .setName(t("settings.poolSuffix"))
+      .setDesc(t("settings.poolSuffixDesc"))
+      .addText((tx) => {
+        tx.setPlaceholder("p")
+          .setValue(plugin.settings.poolSuffix ?? "p")
+          .onChange((v) => {
+            plugin.settings.poolSuffix = v;
+            save();
+          });
+      });
+    new Setting(c)
       .setName(t("settings.crossNote"))
       .setDesc(t("settings.crossNoteDesc"))
       .addToggle((tg) => {

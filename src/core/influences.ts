@@ -620,6 +620,24 @@ export function modifierBaseFor(settings: EPSettings, name: string): string | nu
   return name.toLowerCase().endsWith(tail.toLowerCase()) ? name.slice(0, name.length - tail.length) : null;
 }
 
+/** The configured pool suffix (default "p"); empty disables pool references. */
+export function poolSuffix(settings: EPSettings): string {
+  return settings.poolSuffix ?? "p";
+}
+
+/**
+ * If `name` is a dotted pool reference (`Class.p`), the base property name
+ * without the `.<suffix>` tail; else null. Typed into a property-name field
+ * it opens that property's autofill-pool editor instead of renaming.
+ */
+export function poolBaseFor(settings: EPSettings, name: string): string | null {
+  const suf = poolSuffix(settings);
+  if (!suf) return null;
+  const tail = "." + suf;
+  if (name.length <= tail.length) return null;
+  return name.toLowerCase().endsWith(tail.toLowerCase()) ? name.slice(0, name.length - tail.length) : null;
+}
+
 /** Autocomplete options for reference fields: each property's name and short form (interchangeable). */
 export function referenceSuggestions(settings: EPSettings, keys: string[]): { text: string; hint: string }[] {
   const out: { text: string; hint: string }[] = [];
