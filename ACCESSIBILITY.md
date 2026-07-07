@@ -1,9 +1,8 @@
 # Accessibility
 
 Extended Properties aims to be fully operable by keyboard and legible to screen
-readers, high-contrast themes and reduced-motion users. There is no automated a11y
-gate (no screen reader runs in CI), so this document is the **manual test
-checklist** to run before a release, plus a summary of the support that ships.
+readers, high-contrast themes and reduced-motion users. This document summarizes
+the accessibility support that ships.
 
 ## What ships
 
@@ -48,43 +47,9 @@ checklist** to run before a release, plus a summary of the support that ships.
   values, rating, section titles, chips, steppers, roll cards, table cells and
   popups.
 
-## Manual checklist (run before release)
-
-Keyboard only (unplug the mouse):
-
-- [ ] Tab reaches the sidebar; arrow keys move between entries; `Enter` opens an
-      entry's menu; `Esc` closes popups/menus.
-- [ ] A number entry: focus the value, `Enter` opens the inline editor; the
-      `-`/`+` buttons and the slider knob are reachable and change the value
-      (arrows on the knob).
-- [ ] A rating entry: arrow keys raise/lower it; Home/End set min/max.
-- [ ] A checkbox entry (locked mode): `Space`/`Enter` toggles it.
-- [ ] A list entry: the *Remove* control on a chip is reachable and works.
-- [ ] A colour entry: `Enter` opens the picker; inside it the sliders/field and
-      channel inputs are operable; `Esc` closes.
-- [ ] Section titles: `Enter`/`Space` collapse/expand; `aria-expanded` flips.
-- [ ] Edit mode: the entry `...` menu opens from the keyboard; reorder via the menu.
-- [ ] Type table view: header sort, cell edit and roll are reachable.
-
-Screen reader (NVDA on Windows, VoiceOver on macOS):
-
-- [ ] Each entry announces its property name and `group` role.
-- [ ] The slider and rating announce name, current value and min/max, and update
-      as they change.
-- [ ] The checkbox announces its name and checked state.
-- [ ] Editable values announce as buttons; activating them opens the editor.
-- [ ] Section titles announce as expandable/collapsed.
-- [ ] Rolling announces the total via the live region.
-
-Reduced motion / high contrast:
-
-- [ ] With reduced-motion on, rolls and transitions resolve without animation.
-- [ ] In Windows High Contrast, section/chip/button borders, the active/selected
-      states and focus rings are all visible.
-
 ## Known limitations
 
 - **Drag-to-reorder** is pointer-only (the grip is `aria-hidden`); the keyboard
   equivalent is the entry menu's move actions.
-- **No screen reader in CI** - this checklist is a manual pass. File issues with
-  the reader + OS + Obsidian version if something reads incorrectly.
+- **Screen-reader behaviour** is verified manually. Please file an issue with the
+  reader + OS + Obsidian version if something reads incorrectly.

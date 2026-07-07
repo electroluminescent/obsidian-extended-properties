@@ -2,7 +2,7 @@
 
 A data-driven, fully arrangeable property sidebar that transforms how you organize and interact with note metadata. Activate it for any note whose `Type` matches a configured type; each type gets its own custom layout defined visually in the sidebar itself. Works on desktop and mobile.
 
-The core is domain-agnostic: it renders sections of property entries with rich value types and extensible features. Domain-specific capabilities-like the bundled **D&D 5e character sheet** module-plug into the core through registries and can be toggled in settings. See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design and extension guide.
+The core is domain-agnostic: it renders sections of property entries with rich value types and extensible features. Domain-specific capabilities-like the bundled **D&D 5e character sheet** module-plug into the core through registries and can be toggled in settings.
 
 ## Installation
 
@@ -169,13 +169,13 @@ Share a layout or a single section as a portable JSON snippet. *Export* on a typ
 
 **Theme colors**: Customize accent, background, and control colors per section, with overflow and contrast-aware displays.
 
-**Keyboard navigation & screen readers**: Sidebar entries form a roving-tabindex group - Tab into the list, then Up/Down/Home/End move between entries and Enter/Space opens the focused entry's context menu, so reorder/edit/remove (the drag alternatives) are reachable without a mouse. Every custom control is keyboard-operable and screen-reader labelled: editable values open with Enter/Space, the rating and slider are `role="slider"` widgets adjusted with the arrow keys (and Home/End), checkboxes toggle from the keyboard even in locked mode, list chips have a labelled *Remove* button, and section titles are `aria-expanded` disclosures. Visible `:focus-visible` rings appear across the sidebar, table view and popups; custom popups close on Escape; roll buttons, steppers and the entry menu carry `aria-label`s; a polite `aria-live` region announces roll totals; a `forced-colors` (Windows High Contrast) block keeps state perceivable without relying on colour; and `prefers-reduced-motion` is honoured across the animations. See [ACCESSIBILITY.md](ACCESSIBILITY.md) for the full support summary and the manual screen-reader / keyboard test checklist.
+**Keyboard navigation & screen readers**: Sidebar entries form a roving-tabindex group - Tab into the list, then Up/Down/Home/End move between entries and Enter/Space opens the focused entry's context menu, so reorder/edit/remove (the drag alternatives) are reachable without a mouse. Every custom control is keyboard-operable and screen-reader labelled: editable values open with Enter/Space, the rating and slider are `role="slider"` widgets adjusted with the arrow keys (and Home/End), checkboxes toggle from the keyboard even in locked mode, list chips have a labelled *Remove* button, and section titles are `aria-expanded` disclosures. Visible `:focus-visible` rings appear across the sidebar, table view and popups; custom popups close on Escape; roll buttons, steppers and the entry menu carry `aria-label`s; a polite `aria-live` region announces roll totals; a `forced-colors` (Windows High Contrast) block keeps state perceivable without relying on colour; and `prefers-reduced-motion` is honoured across the animations. See [ACCESSIBILITY.md](ACCESSIBILITY.md) for the full support summary.
 
 **Touch friendly**: The sidebar is fully responsive for mobile - long-press opens context menus on chips, value cards, rows and roll buttons; option and colour modals become bottom sheets; sliders are scroll-safe.
 
 ### Localization & Text Override
 
-**Translatable strings**: The UI ships in English, with every string stored as **JSON data** (`src/i18n/locales/en.json` plus a `strings.json` per feature module) rather than baked into code, so a language can be added without touching logic. A parity checker (`npm run i18n`, also run in CI) verifies a new locale against the English schema. Missing keys fall back to English at runtime (resolution order: per-string override -> active locale -> English -> humanized key). See [CONTRIBUTING.md](CONTRIBUTING.md) for the add-a-language workflow (dictionaries register through the module API; the built-in UI is English).
+**Translatable strings**: The UI ships in English. Missing keys fall back to English at runtime (resolution order: per-string override -> active locale -> English -> humanized key). Additional languages can be registered by feature modules through the plugin's module API.
 
 **String overrides**: Override any UI text string individually via a searchable editor in Settings -> UI text, without touching code. Useful for domain-specific terminology or personal naming preferences.
 
@@ -194,7 +194,7 @@ The plugin's architecture is built around registries, allowing feature modules t
 
 All feature modules can be toggled on/off in Settings -> Features without breaking existing layouts or data.
 
-**Public API**: The same `FeatureModule` contract is published as a stable, versioned API on `window.ExtendedProperties` (and the plugin's `.api`), so *third-party* plugins can register their own value types, entry kinds, derivations and locale strings without forking. See [ARCHITECTURE.md](ARCHITECTURE.md) for the surface and a worked example.
+**Public API**: The same `FeatureModule` contract is published as a stable, versioned API on `window.ExtendedProperties` (and the plugin's `.api`), so *third-party* plugins can register their own value types, entry kinds, derivations and locale strings without forking.
 
 ### D&D 5e Character Sheet Module
 
@@ -279,35 +279,6 @@ Extended Properties is built for private, offline use and complies with the [Obs
 - **Encryption stays local.** The optional AES-256-GCM property encryption holds your passphrase only in memory and stores only the ciphertext envelope in the note — no keys or plaintext leave the vault.
 - **No self-update or remote code.** The plugin downloads and executes nothing at runtime; `main.js` is a standard, un-obfuscated esbuild bundle of the public, MIT-licensed TypeScript source in this repository.
 
-## Development
-
-### Setup
-```bash
-npm install --legacy-peer-deps   # obsidian pins @codemirror/state
-```
-
-### Build & test
-```bash
-npm run build      # esbuild: src/main.ts -> main.js
-npm run dev        # continuous rebuild on file changes
-npm run typecheck  # tsc --noEmit (strict)
-npm test           # vitest over the pure modules (utils/*, core/*)
-npm run i18n       # locale key-parity check against the English schema
-```
-
-Tests live in `tests/` and cover the pure, Obsidian-free modules: dice math, the dice and expression engines, the influence/short-form rules, validation and conditions, cross-note references, export/import round-trips, and a golden settings-migration fixture. CI (`.github/workflows/`) runs typecheck -> test -> build (and the i18n parity check) on every push; pushing a `MAJOR.MINOR.PATCH` tag that matches `manifest.json` publishes a draft release with `main.js`, `manifest.json`, and `styles.css` attached. Third-party extension authors should start with [ARCHITECTURE.md](ARCHITECTURE.md) and the public API in `src/api.ts`.
-
-### Project Structure
-
-Start with [ARCHITECTURE.md](ARCHITECTURE.md) for a complete overview. The codebase is organized by layer:
-
-- **`src/core/`**: Data model, registries, the influence engine, and extension contracts-no UI or feature knowledge.
-- **`src/ui/`**: View orchestration, renderers, modals, menus, and components.
-- **`src/i18n/`**: Localization service and language dictionaries.
-- **`src/features/`**: Optional modules (D&D 5e, dice rolling) that extend the core.
-- **`src/utils/`**: Shared utilities (color, dice, formulas).
-- **`assets/dice/`**: The isometric die SVGs (also embedded as Obsidian icons).
-
-### License
+## License
 
 MIT
