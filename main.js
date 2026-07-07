@@ -8054,6 +8054,7 @@ function renderSection(parent, view, file, section, drag, host) {
   const gflex = view.editMode && mode === "grid" ? body.createDiv({ cls: "ep-gridflex" }) : body;
   if (view.editMode && mode === "grid") rowRail = gflex.createDiv({ cls: "ep-rowrail" });
   const grid = gflex.createDiv({ cls: "ep-grid ep-mode-" + mode });
+  if (mode !== "list") grid.setAttr("data-ep-cols", String(ncol));
   if (section.dividers) grid.addClass("ep-dividers");
   if (section.vdividers) grid.addClass("ep-vdividers");
   if (section.size && section.size !== "unlimited") {
@@ -9294,8 +9295,9 @@ var SidebarView = class extends import_obsidian26.ItemView {
    * Re-run on every render and on container resize.
    */
   responsivePass() {
-    var _a;
-    const SLACK = 1.5 * (parseFloat(getComputedStyle(this.content).fontSize) || 16);
+    var _a, _b;
+    const fs = parseFloat(getComputedStyle(this.content).fontSize) || 16;
+    const SLACK = 1.5 * fs;
     const TIERS = [".ep-type-hint", ".ep-dice-tag", ".ep-denote", ".ep-tog-cell", ".ep-mod-badge"];
     const mode = this.editMode ? "e" : "v";
     for (const el of this.content.findAll(".ep-section")) {
@@ -9307,6 +9309,30 @@ var SidebarView = class extends import_obsidian26.ItemView {
       if (id && this.respSig.get(id) === sig) continue;
       sec.addClass("ep-measuring");
       sec.findAll(".ep-squeezed").forEach((x) => x.removeClass("ep-squeezed"));
+      const cgrid = sec.querySelector(".ep-grid.ep-mode-columns, .ep-grid.ep-mode-grid");
+      if (cgrid) {
+        const ncol = Math.max(1, parseInt((_b = cgrid.getAttribute("data-ep-cols")) != null ? _b : "1", 10));
+        if (this.editMode) {
+          cgrid.setCssStyles({ gridTemplateColumns: `repeat(${ncol}, minmax(0, 1fr))` });
+          cgrid.removeClass("ep-compact");
+        } else {
+          const GAP2 = 8;
+          const T_BARE = 6.5 * fs;
+          const T_FULL = 12 * fs;
+          const W = cgrid.clientWidth;
+          const colW = (n) => (W - GAP2 * (n - 1)) / n;
+          let cols = ncol;
+          let compact = false;
+          if (colW(ncol) >= T_FULL) compact = false;
+          else if (colW(ncol) >= T_BARE) compact = true;
+          else {
+            while (cols > 1 && colW(cols) < T_BARE) cols--;
+            compact = colW(cols) < T_FULL;
+          }
+          cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
+          cgrid.toggleClass("ep-compact", compact);
+        }
+      }
       alignClustersNow(sec);
       const range = sec.ownerDocument.createRange();
       const spareOf = (n) => {

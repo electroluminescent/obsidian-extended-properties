@@ -736,7 +736,8 @@ export class SidebarView extends ItemView implements ViewCtx {
     // Decorations need this much spare room before they may stay - derived from
     // the view's font size (~1.5em) so it scales with the user's text size and
     // gives larger touch targets on mobile.
-    const SLACK = 1.5 * (parseFloat(getComputedStyle(this.content).fontSize) || 16);
+    const fs = parseFloat(getComputedStyle(this.content).fontSize) || 16;
+    const SLACK = 1.5 * fs;
     // Hide order = reverse priority. Label, value and roll button rank
     // highest and are never hidden; then (descending importance) the
     // modifier total, toggle checkboxes, modifier chain, dice, data type -
@@ -764,6 +765,37 @@ export class SidebarView extends ItemView implements ViewCtx {
 
       sec.addClass("ep-measuring");
       sec.findAll(".ep-squeezed").forEach((x) => x.removeClass("ep-squeezed"));
+
+      // Column-responsive (Columns/Grid, locked view): as a column narrows,
+      // first hide the interactive controls (roll button, steppers, proficiency
+      // toggle) column-wide so the label + value stay readable; only when even a
+      // bare label + value can't fit do we drop the column count so columns flow
+      // onto the next row. Edit mode keeps the full grid so the rails line up.
+      const cgrid = sec.querySelector<HTMLElement>(".ep-grid.ep-mode-columns, .ep-grid.ep-mode-grid");
+      if (cgrid) {
+        const ncol = Math.max(1, parseInt(cgrid.getAttribute("data-ep-cols") ?? "1", 10));
+        if (this.editMode) {
+          cgrid.setCssStyles({ gridTemplateColumns: `repeat(${ncol}, minmax(0, 1fr))` });
+          cgrid.removeClass("ep-compact");
+        } else {
+          const GAP = 8; // .ep-grid column gap
+          const T_BARE = 6.5 * fs; // label + value only
+          const T_FULL = 12 * fs; // label + value + controls
+          const W = cgrid.clientWidth;
+          const colW = (n: number): number => (W - GAP * (n - 1)) / n;
+          let cols = ncol;
+          let compact = false;
+          if (colW(ncol) >= T_FULL) compact = false;
+          else if (colW(ncol) >= T_BARE) compact = true;
+          else {
+            while (cols > 1 && colW(cols) < T_BARE) cols--;
+            compact = colW(cols) < T_FULL;
+          }
+          cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
+          cgrid.toggleClass("ep-compact", compact);
+        }
+      }
+
       alignClustersNow(sec);
 
       // A row is "tight" when its children genuinely overflow it, or when the

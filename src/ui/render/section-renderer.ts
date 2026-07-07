@@ -197,6 +197,7 @@ export function renderSection(
   if (view.editMode && mode === "grid") rowRail = gflex.createDiv({ cls: "ep-rowrail" });
 
   const grid = gflex.createDiv({ cls: "ep-grid ep-mode-" + mode });
+  if (mode !== "list") grid.setAttr("data-ep-cols", String(ncol));
   if (section.dividers) grid.addClass("ep-dividers");
   if (section.vdividers) grid.addClass("ep-vdividers");
   if (section.size && section.size !== "unlimited") {
