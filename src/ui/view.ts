@@ -849,23 +849,11 @@ export class SidebarView extends ItemView implements ViewCtx {
           const colW = (n: number): number => (gridW - 8 * (n - 1)) / n;
           const labelMin = 3.5 * fs + 5; // .ep-line-name min-width + the label/cluster gap
           const fullNeed = labelMin + maxCluster(); // room a row needs with its controls
-          // Grid mode is far tighter than columns, so when it compacts it also
-          // drops the cross-row min-width alignment: short modifiers/values sit
-          // centered inside the widest row's reserved width (margins on either
-          // side) which needlessly clips the narrow cells. Columns is untouched.
-          const isGrid = cgrid.hasClass("ep-mode-grid");
           cgrid.addClass("ep-compact");
-          if (isGrid)
-            cgrid
-              .findAll(".ep-cluster [data-ep-slot], .ep-cluster .ep-num")
-              .forEach((el) => el.setCssStyles({ minWidth: "" }));
-          const bareNeed = labelMin + maxCluster(); // room once compacted
+          const bareNeed = labelMin + maxCluster(); // room with the controls hidden
           let cols = ncol;
           while (cols > 1 && colW(cols) < bareNeed) cols--;
-          if (colW(cols) >= fullNeed) {
-            cgrid.removeClass("ep-compact");
-            if (isGrid) alignClustersNow(sec); // fits after all - restore alignment
-          }
+          if (colW(cols) >= fullNeed) cgrid.removeClass("ep-compact");
           cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
           // Safety net against a real clip: Grid mode can reserve the aligned
           // value cell a little wider than the measured cluster, so a row may

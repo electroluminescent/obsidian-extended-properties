@@ -43,11 +43,15 @@ function computeFlags(view: ViewCtx, file: TFile, section: Section): ClusterFlag
 export function alignClustersNow(det: HTMLElement): void {
   const groups = new Map<string, HTMLElement[]>();
   for (const el of det.findAll(".ep-cluster [data-ep-slot]")) {
+    // Grid mode places entries as independent 2D cells; cross-cell alignment
+    // would force every cluster to the widest row's width, showing as margins
+    // on either side of a short modifier and clipping the narrow cells.
+    if (el.closest(".ep-mode-grid")) continue;
     const id = el.getAttribute("data-ep-slot") ?? "";
     if (!groups.has(id)) groups.set(id, []);
     groups.get(id)!.push(el);
   }
-  groups.set(" num", det.findAll(".ep-cluster .ep-num"));
+  groups.set(" num", det.findAll(".ep-cluster .ep-num").filter((n) => !n.closest(".ep-mode-grid")));
   for (const els of groups.values()) {
     if (els.length < 2) continue;
     let max = 0;
