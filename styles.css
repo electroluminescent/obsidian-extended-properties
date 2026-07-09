@@ -285,7 +285,6 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
    Zeroing --ep-step-col collapses the stepper tracks in every cluster inside. */
 .ep-grid.ep-compact { --ep-step-col: 0px; }
 .ep-grid.ep-compact .ep-step-btn,
-.ep-grid.ep-compact .ep-roll-cell,
 .ep-grid.ep-compact .ep-tog-cell { display: none; }
 .ep-empty-cell { min-height: 0; }
 .ep-disabled { opacity: 0.5; }
