@@ -283,6 +283,13 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
 /* Column-responsive compaction (locked view, Columns/Grid): hide the interactive
    controls column-wide when columns get narrow, before the value would clip.
    Zeroing --ep-step-col collapses the stepper tracks in every cluster inside. */
+/* Grid clusters never flex-shrink: a compressed cluster squeezes its tracks
+   below their natural size, so the roll button overflows the cell's right
+   edge and the value spills under its neighbors - and the responsive pass
+   would measure the shrunken width, deciding to wrap too late. Rigid at
+   rest, the label (flex: 1, ellipsis) absorbs the squeeze and the staged
+   compaction below sees true widths, so the steady state always fits. */
+.ep-grid.ep-mode-grid .ep-cluster { flex-shrink: 0; }
 .ep-grid.ep-compact-steppers, .ep-grid.ep-compact { --ep-step-col: 0px; }
 .ep-grid.ep-compact-steppers .ep-step-btn,
 .ep-grid.ep-compact .ep-step-btn,
