@@ -43,11 +43,18 @@ function computeFlags(view: ViewCtx, file: TFile, section: Section): ClusterFlag
 export function alignClustersNow(det: HTMLElement): void {
   const groups = new Map<string, HTMLElement[]>();
   for (const el of det.findAll(".ep-cluster [data-ep-slot]")) {
+    // Grid cells share the column cell's ASSEMBLY (.ep-col wrapper), but not
+    // its cross-cell alignment: with one entry per cell, aligning to the
+    // section's widest cluster reserves that width in every cell - a visible
+    // margin beside short modifiers - and inflates the wrap measurement so
+    // columns flow to new rows far too early. Clusters in grid mode keep
+    // their natural width.
+    if (el.closest(".ep-mode-grid")) continue;
     const id = el.getAttribute("data-ep-slot") ?? "";
     if (!groups.has(id)) groups.set(id, []);
     groups.get(id)!.push(el);
   }
-  groups.set(" num", det.findAll(".ep-cluster .ep-num"));
+  groups.set(" num", det.findAll(".ep-cluster .ep-num").filter((n) => !n.closest(".ep-mode-grid")));
   for (const els of groups.values()) {
     if (els.length < 2) continue;
     let max = 0;

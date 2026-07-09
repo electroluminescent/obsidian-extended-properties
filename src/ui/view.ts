@@ -848,9 +848,10 @@ export class SidebarView extends ItemView implements ViewCtx {
           const gridW = cgrid.clientWidth;
           const colW = (n: number): number => (gridW - 8 * (n - 1)) / n;
           const labelMin = 3.5 * fs + 5; // .ep-line-name min-width + the label/cluster gap
-          // Grid cells are assembled exactly like column cells now (.ep-col
-          // wrappers, shared cluster alignment), so both modes measure the
-          // same way - no per-mode fudge.
+          // Grid cells are assembled exactly like column cells (.ep-col
+          // wrappers), so both modes measure the same way - no per-mode
+          // fudge. (Grid skips the cross-cell alignment, so its clusters
+          // measure at natural width.)
           const fullNeed = labelMin + maxCluster(); // room a row needs with its controls
           cgrid.addClass("ep-compact");
           const bareNeed = labelMin + maxCluster(); // room with the controls hidden
