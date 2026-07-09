@@ -251,9 +251,9 @@ var en_default = {
   "feature.dateDesc": "The date value type with per-property formats, custom calendars and era pools.",
   "options.dateHeading": "Date",
   "options.dateFormat": "Format",
-  "options.dateFormatDesc": "Shared by every instance of this property. Tokens: YYYY/Y year, MM/M month, MMMM/MMM month name, DD/D day, E era suffix. E.g. MM/DD/YYYY or D MMMM, Y E.",
+  "options.dateFormatDesc": "Shared by every instance of this property. Tokens: YYYY/Y year, MM/M month, MMMM/MMM month name, DD/D day, E era suffix. E.g. MM/DD/YYYY or D MMMM, Y E. Input is lenient: month names (full, short or prefixed), reordered numeric dates and pooled era suffixes translate even when they don't match this format; values always display in it.",
   "options.datePlot": "Show timeline plot",
-  "options.datePlotDesc": "Where the slider would be, plot every other note's value for this property; this note is the marker.",
+  "options.datePlotDesc": "Where the slider would be, plot every other note's value for this property as reference points; this note is the marker. Hover a point to see its notes; click a name to open it (Ctrl/Cmd: new tab). The plot never changes the value.",
   "options.dateRangeAuto": "In the property's format. Blank = the earliest/latest value across all notes.",
   "options.customCalendar": "Custom date system",
   "options.customCalendarDesc": "Define this property's own calendar (shared by all notes): months per year, days per month, days per week, month names. Stored values are calendar-independent integers - changing the system re-encodes every note so each date keeps its meaning (clamped to the closest date when the new system is smaller).",
@@ -2582,6 +2582,16 @@ var PropertyIndex = class {
     return out;
   }
   /** Files whose `key` contains `value` (exact match) - pool scrubbing. */
+  /** Per-file values of `key` (files where it is set, scalars only). */
+  entriesFor(key) {
+    const out = [];
+    for (const { file, fm } of this.snapshots()) {
+      const v = fm ? getCI(fm, key) : void 0;
+      if (v === void 0 || v === null || v === "" || Array.isArray(v)) continue;
+      out.push({ file, value: v });
+    }
+    return out;
+  }
   /** Files whose frontmatter has `key` at all (any value). */
   filesWithKey(key) {
     const out = [];
@@ -6170,6 +6180,96 @@ function translateSerial(serial, before, after) {
   if (p.era && ((_a = after.eras) != null ? _a : []).some((e) => e.toLowerCase() === p.era.toLowerCase())) q.era = p.era;
   return encodeSerial(q, after);
 }
+function tokenOrder(cfg) {
+  var _a;
+  const out = [];
+  for (const p of formatPieces(cfg.format)) {
+    const k = (_a = p.token) == null ? void 0 : _a[0];
+    if ((k === "Y" || k === "M" || k === "D") && !out.includes(k)) out.push(k);
+  }
+  for (const k of ["Y", "M", "D"]) if (!out.includes(k)) out.push(k);
+  return out;
+}
+function checked(parts, sys) {
+  if (parts.month < 1 || parts.month > sys.months) return null;
+  if (parts.day < 1 || parts.day > sys.daysPerMonth) return null;
+  return parts;
+}
+function parseDateFlexible(text, cfg) {
+  var _a;
+  const strict = parseDate(text, cfg);
+  if (strict) return strict;
+  const sys = systemOf(cfg);
+  let s = text.trim();
+  if (!s) return null;
+  let era;
+  for (const e of [...(_a = cfg.eras) != null ? _a : []].sort((a, b) => b.length - a.length)) {
+    const re = new RegExp("[\\s,.-]+" + esc(e) + "\\s*$", "i");
+    if (re.test(s)) {
+      era = e;
+      s = s.replace(re, "");
+      break;
+    }
+  }
+  const tokens = s.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  const nums = [];
+  const words = [];
+  for (const t of tokens) {
+    if (/^\d+$/.test(t)) nums.push(parseInt(t, 10));
+    else words.push(t);
+  }
+  const order = tokenOrder(cfg);
+  const withEra = (p) => {
+    if (p && era) p.era = era;
+    return p;
+  };
+  if (words.length === 1) {
+    const w = words[0].toLowerCase();
+    const hits = [];
+    for (let m = 1; m <= sys.months; m++) {
+      const n = monthName(sys, m).toLowerCase();
+      if (n === w || n.slice(0, 3) === w || w.length >= 3 && n.startsWith(w)) {
+        if (!hits.includes(m)) hits.push(m);
+      }
+    }
+    if (hits.length !== 1) return null;
+    const month = hits[0];
+    if (nums.length === 2) {
+      const [a, b] = nums;
+      const fitsA = a >= 1 && a <= sys.daysPerMonth;
+      const fitsB = b >= 1 && b <= sys.daysPerMonth;
+      if (fitsA && fitsB) {
+        const dayFirst = order.indexOf("D") < order.indexOf("Y");
+        return withEra(checked({ year: dayFirst ? b : a, month, day: dayFirst ? a : b }, sys));
+      }
+      if (fitsA) return withEra(checked({ year: b, month, day: a }, sys));
+      if (fitsB) return withEra(checked({ year: a, month, day: b }, sys));
+      return null;
+    }
+    if (nums.length === 1 && nums[0] > sys.daysPerMonth) {
+      return withEra(checked({ year: nums[0], month, day: 1 }, sys));
+    }
+    return null;
+  }
+  if (words.length > 1) return null;
+  if (nums.length === 3) {
+    const tryOrder = (o) => {
+      const p = { year: 1, month: 1, day: 1 };
+      o.forEach((k, i) => {
+        if (k === "Y") p.year = nums[i];
+        else if (k === "M") p.month = nums[i];
+        else p.day = nums[i];
+      });
+      return checked(p, sys);
+    };
+    const orders = [order, ["Y", "M", "D"], ["D", "M", "Y"], ["M", "D", "Y"]];
+    for (const o of orders) {
+      const p = tryOrder(o);
+      if (p) return withEra(p);
+    }
+  }
+  return null;
+}
 
 // src/ui/render/value-types/date.ts
 function cfgFor(view, key) {
@@ -6184,7 +6284,7 @@ function saveCfg(view, mutate) {
 var snapshotCfg = (cfg) => JSON.parse(JSON.stringify(cfg));
 function rawToParts(raw, cfg) {
   if (typeof raw === "number") return decodeSerial(raw, cfg);
-  if (typeof raw === "string" && raw.trim()) return parseDate(raw.trim(), cfg);
+  if (typeof raw === "string" && raw.trim()) return parseDateFlexible(raw.trim(), cfg);
   return null;
 }
 function rawSerial(raw, cfg) {
@@ -6202,7 +6302,7 @@ async function migrateDateSerials(view, key, before, after) {
         let next = null;
         if (typeof cur === "number") next = translateSerial(cur, before, after);
         else if (typeof cur === "string" && cur.trim()) {
-          const p = parseDate(cur.trim(), before);
+          const p = parseDateFlexible(cur.trim(), before);
           if (p) next = translateSerial(encodeSerial(p, before), before, after);
         }
         if (next !== null && next !== cur) {
@@ -6217,7 +6317,7 @@ async function migrateDateSerials(view, key, before, after) {
 }
 function plotRange(view, key, cfg, e) {
   const fromStr = (s) => {
-    const p = s ? parseDate(s, cfg) : null;
+    const p = s ? parseDateFlexible(s, cfg) : null;
     return p ? encodeSerial(p, cfg) : null;
   };
   let min = fromStr(e.dateMin);
@@ -6322,7 +6422,7 @@ function render2(ctx2) {
         view.note.set(file, key, void 0);
         return;
       }
-      const p = parseDate(v, cfg);
+      const p = parseDateFlexible(v, cfg);
       if (p == null ? void 0 : p.era) {
         const pool = (_a2 = cfg.eras) != null ? _a2 : cfg.eras = [];
         if (!pool.some((x) => x.toLowerCase() === p.era.toLowerCase()))
@@ -6342,22 +6442,68 @@ function render2(ctx2) {
     plot.createDiv({ cls: "ep-dateplot-track" });
     const marker = plot.createDiv({ cls: "ep-dateplot-marker" });
     const ticksEl = plot.createDiv({ cls: "ep-dateplot-ticks" });
+    let pop = null;
+    let popTimer = 0;
+    const closePop = () => {
+      window.clearTimeout(popTimer);
+      pop == null ? void 0 : pop.remove();
+      pop = null;
+    };
+    const openPop = (tick, when, files) => {
+      closePop();
+      pop = activeDocument.body.createDiv({ cls: "ep-popup ep-dateplot-pop" });
+      pop.createDiv({ cls: "ep-dateplot-pop-when", text: when });
+      for (const f of files) {
+        const row = pop.createDiv({ cls: "ep-pop-row", text: f.basename });
+        row.onclick = (me) => {
+          void view.app.workspace.openLinkText(f.path, "", me.ctrlKey || me.metaKey);
+          closePop();
+        };
+      }
+      const r = tick.getBoundingClientRect();
+      const pr = pop.getBoundingClientRect();
+      const left = Math.max(4, Math.min(r.left + r.width / 2 - pr.width / 2, window.innerWidth - pr.width - 4));
+      const top = r.top - pr.height - 4 < 4 ? r.bottom + 4 : r.top - pr.height - 4;
+      pop.setCssStyles({ left: left + "px", top: top + "px" });
+      pop.onmouseenter = () => window.clearTimeout(popTimer);
+      pop.onmouseleave = () => {
+        popTimer = window.setTimeout(closePop, 250);
+      };
+    };
     syncPlot = () => {
-      var _a;
+      var _a, _b;
       ticksEl.empty();
+      closePop();
       const range = plotRange(view, key, cfg, e);
       plot.toggleClass("ep-hidden", !range);
       if (!range) return;
       const span = range.max - range.min;
       const pct = (s) => Math.max(0, Math.min(1, (s - range.min) / span)) * 100;
-      const own = String((_a = view.note.raw[key]) != null ? _a : "");
-      for (const v of view.props.rawValuesFor(key)) {
-        if (String(v) === own) continue;
-        const p2 = rawToParts(v, cfg);
+      const ownPath = (_a = view.note.path) != null ? _a : "";
+      const groups = /* @__PURE__ */ new Map();
+      for (const { file: file2, value } of view.props.entriesFor(key)) {
+        if (file2.path === ownPath) continue;
+        const p2 = rawToParts(value, cfg);
         if (!p2) continue;
+        const s = encodeSerial(p2, cfg);
+        const g = (_b = groups.get(s)) != null ? _b : { parts: p2, files: [] };
+        g.files.push({ path: file2.path, basename: file2.basename });
+        groups.set(s, g);
+      }
+      for (const [s, g] of groups) {
         const tick = ticksEl.createDiv({ cls: "ep-dateplot-tick" });
-        tick.setCssStyles({ left: pct(encodeSerial(p2, cfg)) + "%" });
-        tick.setAttr("title", formatDate(p2, cfg));
+        if (g.files.length > 1) tick.addClass("ep-dateplot-tick-multi");
+        tick.setCssStyles({ left: pct(s) + "%" });
+        const when = formatDate(g.parts, cfg);
+        tick.setAttr("aria-label", when);
+        tick.onmouseenter = () => {
+          window.clearTimeout(popTimer);
+          popTimer = window.setTimeout(() => openPop(tick, when, g.files), 120);
+        };
+        tick.onmouseleave = () => {
+          window.clearTimeout(popTimer);
+          popTimer = window.setTimeout(closePop, 250);
+        };
       }
       const p = parsed();
       marker.toggleClass("ep-hidden", !p);
@@ -6511,7 +6657,7 @@ function menuItems2(menu, ref) {
         view.i18n.t("prompt.editValue", { name: entry.alias || key }),
         p0 ? formatDate(p0, cfg) : view.note.str(key),
         (v) => {
-          const p = parseDate(v.trim(), cfg);
+          const p = parseDateFlexible(v.trim(), cfg);
           view.note.set(file, key, p ? encodeSerial(p, cfg) : v.trim() || void 0);
         }
       ).open();

@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DateConfig, dateSerial, decodeSerial, encodeSerial, formatDate, monthName, parseDate, serialOf,
-  standardSystem, systemOf, translateSerial, weekday,
+  parseDateFlexible, standardSystem, systemOf, tokenOrder, translateSerial, weekday,
 } from "../src/core/calendar";
 
 const std: DateConfig = { format: "MM/DD/YYYY" };
@@ -176,5 +176,55 @@ describe("serial storage (encode/decode/translate)", () => {
   it("dateSerial (ordering) and encodeSerial agree", () => {
     const p = { year: 2024, month: 3, day: 7 };
     expect(dateSerial(p, std)).toBe(encodeSerial(p, std));
+  });
+});
+
+describe("parseDateFlexible (lenient input)", () => {
+  const cfg: DateConfig = { format: "DD/MM/YYYY E", eras: ["BCE", "CE"] };
+
+  it("the configured format still wins", () => {
+    expect(parseDateFlexible("15/03/1024 CE", cfg)).toMatchObject({ year: 1024, month: 3, day: 15, era: "CE" });
+  });
+
+  it("accepts month names with day and year (the user's mmm-dd YYYY case)", () => {
+    expect(parseDateFlexible("mar-15 1024", cfg)).toMatchObject({ year: 1024, month: 3, day: 15 });
+    expect(parseDateFlexible("15 March 1024", cfg)).toMatchObject({ year: 1024, month: 3, day: 15 });
+    expect(parseDateFlexible("March 15, 1024", cfg)).toMatchObject({ year: 1024, month: 3, day: 15 });
+  });
+
+  it("supports short forms and unambiguous prefixes", () => {
+    expect(parseDateFlexible("sept 2 1024", cfg)).toMatchObject({ month: 9, day: 2, year: 1024 });
+    expect(parseDateFlexible("nov 2 1024", cfg)).toMatchObject({ month: 11 });
+    // "ju" is ambiguous (June/July) and too short - rejected.
+    expect(parseDateFlexible("ju 2 1024", cfg)).toBeNull();
+  });
+
+  it("month-year alone works when the number can only be a year", () => {
+    expect(parseDateFlexible("March 1024", cfg)).toMatchObject({ year: 1024, month: 3, day: 1 });
+    expect(parseDateFlexible("March 15", cfg)).toBeNull(); // ambiguous: rejected
+  });
+
+  it("pooled era suffixes attach to flexible shapes; unknown ones don't", () => {
+    expect(parseDateFlexible("mar-15 1024 ce", cfg)).toMatchObject({ era: "CE" });
+    expect(parseDateFlexible("mar-15 1024 XX", cfg)).toBeNull();
+  });
+
+  it("all-numeric input follows the format order, then falls back", () => {
+    expect(parseDateFlexible("15-3-1024", cfg)).toMatchObject({ day: 15, month: 3, year: 1024 }); // D/M/Y per format
+    expect(parseDateFlexible("1024.3.15", cfg)).toMatchObject({ year: 1024, month: 3, day: 15 }); // ISO fallback
+  });
+
+  it("respects custom systems (names, ranges) in flexible mode", () => {
+    const custom: DateConfig = {
+      format: "DD/MM/YYYY",
+      system: { months: 3, daysPerMonth: 30, daysPerWeek: 10, monthNames: ["Hammer", "Alturiak", "Ches"] },
+    };
+    expect(parseDateFlexible("ham 12 1372", custom)).toMatchObject({ month: 1, day: 12, year: 1372 });
+    expect(parseDateFlexible("31/1/1372", custom)).toBeNull(); // day beyond the system
+  });
+
+  it("tokenOrder reads the format's Y/M/D order", () => {
+    expect(tokenOrder(cfg)).toEqual(["D", "M", "Y"]);
+    expect(tokenOrder({ format: "YYYY-MM-DD" })).toEqual(["Y", "M", "D"]);
   });
 });

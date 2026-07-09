@@ -986,6 +986,12 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-dateval .ep-invalid { text-decoration: underline wavy var(--text-error); }
 .ep-dateplot { position: relative; height: 14px; margin: 2px 6px 2px 6px; }
 .ep-dateplot-track { position: absolute; left: 0; right: 0; top: 6px; height: 2px; border-radius: 1px; background: var(--background-modifier-border); }
-.ep-dateplot-tick { position: absolute; top: 3px; width: 2px; height: 8px; margin-left: -1px; border-radius: 1px; background: var(--text-faint); }
+.ep-dateplot-tick { position: absolute; top: 0; width: 10px; height: 14px; margin-left: -5px; background: transparent; cursor: pointer; }
+.ep-dateplot-tick::before { content: ""; position: absolute; left: 4px; top: 3px; width: 2px; height: 8px; border-radius: 1px; background: var(--text-faint); }
+.ep-dateplot-tick:hover::before { background: var(--text-normal); }
+.ep-dateplot-tick-multi::before { width: 3px; left: 3.5px; background: var(--text-muted); }
+.ep-dateplot-pop { position: fixed; z-index: var(--layer-menu, 25); min-width: 140px; max-width: 260px; padding: 4px; }
+.ep-dateplot-pop .ep-dateplot-pop-when { padding: 2px 8px 4px; font-size: var(--font-ui-smaller); color: var(--text-muted); border-bottom: 1px solid var(--background-modifier-border); margin-bottom: 2px; }
+.ep-dateplot-pop .ep-pop-row { cursor: pointer; }
 .ep-dateplot-ticks { position: absolute; inset: 0; }
 .ep-dateplot-marker { position: absolute; top: 1px; width: 6px; height: 12px; margin-left: -3px; border-radius: 3px; background: var(--interactive-accent); z-index: 1; }

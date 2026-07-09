@@ -307,6 +307,127 @@ export function serialOf(text: string, cfg: DateConfig): number | null {
   return p ? dateSerial(p, cfg) : null;
 }
 
+// -- flexible input ----------------------------------------------------------
+
+/** The format's Y/M/D order (missing tokens appended in Y, M, D order). */
+export function tokenOrder(cfg: DateConfig): ("Y" | "M" | "D")[] {
+  const out: ("Y" | "M" | "D")[] = [];
+  for (const p of formatPieces(cfg.format)) {
+    const k = p.token?.[0];
+    if ((k === "Y" || k === "M" || k === "D") && !out.includes(k)) out.push(k);
+  }
+  for (const k of ["Y", "M", "D"] as const) if (!out.includes(k)) out.push(k);
+  return out;
+}
+
+/** Validate ranges; returns the parts or null. */
+function checked(parts: DateParts, sys: DateSystem): DateParts | null {
+  if (parts.month < 1 || parts.month > sys.months) return null;
+  if (parts.day < 1 || parts.day > sys.daysPerMonth) return null;
+  return parts;
+}
+
+/**
+ * Parse leniently: the configured format is tried first (and wins - it is
+ * also the only path that can introduce a NEW era); after that, common
+ * alternate shapes are accepted regardless of the configured separators
+ * and order:
+ *
+ * - month names in any position, full or shortened ("Nov", "sept", any
+ *   unambiguous prefix of 3+ letters), with day/year assigned from the
+ *   remaining numbers (a number that can only be a year is the year;
+ *   ties resolve by the format's D/Y order);
+ * - all-numeric dates in the format's Y/M/D order, then ISO Y-M-D, then
+ *   D-M-Y and M-D-Y as fallbacks, under any of -, /, ., space;
+ * - an era from the pool as a trailing suffix (unknown suffixes are NOT
+ *   guessed at here - only the strict format can grow the pool).
+ */
+export function parseDateFlexible(text: string, cfg: DateConfig): DateParts | null {
+  const strict = parseDate(text, cfg);
+  if (strict) return strict;
+  const sys = systemOf(cfg);
+  let s = text.trim();
+  if (!s) return null;
+
+  // Trailing era from the pool (longest first so "CE" can't eat "BCE").
+  let era: string | undefined;
+  for (const e of [...(cfg.eras ?? [])].sort((a, b) => b.length - a.length)) {
+    const re = new RegExp("[\\s,.-]+" + esc(e) + "\\s*$", "i");
+    if (re.test(s)) {
+      era = e;
+      s = s.replace(re, "");
+      break;
+    }
+  }
+
+  // Tokenize into words and numbers (any separator).
+  const tokens = s.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  const nums: number[] = [];
+  const words: string[] = [];
+  for (const t of tokens) {
+    if (/^\d+$/.test(t)) nums.push(parseInt(t, 10));
+    else words.push(t);
+  }
+  const order = tokenOrder(cfg);
+  const withEra = (p: DateParts | null): DateParts | null => {
+    if (p && era) p.era = era;
+    return p;
+  };
+
+  if (words.length === 1) {
+    // A month name (full, 3-letter short form, or unambiguous 3+ prefix).
+    const w = words[0].toLowerCase();
+    const hits: number[] = [];
+    for (let m = 1; m <= sys.months; m++) {
+      const n = monthName(sys, m).toLowerCase();
+      if (n === w || n.slice(0, 3) === w || (w.length >= 3 && n.startsWith(w))) {
+        if (!hits.includes(m)) hits.push(m);
+      }
+    }
+    if (hits.length !== 1) return null;
+    const month = hits[0];
+    if (nums.length === 2) {
+      const [a, b] = nums;
+      const fitsA = a >= 1 && a <= sys.daysPerMonth;
+      const fitsB = b >= 1 && b <= sys.daysPerMonth;
+      if (fitsA && fitsB) {
+        // Both could be the day: the format's D/Y order decides.
+        const dayFirst = order.indexOf("D") < order.indexOf("Y");
+        return withEra(checked({ year: dayFirst ? b : a, month, day: dayFirst ? a : b }, sys));
+      }
+      if (fitsA) return withEra(checked({ year: b, month, day: a }, sys));
+      if (fitsB) return withEra(checked({ year: a, month, day: b }, sys));
+      return null;
+    }
+    if (nums.length === 1 && nums[0] > sys.daysPerMonth) {
+      // Unambiguously a year ("March 1024"); a lone fits-the-day number
+      // stays rejected rather than silently guessing the year.
+      return withEra(checked({ year: nums[0], month, day: 1 }, sys));
+    }
+    return null;
+  }
+  if (words.length > 1) return null;
+
+  // All-numeric: the format's own order, then common fallbacks.
+  if (nums.length === 3) {
+    const tryOrder = (o: ("Y" | "M" | "D")[]): DateParts | null => {
+      const p: DateParts = { year: 1, month: 1, day: 1 };
+      o.forEach((k, i) => {
+        if (k === "Y") p.year = nums[i];
+        else if (k === "M") p.month = nums[i];
+        else p.day = nums[i];
+      });
+      return checked(p, sys);
+    };
+    const orders: ("Y" | "M" | "D")[][] = [order, ["Y", "M", "D"], ["D", "M", "Y"], ["M", "D", "Y"]];
+    for (const o of orders) {
+      const p = tryOrder(o);
+      if (p) return withEra(p);
+    }
+  }
+  return null;
+}
+
 /** 1-based weekday of a date (day-of-era modulo the week length). */
 export function weekday(parts: DateParts, cfg: DateConfig): number {
   const sys = systemOf(cfg);

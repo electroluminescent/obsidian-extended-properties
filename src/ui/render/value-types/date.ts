@@ -6,7 +6,12 @@
  * pool via the era chip (typing a new suffix grows the pool), and an
  * optional timeline plot marks where OTHER notes' values for the same
  * property fall, with min/max configurable or taken from the vault's
- * extremes - the date analog of the number slider.
+ * extremes - the date analog of the number slider. The plot is a point
+ * of reference only (it never edits the value): hovering a tick names
+ * the notes behind it, and clicking a name opens that note (Ctrl/Cmd
+ * for a new tab). Input is lenient: the configured format wins, but
+ * alternate shapes - month names (full, short or prefixed), reordered
+ * numerics, pooled era suffixes - translate too (parseDateFlexible).
  *
  * STORAGE: notes hold a calendar-independent integer (see encodeSerial in
  * core/calendar.ts). Entered text is translated text -> parts -> integer
@@ -24,8 +29,8 @@ import type { EntryRenderCtx, EntryRef, OptionsCtx, ViewCtx } from "../../../cor
 import type { ValueTypeDef } from "../../../core/registry";
 import { ext } from "../../../core/model";
 import {
-  DateConfig, DateParts, DEFAULT_DATE_FORMAT, decodeSerial, encodeSerial, formatDate, monthName, parseDate,
-  systemOf, translateSerial,
+  DateConfig, DateParts, DEFAULT_DATE_FORMAT, decodeSerial, encodeSerial, formatDate, monthName,
+  parseDateFlexible, systemOf, translateSerial,
 } from "../../../core/calendar";
 import { TextPromptModal } from "../../modals/dialogs";
 
@@ -57,7 +62,7 @@ const snapshotCfg = (cfg: DateConfig): DateConfig => JSON.parse(JSON.stringify(c
  */
 function rawToParts(raw: unknown, cfg: DateConfig): DateParts | null {
   if (typeof raw === "number") return decodeSerial(raw, cfg);
-  if (typeof raw === "string" && raw.trim()) return parseDate(raw.trim(), cfg);
+  if (typeof raw === "string" && raw.trim()) return parseDateFlexible(raw.trim(), cfg);
   return null;
 }
 
@@ -83,7 +88,7 @@ async function migrateDateSerials(view: ViewCtx, key: string, before: DateConfig
         let next: number | null = null;
         if (typeof cur === "number") next = translateSerial(cur, before, after);
         else if (typeof cur === "string" && cur.trim()) {
-          const p = parseDate(cur.trim(), before);
+          const p = parseDateFlexible(cur.trim(), before);
           if (p) next = translateSerial(encodeSerial(p, before), before, after);
         }
         if (next !== null && next !== cur) {
@@ -101,7 +106,7 @@ async function migrateDateSerials(view: ViewCtx, key: string, before: DateConfig
 /** Serial bounds for the plot: explicit strings win, else vault extremes. */
 function plotRange(view: ViewCtx, key: string, cfg: DateConfig, e: Partial<DateExt>): { min: number; max: number } | null {
   const fromStr = (s?: string): number | null => {
-    const p = s ? parseDate(s, cfg) : null;
+    const p = s ? parseDateFlexible(s, cfg) : null;
     return p ? encodeSerial(p, cfg) : null;
   };
   let min = fromStr(e.dateMin);
@@ -214,7 +219,7 @@ function render(ctx: EntryRenderCtx): void {
         view.note.set(file, key, undefined);
         return;
       }
-      const p = parseDate(v, cfg);
+      const p = parseDateFlexible(v, cfg);
       if (p?.era) {
         const pool = (cfg.eras ??= []);
         if (!pool.some((x) => x.toLowerCase() === p.era!.toLowerCase()))
@@ -231,28 +236,79 @@ function render(ctx: EntryRenderCtx): void {
     };
   };
 
-  // Timeline plot: other notes' values as ticks, this note as the marker.
+  // Timeline plot: a point of REFERENCE, never an editor. Other notes'
+  // values render as ticks (grouped when they share a date); hovering a
+  // tick pops up the owning notes, and clicking a name opens that note
+  // (Ctrl/Cmd for a new tab). This note is the marker.
   let syncPlot: (() => void) | null = null;
   if (e.slider) {
     const plot = ctx.extra.createDiv({ cls: "ep-dateplot" });
     plot.createDiv({ cls: "ep-dateplot-track" });
     const marker = plot.createDiv({ cls: "ep-dateplot-marker" });
     const ticksEl = plot.createDiv({ cls: "ep-dateplot-ticks" });
+    let pop: HTMLElement | null = null;
+    let popTimer = 0;
+    const closePop = (): void => {
+      window.clearTimeout(popTimer);
+      pop?.remove();
+      pop = null;
+    };
+    const openPop = (tick: HTMLElement, when: string, files: { path: string; basename: string }[]): void => {
+      closePop();
+      pop = activeDocument.body.createDiv({ cls: "ep-popup ep-dateplot-pop" });
+      pop.createDiv({ cls: "ep-dateplot-pop-when", text: when });
+      for (const f of files) {
+        const row = pop.createDiv({ cls: "ep-pop-row", text: f.basename });
+        row.onclick = (me: MouseEvent) => {
+          void view.app.workspace.openLinkText(f.path, "", me.ctrlKey || me.metaKey);
+          closePop();
+        };
+      }
+      const r = tick.getBoundingClientRect();
+      const pr = pop.getBoundingClientRect();
+      const left = Math.max(4, Math.min(r.left + r.width / 2 - pr.width / 2, window.innerWidth - pr.width - 4));
+      const top = r.top - pr.height - 4 < 4 ? r.bottom + 4 : r.top - pr.height - 4;
+      pop.setCssStyles({ left: left + "px", top: top + "px" });
+      // Keep it open while the pointer is over the tick OR the popup.
+      pop.onmouseenter = () => window.clearTimeout(popTimer);
+      pop.onmouseleave = () => {
+        popTimer = window.setTimeout(closePop, 250);
+      };
+    };
     syncPlot = () => {
       ticksEl.empty();
+      closePop();
       const range = plotRange(view, key, cfg, e);
       plot.toggleClass("ep-hidden", !range);
       if (!range) return;
       const span = range.max - range.min;
       const pct = (s: number): number => Math.max(0, Math.min(1, (s - range.min) / span)) * 100;
-      const own = String(view.note.raw[key] ?? "");
-      for (const v of view.props.rawValuesFor(key)) {
-        if (String(v) === own) continue; // other notes only; own value is the marker
-        const p = rawToParts(v, cfg);
+      const ownPath = view.note.path ?? "";
+      // Group other notes by their date so shared dates make ONE tick.
+      const groups = new Map<number, { parts: DateParts; files: { path: string; basename: string }[] }>();
+      for (const { file, value } of view.props.entriesFor(key)) {
+        if (file.path === ownPath) continue; // own value is the marker
+        const p = rawToParts(value, cfg);
         if (!p) continue;
+        const s = encodeSerial(p, cfg);
+        const g = groups.get(s) ?? { parts: p, files: [] };
+        g.files.push({ path: file.path, basename: file.basename });
+        groups.set(s, g);
+      }
+      for (const [s, g] of groups) {
         const tick = ticksEl.createDiv({ cls: "ep-dateplot-tick" });
-        tick.setCssStyles({ left: pct(encodeSerial(p, cfg)) + "%" });
-        tick.setAttr("title", formatDate(p, cfg));
+        if (g.files.length > 1) tick.addClass("ep-dateplot-tick-multi");
+        tick.setCssStyles({ left: pct(s) + "%" });
+        const when = formatDate(g.parts, cfg);
+        tick.setAttr("aria-label", when);
+        tick.onmouseenter = () => {
+          window.clearTimeout(popTimer);
+          popTimer = window.setTimeout(() => openPop(tick, when, g.files), 120);
+        };
+        tick.onmouseleave = () => {
+          window.clearTimeout(popTimer);
+          popTimer = window.setTimeout(closePop, 250);
+        };
       }
       const p = parsed();
       marker.toggleClass("ep-hidden", !p);
@@ -430,7 +486,7 @@ function menuItems(menu: Menu, ref: EntryRef): void {
         view.i18n.t("prompt.editValue", { name: (entry.alias as string) || key }),
         p0 ? formatDate(p0, cfg) : view.note.str(key),
         (v) => {
-          const p = parseDate(v.trim(), cfg);
+          const p = parseDateFlexible(v.trim(), cfg);
           view.note.set(file, key, p ? encodeSerial(p, cfg) : v.trim() || undefined);
         }
       ).open();

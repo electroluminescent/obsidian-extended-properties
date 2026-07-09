@@ -255,6 +255,17 @@ export class PropertyIndex {
   }
 
   /** Files whose `key` contains `value` (exact match) - pool scrubbing. */
+  /** Per-file values of `key` (files where it is set, scalars only). */
+  entriesFor(key: string): { file: TFile; value: unknown }[] {
+    const out: { file: TFile; value: unknown }[] = [];
+    for (const { file, fm } of this.snapshots()) {
+      const v = fm ? getCI(fm, key) : undefined;
+      if (v === undefined || v === null || v === "" || Array.isArray(v)) continue;
+      out.push({ file, value: v });
+    }
+    return out;
+  }
+
   /** Files whose frontmatter has `key` at all (any value). */
   filesWithKey(key: string): TFile[] {
     const out: TFile[] = [];
