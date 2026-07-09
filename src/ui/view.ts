@@ -814,16 +814,32 @@ export class SidebarView extends ItemView implements ViewCtx {
           const gapPx = parseFloat(window.getComputedStyle(cgrid).columnGap || "0") || 0;
           const inset = 8;
           const colW = (n: number): number => (gridW - gapPx * (n - 1)) / n - inset;
-          const labelMin = 3.5 * fs + 5; // .ep-line-name min-width + the label/cluster gap
+          const maxOf = (sel: string): number => {
+            let m = 0;
+            for (const h of cheads) {
+              const c = h.querySelector<HTMLElement>(sel);
+              if (c) m = Math.max(m, c.offsetWidth);
+            }
+            return m;
+          };
+          // The hard floor a cell can compress to before it must flow: about
+          // a roll button's width for the label, plus the value and the roll
+          // button themselves. Everything else - steppers, toggles, badges,
+          // dice tags, denotations - is hidden by compaction and the
+          // decoration squeeze before this point, so it must not factor
+          // into the flow decision.
+          const rollW = maxOf(".ep-cluster .ep-roll-cell");
+          const numW = maxOf(".ep-cluster .ep-num");
+          const labelMin = (rollW || 2.6 * fs) + 5; // + the label/cluster gap
+          const floorNeed = labelMin + numW + (numW && rollW ? 2 : 0) + rollW;
           const fullNeed = labelMin + maxCluster(); // room with all controls
           // Staged compaction: the -/+ steppers are the first thing to go -
           // always before the number could clip - then the toggle boxes.
           cgrid.addClass("ep-compact-steppers");
           const noStepNeed = labelMin + maxCluster(); // steppers hidden
           cgrid.addClass("ep-compact");
-          const bareNeed = labelMin + maxCluster(); // toggles hidden too
           let cols = ncol;
-          while (cols > 1 && colW(cols) < bareNeed) cols--;
+          while (cols > 1 && colW(cols) < floorNeed) cols--;
           if (colW(cols) >= fullNeed) {
             cgrid.removeClass("ep-compact");
             cgrid.removeClass("ep-compact-steppers");

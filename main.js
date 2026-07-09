@@ -9585,14 +9585,24 @@ var SidebarView = class extends import_obsidian27.ItemView {
           const gapPx = parseFloat(window.getComputedStyle(cgrid).columnGap || "0") || 0;
           const inset = 8;
           const colW = (n) => (gridW - gapPx * (n - 1)) / n - inset;
-          const labelMin = 3.5 * fs + 5;
+          const maxOf = (sel) => {
+            let m = 0;
+            for (const h of cheads) {
+              const c = h.querySelector(sel);
+              if (c) m = Math.max(m, c.offsetWidth);
+            }
+            return m;
+          };
+          const rollW = maxOf(".ep-cluster .ep-roll-cell");
+          const numW = maxOf(".ep-cluster .ep-num");
+          const labelMin = (rollW || 2.6 * fs) + 5;
+          const floorNeed = labelMin + numW + (numW && rollW ? 2 : 0) + rollW;
           const fullNeed = labelMin + maxCluster();
           cgrid.addClass("ep-compact-steppers");
           const noStepNeed = labelMin + maxCluster();
           cgrid.addClass("ep-compact");
-          const bareNeed = labelMin + maxCluster();
           let cols = ncol;
-          while (cols > 1 && colW(cols) < bareNeed) cols--;
+          while (cols > 1 && colW(cols) < floorNeed) cols--;
           if (colW(cols) >= fullNeed) {
             cgrid.removeClass("ep-compact");
             cgrid.removeClass("ep-compact-steppers");

@@ -150,7 +150,7 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
 .ep-edit-input { width: 5em; max-width: 100%; font: inherit; padding: 1px 3px; animation: ep-pop .2s ease; }
 .ep-edit-label { width: 9em; }
 
-.ep-line-name { flex: 1; min-width: 3.5em; padding-left: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--ep-size-label, inherit); }
+.ep-line-name { flex: 1; min-width: 2.6em; padding-left: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--ep-size-label, inherit); }
 .ep-val-right { margin-left: auto; display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--ep-size-value, inherit); }
 
 .ep-cluster { margin-left: auto; display: inline-grid; align-items: center; justify-items: center; gap: 2px; }
