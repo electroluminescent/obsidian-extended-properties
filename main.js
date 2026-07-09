@@ -9250,7 +9250,7 @@ function clusterSpans(spans) {
 function renderRails(view, section, grid, colRail, rowRail) {
   const t = view.i18n.t.bind(view.i18n);
   const isGrid = sectionMode(section) === "grid";
-  window.requestAnimationFrame(() => {
+  const layout = () => {
     if (!grid.isConnected) return;
     const gr = grid.getBoundingClientRect();
     const cells = Array.from(grid.children).filter(
@@ -9330,7 +9330,16 @@ function renderRails(view, section, grid, colRail, rowRail) {
         ).setCssStyles({ top: off + (a + b) / 2 + "px" });
       });
     }
+  };
+  window.requestAnimationFrame(layout);
+  const ro = new ResizeObserver(() => {
+    if (!grid.isConnected) {
+      ro.disconnect();
+      return;
+    }
+    window.requestAnimationFrame(layout);
   });
+  ro.observe(grid);
 }
 
 // src/ui/components/popups.ts

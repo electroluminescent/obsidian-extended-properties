@@ -399,7 +399,7 @@ function renderRails(
   const t = view.i18n.t.bind(view.i18n);
   const isGrid = sectionMode(section) === "grid";
 
-  window.requestAnimationFrame(() => {
+  const layout = (): void => {
     if (!grid.isConnected) return;
     const gr = grid.getBoundingClientRect();
     // Cells that define the column/row geometry. Wide (full-span) entries
@@ -473,5 +473,17 @@ function renderRails(
         ).setCssStyles({ top: off + (a + b) / 2 + "px" });
       });
     }
+  };
+  window.requestAnimationFrame(layout);
+  // The rails hold absolute pixel positions measured from the grid, so a
+  // sidebar resize while edit mode is open must re-measure them. The
+  // observer disconnects itself once the section's DOM is replaced.
+  const ro = new ResizeObserver(() => {
+    if (!grid.isConnected) {
+      ro.disconnect();
+      return;
+    }
+    window.requestAnimationFrame(layout);
   });
+  ro.observe(grid);
 }
