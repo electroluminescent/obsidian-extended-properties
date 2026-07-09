@@ -35,6 +35,20 @@ function computeFlags(view: ViewCtx, file: TFile, section: Section): ClusterFlag
 }
 
 /**
+ * Cluster needs of a single entry. Grid cells are independent (no cross-row
+ * alignment), so each builds its cluster from its OWN needs: a derived entry
+ * gets no stepper columns, no empty reserved slots - the phantom width that
+ * showed as a margin beside the modifier and pushed the roll button off the
+ * cluster's true edge.
+ */
+function entryFlags(view: ViewCtx, file: TFile, section: Section, entry: Section["entries"][number]): ClusterFlags {
+  const flags = emptyFlags();
+  const kind = view.registries.entryKinds.get(entry.kind);
+  mergeNeeds(flags, kind?.clusterNeeds?.({ view, file, section, entry }));
+  return flags;
+}
+
+/**
  * Equalize cluster columns across all rows of a section: each slot
  * (denotation, toggle boxes, modifier badge, ...) and the value cell get the
  * width of their widest sibling, so influence strings, checkboxes and
@@ -244,9 +258,11 @@ export function renderSection(
       // A grid cell is assembled exactly like a column cell: a single-entry
       // .ep-col wrapper. One structure means one set of CSS and one alignment
       // path for both modes (this replaced the grid-only margin/shrink
-      // special cases that kept clipping the cluster edge).
+      // special cases that kept clipping the cluster edge). The cluster
+      // template, though, is the entry's own - not the section union - so a
+      // cell never reserves columns for controls it does not have.
       const cell = grid.createDiv({ cls: "ep-col ep-gridcell" });
-      renderEntry(cell, view, file, section, entry, flags, drag);
+      renderEntry(cell, view, file, section, entry, entryFlags(view, file, section, entry), drag);
       // Wide entries span all tracks: the span must sit on the cell, not on
       // the entry inside it.
       const wideEntry = cell.querySelector<HTMLElement>(":scope > .ep-entry");

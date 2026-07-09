@@ -782,6 +782,7 @@ export class SidebarView extends ItemView implements ViewCtx {
       const ncol = cgrid ? Math.max(1, parseInt(cgrid.getAttribute("data-ep-cols") ?? "1", 10)) : 1;
       if (cgrid) {
         cgrid.removeClass("ep-compact");
+        cgrid.removeClass("ep-compact-steppers");
         cgrid.setCssStyles({ gridTemplateColumns: `repeat(${ncol}, minmax(0, 1fr))` });
       }
 
@@ -852,12 +853,21 @@ export class SidebarView extends ItemView implements ViewCtx {
           // wrappers), so both modes measure the same way - no per-mode
           // fudge. (Grid skips the cross-cell alignment, so its clusters
           // measure at natural width.)
-          const fullNeed = labelMin + maxCluster(); // room a row needs with its controls
+          const fullNeed = labelMin + maxCluster(); // room with all controls
+          // Staged compaction: the -/+ steppers are the first thing to go -
+          // always before the number could clip - then the toggle boxes.
+          cgrid.addClass("ep-compact-steppers");
+          const noStepNeed = labelMin + maxCluster(); // steppers hidden
           cgrid.addClass("ep-compact");
-          const bareNeed = labelMin + maxCluster(); // room with the controls hidden
+          const bareNeed = labelMin + maxCluster(); // toggles hidden too
           let cols = ncol;
           while (cols > 1 && colW(cols) < bareNeed) cols--;
-          if (colW(cols) >= fullNeed) cgrid.removeClass("ep-compact");
+          if (colW(cols) >= fullNeed) {
+            cgrid.removeClass("ep-compact");
+            cgrid.removeClass("ep-compact-steppers");
+          } else if (colW(cols) >= noStepNeed) {
+            cgrid.removeClass("ep-compact"); // steppers stay hidden, toggles return
+          }
           cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
           // Safety net against a real clip: if a row still overflows its
           // column after compaction, drop another column until nothing does,

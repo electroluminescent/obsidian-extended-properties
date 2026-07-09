@@ -8013,6 +8013,13 @@ function computeFlags(view, file, section) {
   }
   return flags;
 }
+function entryFlags(view, file, section, entry) {
+  var _a;
+  const flags = emptyFlags();
+  const kind = view.registries.entryKinds.get(entry.kind);
+  mergeNeeds(flags, (_a = kind == null ? void 0 : kind.clusterNeeds) == null ? void 0 : _a.call(kind, { view, file, section, entry }));
+  return flags;
+}
 function alignClustersNow(det) {
   var _a;
   const groups = /* @__PURE__ */ new Map();
@@ -8179,7 +8186,7 @@ function renderSection(parent, view, file, section, drag, host) {
         continue;
       }
       const cell = grid.createDiv({ cls: "ep-col ep-gridcell" });
-      renderEntry(cell, view, file, section, entry, flags, drag);
+      renderEntry(cell, view, file, section, entry, entryFlags(view, file, section, entry), drag);
       const wideEntry = cell.querySelector(":scope > .ep-entry");
       if (wideEntry && wideEntry.style.gridColumn) {
         cell.setCssStyles({ gridColumn: wideEntry.style.gridColumn });
@@ -9548,6 +9555,7 @@ var SidebarView = class extends import_obsidian27.ItemView {
       const ncol = cgrid ? Math.max(1, parseInt((_b = cgrid.getAttribute("data-ep-cols")) != null ? _b : "1", 10)) : 1;
       if (cgrid) {
         cgrid.removeClass("ep-compact");
+        cgrid.removeClass("ep-compact-steppers");
         cgrid.setCssStyles({ gridTemplateColumns: `repeat(${ncol}, minmax(0, 1fr))` });
       }
       alignClustersNow(sec);
@@ -9588,11 +9596,18 @@ var SidebarView = class extends import_obsidian27.ItemView {
           const colW = (n) => (gridW - 8 * (n - 1)) / n;
           const labelMin = 3.5 * fs + 5;
           const fullNeed = labelMin + maxCluster();
+          cgrid.addClass("ep-compact-steppers");
+          const noStepNeed = labelMin + maxCluster();
           cgrid.addClass("ep-compact");
           const bareNeed = labelMin + maxCluster();
           let cols = ncol;
           while (cols > 1 && colW(cols) < bareNeed) cols--;
-          if (colW(cols) >= fullNeed) cgrid.removeClass("ep-compact");
+          if (colW(cols) >= fullNeed) {
+            cgrid.removeClass("ep-compact");
+            cgrid.removeClass("ep-compact-steppers");
+          } else if (colW(cols) >= noStepNeed) {
+            cgrid.removeClass("ep-compact");
+          }
           cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
           while (cols > 1 && heads2.some((h) => h.scrollWidth > h.clientWidth + 1)) {
             cols--;
