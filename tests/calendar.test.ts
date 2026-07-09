@@ -6,7 +6,8 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  DateConfig, dateSerial, formatDate, monthName, parseDate, serialOf, standardSystem, systemOf, weekday,
+  DateConfig, dateSerial, decodeSerial, encodeSerial, formatDate, monthName, parseDate, serialOf,
+  standardSystem, systemOf, translateSerial, weekday,
 } from "../src/core/calendar";
 
 const std: DateConfig = { format: "MM/DD/YYYY" };
@@ -108,5 +109,72 @@ describe("dateSerial ordering", () => {
     const s = standardSystem();
     expect(s.months).toBe(12);
     expect(monthName(s, 1)).toBe("January");
+  });
+});
+
+describe("serial storage (encode/decode/translate)", () => {
+  const cfg: DateConfig = {
+    format: "D MMMM, Y E",
+    system: { months: 10, daysPerMonth: 30, daysPerWeek: 6, monthNames: [] },
+    eras: ["BE", "AE"],
+  };
+
+  it("encode/decode round-trips, including negative years and eras", () => {
+    for (const p of [
+      { year: 1372, month: 3, day: 30 },
+      { year: 0, month: 1, day: 1 },
+      { year: -45, month: 10, day: 12 },
+      { year: 812, month: 7, day: 4, era: "AE" },
+      { year: -3, month: 2, day: 9, era: "BE" },
+    ]) {
+      const back = decodeSerial(encodeSerial(p, cfg), cfg)!;
+      expect(back.year).toBe(p.year);
+      expect(back.month).toBe(p.month);
+      expect(back.day).toBe(p.day);
+      expect(back.era).toBe((p as { era?: string }).era);
+    }
+  });
+
+  it("an era removed from the pool decodes era-less", () => {
+    const v = encodeSerial({ year: 5, month: 1, day: 1, era: "AE" }, cfg);
+    const shrunk: DateConfig = { ...cfg, eras: ["BE"] };
+    expect(decodeSerial(v, shrunk)?.era).toBeUndefined();
+  });
+
+  it("translateSerial keeps the interpreted date across system changes", () => {
+    const before: DateConfig = { format: "Y-M-D", system: { months: 12, daysPerMonth: 31, daysPerWeek: 7, monthNames: [] } };
+    const after: DateConfig = { format: "Y-M-D", system: { months: 10, daysPerMonth: 28, daysPerWeek: 7, monthNames: [] } };
+    const v = encodeSerial({ year: 1024, month: 6, day: 15 }, before);
+    const moved = translateSerial(v, before, after);
+    expect(decodeSerial(moved, after)).toMatchObject({ year: 1024, month: 6, day: 15 });
+    // WITHOUT translation the same integer means a different date - the
+    // failure mode the migration exists to prevent.
+    expect(decodeSerial(v, after)).not.toMatchObject({ year: 1024, month: 6, day: 15 });
+  });
+
+  it("clamps to the closest representable date when the system shrinks", () => {
+    const before: DateConfig = { format: "Y-M-D", system: { months: 13, daysPerMonth: 30, daysPerWeek: 7, monthNames: [] } };
+    const after: DateConfig = { format: "Y-M-D", system: { months: 12, daysPerMonth: 28, daysPerWeek: 7, monthNames: [] } };
+    const v = encodeSerial({ year: 900, month: 13, day: 30 }, before);
+    expect(decodeSerial(translateSerial(v, before, after), after)).toMatchObject({ year: 900, month: 12, day: 28 });
+  });
+
+  it("era survives translation when still pooled, drops when removed", () => {
+    const before: DateConfig = { format: "Y E", eras: ["BCE", "CE"] };
+    const keep: DateConfig = { format: "Y E", eras: ["OLD", "BCE", "CE"] }; // reordered pool
+    const gone: DateConfig = { format: "Y E", eras: ["CE"] };
+    const v = encodeSerial({ year: 44, month: 1, day: 1, era: "BCE" }, before);
+    expect(decodeSerial(translateSerial(v, before, keep), keep)).toMatchObject({ era: "BCE", year: 44 });
+    expect(decodeSerial(translateSerial(v, before, gone), gone)?.era).toBeUndefined();
+  });
+
+  it("identity translation is a no-op", () => {
+    const v = encodeSerial({ year: 1372, month: 3, day: 30, era: "AE" }, cfg);
+    expect(translateSerial(v, cfg, cfg)).toBe(v);
+  });
+
+  it("dateSerial (ordering) and encodeSerial agree", () => {
+    const p = { year: 2024, month: 3, day: 7 };
+    expect(dateSerial(p, std)).toBe(encodeSerial(p, std));
   });
 });

@@ -255,6 +255,28 @@ export class PropertyIndex {
   }
 
   /** Files whose `key` contains `value` (exact match) - pool scrubbing. */
+  /** Files whose frontmatter has `key` at all (any value). */
+  filesWithKey(key: string): TFile[] {
+    const out: TFile[] = [];
+    for (const { file, fm } of this.snapshots()) {
+      const v = fm ? getCI(fm, key) : undefined;
+      if (v !== undefined && v !== null && v !== "") out.push(file);
+    }
+    return out;
+  }
+
+  /** Distinct raw values for `key` across the vault (dedup by string form). */
+  rawValuesFor(key: string): unknown[] {
+    const seen = new Map<string, unknown>();
+    for (const { fm } of this.snapshots()) {
+      const v = fm ? getCI(fm, key) : undefined;
+      if (v === undefined || v === null || v === "" || Array.isArray(v)) continue;
+      const k = String(v);
+      if (!seen.has(k)) seen.set(k, v);
+    }
+    return [...seen.values()];
+  }
+
   filesWithValue(key: string, value: string): TFile[] {
     const out: TFile[] = [];
     for (const { file, fm } of this.snapshots()) {

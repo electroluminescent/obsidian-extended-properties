@@ -231,17 +231,74 @@ export function parseDate(text: string, cfg: DateConfig): DateParts | null {
  * that meaningless - just a monotonic ordinal.
  */
 export function dateSerial(parts: DateParts, cfg: DateConfig): number {
+  return encodeSerial(parts, cfg);
+}
+
+// -- serial storage ---------------------------------------------------------
+// Stored note values are calendar-independent integers ("date serials"):
+// era block + day index under the property's system. The config is only the
+// lens (decode -> parts -> format). When the system or era pool changes,
+// translateSerial re-encodes a value so the INTERPRETED date - year, month,
+// day, era - survives the change, clamped to the closest representable date
+// when the new system is smaller.
+
+/** One era occupies this span; day indexes stay within half of it. */
+const ERA_SPAN = 2e10;
+const ERA_HALF = 1e10;
+
+/** Encode parts as a storable integer under the config's system and eras. */
+export function encodeSerial(parts: DateParts, cfg: DateConfig): number {
   const sys = systemOf(cfg);
   const eras = cfg.eras ?? [];
   let eraIdx = 0;
-  if (eras.length) {
-    if (parts.era) {
-      const i = eras.findIndex((e) => e.toLowerCase() === parts.era!.toLowerCase());
-      eraIdx = i >= 0 ? i + 1 : eras.length + 1;
-    }
+  if (parts.era) {
+    const i = eras.findIndex((e) => e.toLowerCase() === parts.era!.toLowerCase());
+    eraIdx = i >= 0 ? i + 1 : eras.length + 1;
   }
-  const days = (parts.year * sys.months + (parts.month - 1)) * sys.daysPerMonth + (parts.day - 1);
-  return eraIdx * 1e12 + days;
+  const d = (parts.year * sys.months + (parts.month - 1)) * sys.daysPerMonth + (parts.day - 1);
+  const day = Math.max(-ERA_HALF + 1, Math.min(ERA_HALF - 1, d));
+  return eraIdx * ERA_SPAN + day;
+}
+
+/**
+ * Decode a stored integer back to parts under the config. Negative years
+ * are fine (floor division); an era index beyond the pool (its era was
+ * removed) decodes era-less.
+ */
+export function decodeSerial(serial: number, cfg: DateConfig): DateParts | null {
+  if (!Number.isFinite(serial)) return null;
+  const sys = systemOf(cfg);
+  const eras = cfg.eras ?? [];
+  const eraIdx = Math.round(serial / ERA_SPAN);
+  const d = Math.round(serial - eraIdx * ERA_SPAN);
+  const perYear = sys.months * sys.daysPerMonth;
+  const year = Math.floor(d / perYear);
+  const rem = d - year * perYear;
+  const month = Math.floor(rem / sys.daysPerMonth) + 1;
+  const day = (rem % sys.daysPerMonth) + 1;
+  const parts: DateParts = { year, month, day };
+  const era = eraIdx > 0 ? eras[eraIdx - 1] : undefined;
+  if (era) parts.era = era;
+  return parts;
+}
+
+/**
+ * Re-encode a serial written under `before` so it means the same date under
+ * `after`: decode with the old lens, clamp month/day into the new system,
+ * keep the era when the new pool still has it (dropped otherwise), encode
+ * with the new lens.
+ */
+export function translateSerial(serial: number, before: DateConfig, after: DateConfig): number {
+  const p = decodeSerial(serial, before);
+  if (!p) return serial;
+  const sys = systemOf(after);
+  const q: DateParts = {
+    year: p.year,
+    month: Math.min(Math.max(1, p.month), sys.months),
+    day: Math.min(Math.max(1, p.day), sys.daysPerMonth),
+  };
+  if (p.era && (after.eras ?? []).some((e) => e.toLowerCase() === p.era!.toLowerCase())) q.era = p.era;
+  return encodeSerial(q, after);
 }
 
 /** Parse-then-serial convenience; null when `text` doesn't fit the format. */

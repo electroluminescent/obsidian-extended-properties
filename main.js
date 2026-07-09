@@ -256,19 +256,20 @@ var en_default = {
   "options.datePlotDesc": "Where the slider would be, plot every other note's value for this property; this note is the marker.",
   "options.dateRangeAuto": "In the property's format. Blank = the earliest/latest value across all notes.",
   "options.customCalendar": "Custom date system",
-  "options.customCalendarDesc": "Define this property's own calendar (shared by all notes): months per year, days per month, days per week, month names.",
+  "options.customCalendarDesc": "Define this property's own calendar (shared by all notes): months per year, days per month, days per week, month names. Stored values are calendar-independent integers - changing the system re-encodes every note so each date keeps its meaning (clamped to the closest date when the new system is smaller).",
   "options.months": "Months per year",
   "options.daysPerMonth": "Days per month",
   "options.daysPerWeek": "Days per week",
   "options.monthName": "Month {n} name",
   "options.eraPool": "Era suffixes",
-  "options.eraPoolDesc": "The pool offered by the era chip (e.g. BCE, CE), oldest first. Each note picks its own; typing a new suffix when editing a value adds it here.",
+  "options.eraPoolDesc": "The pool offered by the era chip (e.g. BCE, CE), oldest first. Each note picks its own; typing a new suffix when editing a value adds it here. Removing an era re-encodes stored values (affected notes fall back to no era).",
   "options.eraAdd": "Add era (Enter)",
   "options.eraRemove": "Remove",
   "date.invalid": "Doesn't match the format {format}",
   "date.eraNone": "No era",
   "date.eraCustom": "Custom era...",
   "date.eraCustomPrompt": "New era suffix",
+  "date.migrated": "Extended Properties: re-encoded dates in {count} notes to keep their meaning under the new calendar.",
   "options.ratingMax": "Maximum",
   "options.ratingIcon": "Icon",
   "options.ratingIconDesc": "A Lucide icon name (e.g. star, heart, circle).",
@@ -2581,6 +2582,26 @@ var PropertyIndex = class {
     return out;
   }
   /** Files whose `key` contains `value` (exact match) - pool scrubbing. */
+  /** Files whose frontmatter has `key` at all (any value). */
+  filesWithKey(key) {
+    const out = [];
+    for (const { file, fm } of this.snapshots()) {
+      const v = fm ? getCI(fm, key) : void 0;
+      if (v !== void 0 && v !== null && v !== "") out.push(file);
+    }
+    return out;
+  }
+  /** Distinct raw values for `key` across the vault (dedup by string form). */
+  rawValuesFor(key) {
+    const seen = /* @__PURE__ */ new Map();
+    for (const { fm } of this.snapshots()) {
+      const v = fm ? getCI(fm, key) : void 0;
+      if (v === void 0 || v === null || v === "" || Array.isArray(v)) continue;
+      const k = String(v);
+      if (!seen.has(k)) seen.set(k, v);
+    }
+    return [...seen.values()];
+  }
   filesWithValue(key, value) {
     const out = [];
     for (const { file, fm } of this.snapshots()) {
@@ -6104,19 +6125,50 @@ function parseDate(text, cfg) {
   if (!sawYear && !sawMonth && !sawDay) return null;
   return parts;
 }
-function dateSerial(parts, cfg) {
+var ERA_SPAN = 2e10;
+var ERA_HALF = 1e10;
+function encodeSerial(parts, cfg) {
   var _a;
   const sys = systemOf(cfg);
   const eras = (_a = cfg.eras) != null ? _a : [];
   let eraIdx = 0;
-  if (eras.length) {
-    if (parts.era) {
-      const i = eras.findIndex((e) => e.toLowerCase() === parts.era.toLowerCase());
-      eraIdx = i >= 0 ? i + 1 : eras.length + 1;
-    }
+  if (parts.era) {
+    const i = eras.findIndex((e) => e.toLowerCase() === parts.era.toLowerCase());
+    eraIdx = i >= 0 ? i + 1 : eras.length + 1;
   }
-  const days = (parts.year * sys.months + (parts.month - 1)) * sys.daysPerMonth + (parts.day - 1);
-  return eraIdx * 1e12 + days;
+  const d = (parts.year * sys.months + (parts.month - 1)) * sys.daysPerMonth + (parts.day - 1);
+  const day = Math.max(-ERA_HALF + 1, Math.min(ERA_HALF - 1, d));
+  return eraIdx * ERA_SPAN + day;
+}
+function decodeSerial(serial, cfg) {
+  var _a;
+  if (!Number.isFinite(serial)) return null;
+  const sys = systemOf(cfg);
+  const eras = (_a = cfg.eras) != null ? _a : [];
+  const eraIdx = Math.round(serial / ERA_SPAN);
+  const d = Math.round(serial - eraIdx * ERA_SPAN);
+  const perYear = sys.months * sys.daysPerMonth;
+  const year = Math.floor(d / perYear);
+  const rem = d - year * perYear;
+  const month = Math.floor(rem / sys.daysPerMonth) + 1;
+  const day = rem % sys.daysPerMonth + 1;
+  const parts = { year, month, day };
+  const era = eraIdx > 0 ? eras[eraIdx - 1] : void 0;
+  if (era) parts.era = era;
+  return parts;
+}
+function translateSerial(serial, before, after) {
+  var _a;
+  const p = decodeSerial(serial, before);
+  if (!p) return serial;
+  const sys = systemOf(after);
+  const q = {
+    year: p.year,
+    month: Math.min(Math.max(1, p.month), sys.months),
+    day: Math.min(Math.max(1, p.day), sys.daysPerMonth)
+  };
+  if (p.era && ((_a = after.eras) != null ? _a : []).some((e) => e.toLowerCase() === p.era.toLowerCase())) q.era = p.era;
+  return encodeSerial(q, after);
 }
 
 // src/ui/render/value-types/date.ts
@@ -6129,20 +6181,53 @@ function saveCfg(view, mutate) {
   mutate();
   view.saveLayout();
 }
+var snapshotCfg = (cfg) => JSON.parse(JSON.stringify(cfg));
+function rawToParts(raw, cfg) {
+  if (typeof raw === "number") return decodeSerial(raw, cfg);
+  if (typeof raw === "string" && raw.trim()) return parseDate(raw.trim(), cfg);
+  return null;
+}
+function rawSerial(raw, cfg) {
+  const p = rawToParts(raw, cfg);
+  return p ? encodeSerial(p, cfg) : null;
+}
+async function migrateDateSerials(view, key, before, after) {
+  let changed = 0;
+  for (const f of view.props.filesWithKey(key)) {
+    try {
+      await view.app.fileManager.processFrontMatter(f, (fm) => {
+        const realKey = Object.keys(fm).find((k) => k.toLowerCase() === key.toLowerCase());
+        if (!realKey) return;
+        const cur = fm[realKey];
+        let next = null;
+        if (typeof cur === "number") next = translateSerial(cur, before, after);
+        else if (typeof cur === "string" && cur.trim()) {
+          const p = parseDate(cur.trim(), before);
+          if (p) next = translateSerial(encodeSerial(p, before), before, after);
+        }
+        if (next !== null && next !== cur) {
+          fm[realKey] = next;
+          changed++;
+        }
+      });
+    } catch (e) {
+    }
+  }
+  if (changed) new import_obsidian18.Notice(view.i18n.t("date.migrated", { count: String(changed) }));
+}
 function plotRange(view, key, cfg, e) {
   const fromStr = (s) => {
     const p = s ? parseDate(s, cfg) : null;
-    return p ? dateSerial(p, cfg) : null;
+    return p ? encodeSerial(p, cfg) : null;
   };
   let min = fromStr(e.dateMin);
   let max = fromStr(e.dateMax);
   if (min === null || max === null) {
     let lo = Infinity;
     let hi = -Infinity;
-    for (const v of view.props.valuesFor(key)) {
-      const p = parseDate(v, cfg);
-      if (!p) continue;
-      const s = dateSerial(p, cfg);
+    for (const v of view.props.rawValuesFor(key)) {
+      const s = rawSerial(v, cfg);
+      if (s === null) continue;
       if (s < lo) lo = s;
       if (s > hi) hi = s;
     }
@@ -6165,15 +6250,16 @@ function render2(ctx2) {
   const txt = cell.createSpan({ cls: "ep-editable" });
   const eraChip = cell.createSpan({ cls: "ep-era-chip" });
   const hasEraToken = /(^|[^A-Za-z])E([^A-Za-z]|$)/.test(" " + cfg.format + " ");
-  const parsed = () => parseDate(view.note.str(key), cfg);
+  const parsed = () => rawToParts(view.note.raw[key], cfg);
   const draw = () => {
     var _a, _b;
-    const raw = view.note.str(key);
-    const p = raw ? parseDate(raw, cfg) : null;
-    txt.setText(raw ? p ? formatDate(p, cfg) : raw : cfg.format);
-    txt.toggleClass("ep-placeholder", !raw);
-    txt.toggleClass("ep-invalid", !!raw && !p);
-    txt.setAttr("title", raw && !p ? t("date.invalid", { format: cfg.format }) : "");
+    const raw = view.note.raw[key];
+    const empty = raw === void 0 || raw === null || raw === "";
+    const p = empty ? null : rawToParts(raw, cfg);
+    txt.setText(empty ? cfg.format : p ? formatDate(p, cfg) : String(raw));
+    txt.toggleClass("ep-placeholder", empty);
+    txt.toggleClass("ep-invalid", !empty && !p);
+    txt.setAttr("title", !empty && !p ? t("date.invalid", { format: cfg.format }) : "");
     const era = (_a = p == null ? void 0 : p.era) != null ? _a : "";
     const pool = (_b = cfg.eras) != null ? _b : [];
     eraChip.setText(era || (pool.length ? pool[pool.length - 1] + "?" : ""));
@@ -6187,7 +6273,7 @@ function render2(ctx2) {
     if (!p) return;
     const menu = new import_obsidian18.Menu();
     const setEra = (era) => {
-      view.note.set(file, key, formatDate({ ...p, era }, cfg));
+      view.note.set(file, key, encodeSerial({ ...p, era }, cfg));
     };
     for (const era of (_a = cfg.eras) != null ? _a : []) {
       menu.addItem(
@@ -6211,18 +6297,20 @@ function render2(ctx2) {
     menu.showAtMouseEvent(ev);
   };
   txt.onclick = () => {
+    var _a;
     if (cell.querySelector("input")) return;
     const inp = cell.createEl("input", { cls: "ep-edit-input ep-date-input" });
     inp.type = "text";
     inp.placeholder = cfg.format;
-    inp.value = view.note.str(key);
+    const p0 = parsed();
+    inp.value = p0 ? formatDate(p0, cfg) : String((_a = view.note.raw[key]) != null ? _a : "");
     txt.hide();
     eraChip.hide();
     inp.focus();
     inp.select();
     let done = false;
     const finish = (commit2) => {
-      var _a;
+      var _a2;
       if (done) return;
       done = true;
       const v = inp.value.trim();
@@ -6236,11 +6324,11 @@ function render2(ctx2) {
       }
       const p = parseDate(v, cfg);
       if (p == null ? void 0 : p.era) {
-        const pool = (_a = cfg.eras) != null ? _a : cfg.eras = [];
+        const pool = (_a2 = cfg.eras) != null ? _a2 : cfg.eras = [];
         if (!pool.some((x) => x.toLowerCase() === p.era.toLowerCase()))
           saveCfg(view, () => pool.push(p.era));
       }
-      view.note.set(file, key, p ? formatDate(p, cfg) : v);
+      view.note.set(file, key, p ? encodeSerial(p, cfg) : v);
     };
     inp.onblur = () => finish(true);
     inp.onkeydown = (ke) => {
@@ -6255,25 +6343,26 @@ function render2(ctx2) {
     const marker = plot.createDiv({ cls: "ep-dateplot-marker" });
     const ticksEl = plot.createDiv({ cls: "ep-dateplot-ticks" });
     syncPlot = () => {
+      var _a;
       ticksEl.empty();
       const range = plotRange(view, key, cfg, e);
       plot.toggleClass("ep-hidden", !range);
       if (!range) return;
       const span = range.max - range.min;
       const pct = (s) => Math.max(0, Math.min(1, (s - range.min) / span)) * 100;
-      const own = view.note.str(key);
-      for (const v of view.props.valuesFor(key)) {
-        if (v === own) continue;
-        const p2 = parseDate(v, cfg);
+      const own = String((_a = view.note.raw[key]) != null ? _a : "");
+      for (const v of view.props.rawValuesFor(key)) {
+        if (String(v) === own) continue;
+        const p2 = rawToParts(v, cfg);
         if (!p2) continue;
         const tick = ticksEl.createDiv({ cls: "ep-dateplot-tick" });
-        tick.setCssStyles({ left: pct(dateSerial(p2, cfg)) + "%" });
+        tick.setCssStyles({ left: pct(encodeSerial(p2, cfg)) + "%" });
         tick.setAttr("title", formatDate(p2, cfg));
       }
       const p = parsed();
       marker.toggleClass("ep-hidden", !p);
       if (p) {
-        marker.setCssStyles({ left: pct(dateSerial(p, cfg)) + "%" });
+        marker.setCssStyles({ left: pct(encodeSerial(p, cfg)) + "%" });
         marker.setAttr("title", formatDate(p, cfg));
       }
     };
@@ -6322,38 +6411,38 @@ function renderOptions2(octx) {
   });
   new import_obsidian18.Setting(c).setName(t("options.customCalendar")).setDesc(t("options.customCalendarDesc")).addToggle((tg) => {
     tg.setValue(!!cfg.system).onChange((v) => {
+      const before = snapshotCfg(cfg);
       saveCfg(view, () => {
         cfg.system = v ? { months: 12, daysPerMonth: 30, daysPerWeek: 7, monthNames: [] } : void 0;
       });
+      void migrateDateSerials(view, key, before, cfg);
       changed();
       octx.redraw();
     });
   });
   if (cfg.system) {
     const sys = cfg.system;
-    const namesBox = () => {
-      var _a;
-      return (_a = c.querySelector(".ep-monthnames")) != null ? _a : c.createDiv({ cls: "ep-monthnames" });
-    };
-    const numRow = (name, get, set, redraw = false) => {
+    let renderMonthNames = () => void 0;
+    const numRow = (name, get, set, o) => {
       new import_obsidian18.Setting(c).setName(name).addText((tx) => {
         tx.inputEl.type = "number";
-        tx.setValue(String(get())).onChange((v) => {
-          const n = Math.max(1, Math.floor(Number(v)));
-          if (!Number.isFinite(n)) return;
+        tx.setValue(String(get()));
+        tx.inputEl.addEventListener("change", () => {
+          const n = Math.max(1, Math.floor(Number(tx.getValue())));
+          if (!Number.isFinite(n) || n === get()) return;
+          const before = snapshotCfg(cfg);
           saveCfg(view, () => set(n));
+          if (o.migrates) void migrateDateSerials(view, key, before, cfg);
           changed();
-          if (redraw) {
-            renderMonthNames();
-          }
+          if (o.redraw) renderMonthNames();
         });
       });
     };
-    numRow(t("options.months"), () => sys.months, (n) => sys.months = n, true);
-    numRow(t("options.daysPerMonth"), () => sys.daysPerMonth, (n) => sys.daysPerMonth = n);
-    numRow(t("options.daysPerWeek"), () => sys.daysPerWeek, (n) => sys.daysPerWeek = n);
-    const box = namesBox();
-    const renderMonthNames = () => {
+    numRow(t("options.months"), () => sys.months, (n) => sys.months = n, { redraw: true, migrates: true });
+    numRow(t("options.daysPerMonth"), () => sys.daysPerMonth, (n) => sys.daysPerMonth = n, { migrates: true });
+    numRow(t("options.daysPerWeek"), () => sys.daysPerWeek, (n) => sys.daysPerWeek = n, {});
+    const box = c.createDiv({ cls: "ep-monthnames" });
+    renderMonthNames = () => {
       box.empty();
       for (let m = 1; m <= Math.min(sys.months, 60); m++) {
         const idx = m - 1;
@@ -6380,10 +6469,12 @@ function renderOptions2(octx) {
     for (const era of (_a = cfg.eras) != null ? _a : []) {
       new import_obsidian18.Setting(eraBox).setName(era).addExtraButton((b) => {
         b.setIcon("x").setTooltip(t("options.eraRemove")).onClick(() => {
+          const before = snapshotCfg(cfg);
           saveCfg(view, () => {
             var _a2;
             return cfg.eras = ((_a2 = cfg.eras) != null ? _a2 : []).filter((x) => x !== era);
           });
+          void migrateDateSerials(view, key, before, cfg);
           changed();
           renderEras();
         });
@@ -6412,18 +6503,19 @@ function menuItems2(menu, ref) {
   const key = entry.key;
   const cfg = cfgFor(view, key);
   menu.addItem(
-    (i) => i.setTitle(view.i18n.t("entry.menu.editValue")).setIcon("pencil").onClick(
-      () => new TextPromptModal(
+    (i) => i.setTitle(view.i18n.t("entry.menu.editValue")).setIcon("pencil").onClick(() => {
+      const p0 = rawToParts(view.note.raw[key], cfg);
+      new TextPromptModal(
         view.app,
         view.i18n,
         view.i18n.t("prompt.editValue", { name: entry.alias || key }),
-        view.note.str(key),
+        p0 ? formatDate(p0, cfg) : view.note.str(key),
         (v) => {
           const p = parseDate(v.trim(), cfg);
-          view.note.set(file, key, p ? formatDate(p, cfg) : v.trim() || void 0);
+          view.note.set(file, key, p ? encodeSerial(p, cfg) : v.trim() || void 0);
         }
-      ).open()
-    )
+      ).open();
+    })
   );
 }
 var dateType = {
