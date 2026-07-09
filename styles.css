@@ -135,7 +135,7 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
 
 .ep-grid { display: grid; gap: 4px 8px; transition: max-height .2s ease; }
 .ep-grid.ep-dividers .ep-entry { border-bottom: 1px solid var(--background-modifier-border-hover); padding: 0 0 4px; border-radius: 0; }
-.ep-grid.ep-dividers.ep-mode-list > .ep-entry:last-child, .ep-grid.ep-dividers.ep-mode-grid > .ep-entry:last-child, .ep-grid.ep-dividers .ep-col > .ep-entry:last-child { border-bottom: none; }
+.ep-grid.ep-dividers.ep-mode-list > .ep-entry:last-child, .ep-grid.ep-dividers.ep-mode-columns .ep-col > .ep-entry:last-child, .ep-grid.ep-dividers.ep-mode-grid > .ep-col:last-child > .ep-entry { border-bottom: none; }
 .ep-entry { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 2px 3px; border-radius: 6px; transition: box-shadow .2s ease, background-color .2s ease, opacity .2s ease; }
 .ep-editing .ep-entry:hover { background: var(--background-modifier-hover); }
 .ep-entry.ep-dragging { opacity: 0.4; }
@@ -291,7 +291,6 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
    during the responsive measurement pass we pin it rigid, so maxCluster reads
    the true (unshrunk) width and the column count is decided correctly - then it
    shrinks-to-fit for the real paint once .ep-measuring is removed. */
-.ep-measuring .ep-grid.ep-mode-grid .ep-cluster { flex-shrink: 0; }
 .ep-empty-cell { min-height: 0; }
 .ep-disabled { opacity: 0.5; }
 
@@ -299,7 +298,7 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
 .ep-entry-extra { width: 100%; }
 .ep-entry-extra .ep-slider, .ep-slider { width: 100%; box-sizing: border-box; }
 .ep-editing .ep-grid.ep-mode-columns, .ep-editing .ep-grid.ep-mode-grid { gap: 1px; background: var(--background-modifier-border); border: 1px solid var(--background-modifier-border); border-radius: 6px; }
-.ep-editing .ep-grid.ep-mode-columns > .ep-col, .ep-editing .ep-grid.ep-mode-grid > .ep-entry, .ep-editing .ep-grid.ep-mode-grid > .ep-empty-cell { background: var(--ep-title-bg, var(--background-secondary)); padding: 4px; }
+.ep-editing .ep-grid.ep-mode-columns > .ep-col, .ep-editing .ep-grid.ep-mode-grid > .ep-col, .ep-editing .ep-grid.ep-mode-grid > .ep-empty-cell { background: var(--ep-title-bg, var(--background-secondary)); padding: 4px; }
 .ep-editing .ep-grid.ep-mode-grid > .ep-empty-cell { min-height: 28px; }
 
 /* round 14 additions */
@@ -366,7 +365,7 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
 
 /* vertical dividers */
 .ep-grid.ep-vdividers.ep-mode-columns > .ep-col:not(:last-child) { border-right: 1px solid var(--background-modifier-border-hover); padding-right: 6px; }
-.ep-grid.ep-vdividers.ep-mode-grid > .ep-entry, .ep-grid.ep-vdividers.ep-mode-grid > .ep-empty-cell { border-right: 1px solid var(--background-modifier-border-hover); }
+.ep-grid.ep-vdividers.ep-mode-grid > .ep-col, .ep-grid.ep-vdividers.ep-mode-grid > .ep-empty-cell { border-right: 1px solid var(--background-modifier-border-hover); }
 
 /* add menu groups / badges / search / pads */
 .ep-pop-group { font-weight: 700; font-size: var(--font-ui-smaller); color: var(--text-accent); padding: 5px 8px 2px; text-transform: uppercase; letter-spacing: .04em; }

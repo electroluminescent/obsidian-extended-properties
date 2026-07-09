@@ -848,23 +848,20 @@ export class SidebarView extends ItemView implements ViewCtx {
           const gridW = cgrid.clientWidth;
           const colW = (n: number): number => (gridW - 8 * (n - 1)) / n;
           const labelMin = 3.5 * fs + 5; // .ep-line-name min-width + the label/cluster gap
-          // Grid cells carry the entry's own left/right padding, so their content
-          // box is a few px narrower than the track; add it back (grid only) so
-          // the roll button at the cluster's edge doesn't clip. Columns keeps its
-          // alignment slack and needs no fudge.
-          const pad = cgrid.hasClass("ep-mode-grid") ? 12 : 0;
-          const fullNeed = labelMin + maxCluster() + pad; // room a row needs with its controls
+          // Grid cells are assembled exactly like column cells now (.ep-col
+          // wrappers, shared cluster alignment), so both modes measure the
+          // same way - no per-mode fudge.
+          const fullNeed = labelMin + maxCluster(); // room a row needs with its controls
           cgrid.addClass("ep-compact");
-          const bareNeed = labelMin + maxCluster() + pad; // room with the controls hidden
+          const bareNeed = labelMin + maxCluster(); // room with the controls hidden
           let cols = ncol;
           while (cols > 1 && colW(cols) < bareNeed) cols--;
           if (colW(cols) >= fullNeed) cgrid.removeClass("ep-compact");
           cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
-          // Safety net against a real clip: Grid mode can reserve the aligned
-          // value cell a little wider than the measured cluster, so a row may
-          // still overflow its column. Drop another column until nothing does,
-          // so the roll button is never cut off. (Columns mode fits, so this
-          // never fires there.)
+          // Safety net against a real clip: if a row still overflows its
+          // column after compaction, drop another column until nothing does,
+          // so the roll button is never cut off. (With the shared cell
+          // assembly this should not fire in either mode; kept as insurance.)
           while (cols > 1 && heads.some((h) => h.scrollWidth > h.clientWidth + 1)) {
             cols--;
             cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });

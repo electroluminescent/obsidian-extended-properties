@@ -8017,12 +8017,11 @@ function alignClustersNow(det) {
   var _a;
   const groups = /* @__PURE__ */ new Map();
   for (const el of det.findAll(".ep-cluster [data-ep-slot]")) {
-    if (el.closest(".ep-mode-grid")) continue;
     const id = (_a = el.getAttribute("data-ep-slot")) != null ? _a : "";
     if (!groups.has(id)) groups.set(id, []);
     groups.get(id).push(el);
   }
-  groups.set(" num", det.findAll(".ep-cluster .ep-num").filter((n) => !n.closest(".ep-mode-grid")));
+  groups.set(" num", det.findAll(".ep-cluster .ep-num"));
   for (const els of groups.values()) {
     if (els.length < 2) continue;
     let max = 0;
@@ -8174,8 +8173,17 @@ function renderSection(parent, view, file, section, drag, host) {
     grid.setCssStyles({ gridTemplateColumns: `repeat(${ncol}, minmax(0, 1fr))` });
     if (section.rows && section.rows > 0) grid.setCssStyles({ gridTemplateRows: `repeat(${section.rows}, auto)` });
     for (const entry of section.entries) {
-      if (isHiddenEntry(view, entry)) grid.createDiv({ cls: "ep-empty-cell" });
-      else renderEntry(grid, view, file, section, entry, flags, drag);
+      if (isHiddenEntry(view, entry)) {
+        grid.createDiv({ cls: "ep-empty-cell" });
+        continue;
+      }
+      const cell = grid.createDiv({ cls: "ep-col ep-gridcell" });
+      renderEntry(cell, view, file, section, entry, flags, drag);
+      const wideEntry = cell.querySelector(":scope > .ep-entry");
+      if (wideEntry && wideEntry.style.gridColumn) {
+        cell.setCssStyles({ gridColumn: wideEntry.style.gridColumn });
+        wideEntry.setCssStyles({ gridColumn: "" });
+      }
     }
     if (view.editMode) {
       const pad = (ncol - section.entries.length % ncol) % ncol;
@@ -9578,10 +9586,9 @@ var SidebarView = class extends import_obsidian27.ItemView {
           const gridW = cgrid.clientWidth;
           const colW = (n) => (gridW - 8 * (n - 1)) / n;
           const labelMin = 3.5 * fs + 5;
-          const pad = cgrid.hasClass("ep-mode-grid") ? 12 : 0;
-          const fullNeed = labelMin + maxCluster() + pad;
+          const fullNeed = labelMin + maxCluster();
           cgrid.addClass("ep-compact");
-          const bareNeed = labelMin + maxCluster() + pad;
+          const bareNeed = labelMin + maxCluster();
           let cols = ncol;
           while (cols > 1 && colW(cols) < bareNeed) cols--;
           if (colW(cols) >= fullNeed) cgrid.removeClass("ep-compact");

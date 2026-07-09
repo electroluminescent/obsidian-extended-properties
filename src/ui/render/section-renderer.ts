@@ -43,15 +43,11 @@ function computeFlags(view: ViewCtx, file: TFile, section: Section): ClusterFlag
 export function alignClustersNow(det: HTMLElement): void {
   const groups = new Map<string, HTMLElement[]>();
   for (const el of det.findAll(".ep-cluster [data-ep-slot]")) {
-    // Grid mode places entries as independent 2D cells; cross-cell alignment
-    // would force every cluster to the widest row's width, showing as margins
-    // on either side of a short modifier and clipping the narrow cells.
-    if (el.closest(".ep-mode-grid")) continue;
     const id = el.getAttribute("data-ep-slot") ?? "";
     if (!groups.has(id)) groups.set(id, []);
     groups.get(id)!.push(el);
   }
-  groups.set(" num", det.findAll(".ep-cluster .ep-num").filter((n) => !n.closest(".ep-mode-grid")));
+  groups.set(" num", det.findAll(".ep-cluster .ep-num"));
   for (const els of groups.values()) {
     if (els.length < 2) continue;
     let max = 0;
@@ -234,8 +230,23 @@ export function renderSection(
     grid.setCssStyles({ gridTemplateColumns: `repeat(${ncol}, minmax(0, 1fr))` });
     if (section.rows && section.rows > 0) grid.setCssStyles({ gridTemplateRows: `repeat(${section.rows}, auto)` });
     for (const entry of section.entries) {
-      if (isHiddenEntry(view, entry)) grid.createDiv({ cls: "ep-empty-cell" });
-      else renderEntry(grid, view, file, section, entry, flags, drag);
+      if (isHiddenEntry(view, entry)) {
+        grid.createDiv({ cls: "ep-empty-cell" });
+        continue;
+      }
+      // A grid cell is assembled exactly like a column cell: a single-entry
+      // .ep-col wrapper. One structure means one set of CSS and one alignment
+      // path for both modes (this replaced the grid-only margin/shrink
+      // special cases that kept clipping the cluster edge).
+      const cell = grid.createDiv({ cls: "ep-col ep-gridcell" });
+      renderEntry(cell, view, file, section, entry, flags, drag);
+      // Wide entries span all tracks: the span must sit on the cell, not on
+      // the entry inside it.
+      const wideEntry = cell.querySelector<HTMLElement>(":scope > .ep-entry");
+      if (wideEntry && wideEntry.style.gridColumn) {
+        cell.setCssStyles({ gridColumn: wideEntry.style.gridColumn });
+        wideEntry.setCssStyles({ gridColumn: "" });
+      }
     }
     if (view.editMode) {
       // Trailing add-cells fill only the last partial row, so the row rail
