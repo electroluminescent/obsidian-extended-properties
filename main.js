@@ -9564,14 +9564,26 @@ var SidebarView = class extends import_obsidian27.ItemView {
         }
       }
       if (cgrid && !this.editMode) {
-        const anyTight = () => cgrid.findAll(".ep-entry-head").some((h) => h.clientWidth > 0 && h.scrollWidth > h.clientWidth + 1);
-        if (anyTight()) {
+        const heads2 = cgrid.findAll(".ep-entry-head").filter((h) => h.clientWidth > 0);
+        if (heads2.length) {
+          const maxCluster = () => {
+            let m = 0;
+            for (const h of heads2) {
+              const c = h.querySelector(".ep-cluster");
+              if (c) m = Math.max(m, c.offsetWidth);
+            }
+            return m;
+          };
+          const gridW = cgrid.clientWidth;
+          const colW = (n) => (gridW - 8 * (n - 1)) / n;
+          const labelMin = 3.5 * fs + 5;
+          const fullNeed = labelMin + maxCluster();
           cgrid.addClass("ep-compact");
+          const bareNeed = labelMin + maxCluster();
           let cols = ncol;
-          while (cols > 1 && anyTight()) {
-            cols--;
-            cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
-          }
+          while (cols > 1 && colW(cols) < bareNeed) cols--;
+          if (colW(cols) >= fullNeed) cgrid.removeClass("ep-compact");
+          cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
         }
       }
       void sec.offsetWidth;

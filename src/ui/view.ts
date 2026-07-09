@@ -829,19 +829,32 @@ export class SidebarView extends ItemView implements ViewCtx {
       // label + value still won't fit, drop the column count so columns flow to
       // the next row. Edit mode keeps the full grid so the rails line up.
       if (cgrid && !this.editMode) {
-        // Tight = the row genuinely overflows its column (the label ellipsis-
-        // truncates first and is allowed to; only real overflow means the
-        // controls would be cut off). No spare-based margin - that fired as soon
-        // as a long label began to ellipsis, far wider than an actual clip.
-        const anyTight = (): boolean =>
-          cgrid.findAll(".ep-entry-head").some((h) => h.clientWidth > 0 && h.scrollWidth > h.clientWidth + 1);
-        if (anyTight()) {
+        // Measure the room a row actually needs - the label's min-width plus its
+        // widest control cluster - rather than watching for a hard overflow: the
+        // label ellipsis-truncates instead of overflowing, so overflow almost
+        // never fires. Hide the controls column-wide once they no longer fit, and
+        // drop the column count (columns flow to the next row) once even a bare
+        // label + value won't fit.
+        const heads = cgrid.findAll(".ep-entry-head").filter((h) => h.clientWidth > 0);
+        if (heads.length) {
+          const maxCluster = (): number => {
+            let m = 0;
+            for (const h of heads) {
+              const c = h.querySelector<HTMLElement>(".ep-cluster");
+              if (c) m = Math.max(m, c.offsetWidth);
+            }
+            return m;
+          };
+          const gridW = cgrid.clientWidth;
+          const colW = (n: number): number => (gridW - 8 * (n - 1)) / n;
+          const labelMin = 3.5 * fs + 5; // .ep-line-name min-width + the label/cluster gap
+          const fullNeed = labelMin + maxCluster(); // room a row needs with its controls
           cgrid.addClass("ep-compact");
+          const bareNeed = labelMin + maxCluster(); // room with the controls hidden
           let cols = ncol;
-          while (cols > 1 && anyTight()) {
-            cols--;
-            cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
-          }
+          while (cols > 1 && colW(cols) < bareNeed) cols--;
+          if (colW(cols) >= fullNeed) cgrid.removeClass("ep-compact");
+          cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
         }
       }
 
