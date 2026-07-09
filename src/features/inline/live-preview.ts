@@ -18,6 +18,7 @@ import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import { editorInfoField, editorLivePreviewField, Menu, TFile } from "obsidian";
 import { InlineCtx, makeChartEl, makeRollChip, makeValEl, renderPropValue } from "./inline-render";
 import { makeValsEl } from "./inline-view";
+import type { EventRef } from "obsidian";
 
 const PREFIX = /^(roll|prop|vals|val|spark|bar|radar|progress)(?:\(([^)]*)\))?:\s*(.+)$/i;
 
@@ -31,6 +32,9 @@ function backtickSpan(doc: { sliceString(a: number, b: number): string; length: 
 }
 
 class InlineWidget extends WidgetType {
+  /** Live metadata subscriptions per mounted DOM (cleared in destroy). */
+  private evtRefs = new Map<HTMLElement, EventRef>();
+
   constructor(
     private ctx: InlineCtx,
     private file: TFile,
@@ -53,15 +57,35 @@ class InlineWidget extends WidgetType {
   }
 
   toDOM(view: EditorView): HTMLElement {
-    let dom: HTMLElement | null = null;
-    // Reveal the raw text by dropping the caret inside the span. The position
-    // is read from the live DOM (not stored), so it stays correct after edits.
+    // A stable holder wraps the rendered content so the widget can repaint
+    // itself in place when the vault changes underneath it: CM6 keeps this
+    // DOM alive across doc edits (eq compares content only), which also
+    // means nothing else would ever refresh a stale card.
+    const holder = createSpan({ cls: "ep-inline-holder" });
     const reveal = () => {
-      if (!dom) return;
-      const pos = view.posAtDOM(dom);
+      const pos = view.posAtDOM(holder);
       view.dispatch({ selection: { anchor: pos + 1 } });
       view.focus();
     };
+    holder.appendChild(this.render(reveal));
+    const ref = this.ctx.app.metadataCache.on("changed", (f) => {
+      // vals cards and charts may aggregate across notes; chips are
+      // single-file. Repaint is idempotent, so err toward freshness.
+      const crossNote = this.kind === "vals" || this.kind === "spark" || this.kind === "bar" ||
+        this.kind === "radar" || this.kind === "progress";
+      if (!crossNote && f.path !== this.file.path) return;
+      // Don't yank a control out from under the user mid-edit.
+      if (holder.querySelector("input:focus, textarea:focus, select:focus")) return;
+      holder.empty();
+      holder.appendChild(this.render(reveal));
+    });
+    this.evtRefs.set(holder, ref);
+    return holder;
+  }
+
+  /** Render the widget content (one attempt; the holder owns the result). */
+  private render(reveal: () => void): HTMLElement {
+    let dom: HTMLElement | null = null;
     try {
       if (this.kind === "roll") dom = makeRollChip(this.ctx, this.file, this.body, this.opt, reveal);
       else if (this.kind === "vals") dom = makeValsEl(this.ctx, this.file, this.body, reveal);
@@ -90,6 +114,15 @@ class InlineWidget extends WidgetType {
       dom.onclick = reveal;
       return dom;
     }
+  }
+
+  destroy(dom: HTMLElement): void {
+    const ref = this.evtRefs.get(dom);
+    if (ref) {
+      this.ctx.app.metadataCache.offref(ref);
+      this.evtRefs.delete(dom);
+    }
+    super.destroy(dom);
   }
 
   ignoreEvent(): boolean {

@@ -103,8 +103,21 @@ async function migrateDateSerials(view: ViewCtx, key: string, before: DateConfig
   if (changed) new Notice(view.i18n.t("date.migrated", { count: String(changed) }));
 }
 
-/** Serial bounds for the plot: explicit strings win, else vault extremes. */
-function plotRange(view: ViewCtx, key: string, cfg: DateConfig, e: Partial<DateExt>): { min: number; max: number } | null {
+/**
+ * Serial bounds for the plot: explicit strings win, else vault extremes.
+ * The CURRENT note contributes its live serial (the index lags behind the
+ * debounced write, so reading it from the vault would pin the marker to the
+ * old value). A single-value vault still plots: the range pads out by one
+ * year on each side so the marker sits centered instead of hiding the plot.
+ */
+function plotRange(
+  view: ViewCtx,
+  key: string,
+  cfg: DateConfig,
+  e: Partial<DateExt>,
+  ownPath: string,
+  ownSerial: number | null
+): { min: number; max: number } | null {
   const fromStr = (s?: string): number | null => {
     const p = s ? parseDateFlexible(s, cfg) : null;
     return p ? encodeSerial(p, cfg) : null;
@@ -112,20 +125,30 @@ function plotRange(view: ViewCtx, key: string, cfg: DateConfig, e: Partial<DateE
   let min = fromStr(e.dateMin);
   let max = fromStr(e.dateMax);
   if (min === null || max === null) {
-    let lo = Infinity;
-    let hi = -Infinity;
-    for (const v of view.props.rawValuesFor(key)) {
-      const s = rawSerial(v, cfg);
+    let lo = ownSerial ?? Infinity;
+    let hi = ownSerial ?? -Infinity;
+    for (const { file, value } of view.props.entriesFor(key)) {
+      if (file.path === ownPath) continue; // live serial already counted
+      const s = rawSerial(value, cfg);
       if (s === null) continue;
       if (s < lo) lo = s;
       if (s > hi) hi = s;
     }
     if (lo <= hi) {
+      if (lo === hi) {
+        // One distinct date in the vault: pad a year each side.
+        const sys = systemOf(cfg);
+        const pad = sys.months * sys.daysPerMonth;
+        lo -= pad;
+        hi += pad;
+      }
       min ??= lo;
       max ??= hi;
     }
   }
-  return min !== null && max !== null && max > min ? { min, max } : null;
+  if (min === null || max === null) return null;
+  if (max <= min) max = min + 1; // explicit min/max collapsed: keep it drawable
+  return { min, max };
 }
 
 function render(ctx: EntryRenderCtx): void {
@@ -278,12 +301,13 @@ function render(ctx: EntryRenderCtx): void {
     syncPlot = () => {
       ticksEl.empty();
       closePop();
-      const range = plotRange(view, key, cfg, e);
+      const ownPath = view.note.path ?? "";
+      const ownParts = parsed();
+      const range = plotRange(view, key, cfg, e, ownPath, ownParts ? encodeSerial(ownParts, cfg) : null);
       plot.toggleClass("ep-hidden", !range);
       if (!range) return;
       const span = range.max - range.min;
       const pct = (s: number): number => Math.max(0, Math.min(1, (s - range.min) / span)) * 100;
-      const ownPath = view.note.path ?? "";
       // Group other notes by their date so shared dates make ONE tick.
       const groups = new Map<number, { parts: DateParts; files: { path: string; basename: string }[] }>();
       for (const { file, value } of view.props.entriesFor(key)) {

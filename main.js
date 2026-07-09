@@ -6315,7 +6315,7 @@ async function migrateDateSerials(view, key, before, after) {
   }
   if (changed) new import_obsidian18.Notice(view.i18n.t("date.migrated", { count: String(changed) }));
 }
-function plotRange(view, key, cfg, e) {
+function plotRange(view, key, cfg, e, ownPath, ownSerial) {
   const fromStr = (s) => {
     const p = s ? parseDateFlexible(s, cfg) : null;
     return p ? encodeSerial(p, cfg) : null;
@@ -6323,20 +6323,29 @@ function plotRange(view, key, cfg, e) {
   let min = fromStr(e.dateMin);
   let max = fromStr(e.dateMax);
   if (min === null || max === null) {
-    let lo = Infinity;
-    let hi = -Infinity;
-    for (const v of view.props.rawValuesFor(key)) {
-      const s = rawSerial(v, cfg);
+    let lo = ownSerial != null ? ownSerial : Infinity;
+    let hi = ownSerial != null ? ownSerial : -Infinity;
+    for (const { file, value } of view.props.entriesFor(key)) {
+      if (file.path === ownPath) continue;
+      const s = rawSerial(value, cfg);
       if (s === null) continue;
       if (s < lo) lo = s;
       if (s > hi) hi = s;
     }
     if (lo <= hi) {
+      if (lo === hi) {
+        const sys = systemOf(cfg);
+        const pad = sys.months * sys.daysPerMonth;
+        lo -= pad;
+        hi += pad;
+      }
       min != null ? min : min = lo;
       max != null ? max : max = hi;
     }
   }
-  return min !== null && max !== null && max > min ? { min, max } : null;
+  if (min === null || max === null) return null;
+  if (max <= min) max = min + 1;
+  return { min, max };
 }
 function render2(ctx2) {
   const { view, file, entry } = ctx2;
@@ -6474,12 +6483,13 @@ function render2(ctx2) {
       var _a, _b;
       ticksEl.empty();
       closePop();
-      const range = plotRange(view, key, cfg, e);
+      const ownPath = (_a = view.note.path) != null ? _a : "";
+      const ownParts = parsed();
+      const range = plotRange(view, key, cfg, e, ownPath, ownParts ? encodeSerial(ownParts, cfg) : null);
       plot.toggleClass("ep-hidden", !range);
       if (!range) return;
       const span = range.max - range.min;
       const pct = (s) => Math.max(0, Math.min(1, (s - range.min) / span)) * 100;
-      const ownPath = (_a = view.note.path) != null ? _a : "";
       const groups = /* @__PURE__ */ new Map();
       for (const { file: file2, value } of view.props.entriesFor(key)) {
         if (file2.path === ownPath) continue;
@@ -10240,7 +10250,10 @@ var SidebarView = class extends import_obsidian28.ItemView {
       return;
     }
     if (file) {
-      if (file.path !== active.path) return;
+      if (file.path !== active.path) {
+        this.refreshValues();
+        return;
+      }
       if (this.note.isEcho(file)) return;
     }
     if (active.path !== this.note.path) {
@@ -15782,6 +15795,8 @@ var InlineWidget = class extends import_view.WidgetType {
     this.kind = kind;
     this.opt = opt;
     this.body = body;
+    /** Live metadata subscriptions per mounted DOM (cleared in destroy). */
+    this.evtRefs = /* @__PURE__ */ new Map();
   }
   /**
    * Position is deliberately NOT part of equality. An edit *above* a widget
@@ -15794,13 +15809,26 @@ var InlineWidget = class extends import_view.WidgetType {
     return o.kind === this.kind && o.opt === this.opt && o.body === this.body && o.file.path === this.file.path;
   }
   toDOM(view) {
-    let dom = null;
+    const holder = createSpan({ cls: "ep-inline-holder" });
     const reveal = () => {
-      if (!dom) return;
-      const pos = view.posAtDOM(dom);
+      const pos = view.posAtDOM(holder);
       view.dispatch({ selection: { anchor: pos + 1 } });
       view.focus();
     };
+    holder.appendChild(this.render(reveal));
+    const ref = this.ctx.app.metadataCache.on("changed", (f) => {
+      const crossNote = this.kind === "vals" || this.kind === "spark" || this.kind === "bar" || this.kind === "radar" || this.kind === "progress";
+      if (!crossNote && f.path !== this.file.path) return;
+      if (holder.querySelector("input:focus, textarea:focus, select:focus")) return;
+      holder.empty();
+      holder.appendChild(this.render(reveal));
+    });
+    this.evtRefs.set(holder, ref);
+    return holder;
+  }
+  /** Render the widget content (one attempt; the holder owns the result). */
+  render(reveal) {
+    let dom = null;
     try {
       if (this.kind === "roll") dom = makeRollChip(this.ctx, this.file, this.body, this.opt, reveal);
       else if (this.kind === "vals") dom = makeValsEl(this.ctx, this.file, this.body, reveal);
@@ -15826,6 +15854,14 @@ var InlineWidget = class extends import_view.WidgetType {
       dom.onclick = reveal;
       return dom;
     }
+  }
+  destroy(dom) {
+    const ref = this.evtRefs.get(dom);
+    if (ref) {
+      this.ctx.app.metadataCache.offref(ref);
+      this.evtRefs.delete(dom);
+    }
+    super.destroy(dom);
   }
   ignoreEvent() {
     return true;

@@ -559,7 +559,14 @@ export class SidebarView extends ItemView implements ViewCtx {
       return;
     }
     if (file) {
-      if (file.path !== active.path) return;
+      if (file.path !== active.path) {
+        // Another note changed. This note's own values are untouched, but
+        // anything painted from the VAULT - date timeline plots, cross-note
+        // aggregates (sum()/avg()/prop()) - reads that note through the
+        // property index and is now stale. Refresh values in place.
+        this.refreshValues();
+        return;
+      }
       if (this.note.isEcho(file)) return;
     }
     if (active.path !== this.note.path) {
