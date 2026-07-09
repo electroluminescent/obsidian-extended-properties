@@ -242,9 +242,9 @@ var en_default = {
   "type.video": "video",
   "type.pdf": "PDF",
   "type.iframe": "iframe",
-  "type.rating": "rating",
+  "type.rating": "rating (legacy)",
   "type.link": "link",
-  "type.unit": "unit",
+  "type.unit": "unit (legacy)",
   "type.datetime": "date/time (legacy)",
   "type.date": "date",
   "feature.date": "Dates (custom calendars)",
@@ -416,6 +416,12 @@ var en_default = {
   "options.dataTypeDesc": "Defaults to the Obsidian property type",
   "options.numberHeading": "Number & slider",
   "options.showSlider": "Show slider",
+  "options.ratingToggle": "Rating icons",
+  "options.ratingToggleDesc": "Show the value as clickable icons instead of the slider. The icon count is the Maximum above; a negative value (allowed by a negative Minimum) fills the icons red.",
+  "options.ratingRows": "Rating rows",
+  "options.ratingRowsDesc": "Split the icons across this many rows.",
+  "options.showValue": "Show value",
+  "options.showValueDesc": "Off = hide the textual value. The label and controls (steppers, slider, rating, roll) stay.",
   "options.showSteppers": "Show - / + buttons",
   "options.sliderCurve": "Slider curve",
   "options.curveLinear": "Linear",
@@ -702,11 +708,11 @@ var en_default = {
   "feature.iframe": "Web embeds",
   "feature.iframeDesc": "The iframe value type that embeds web pages.",
   "feature.rating": "Ratings",
-  "feature.ratingDesc": "The star rating value type.",
+  "feature.ratingDesc": "The legacy star rating value type. Deprecated: the number type renders icon ratings under its slider settings. Existing properties keep rendering.",
   "feature.link": "Links",
   "feature.linkDesc": "The link value type for wikilinks and URLs.",
   "feature.unit": "Units",
-  "feature.unitDesc": "The number-with-unit value type.",
+  "feature.unitDesc": "The legacy number-with-unit value type. Deprecated: the number type carries unit suffix and display factor. Existing properties keep rendering.",
   "feature.datetime": "Dates & times",
   "feature.datetimeDesc": "The legacy native-picker date/time value type. Deprecated: superseded by the date type (custom calendars, eras, time). Existing properties keep rendering.",
   "feature.table": "Type table view",
@@ -4338,7 +4344,7 @@ function clusterNeeds(kind, ref) {
   return { steppers: flags.steppers, before: flags.before, after: flags.after };
 }
 function render(kind, ctx2) {
-  var _a, _b;
+  var _a, _b, _c;
   const { view, file, entry } = ctx2;
   const key = entry.key;
   const isFormula = kind === "formula";
@@ -4348,28 +4354,32 @@ function render(kind, ctx2) {
   const label = (_a = entry.alias) != null ? _a : key;
   const f = isFormula ? compileFormula(entry.formula || "x") || ((x) => x) : null;
   const get = () => view.note.num(key, 0);
+  const factor = Number(entry.unitFactor) > 0 ? Number(entry.unitFactor) : 1;
   const addons = addonsFor(ctx2);
   const slots = {};
   for (const a of addons) Object.assign(slots, a.fillSlots(ctx2, { get, label }));
   const refs = view.buildCluster(ctx2.head, ctx2.flags, {
-    get,
-    display: fmtNum(get()),
+    get: () => get() * factor,
+    display: fmtNum(get() * factor),
     steppers: wantSteppers(kind, entry),
-    min,
-    max,
-    float: isDecimal || isFormula,
+    min: min * factor,
+    max: max * factor,
+    float: isDecimal || isFormula || factor !== 1,
     clamp: !!entry.clamp,
-    commit: (v) => view.note.set(file, key, shouldClamp(entry.constraints) ? clampToConstraints(v, entry.constraints) : v),
+    commit: (v) => {
+      const raw = v / factor;
+      view.note.set(file, key, shouldClamp(entry.constraints) ? clampToConstraints(raw, entry.constraints) : raw);
+    },
     slots
   });
   if (entry.valueColor) refs.val.setCssStyles({ color: entry.valueColor });
   if (entry.valueSize) refs.val.setCssStyles({ fontSize: entry.valueSize + "px" });
   const unit = ((_b = entry.unit) != null ? _b : "").trim();
   const setVal = (v) => {
-    refs.val.setText(fmtNum(v));
+    refs.val.setText(fmtNum(v * factor));
     if (unit) refs.val.createSpan({ cls: "ep-unit-hint", text: unit });
   };
-  if (unit) setVal(get());
+  if (unit || factor !== 1) setVal(get());
   const curve = entry.sliderCurve;
   const span = max - min;
   const toValue = (x) => {
@@ -4383,7 +4393,59 @@ function render(kind, ctx2) {
     return min + span * curveInvert(curve, (v - min) / span);
   };
   let syncKnob = null;
-  if (entry.slider || isFormula) {
+  if (entry.rating && !isFormula) {
+    const icon = entry.ratingIcon || "star";
+    const rows = Math.max(1, Math.round(Number(entry.ratingRows) || 1));
+    const emax = Number(entry.max);
+    const count = Math.min(1e3, Math.max(1, Math.round(Number.isFinite(emax) ? emax : 5)));
+    const kmin = Math.round((_c = entry.min) != null ? _c : 0);
+    const perRow = Math.ceil(count / rows);
+    const strip = ctx2.extra.createDiv({ cls: "ep-rating ep-rating-grid" });
+    strip.setCssStyles({ gridTemplateColumns: `repeat(${perRow}, auto)` });
+    if (entry.valueColor) strip.setCssStyles({ color: entry.valueColor });
+    strip.setAttr("role", "slider");
+    strip.tabIndex = 0;
+    strip.setAttr("aria-label", view.defaultLabelFor(entry));
+    strip.setAttr("aria-valuemin", String(kmin));
+    strip.setAttr("aria-valuemax", String(count));
+    const setRating = (n) => {
+      view.note.set(file, key, clamp(Math.round(n), kmin, count));
+    };
+    const drawRating = () => {
+      strip.empty();
+      const cur = Math.round(get());
+      strip.setAttr("aria-valuenow", String(cur));
+      const fill = Math.min(Math.abs(cur), count);
+      const neg = cur < 0;
+      for (let i = 1; i <= count; i++) {
+        const pip = strip.createSpan({
+          cls: "ep-rating-pip" + (i <= fill ? neg ? " is-on is-neg" : " is-on" : "")
+        });
+        (0, import_obsidian11.setIcon)(pip, icon);
+        pip.setAttr("aria-hidden", "true");
+        pip.onclick = (e2) => {
+          e2.preventDefault();
+          e2.stopPropagation();
+          sfx.tick();
+          setRating(i === cur ? i - 1 : i);
+        };
+      }
+    };
+    drawRating();
+    strip.addEventListener("keydown", (e2) => {
+      const cur = Math.round(get());
+      let n = cur;
+      if (e2.key === "ArrowRight" || e2.key === "ArrowUp") n = cur + 1;
+      else if (e2.key === "ArrowLeft" || e2.key === "ArrowDown") n = cur - 1;
+      else if (e2.key === "Home") n = kmin;
+      else if (e2.key === "End") n = count;
+      else return;
+      e2.preventDefault();
+      sfx.tick();
+      setRating(n);
+    });
+    view.registerUpdater(drawRating);
+  } else if (entry.slider || isFormula) {
     const slider = ctx2.extra.createDiv({ cls: "ep-slider2" });
     slider.createDiv({ cls: "ep-slider2-track" });
     const knob = slider.createDiv({ cls: "ep-slider2-knob" });
@@ -4475,9 +4537,46 @@ function renderOptions(kind, octx) {
   new import_obsidian11.Setting(c).setName(t("options.showSlider")).addToggle((tg) => {
     tg.setValue(!!entry.slider).onChange((v) => {
       entry.slider = v || void 0;
+      if (v) entry.rating = void 0;
       changed();
+      octx.redraw();
     });
   });
+  if (kind === "number" || kind === "decimal") {
+    new import_obsidian11.Setting(c).setName(t("options.ratingToggle")).setDesc(t("options.ratingToggleDesc")).addToggle((tg) => {
+      tg.setValue(!!entry.rating).onChange((v) => {
+        entry.rating = v || void 0;
+        if (v) {
+          entry.slider = void 0;
+          if (entry.max === void 0) entry.max = 5;
+        }
+        changed();
+        octx.redraw();
+      });
+    });
+    if (entry.rating) {
+      addIconSetting(
+        view.app,
+        view.i18n,
+        c,
+        t("options.ratingIcon"),
+        () => entry.ratingIcon || "star",
+        (v) => {
+          entry.ratingIcon = v;
+          changed();
+        }
+      );
+      new import_obsidian11.Setting(c).setName(t("options.ratingRows")).setDesc(t("options.ratingRowsDesc")).addText((tx) => {
+        tx.inputEl.type = "number";
+        tx.setValue(String(Math.max(1, Math.round(Number(entry.ratingRows) || 1))));
+        tx.onChange((v) => {
+          const n = Math.max(1, Math.round(Number(v)));
+          entry.ratingRows = Number.isFinite(n) && n > 1 ? n : void 0;
+          changed();
+        });
+      });
+    }
+  }
   if (kind === "number" || kind === "decimal") {
     new import_obsidian11.Setting(c).setName(t("options.showSteppers")).addToggle((tg) => {
       tg.setValue(entry.steppers !== false).onChange((v) => {
@@ -4489,6 +4588,14 @@ function renderOptions(kind, octx) {
       var _a2;
       tx.setValue((_a2 = entry.unit) != null ? _a2 : "").onChange((v) => {
         entry.unit = v.trim() || void 0;
+        changed();
+      });
+    });
+    new import_obsidian11.Setting(c).setName(t("options.unitFactor")).setDesc(t("options.unitFactorDesc")).addText((tx) => {
+      tx.setPlaceholder("1");
+      tx.setValue(entry.unitFactor !== void 0 ? String(entry.unitFactor) : "").onChange((v) => {
+        const n = Number(v);
+        entry.unitFactor = v.trim() !== "" && Number.isFinite(n) && n > 0 && n !== 1 ? n : void 0;
         changed();
       });
     });
@@ -5725,6 +5832,8 @@ var import_obsidian17 = require("obsidian");
 var ratingType = {
   id: "rating",
   name: (i18n) => i18n.t("type.rating"),
+  // Absorbed by the number type (rating display under the slider settings).
+  deprecated: true,
   render(ctx2) {
     const { view, file, entry } = ctx2;
     const key = entry.key;
@@ -5844,6 +5953,8 @@ var linkType = {
 var unitType = {
   id: "unit",
   name: (i18n) => i18n.t("type.unit"),
+  // Absorbed by the number type (unit suffix + display factor options).
+  deprecated: true,
   render(ctx2) {
     const { view, file, entry } = ctx2;
     const key = entry.key;
@@ -7688,6 +7799,7 @@ function renderEntry(grid, view, file, section, entry, flags, drag) {
     wrap.setAttr("title", view.i18n.t("options.showWhenActive", { expr: entry.showWhen }));
   }
   if (wide) wrap.setCssStyles({ gridColumn: "1 / -1" });
+  if (entry.showValue === false) wrap.addClass("ep-hide-value");
   const head = wrap.createDiv({ cls: "ep-entry-head" });
   let grip = null;
   if (view.editMode) {
@@ -7918,6 +8030,14 @@ function renderEntryOptionsBody(octx, onDone, onRemoved, opts = {}) {
         changed();
       });
     });
+    if (isProp) {
+      new import_obsidian23.Setting(c).setName(t("options.showValue")).setDesc(t("options.showValueDesc")).addToggle((tg) => {
+        tg.setValue(e.showValue !== false).onChange((v) => {
+          e.showValue = v ? void 0 : false;
+          changed();
+        });
+      });
+    }
   }
   if (isProp) {
     c.createEl("h4", { text: t("options.typeHeading") });

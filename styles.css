@@ -1000,3 +1000,11 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-dateplot-marker { position: absolute; top: 1px; width: 6px; height: 12px; margin-left: -3px; border-radius: 3px; background: var(--interactive-accent); z-index: 1; pointer-events: none; }
 /* Rows created by responsive column flow get a clear divide (both modes). */
 .ep-grid.ep-mode-columns > .ep-rowflow, .ep-grid.ep-mode-grid > .ep-rowflow { border-top: 2px solid var(--background-modifier-border-hover); padding-top: 8px; margin-top: 4px; }
+
+/* -- number rating + universal Show value ---------------------------------- */
+.ep-rating-grid { display: inline-grid; gap: 2px; justify-content: end; justify-items: center; margin-left: auto; padding: 1px 0 3px; }
+.ep-rating-pip.is-neg { color: var(--text-error); }
+/* "Show value" off: the textual value hides, controls stay. */
+.ep-hide-value .ep-cluster .ep-num { display: none; }
+.ep-hide-value .ep-val-right .ep-editable, .ep-hide-value .ep-val-right .ep-num,
+.ep-hide-value .ep-dateval .ep-editable, .ep-hide-value .ep-date-rel, .ep-hide-value .ep-unit-suffix { display: none; }

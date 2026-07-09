@@ -8,7 +8,7 @@
  * roll button this way.
  */
 
-import { Menu, Setting } from "obsidian";
+import { Menu, setIcon, Setting } from "obsidian";
 import type { EntryRenderCtx, EntryRef, OptionsCtx } from "../../../core/context";
 import type { ClusterNeeds, ValueTypeDef } from "../../../core/registry";
 import { compileFormula, invertFormula } from "../../../utils/formula";
@@ -18,6 +18,7 @@ import { shouldClamp, clampToConstraints } from "../../../core/validate";
 import { applyValidity } from "../validity";
 import { addonsFor, mergeNeeds, emptyFlags } from "../cluster";
 import { TextPromptModal } from "../../modals/dialogs";
+import { addIconSetting } from "../../components/setting-helpers";
 
 type NumericKind = "number" | "decimal" | "formula";
 
@@ -87,6 +88,10 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
   const label = entry.alias ?? key;
   const f = isFormula ? compileFormula(entry.formula || "x") || ((x: number) => x) : null;
   const get = () => view.note.num(key, 0);
+  // Unit conversion (absorbed from the legacy unit type): the note stores
+  // the canonical number; the value displays and edits multiplied by the
+  // per-entry factor. Sliders, ratings and rolls keep the raw domain.
+  const factor = Number(entry.unitFactor) > 0 ? Number(entry.unitFactor) : 1;
 
   // Let applicable addons fill their slots.
   const addons = addonsFor(ctx);
@@ -94,14 +99,17 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
   for (const a of addons) Object.assign(slots, a.fillSlots(ctx, { get, label }));
 
   const refs = view.buildCluster(ctx.head, ctx.flags, {
-    get,
-    display: fmtNum(get()),
+    get: () => get() * factor,
+    display: fmtNum(get() * factor),
     steppers: wantSteppers(kind, entry),
-    min,
-    max,
-    float: isDecimal || isFormula,
+    min: min * factor,
+    max: max * factor,
+    float: isDecimal || isFormula || factor !== 1,
     clamp: !!entry.clamp,
-    commit: (v) => view.note.set(file, key, shouldClamp(entry.constraints) ? clampToConstraints(v, entry.constraints) : v),
+    commit: (v) => {
+      const raw = v / factor;
+      view.note.set(file, key, shouldClamp(entry.constraints) ? clampToConstraints(raw, entry.constraints) : raw);
+    },
     slots,
   });
   if (entry.valueColor) refs.val.setCssStyles({ color: entry.valueColor });
@@ -112,10 +120,10 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
   // place that rewrites the value text re-appends it via setVal.
   const unit = ((entry.unit as string) ?? "").trim();
   const setVal = (v: number): void => {
-    refs.val.setText(fmtNum(v));
+    refs.val.setText(fmtNum(v * factor));
     if (unit) refs.val.createSpan({ cls: "ep-unit-hint", text: unit });
   };
-  if (unit) setVal(get());
+  if (unit || factor !== 1) setVal(get());
 
   // Optional slider (always present for formula entries). The slider
   // position maps through the configured curve (linear / root / exp);
@@ -137,7 +145,63 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
   // on the row scrolls the page. Pressing the knob expands the track to full
   // width for dragging; releasing collapses it back around the new position.
   let syncKnob: (() => void) | null = null;
-  if (entry.slider || isFormula) {
+  if ((entry.rating as boolean) && !isFormula) {
+    // Icon rating (absorbed from the legacy rating type): the alternative to
+    // the slider. The icon count is the entry's MAX (the same slider range
+    // settings); negative values (allowed by a negative min) fill red.
+    const icon = (entry.ratingIcon as string) || "star";
+    const rows = Math.max(1, Math.round(Number(entry.ratingRows) || 1));
+    const emax = Number(entry.max);
+    const count = Math.min(1000, Math.max(1, Math.round(Number.isFinite(emax) ? emax : 5)));
+    const kmin = Math.round(entry.min ?? 0);
+    const perRow = Math.ceil(count / rows);
+    const strip = ctx.extra.createDiv({ cls: "ep-rating ep-rating-grid" });
+    strip.setCssStyles({ gridTemplateColumns: `repeat(${perRow}, auto)` });
+    if (entry.valueColor) strip.setCssStyles({ color: entry.valueColor });
+    strip.setAttr("role", "slider");
+    strip.tabIndex = 0;
+    strip.setAttr("aria-label", view.defaultLabelFor(entry));
+    strip.setAttr("aria-valuemin", String(kmin));
+    strip.setAttr("aria-valuemax", String(count));
+    const setRating = (n: number): void => {
+      view.note.set(file, key, clamp(Math.round(n), kmin, count));
+    };
+    const drawRating = (): void => {
+      strip.empty();
+      const cur = Math.round(get());
+      strip.setAttr("aria-valuenow", String(cur));
+      const fill = Math.min(Math.abs(cur), count);
+      const neg = cur < 0;
+      for (let i = 1; i <= count; i++) {
+        const pip = strip.createSpan({
+          cls: "ep-rating-pip" + (i <= fill ? (neg ? " is-on is-neg" : " is-on") : ""),
+        });
+        setIcon(pip, icon);
+        pip.setAttr("aria-hidden", "true");
+        pip.onclick = (e2) => {
+          e2.preventDefault();
+          e2.stopPropagation();
+          sfx.tick();
+          // Click the current highest pip to toggle down one.
+          setRating(i === cur ? i - 1 : i);
+        };
+      }
+    };
+    drawRating();
+    strip.addEventListener("keydown", (e2: KeyboardEvent) => {
+      const cur = Math.round(get());
+      let n = cur;
+      if (e2.key === "ArrowRight" || e2.key === "ArrowUp") n = cur + 1;
+      else if (e2.key === "ArrowLeft" || e2.key === "ArrowDown") n = cur - 1;
+      else if (e2.key === "Home") n = kmin;
+      else if (e2.key === "End") n = count;
+      else return;
+      e2.preventDefault();
+      sfx.tick();
+      setRating(n);
+    });
+    view.registerUpdater(drawRating);
+  } else if (entry.slider || isFormula) {
     const slider = ctx.extra.createDiv({ cls: "ep-slider2" });
     slider.createDiv({ cls: "ep-slider2-track" });
     const knob = slider.createDiv({ cls: "ep-slider2-knob" });
@@ -226,9 +290,44 @@ function renderOptions(kind: NumericKind, octx: OptionsCtx): void {
   new Setting(c).setName(t("options.showSlider")).addToggle((tg) => {
     tg.setValue(!!entry.slider).onChange((v) => {
       entry.slider = v || undefined;
+      if (v) entry.rating = undefined; // the rating is the slider's alternative
       changed();
+      octx.redraw();
     });
   });
+  if (kind === "number" || kind === "decimal") {
+    new Setting(c)
+      .setName(t("options.ratingToggle"))
+      .setDesc(t("options.ratingToggleDesc"))
+      .addToggle((tg) => {
+        tg.setValue(!!entry.rating).onChange((v) => {
+          entry.rating = v || undefined;
+          if (v) {
+            entry.slider = undefined;
+            if (entry.max === undefined) entry.max = 5; // the icon count
+          }
+          changed();
+          octx.redraw();
+        });
+      });
+    if (entry.rating) {
+      addIconSetting(view.app, view.i18n, c, t("options.ratingIcon"),
+        () => (entry.ratingIcon as string) || "star",
+        (v) => {
+          entry.ratingIcon = v;
+          changed();
+        });
+      new Setting(c).setName(t("options.ratingRows")).setDesc(t("options.ratingRowsDesc")).addText((tx) => {
+        tx.inputEl.type = "number";
+        tx.setValue(String(Math.max(1, Math.round(Number(entry.ratingRows) || 1))));
+        tx.onChange((v) => {
+          const n = Math.max(1, Math.round(Number(v)));
+          entry.ratingRows = Number.isFinite(n) && n > 1 ? n : undefined;
+          changed();
+        });
+      });
+    }
+  }
   if (kind === "number" || kind === "decimal") {
     new Setting(c).setName(t("options.showSteppers")).addToggle((tg) => {
       tg.setValue(entry.steppers !== false).onChange((v) => {
@@ -236,15 +335,26 @@ function renderOptions(kind: NumericKind, octx: OptionsCtx): void {
         changed();
       });
     });
-    // Optional unit suffix - rendered as a muted tag beside the property
-    // name, the way the data-type hint appears (same `unit` field the
-    // dedicated unit value type uses, so converting between types keeps it).
+    // Unit suffix + display factor (the legacy unit type, absorbed): the
+    // note stores the canonical number; the value shows value x factor
+    // with the suffix beside it.
     new Setting(c)
       .setName(t("options.unit"))
       .setDesc(t("options.unitDesc"))
       .addText((tx) => {
         tx.setValue((entry.unit as string) ?? "").onChange((v) => {
           entry.unit = v.trim() || undefined;
+          changed();
+        });
+      });
+    new Setting(c)
+      .setName(t("options.unitFactor"))
+      .setDesc(t("options.unitFactorDesc"))
+      .addText((tx) => {
+        tx.setPlaceholder("1");
+        tx.setValue(entry.unitFactor !== undefined ? String(entry.unitFactor) : "").onChange((v) => {
+          const n = Number(v);
+          entry.unitFactor = v.trim() !== "" && Number.isFinite(n) && n > 0 && n !== 1 ? n : undefined;
           changed();
         });
       });

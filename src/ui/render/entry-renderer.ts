@@ -70,6 +70,8 @@ export function renderEntry(
     wrap.setAttr("title", view.i18n.t("options.showWhenActive", { expr: entry.showWhen as string }));
   }
   if (wide) wrap.setCssStyles({ gridColumn: "1 / -1" });
+  // "Show value" off hides the textual value everywhere; controls remain.
+  if (entry.showValue === false) wrap.addClass("ep-hide-value");
 
   const head = wrap.createDiv({ cls: "ep-entry-head" });
   let grip: HTMLElement | null = null;

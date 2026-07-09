@@ -75,6 +75,12 @@ export interface EntryBase {
    * "unit" value type shows the same field beside the value instead.
    */
   unit?: string;
+  /** Number type: render the icon rating instead of the slider. */
+  rating?: boolean;
+  /** Rating rows; the icons split across them (default 1). */
+  ratingRows?: number;
+  /** false = hide the textual value (universal; controls stay). */
+  showValue?: boolean;
 
   // -- other value-type options --------------------------------------------
   /** List chips alignment: "center" | "right" (unset = left). */

@@ -140,6 +140,16 @@ export function renderEntryOptionsBody(
             changed();
           });
       });
+    if (isProp) {
+      // Universal: every value type can hide its textual value (the label,
+      // controls, sliders and ratings stay).
+      new Setting(c).setName(t("options.showValue")).setDesc(t("options.showValueDesc")).addToggle((tg) => {
+        tg.setValue(e.showValue !== false).onChange((v) => {
+          e.showValue = v ? undefined : false;
+          changed();
+        });
+      });
+    }
   }
 
   // -- type-specific -------------------------------------------------------

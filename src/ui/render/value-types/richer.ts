@@ -37,6 +37,8 @@ interface LinkPromptView {
 export const ratingType: ValueTypeDef = {
   id: "rating",
   name: (i18n) => i18n.t("type.rating"),
+  // Absorbed by the number type (rating display under the slider settings).
+  deprecated: true,
 
   render(ctx) {
     const { view, file, entry } = ctx;
@@ -184,6 +186,8 @@ export const linkType: ValueTypeDef = {
 export const unitType: ValueTypeDef = {
   id: "unit",
   name: (i18n) => i18n.t("type.unit"),
+  // Absorbed by the number type (unit suffix + display factor options).
+  deprecated: true,
 
   render(ctx) {
     const { view, file, entry } = ctx;
