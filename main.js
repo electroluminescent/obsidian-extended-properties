@@ -9578,12 +9578,22 @@ var SidebarView = class extends import_obsidian27.ItemView {
           const colW = (n) => (gridW - 8 * (n - 1)) / n;
           const labelMin = 3.5 * fs + 5;
           const fullNeed = labelMin + maxCluster();
+          const isGrid = cgrid.hasClass("ep-mode-grid");
           cgrid.addClass("ep-compact");
+          if (isGrid)
+            cgrid.findAll(".ep-cluster [data-ep-slot], .ep-cluster .ep-num").forEach((el2) => el2.setCssStyles({ minWidth: "" }));
           const bareNeed = labelMin + maxCluster();
           let cols = ncol;
           while (cols > 1 && colW(cols) < bareNeed) cols--;
-          if (colW(cols) >= fullNeed) cgrid.removeClass("ep-compact");
+          if (colW(cols) >= fullNeed) {
+            cgrid.removeClass("ep-compact");
+            if (isGrid) alignClustersNow(sec);
+          }
           cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
+          while (cols > 1 && heads2.some((h) => h.scrollWidth > h.clientWidth + 1)) {
+            cols--;
+            cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
+          }
         }
       }
       void sec.offsetWidth;
