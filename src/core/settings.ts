@@ -84,7 +84,7 @@ const HANDLED_KEYS: ReadonlySet<string> = new Set([
   "crossNote", "conflictGuard", "tableLayouts", "tableLastType",
   "schemaVersion", "soundUi", "soundDice", "soundCrit", "layoutVault",
   "layoutVaultFolder", "appVersion", "snapshots", "snapshotKeep", "lastSnapshot",
-  "inlineEntries", "propTypes",
+  "inlineEntries", "propTypes", "dateProps",
 ]);
 
 /** Coerce a persisted `types` value to a clean list of non-empty strings. */
@@ -238,6 +238,8 @@ export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EP
       s.inlineEntries = clean as EPSettings["inlineEntries"];
     }
     // Shared per-key data types: keep only string -> string pairs.
+    if (data.dateProps && typeof data.dateProps === "object")
+      s.dateProps = data.dateProps as EPSettings["dateProps"];
     if (data.propTypes && typeof data.propTypes === "object") {
       const clean: Record<string, string> = {};
       for (const [k, v] of Object.entries(data.propTypes as Record<string, unknown>)) {

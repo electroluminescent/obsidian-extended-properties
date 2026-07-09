@@ -403,4 +403,6 @@ export interface EPSettings {
    * by `setSharedDataType` and the schema-2 migration.
    */
   propTypes?: Record<string, string>;
+  /** Per-property (vault-shared) date configs, keyed by lower-cased key. */
+  dateProps?: Record<string, import("./calendar").DateConfig>;
 }

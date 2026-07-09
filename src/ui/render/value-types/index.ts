@@ -12,6 +12,7 @@ import { derivedType } from "./derived";
 import { checkboxType, listType, colorType } from "./basic";
 import { audioType, iframeType, imageType, pdfType, videoType } from "./media";
 import { ratingType, linkType, unitType, datetimeType } from "./richer";
+import { dateType } from "./date";
 import { modifierAddon } from "../modifier-addon";
 import { propKind, blankKind, tocKind } from "../entry-kinds/core-kinds";
 import type { EPSettings } from "../../../core/model";
@@ -47,6 +48,7 @@ export function registerCore(ctx: FeatureContext, settings: EPSettings): void {
   if (on("link")) r.valueTypes.add(linkType);
   if (on("unit")) r.valueTypes.add(unitType);
   if (on("datetime")) r.valueTypes.add(datetimeType);
+  if (on("date")) r.valueTypes.add(dateType);
   // Entry kinds.
   r.entryKinds.add(propKind);
   r.entryKinds.add(blankKind);

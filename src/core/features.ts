@@ -43,6 +43,7 @@ export const TYPE_FEATURES: CoreFeature[] = [
   { id: "link", typeIds: ["link"] },
   { id: "unit", typeIds: ["unit"] },
   { id: "datetime", typeIds: ["datetime"] },
+  { id: "date", typeIds: ["date"] },
 ];
 
 /** Interface features gated at their call sites rather than registration. */

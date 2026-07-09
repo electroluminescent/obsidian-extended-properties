@@ -196,9 +196,13 @@ export class PopupManager {
         };
         row.onmouseleave = () => window.clearTimeout(timer);
         row.onclick = () => {
-          if (isList) {
+          if (isList && view.note.raw[c.key] === undefined) {
+            // A NEW list property has nothing to show yet: pick initial values.
             this.openValueSidePanel(row, file, section, c.key, true, target);
           } else {
+            // The note already has this value (list or scalar): add the entry
+            // as-is. Never force a value-picking step for existing data - the
+            // hover side panel stays available for optional appends.
             this.addEntryWithValue(file, section, c.key, undefined, target);
             this.closeAll();
           }

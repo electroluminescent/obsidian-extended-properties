@@ -79,6 +79,7 @@ Every property entry has a configurable data type that controls how it renders a
 - **Link**: An internal `[[note]]` reference rendered as a clickable link, with `[[`-triggered note autocomplete while editing.
 - **Unit**: A number carrying a unit suffix (e.g. `30 ft`, `5 kg`); the unit is stripped when the value is referenced in expressions or rolls.
 - **Datetime**: A date (and optional time) value with a native picker; the `today()` and `days()` expression functions operate on it.
+- **Date (custom calendars)**: A date under a per-property format you define with tokens (`MM/DD/YYYY`, `D MMMM, Y E`, ...). Each property can carry its own calendar - months per year, days per month, days per week, month names - and an era suffix pool (`BCE`, `CE`, or anything you type; each note picks its era from the pool via a chip, and typing a new suffix grows the pool). An optional timeline plot marks every other note's value for the property, with the range configurable or taken from the vault's earliest/latest occurrence - the date analog of the number slider. All of it is shared vault-wide per property, so two notes never disagree about the calendar.
 
 ### Entry Types
 

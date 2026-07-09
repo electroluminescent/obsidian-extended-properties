@@ -977,3 +977,15 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 
 /* Chrome hidden while its feature is disabled (see core/features.ts). */
 .ep-feature-hidden { display: none; }
+
+/* -- date value type (custom calendars) ----------------------------------- */
+.ep-hidden { display: none; }
+.ep-era-chip { font-size: var(--font-ui-smaller); color: var(--text-muted); background: var(--background-modifier-hover); border-radius: var(--ep-radius, 4px); padding: 0 5px; cursor: pointer; white-space: nowrap; }
+.ep-era-chip:hover { color: var(--text-normal); }
+.ep-era-chip.ep-era-unset { opacity: 0.55; font-style: italic; }
+.ep-dateval .ep-invalid { text-decoration: underline wavy var(--text-error); }
+.ep-dateplot { position: relative; height: 14px; margin: 2px 6px 2px 6px; }
+.ep-dateplot-track { position: absolute; left: 0; right: 0; top: 6px; height: 2px; border-radius: 1px; background: var(--background-modifier-border); }
+.ep-dateplot-tick { position: absolute; top: 3px; width: 2px; height: 8px; margin-left: -1px; border-radius: 1px; background: var(--text-faint); }
+.ep-dateplot-ticks { position: absolute; inset: 0; }
+.ep-dateplot-marker { position: absolute; top: 1px; width: 6px; height: 12px; margin-left: -3px; border-radius: 3px; background: var(--interactive-accent); z-index: 1; }
