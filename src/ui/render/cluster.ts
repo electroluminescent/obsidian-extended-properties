@@ -113,5 +113,16 @@ export function buildCluster(
 
   for (const slot of flags.after) makeSlotCell(slot);
 
+  // Pin every cell to its own track. Compaction hides the steppers and
+  // toggle cells with display:none, which removes them from grid
+  // auto-placement - without explicit columns the remaining cells slide
+  // left into the wrong tracks (the value into the toggle's track, the
+  // roll button centered on a 0px stepper track, overlapping the value).
+  let col = 0;
+  for (const child of Array.from(cl.children)) {
+    col++;
+    if (child instanceof HTMLElement) child.setCssStyles({ gridColumn: String(col) });
+  }
+
   return { val, cells };
 }

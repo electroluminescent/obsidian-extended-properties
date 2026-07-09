@@ -4191,6 +4191,11 @@ function buildCluster(head, flags, o, bindOpen) {
     }
   }
   for (const slot of flags.after) makeSlotCell(slot);
+  let col = 0;
+  for (const child of Array.from(cl.children)) {
+    col++;
+    if (child instanceof HTMLElement) child.setCssStyles({ gridColumn: String(col) });
+  }
   return { val, cells };
 }
 
