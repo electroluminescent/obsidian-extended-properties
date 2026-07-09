@@ -848,9 +848,14 @@ export class SidebarView extends ItemView implements ViewCtx {
           const gridW = cgrid.clientWidth;
           const colW = (n: number): number => (gridW - 8 * (n - 1)) / n;
           const labelMin = 3.5 * fs + 5; // .ep-line-name min-width + the label/cluster gap
-          const fullNeed = labelMin + maxCluster(); // room a row needs with its controls
+          // Grid cells carry the entry's own left/right padding, so their content
+          // box is a few px narrower than the track; add it back (grid only) so
+          // the roll button at the cluster's edge doesn't clip. Columns keeps its
+          // alignment slack and needs no fudge.
+          const pad = cgrid.hasClass("ep-mode-grid") ? 8 : 0;
+          const fullNeed = labelMin + maxCluster() + pad; // room a row needs with its controls
           cgrid.addClass("ep-compact");
-          const bareNeed = labelMin + maxCluster(); // room with the controls hidden
+          const bareNeed = labelMin + maxCluster() + pad; // room with the controls hidden
           let cols = ncol;
           while (cols > 1 && colW(cols) < bareNeed) cols--;
           if (colW(cols) >= fullNeed) cgrid.removeClass("ep-compact");

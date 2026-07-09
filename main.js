@@ -9578,9 +9578,10 @@ var SidebarView = class extends import_obsidian27.ItemView {
           const gridW = cgrid.clientWidth;
           const colW = (n) => (gridW - 8 * (n - 1)) / n;
           const labelMin = 3.5 * fs + 5;
-          const fullNeed = labelMin + maxCluster();
+          const pad = cgrid.hasClass("ep-mode-grid") ? 8 : 0;
+          const fullNeed = labelMin + maxCluster() + pad;
           cgrid.addClass("ep-compact");
-          const bareNeed = labelMin + maxCluster();
+          const bareNeed = labelMin + maxCluster() + pad;
           let cols = ncol;
           while (cols > 1 && colW(cols) < bareNeed) cols--;
           if (colW(cols) >= fullNeed) cgrid.removeClass("ep-compact");
