@@ -84,12 +84,22 @@ export function alignClustersNow(det: HTMLElement): void {
   for (const els of groups.values()) {
     if (els.length < 2) continue;
     let max = 0;
+    const widths = new Map<HTMLElement, number>();
     for (const el of els) {
       el.setCssStyles({ minWidth: "" });
-      max = Math.max(max, el.offsetWidth);
+      const w = el.offsetWidth;
+      widths.set(el, w);
+      max = Math.max(max, w);
     }
     if (max <= 0) continue;
-    for (const el of els) el.setCssStyles({ minWidth: max + "px" });
+    // Share the group's width only among cells that HAVE content. An empty
+    // (or fully squeezed) chain/dice/value cell collapses instead of holding
+    // the widest sibling's blank - that blank was eating the label's room on
+    // number rows whose chain is absent or squeezed away. Rows that show the
+    // decoration still align with each other.
+    for (const el of els) {
+      el.setCssStyles({ minWidth: (widths.get(el) ?? 0) > 0 ? max + "px" : "" });
+    }
   }
 }
 

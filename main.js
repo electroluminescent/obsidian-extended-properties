@@ -8989,7 +8989,7 @@ function entryFlags(view, file, section, entry) {
   return flags;
 }
 function alignClustersNow(det) {
-  var _a;
+  var _a, _b;
   for (const el of det.findAll(".ep-mode-grid .ep-cluster [data-ep-slot], .ep-mode-grid .ep-cluster .ep-num")) {
     el.setCssStyles({ minWidth: "" });
     const w = el.offsetWidth;
@@ -9006,12 +9006,17 @@ function alignClustersNow(det) {
   for (const els of groups.values()) {
     if (els.length < 2) continue;
     let max = 0;
+    const widths = /* @__PURE__ */ new Map();
     for (const el of els) {
       el.setCssStyles({ minWidth: "" });
-      max = Math.max(max, el.offsetWidth);
+      const w = el.offsetWidth;
+      widths.set(el, w);
+      max = Math.max(max, w);
     }
     if (max <= 0) continue;
-    for (const el of els) el.setCssStyles({ minWidth: max + "px" });
+    for (const el of els) {
+      el.setCssStyles({ minWidth: ((_b = widths.get(el)) != null ? _b : 0) > 0 ? max + "px" : "" });
+    }
   }
 }
 function alignClusters(det) {
