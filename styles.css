@@ -290,6 +290,11 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
    rest, the label (flex: 1, ellipsis) absorbs the squeeze and the staged
    compaction below sees true widths, so the steady state always fits. */
 .ep-grid.ep-mode-grid .ep-cluster { flex-shrink: 0; }
+/* Columns mode gets incidental left-slack on the roll button (the shared
+   roll track is widened by rows whose roll cell carries a dice tag, and the
+   button right-aligns). Grid cells keep their own width, so give the roll
+   cell explicit breathing room from its left neighbor instead. */
+.ep-grid.ep-mode-grid .ep-cluster > .ep-roll-cell { padding-left: 6px; }
 .ep-grid.ep-compact-steppers, .ep-grid.ep-compact { --ep-step-col: 0px; }
 .ep-grid.ep-compact-steppers .ep-step-btn,
 .ep-grid.ep-compact .ep-step-btn,
