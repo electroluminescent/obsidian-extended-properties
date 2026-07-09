@@ -983,7 +983,10 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-era-chip { font-size: var(--font-ui-smaller); color: var(--text-muted); background: var(--background-modifier-hover); border-radius: var(--ep-radius, 4px); padding: 0 5px; cursor: pointer; white-space: nowrap; }
 .ep-era-chip:hover { color: var(--text-normal); }
 .ep-era-chip.ep-era-unset { opacity: 0.55; font-style: italic; }
-.ep-dateval .ep-invalid { text-decoration: underline wavy var(--text-error); }
+/* Same idiom as unresolved links: the multi-value text-decoration
+   shorthand (underline wavy color) is only partially supported by older
+   Obsidian builds, so mark invalid dates with a dotted underline instead. */
+.ep-dateval .ep-invalid { color: var(--text-error); border-bottom: 1px dotted var(--text-error); }
 .ep-dateplot { position: relative; height: 14px; margin: 2px 6px 2px 6px; }
 .ep-dateplot-track { position: absolute; left: 0; right: 0; top: 6px; height: 2px; border-radius: 1px; background: var(--background-modifier-border); }
 .ep-dateplot-tick { position: absolute; top: 0; width: 10px; height: 14px; margin-left: -5px; background: transparent; cursor: pointer; }
