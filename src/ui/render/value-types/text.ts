@@ -89,7 +89,7 @@ export const textType: ValueTypeDef = {
       })
     );
     // L1 encryption actions - sidebar view only (the ViewCtx helpers are optional).
-    if (view.encryptValueAt && !encrypted) {
+    if (view.encryptValueAt && !encrypted && view.settings.features["secure"] !== false) {
       menu.addItem((i) =>
         i
           .setTitle(view.i18n.t("secure.menu.encrypt"))

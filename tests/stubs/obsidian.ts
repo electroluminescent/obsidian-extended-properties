@@ -5,6 +5,13 @@
  * import is ever introduced.
  */
 export class Menu {}
+export class MenuItem {}
+export class AbstractInputSuggest<T> {
+  constructor(..._a: unknown[]) {}
+  protected inputEl!: unknown;
+  getSuggestions(_q: string): T[] | Promise<T[]> { return []; }
+  close(): void {}
+}
 export class Setting {}
 export class Modal {}
 export class Notice {}

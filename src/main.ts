@@ -20,6 +20,7 @@ import { FeatureModule, Registries } from "./core/registry";
 import { PropertyIndex } from "./core/property-index";
 import { HideService } from "./core/hide-service";
 import { registerCore } from "./ui/render/value-types/index";
+import { featureOn } from "./core/features";
 import { API_VERSION } from "./api";
 import type { ExtendedPropertiesApi } from "./api";
 import { registerDiceIcons } from "./ui/render/dice-icons";
@@ -56,6 +57,8 @@ export default class ExtendedPropertiesPlugin extends Plugin {
   api!: ExtendedPropertiesApi;
   /** Third-party feature modules registered through the public API. */
   private externalModules: FeatureModule[] = [];
+  /** Type-table ribbon icon; hidden while the table feature is disabled. */
+  private tableRibbon: HTMLElement | null = null;
   /** Optional vault-file layout store (D2); created in onload. */
   layoutStore?: LayoutStore;
   private layoutReloadTimer = 0;
@@ -185,7 +188,8 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       () => this.settings.layoutVaultFolder ?? "_extended-properties",
       this.manifest.version
     );
-    if (this.settings.snapshots === true && Date.now() - (this.settings.lastSnapshot ?? 0) > 24 * 3600 * 1000)
+    if (featureOn(this.settings, "snapshots") && this.settings.snapshots === true &&
+        Date.now() - (this.settings.lastSnapshot ?? 0) > 24 * 3600 * 1000)
       void this.saveSnapshot(false);
 
     // -- view, ribbon, commands ---------------------------------------------
@@ -197,12 +201,20 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       callback: () => this.activateView(),
     });
     this.registerView(VIEW_TYPE_TABLE, (leaf) => new TableView(leaf, this));
-    this.addRibbonIcon("table", this.i18n.t("command.openTable"), () => this.activateTableView());
+    this.tableRibbon = this.addRibbonIcon("table", this.i18n.t("command.openTable"), () => {
+      if (!featureOn(this.settings, "table")) return;
+      void this.activateTableView();
+    });
     this.addCommand({
       id: "open-type-table",
       name: this.i18n.t("command.openTable"),
-      callback: () => this.activateTableView(),
+      checkCallback: (checking) => {
+        if (!featureOn(this.settings, "table")) return false;
+        if (!checking) void this.activateTableView();
+        return true;
+      },
     });
+    this.applyFeatureGates();
     this.addCommand({
       id: "hide-property-from-obsidian",
       name: this.i18n.t("command.hideProperty"),
@@ -220,17 +232,29 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     this.addCommand({
       id: "save-config-snapshot",
       name: this.i18n.t("snapshot.cmd.save"),
-      callback: () => void this.saveSnapshot(true),
+      checkCallback: (checking) => {
+        if (!featureOn(this.settings, "snapshots")) return false;
+        if (!checking) void this.saveSnapshot(true);
+        return true;
+      },
     });
     this.addCommand({
       id: "restore-config-snapshot",
       name: this.i18n.t("snapshot.cmd.restore"),
-      callback: () => void this.restoreSnapshotFlow(),
+      checkCallback: (checking) => {
+        if (!featureOn(this.settings, "snapshots")) return false;
+        if (!checking) void this.restoreSnapshotFlow();
+        return true;
+      },
     });
     this.addCommand({
       id: "unlock-sensitive",
       name: this.i18n.t("secure.cmd.unlock"),
-      callback: () => this.unlockSecrets(),
+      checkCallback: (checking) => {
+        if (!featureOn(this.settings, "secure")) return false;
+        if (!checking) this.unlockSecrets();
+        return true;
+      },
     });
     this.addCommand({
       id: "lock-sensitive",
@@ -451,11 +475,16 @@ export default class ExtendedPropertiesPlugin extends Plugin {
 
   // -- registries -------------------------------------------------------------
 
+  /** Reflect feature toggles in chrome that exists outside the views. */
+  applyFeatureGates(): void {
+    this.tableRibbon?.toggleClass("ep-feature-hidden", !featureOn(this.settings, "table"));
+  }
+
   /** (Re)build all registries from core + enabled feature modules. */
   rebuildRegistries(): void {
     this.registries.clear();
     const ctx = { i18n: this.i18n, registries: this.registries };
-    registerCore(ctx);
+    registerCore(ctx, this.settings);
     for (const mod of FEATURE_MODULES) {
       if (this.settings.features[mod.id] !== false) mod.register(ctx);
     }

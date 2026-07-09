@@ -650,7 +650,47 @@ var en_default = {
   "settings.hidePropertyBtn": "+ Hide property",
   "settings.hidePromptTitle": "Property name to hide",
   "settings.featuresHeading": "Features",
-  "settings.featuresDesc": "Optional modules. Disabling one hides its widgets and templates; layouts and note properties are kept.",
+  "settings.featuresDesc": "Every feature can be turned off. Optional modules first; disabling one hides its widgets and templates. Layouts and note properties are always kept.",
+  "settings.featuresTypes": "Value types",
+  "settings.featuresTypesDesc": "Disable value types you don't use. Properties of a disabled type keep their data and render as plain text; re-enabling restores them. Text and number are the plugin's foundation and stay on.",
+  "settings.featuresUi": "Interface",
+  "settings.featuresUiDesc": "Interface features. Disabling one hides its commands and controls; nothing is deleted.",
+  "feature.decimal": "Decimal numbers",
+  "feature.decimalDesc": "The decimal value type for non-integer numbers.",
+  "feature.derived": "Derived values & modifiers",
+  "feature.derivedDesc": "The derived value type plus the whole modifier system: badges, toggles, denotations and derivation blocks.",
+  "feature.list": "Lists",
+  "feature.listDesc": "The list value type with chips, alignment and autofill.",
+  "feature.checkbox": "Checkboxes",
+  "feature.checkboxDesc": "The checkbox value type.",
+  "feature.color": "Colors",
+  "feature.colorDesc": "The color value type with swatches and a picker.",
+  "feature.formula": "Formulas",
+  "feature.formulaDesc": "The formula value type computed from other properties.",
+  "feature.image": "Images",
+  "feature.imageDesc": "The image value type for vault files and URLs.",
+  "feature.media": "Audio, video & PDF",
+  "feature.mediaDesc": "The audio, video and PDF embed value types, including web and streaming sources.",
+  "feature.iframe": "Web embeds",
+  "feature.iframeDesc": "The iframe value type that embeds web pages.",
+  "feature.rating": "Ratings",
+  "feature.ratingDesc": "The star rating value type.",
+  "feature.link": "Links",
+  "feature.linkDesc": "The link value type for wikilinks and URLs.",
+  "feature.unit": "Units",
+  "feature.unitDesc": "The number-with-unit value type.",
+  "feature.datetime": "Dates & times",
+  "feature.datetimeDesc": "The date and time value type.",
+  "feature.table": "Type table view",
+  "feature.tableDesc": "The table listing every note of a type: ribbon icon, command and view.",
+  "feature.sticky": "Section pinning",
+  "feature.stickyDesc": "Pinning sections to the sticky header and footer zones. Off, every section flows with the body.",
+  "feature.pool": "Autofill pool editor",
+  "feature.poolDesc": "The pool key suffix (Key.p) that opens a property's autofill pool for editing.",
+  "feature.secure": "Sensitive values",
+  "feature.secureDesc": "Encrypting property values. Decryption stays available so existing values can always be recovered.",
+  "feature.snapshots": "Config snapshots",
+  "feature.snapshotsDesc": "Manual and automatic configuration snapshots.",
   "settings.rollsHeading": "Rolls",
   "settings.rollHistory": "Persistent roll history",
   "settings.rollHistoryDesc": "Keep the roll history across reloads. Off = history lives only for the current session.",
@@ -4100,7 +4140,7 @@ var textType = {
         ).open();
       })
     );
-    if (view.encryptValueAt && !encrypted) {
+    if (view.encryptValueAt && !encrypted && view.settings.features["secure"] !== false) {
       menu.addItem(
         (i) => i.setTitle(view.i18n.t("secure.menu.encrypt")).setIcon("lock").onClick(() => void view.encryptValueAt(file, key))
       );
@@ -4194,7 +4234,7 @@ function buildCluster(head, flags, o, bindOpen) {
   let col = 0;
   for (const child of Array.from(cl.children)) {
     col++;
-    if (child instanceof HTMLElement) child.setCssStyles({ gridColumn: String(col) });
+    if (child.instanceOf(HTMLElement)) child.setCssStyles({ gridColumn: String(col) });
   }
   return { val, cells };
 }
@@ -6098,30 +6138,64 @@ var tocKind = {
   }
 };
 
+// src/core/features.ts
+var featureOn = (settings, id) => settings.features[id] !== false;
+var TYPE_FEATURES = [
+  { id: "decimal", typeIds: ["decimal"] },
+  { id: "derived", typeIds: ["derived"] },
+  // + the modifier system
+  { id: "list", typeIds: ["list"] },
+  { id: "checkbox", typeIds: ["checkbox"] },
+  { id: "color", typeIds: ["color"] },
+  { id: "formula", typeIds: ["formula"] },
+  { id: "image", typeIds: ["image"] },
+  { id: "media", typeIds: ["audio", "video", "pdf"] },
+  { id: "iframe", typeIds: ["iframe"] },
+  { id: "rating", typeIds: ["rating"] },
+  { id: "link", typeIds: ["link"] },
+  { id: "unit", typeIds: ["unit"] },
+  { id: "datetime", typeIds: ["datetime"] }
+];
+var UI_FEATURES = [
+  { id: "table" },
+  // the type table view (ribbon, command)
+  { id: "sticky" },
+  // section pinning to the header/footer zones
+  { id: "pool" },
+  // the autofill pool suffix + editor
+  { id: "secure" },
+  // encrypting sensitive values (decryption always works)
+  { id: "snapshots" }
+  // config snapshot commands + automatic snapshots
+];
+
 // src/ui/render/value-types/index.ts
-function registerCore(ctx2) {
+function registerCore(ctx2, settings) {
   const r = ctx2.registries;
+  const on = (id) => featureOn(settings, id);
   r.valueTypes.add(textType);
   r.valueTypes.add(numberType);
-  r.valueTypes.add(decimalType);
-  r.valueTypes.add(derivedType);
-  r.valueTypes.add(listType);
-  r.valueTypes.add(checkboxType);
-  r.valueTypes.add(colorType);
-  r.valueTypes.add(formulaType);
-  r.valueTypes.add(imageType);
-  r.valueTypes.add(audioType);
-  r.valueTypes.add(videoType);
-  r.valueTypes.add(pdfType);
-  r.valueTypes.add(iframeType);
-  r.valueTypes.add(ratingType);
-  r.valueTypes.add(linkType);
-  r.valueTypes.add(unitType);
-  r.valueTypes.add(datetimeType);
+  if (on("decimal")) r.valueTypes.add(decimalType);
+  if (on("derived")) r.valueTypes.add(derivedType);
+  if (on("list")) r.valueTypes.add(listType);
+  if (on("checkbox")) r.valueTypes.add(checkboxType);
+  if (on("color")) r.valueTypes.add(colorType);
+  if (on("formula")) r.valueTypes.add(formulaType);
+  if (on("image")) r.valueTypes.add(imageType);
+  if (on("media")) {
+    r.valueTypes.add(audioType);
+    r.valueTypes.add(videoType);
+    r.valueTypes.add(pdfType);
+  }
+  if (on("iframe")) r.valueTypes.add(iframeType);
+  if (on("rating")) r.valueTypes.add(ratingType);
+  if (on("link")) r.valueTypes.add(linkType);
+  if (on("unit")) r.valueTypes.add(unitType);
+  if (on("datetime")) r.valueTypes.add(datetimeType);
   r.entryKinds.add(propKind);
   r.entryKinds.add(blankKind);
   r.entryKinds.add(tocKind);
-  r.clusterAddons.add(modifierAddon);
+  if (on("derived")) r.clusterAddons.add(modifierAddon);
   r.derivations.add({ id: "value", name: (i18n) => i18n.t("derive.value"), apply: (x) => x });
   r.layoutPresets.add({
     id: "empty",
@@ -8541,7 +8615,7 @@ var PopupManager = class {
           addRow(c);
         }
       };
-      const poolBase = q ? poolBaseFor(view.settings, search.value.trim()) : null;
+      const poolBase = q && featureOn(view.settings, "pool") ? poolBaseFor(view.settings, search.value.trim()) : null;
       if (poolBase) {
         const row = listEl.createDiv({ cls: "ep-pop-row ep-pop-create" });
         row.setText(t("pool.editRow", { key: poolBase }));
@@ -8569,7 +8643,7 @@ var PopupManager = class {
       if (e.key === "Enter") {
         e.preventDefault();
         const v = search.value.trim();
-        const base = poolBaseFor(view.settings, v);
+        const base = featureOn(view.settings, "pool") ? poolBaseFor(view.settings, v) : null;
         if (base) {
           const r2 = search.getBoundingClientRect();
           this.openPoolEditor(r2.left, r2.bottom + 2, base);
@@ -9243,7 +9317,7 @@ var SidebarView = class extends import_obsidian27.ItemView {
     var _a;
     newKey = newKey.trim();
     if (!newKey || newKey === entry.key) return;
-    const poolBase = poolBaseFor(this.settings, newKey);
+    const poolBase = featureOn(this.settings, "pool") ? poolBaseFor(this.settings, newKey) : null;
     if (poolBase) {
       const r = this.containerEl.getBoundingClientRect();
       this.popupsMgr.openPoolEditor(r.left + 24, r.top + 96, poolBase);
@@ -9802,8 +9876,9 @@ var SidebarView = class extends import_obsidian27.ItemView {
       registerSectionEl: (id, el) => this.sectionEls[id] = el,
       reflowSticky: () => this.reflowSticky()
     };
+    const stickyOn = featureOn(this.settings, "sticky");
     for (const section of this.layout.sections) {
-      const pin = sectionPin(section);
+      const pin = stickyOn ? sectionPin(section) : "body";
       const zone = pin === "header" ? this.stickyZoneEl : pin === "footer" ? this.footerZoneEl : flow;
       renderSection(zone, this, file, section, this.drag, host);
     }
@@ -11641,17 +11716,32 @@ var EPSettingTab = class extends import_obsidian31.PluginSettingTab {
         }, () => plugin.props.knownProps()).open()
       )
     );
-    new import_obsidian31.Setting(c).setName(t("settings.featuresHeading")).setHeading();
-    c.createEl("p", { cls: "setting-item-description", text: t("settings.featuresDesc") });
-    for (const mod of plugin.featureModules) {
-      new import_obsidian31.Setting(c).setName(mod.name(i18n)).setDesc(mod.description(i18n)).addToggle((tg) => {
-        tg.setValue(plugin.settings.features[mod.id] !== false).onChange((v) => {
-          plugin.settings.features[mod.id] = v;
+    const featureToggle = (st, id) => {
+      st.addToggle((tg) => {
+        tg.setValue(plugin.settings.features[id] !== false).onChange((v) => {
+          plugin.settings.features[id] = v;
           plugin.rebuildRegistries();
+          plugin.applyFeatureGates();
+          plugin.refreshViews();
           save();
           this.render();
         });
       });
+    };
+    new import_obsidian31.Setting(c).setName(t("settings.featuresHeading")).setHeading();
+    c.createEl("p", { cls: "setting-item-description", text: t("settings.featuresDesc") });
+    for (const mod of plugin.featureModules) {
+      featureToggle(new import_obsidian31.Setting(c).setName(mod.name(i18n)).setDesc(mod.description(i18n)), mod.id);
+    }
+    new import_obsidian31.Setting(c).setName(t("settings.featuresTypes")).setHeading();
+    c.createEl("p", { cls: "setting-item-description", text: t("settings.featuresTypesDesc") });
+    for (const f of TYPE_FEATURES) {
+      featureToggle(new import_obsidian31.Setting(c).setName(t("feature." + f.id)).setDesc(t("feature." + f.id + "Desc")), f.id);
+    }
+    new import_obsidian31.Setting(c).setName(t("settings.featuresUi")).setHeading();
+    c.createEl("p", { cls: "setting-item-description", text: t("settings.featuresUiDesc") });
+    for (const f of UI_FEATURES) {
+      featureToggle(new import_obsidian31.Setting(c).setName(t("feature." + f.id)).setDesc(t("feature." + f.id + "Desc")), f.id);
     }
   }
   /**
@@ -15066,6 +15156,8 @@ var ExtendedPropertiesPlugin = class extends import_obsidian43.Plugin {
     this.registries = new Registries();
     /** Third-party feature modules registered through the public API. */
     this.externalModules = [];
+    /** Type-table ribbon icon; hidden while the table feature is disabled. */
+    this.tableRibbon = null;
     this.layoutReloadTimer = 0;
     /** Session passphrase + decrypted-value cache for sensitive properties (L1). */
     this.secrets = new SecretStore();
@@ -15157,7 +15249,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian43.Plugin {
       },
       this.manifest.version
     );
-    if (this.settings.snapshots === true && Date.now() - ((_c = this.settings.lastSnapshot) != null ? _c : 0) > 24 * 3600 * 1e3)
+    if (featureOn(this.settings, "snapshots") && this.settings.snapshots === true && Date.now() - ((_c = this.settings.lastSnapshot) != null ? _c : 0) > 24 * 3600 * 1e3)
       void this.saveSnapshot(false);
     this.registerView(VIEW_TYPE, (leaf) => new SidebarView(leaf, this));
     this.addRibbonIcon("panel-right", this.i18n.t("command.openSidebar"), () => this.activateView());
@@ -15167,12 +15259,20 @@ var ExtendedPropertiesPlugin = class extends import_obsidian43.Plugin {
       callback: () => this.activateView()
     });
     this.registerView(VIEW_TYPE_TABLE, (leaf) => new TableView(leaf, this));
-    this.addRibbonIcon("table", this.i18n.t("command.openTable"), () => this.activateTableView());
+    this.tableRibbon = this.addRibbonIcon("table", this.i18n.t("command.openTable"), () => {
+      if (!featureOn(this.settings, "table")) return;
+      void this.activateTableView();
+    });
     this.addCommand({
       id: "open-type-table",
       name: this.i18n.t("command.openTable"),
-      callback: () => this.activateTableView()
+      checkCallback: (checking) => {
+        if (!featureOn(this.settings, "table")) return false;
+        if (!checking) void this.activateTableView();
+        return true;
+      }
     });
+    this.applyFeatureGates();
     this.addCommand({
       id: "hide-property-from-obsidian",
       name: this.i18n.t("command.hideProperty"),
@@ -15187,17 +15287,29 @@ var ExtendedPropertiesPlugin = class extends import_obsidian43.Plugin {
     this.addCommand({
       id: "save-config-snapshot",
       name: this.i18n.t("snapshot.cmd.save"),
-      callback: () => void this.saveSnapshot(true)
+      checkCallback: (checking) => {
+        if (!featureOn(this.settings, "snapshots")) return false;
+        if (!checking) void this.saveSnapshot(true);
+        return true;
+      }
     });
     this.addCommand({
       id: "restore-config-snapshot",
       name: this.i18n.t("snapshot.cmd.restore"),
-      callback: () => void this.restoreSnapshotFlow()
+      checkCallback: (checking) => {
+        if (!featureOn(this.settings, "snapshots")) return false;
+        if (!checking) void this.restoreSnapshotFlow();
+        return true;
+      }
     });
     this.addCommand({
       id: "unlock-sensitive",
       name: this.i18n.t("secure.cmd.unlock"),
-      callback: () => this.unlockSecrets()
+      checkCallback: (checking) => {
+        if (!featureOn(this.settings, "secure")) return false;
+        if (!checking) this.unlockSecrets();
+        return true;
+      }
     });
     this.addCommand({
       id: "lock-sensitive",
@@ -15392,11 +15504,16 @@ var ExtendedPropertiesPlugin = class extends import_obsidian43.Plugin {
     }
   }
   // -- registries -------------------------------------------------------------
+  /** Reflect feature toggles in chrome that exists outside the views. */
+  applyFeatureGates() {
+    var _a;
+    (_a = this.tableRibbon) == null ? void 0 : _a.toggleClass("ep-feature-hidden", !featureOn(this.settings, "table"));
+  }
   /** (Re)build all registries from core + enabled feature modules. */
   rebuildRegistries() {
     this.registries.clear();
     const ctx2 = { i18n: this.i18n, registries: this.registries };
-    registerCore(ctx2);
+    registerCore(ctx2, this.settings);
     for (const mod of FEATURE_MODULES) {
       if (this.settings.features[mod.id] !== false) mod.register(ctx2);
     }

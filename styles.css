@@ -974,3 +974,6 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
   .ep-sidebar :focus-visible, .ep-table-view :focus-visible, .ep-popup :focus-visible,
   .ep-entry:focus-visible, .ep-rating:focus-visible, .ep-section-title:focus-visible { outline: 2px solid Highlight; outline-offset: 1px; }
 }
+
+/* Chrome hidden while its feature is disabled (see core/features.ts). */
+.ep-feature-hidden { display: none; }

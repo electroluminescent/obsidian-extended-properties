@@ -37,7 +37,7 @@ The core is domain-agnostic: it renders sections of property entries with rich v
 - **Project into notes** (reading mode / Live Preview): `` `prop: Strength` `` (live & editable), `` `val: INT` `` (a value chip), `` `vals: HP` `` (a full interactive card), and charts like `` `radar: STR, DEX, CON, INT, WIS, CHA` ``.
 - **See everything at once**: run **Open type table** (ribbon + command) for a sortable, filterable, in-place-editable table of every note of a type.
 
-Most capabilities are optional modules — turn dice, inline projection, the D&D 5e sheet, sounds and more on or off in **Settings → Features** without touching your data.
+Every feature can be switched off in **Settings → Features** — the optional modules (dice, inline projection, the D&D 5e sheet), each optional value type, and interface features like the type table, section pinning, pool editing, sensitive values and snapshots. Disabling never touches your data: properties of a disabled type render as plain text until re-enabled.
 
 ## Features
 
@@ -218,7 +218,7 @@ A complete D&D 5e character sheet built entirely as a feature module on top of t
 
 **Global defaults**: Set default data type for new properties, default section layout mode, default color space, typography (font family, sizes for labels/values/titles/lists), section appearance (transparent, sticky, collapsible, dividers, size limits).
 
-**Features toggle**: Enable/disable optional modules (D&D 5e, dice rolling, etc.) without deleting data.
+**Features toggle**: Enable/disable every feature — optional modules (D&D 5e, dice rolling, inline), individual value types, and interface features (type table, section pinning, pool editor, sensitive values, snapshots) — without deleting data.
 
 **UI text**: Override individual strings via a searchable editor. English is the built-in language; module-registered dictionaries fall back to English for missing keys.
 

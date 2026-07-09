@@ -7,6 +7,7 @@
 
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 import type ExtendedPropertiesPlugin from "../main";
+import { TYPE_FEATURES, UI_FEATURES } from "../core/features";
 import { COLOR_SPACES, ColorSpace } from "../utils/color";
 import type { SectionSize } from "../core/model";
 import { defaultAbbr, defaultDerivations, referenceSuggestions } from "../core/influences";
@@ -659,20 +660,35 @@ export class EPSettingTab extends PluginSettingTab {
     );
 
     // -- features -----------------------------------------------------------------------
+    // Every feature of the plugin can be disabled here: the optional modules,
+    // each optional value type, and the interface features. All default to
+    // on; disabling never deletes data (see core/features.ts).
+    const featureToggle = (st: Setting, id: string): void => {
+      st.addToggle((tg) => {
+        tg.setValue(plugin.settings.features[id] !== false).onChange((v) => {
+          plugin.settings.features[id] = v;
+          plugin.rebuildRegistries();
+          plugin.applyFeatureGates();
+          plugin.refreshViews();
+          save();
+          this.render();
+        });
+      });
+    };
     new Setting(c).setName(t("settings.featuresHeading")).setHeading();
     c.createEl("p", { cls: "setting-item-description", text: t("settings.featuresDesc") });
     for (const mod of plugin.featureModules) {
-      new Setting(c)
-        .setName(mod.name(i18n))
-        .setDesc(mod.description(i18n))
-        .addToggle((tg) => {
-          tg.setValue(plugin.settings.features[mod.id] !== false).onChange((v) => {
-            plugin.settings.features[mod.id] = v;
-            plugin.rebuildRegistries();
-            save();
-            this.render();
-          });
-        });
+      featureToggle(new Setting(c).setName(mod.name(i18n)).setDesc(mod.description(i18n)), mod.id);
+    }
+    new Setting(c).setName(t("settings.featuresTypes")).setHeading();
+    c.createEl("p", { cls: "setting-item-description", text: t("settings.featuresTypesDesc") });
+    for (const f of TYPE_FEATURES) {
+      featureToggle(new Setting(c).setName(t("feature." + f.id)).setDesc(t("feature." + f.id + "Desc")), f.id);
+    }
+    new Setting(c).setName(t("settings.featuresUi")).setHeading();
+    c.createEl("p", { cls: "setting-item-description", text: t("settings.featuresUiDesc") });
+    for (const f of UI_FEATURES) {
+      featureToggle(new Setting(c).setName(t("feature." + f.id)).setDesc(t("feature." + f.id + "Desc")), f.id);
     }
   }
 

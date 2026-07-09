@@ -15,6 +15,7 @@ import type { TFile } from "obsidian";
 import type { ViewCtx } from "../../core/context";
 import type { Section } from "../../core/model";
 import { poolBaseFor } from "../../core/influences";
+import { featureOn } from "../../core/features";
 import { addPoolExtra, isPoolExtra, poolFor, removePoolExtra } from "../../core/pool";
 import { genId } from "../../utils/misc";
 import { ConfirmModal } from "../modals/dialogs";
@@ -217,7 +218,7 @@ export class PopupManager {
           addRow(c);
         }
       };
-      const poolBase = q ? poolBaseFor(view.settings, search.value.trim()) : null;
+      const poolBase = q && featureOn(view.settings, "pool") ? poolBaseFor(view.settings, search.value.trim()) : null;
       if (poolBase) {
         const row = listEl.createDiv({ cls: "ep-pop-row ep-pop-create" });
         row.setText(t("pool.editRow", { key: poolBase }));
@@ -246,7 +247,7 @@ export class PopupManager {
       if (e.key === "Enter") {
         e.preventDefault();
         const v = search.value.trim();
-        const base = poolBaseFor(view.settings, v);
+        const base = featureOn(view.settings, "pool") ? poolBaseFor(view.settings, v) : null;
         if (base) {
           const r2 = search.getBoundingClientRect();
           this.openPoolEditor(r2.left, r2.bottom + 2, base);

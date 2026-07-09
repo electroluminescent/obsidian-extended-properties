@@ -121,7 +121,7 @@ export function buildCluster(
   let col = 0;
   for (const child of Array.from(cl.children)) {
     col++;
-    if (child instanceof HTMLElement) child.setCssStyles({ gridColumn: String(col) });
+    if (child.instanceOf(HTMLElement)) child.setCssStyles({ gridColumn: String(col) });
   }
 
   return { val, cells };

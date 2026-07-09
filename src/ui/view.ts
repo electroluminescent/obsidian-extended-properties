@@ -19,6 +19,7 @@ import { Entry, Layout, Section, sectionPin } from "../core/model";
 import { ServiceHub, SectionTemplateDef } from "../core/registry";
 import { NoteModel } from "../core/note-model";
 import { influenceSources, poolBaseFor, VaultAccess } from "../core/influences";
+import { featureOn } from "../core/features";
 import { parseExpr, evalCondition } from "../core/expr";
 import type { ExprEnv, ExprNode } from "../core/expr";
 import { makeVaultAccess } from "../core/note-ref";
@@ -407,7 +408,7 @@ export class SidebarView extends ItemView implements ViewCtx {
     if (!newKey || newKey === entry.key) return;
     // `Key.p` in a key field opens that property's autofill-pool editor
     // instead of renaming (see settings.poolSuffix).
-    const poolBase = poolBaseFor(this.settings, newKey);
+    const poolBase = featureOn(this.settings, "pool") ? poolBaseFor(this.settings, newKey) : null;
     if (poolBase) {
       const r = this.containerEl.getBoundingClientRect();
       this.popupsMgr.openPoolEditor(r.left + 24, r.top + 96, poolBase);
@@ -1079,8 +1080,9 @@ export class SidebarView extends ItemView implements ViewCtx {
       registerSectionEl: (id: string, el: HTMLElement) => (this.sectionEls[id] = el),
       reflowSticky: () => this.reflowSticky(),
     };
+    const stickyOn = featureOn(this.settings, "sticky");
     for (const section of this.layout.sections) {
-      const pin = sectionPin(section);
+      const pin = stickyOn ? sectionPin(section) : "body";
       const zone = pin === "header" ? this.stickyZoneEl : pin === "footer" ? this.footerZoneEl : flow;
       renderSection(zone, this, file, section, this.drag, host);
     }
