@@ -286,10 +286,12 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
 .ep-grid.ep-compact { --ep-step-col: 0px; }
 .ep-grid.ep-compact .ep-step-btn,
 .ep-grid.ep-compact .ep-tog-cell { display: none; }
-/* In grid mode the cluster must keep its natural width (the label truncates
-   instead), so its measured width is accurate and the roll button never gets
-   compressed past the cell edge. */
-.ep-grid.ep-mode-grid .ep-cluster { flex-shrink: 0; }
+/* Grid cell = column cell: the cluster shrinks to fit its cell (tracks floor at
+   min-content, so the roll button never clips) exactly like a column cell. But
+   during the responsive measurement pass we pin it rigid, so maxCluster reads
+   the true (unshrunk) width and the column count is decided correctly - then it
+   shrinks-to-fit for the real paint once .ep-measuring is removed. */
+.ep-measuring .ep-grid.ep-mode-grid .ep-cluster { flex-shrink: 0; }
 .ep-empty-cell { min-height: 0; }
 .ep-disabled { opacity: 0.5; }
 
