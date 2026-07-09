@@ -788,6 +788,62 @@ export class SidebarView extends ItemView implements ViewCtx {
 
       alignClustersNow(sec);
 
+      // Column count FIRST, from pristine full-decoration measurements, so
+      // the wrap point is a pure, monotonic function of the width. (This used
+      // to run after the decoration squeeze - but the squeeze depends on how
+      // tight the current width is, so the measured cluster width, and with
+      // it the chosen column count, varied non-monotonically with width: the
+      // "irregular flowing". Decide the geometry first; trim decorations to
+      // fit it afterwards.)
+      let safetyNet: (() => void) | null = null;
+      if (cgrid && !this.editMode) {
+        const cheads = cgrid.findAll(".ep-entry-head").filter((h) => h.clientWidth > 0);
+        if (cheads.length) {
+          const maxCluster = (): number => {
+            let m = 0;
+            for (const h of cheads) {
+              const c = h.querySelector<HTMLElement>(".ep-cluster");
+              if (c) m = Math.max(m, c.offsetWidth);
+            }
+            return m;
+          };
+          const gridW = cgrid.clientWidth;
+          // Real geometry, not assumptions: the actual grid gap, and the
+          // entry's horizontal padding (the head's content box is that much
+          // narrower than the track) plus a rounding pixel.
+          const gapPx = parseFloat(window.getComputedStyle(cgrid).columnGap || "0") || 0;
+          const inset = 8;
+          const colW = (n: number): number => (gridW - gapPx * (n - 1)) / n - inset;
+          const labelMin = 3.5 * fs + 5; // .ep-line-name min-width + the label/cluster gap
+          const fullNeed = labelMin + maxCluster(); // room with all controls
+          // Staged compaction: the -/+ steppers are the first thing to go -
+          // always before the number could clip - then the toggle boxes.
+          cgrid.addClass("ep-compact-steppers");
+          const noStepNeed = labelMin + maxCluster(); // steppers hidden
+          cgrid.addClass("ep-compact");
+          const bareNeed = labelMin + maxCluster(); // toggles hidden too
+          let cols = ncol;
+          while (cols > 1 && colW(cols) < bareNeed) cols--;
+          if (colW(cols) >= fullNeed) {
+            cgrid.removeClass("ep-compact");
+            cgrid.removeClass("ep-compact-steppers");
+          } else if (colW(cols) >= noStepNeed) {
+            cgrid.removeClass("ep-compact"); // steppers stay hidden, toggles return
+          }
+          cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
+          // Safety net against a real clip, run AFTER the decoration squeeze
+          // below (the squeeze may relieve the tightness): drop another
+          // column while any row still overflows, so the roll button is
+          // never cut off.
+          safetyNet = () => {
+            while (cols > 1 && cheads.some((h) => h.scrollWidth > h.clientWidth + 1)) {
+              cols--;
+              cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
+            }
+          };
+        }
+      }
+
       // A row is "tight" when its children genuinely overflow it, or when the
       // label (flex: 1 - it absorbs all spare room) has less than SLACK px left
       // before truncating. The label's content width must be measured with a
@@ -823,68 +879,9 @@ export class SidebarView extends ItemView implements ViewCtx {
           });
         }
       }
-      // Column-responsive step 2: decorations are squeezed now; if a numeric row
-      // still has less than MARGIN spare (or overflows), hide the interactive
-      // controls (roll buttons, steppers, proficiency toggles) column-wide - the
-      // wide margin means they vanish well before anything clips. If a bare
-      // label + value still won't fit, drop the column count so columns flow to
-      // the next row. Edit mode keeps the full grid so the rails line up.
-      if (cgrid && !this.editMode) {
-        // Measure the room a row actually needs - the label's min-width plus its
-        // widest control cluster - rather than watching for a hard overflow: the
-        // label ellipsis-truncates instead of overflowing, so overflow almost
-        // never fires. Hide the controls column-wide once they no longer fit, and
-        // drop the column count (columns flow to the next row) once even a bare
-        // label + value won't fit.
-        const heads = cgrid.findAll(".ep-entry-head").filter((h) => h.clientWidth > 0);
-        if (heads.length) {
-          const maxCluster = (): number => {
-            let m = 0;
-            for (const h of heads) {
-              const c = h.querySelector<HTMLElement>(".ep-cluster");
-              if (c) m = Math.max(m, c.offsetWidth);
-            }
-            return m;
-          };
-          const gridW = cgrid.clientWidth;
-          // Real geometry, not assumptions: the actual grid gap, and the
-          // entry's horizontal padding (the head's content box is that much
-          // narrower than the track) plus a rounding pixel.
-          const gapPx = parseFloat(window.getComputedStyle(cgrid).columnGap || "0") || 0;
-          const inset = cgrid.hasClass("ep-mode-grid") || cgrid.hasClass("ep-mode-columns") ? 8 : 0;
-          const colW = (n: number): number => (gridW - gapPx * (n - 1)) / n - inset;
-          const labelMin = 3.5 * fs + 5; // .ep-line-name min-width + the label/cluster gap
-          // Grid cells are assembled exactly like column cells (.ep-col
-          // wrappers), so both modes measure the same way - no per-mode
-          // fudge. (Grid skips the cross-cell alignment, so its clusters
-          // measure at natural width.)
-          const fullNeed = labelMin + maxCluster(); // room with all controls
-          // Staged compaction: the -/+ steppers are the first thing to go -
-          // always before the number could clip - then the toggle boxes.
-          cgrid.addClass("ep-compact-steppers");
-          const noStepNeed = labelMin + maxCluster(); // steppers hidden
-          cgrid.addClass("ep-compact");
-          const bareNeed = labelMin + maxCluster(); // toggles hidden too
-          let cols = ncol;
-          while (cols > 1 && colW(cols) < bareNeed) cols--;
-          if (colW(cols) >= fullNeed) {
-            cgrid.removeClass("ep-compact");
-            cgrid.removeClass("ep-compact-steppers");
-          } else if (colW(cols) >= noStepNeed) {
-            cgrid.removeClass("ep-compact"); // steppers stay hidden, toggles return
-          }
-          cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
-          // Safety net against a real clip: if a row still overflows its
-          // column after compaction, drop another column until nothing does,
-          // so the roll button is never cut off. (With the shared cell
-          // assembly this should not fire in either mode; kept as insurance.)
-          while (cols > 1 && heads.some((h) => h.scrollWidth > h.clientWidth + 1)) {
-            cols--;
-            cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
-          }
-        }
-      }
-
+      // The column count was decided before the squeeze; verify it holds
+      // at the final squeezed geometry.
+      safetyNet?.();
       void sec.offsetWidth;
       sec.removeClass("ep-measuring");
       if (id) this.respSig.set(id, sig);

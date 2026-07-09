@@ -9564,6 +9564,45 @@ var SidebarView = class extends import_obsidian27.ItemView {
         cgrid.setCssStyles({ gridTemplateColumns: `repeat(${ncol}, minmax(0, 1fr))` });
       }
       alignClustersNow(sec);
+      let safetyNet = null;
+      if (cgrid && !this.editMode) {
+        const cheads = cgrid.findAll(".ep-entry-head").filter((h) => h.clientWidth > 0);
+        if (cheads.length) {
+          const maxCluster = () => {
+            let m = 0;
+            for (const h of cheads) {
+              const c = h.querySelector(".ep-cluster");
+              if (c) m = Math.max(m, c.offsetWidth);
+            }
+            return m;
+          };
+          const gridW = cgrid.clientWidth;
+          const gapPx = parseFloat(window.getComputedStyle(cgrid).columnGap || "0") || 0;
+          const inset = 8;
+          const colW = (n) => (gridW - gapPx * (n - 1)) / n - inset;
+          const labelMin = 3.5 * fs + 5;
+          const fullNeed = labelMin + maxCluster();
+          cgrid.addClass("ep-compact-steppers");
+          const noStepNeed = labelMin + maxCluster();
+          cgrid.addClass("ep-compact");
+          const bareNeed = labelMin + maxCluster();
+          let cols = ncol;
+          while (cols > 1 && colW(cols) < bareNeed) cols--;
+          if (colW(cols) >= fullNeed) {
+            cgrid.removeClass("ep-compact");
+            cgrid.removeClass("ep-compact-steppers");
+          } else if (colW(cols) >= noStepNeed) {
+            cgrid.removeClass("ep-compact");
+          }
+          cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
+          safetyNet = () => {
+            while (cols > 1 && cheads.some((h) => h.scrollWidth > h.clientWidth + 1)) {
+              cols--;
+              cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
+            }
+          };
+        }
+      }
       const range = sec.ownerDocument.createRange();
       const spareOf = (n) => {
         range.selectNodeContents(n);
@@ -9586,42 +9625,7 @@ var SidebarView = class extends import_obsidian27.ItemView {
           });
         }
       }
-      if (cgrid && !this.editMode) {
-        const heads2 = cgrid.findAll(".ep-entry-head").filter((h) => h.clientWidth > 0);
-        if (heads2.length) {
-          const maxCluster = () => {
-            let m = 0;
-            for (const h of heads2) {
-              const c = h.querySelector(".ep-cluster");
-              if (c) m = Math.max(m, c.offsetWidth);
-            }
-            return m;
-          };
-          const gridW = cgrid.clientWidth;
-          const gapPx = parseFloat(window.getComputedStyle(cgrid).columnGap || "0") || 0;
-          const inset = cgrid.hasClass("ep-mode-grid") || cgrid.hasClass("ep-mode-columns") ? 8 : 0;
-          const colW = (n) => (gridW - gapPx * (n - 1)) / n - inset;
-          const labelMin = 3.5 * fs + 5;
-          const fullNeed = labelMin + maxCluster();
-          cgrid.addClass("ep-compact-steppers");
-          const noStepNeed = labelMin + maxCluster();
-          cgrid.addClass("ep-compact");
-          const bareNeed = labelMin + maxCluster();
-          let cols = ncol;
-          while (cols > 1 && colW(cols) < bareNeed) cols--;
-          if (colW(cols) >= fullNeed) {
-            cgrid.removeClass("ep-compact");
-            cgrid.removeClass("ep-compact-steppers");
-          } else if (colW(cols) >= noStepNeed) {
-            cgrid.removeClass("ep-compact");
-          }
-          cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
-          while (cols > 1 && heads2.some((h) => h.scrollWidth > h.clientWidth + 1)) {
-            cols--;
-            cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
-          }
-        }
-      }
+      safetyNet == null ? void 0 : safetyNet();
       void sec.offsetWidth;
       sec.removeClass("ep-measuring");
       if (id) this.respSig.set(id, sig);
