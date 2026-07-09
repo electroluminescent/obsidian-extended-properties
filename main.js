@@ -9564,13 +9564,7 @@ var SidebarView = class extends import_obsidian27.ItemView {
         }
       }
       if (cgrid && !this.editMode) {
-        const MARGIN = 0.5 * fs;
-        const anyTight = () => cgrid.findAll(".ep-entry-head").some((h) => {
-          if (h.clientWidth === 0) return false;
-          if (h.scrollWidth > h.clientWidth + 1) return true;
-          const nm = h.querySelector(".ep-line-name");
-          return !!nm && spareOf(nm) < MARGIN;
-        });
+        const anyTight = () => cgrid.findAll(".ep-entry-head").some((h) => h.clientWidth > 0 && h.scrollWidth > h.clientWidth + 1);
         if (anyTight()) {
           cgrid.addClass("ep-compact");
           let cols = ncol;

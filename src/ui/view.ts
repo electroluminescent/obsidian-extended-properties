@@ -829,14 +829,12 @@ export class SidebarView extends ItemView implements ViewCtx {
       // label + value still won't fit, drop the column count so columns flow to
       // the next row. Edit mode keeps the full grid so the rails line up.
       if (cgrid && !this.editMode) {
-        const MARGIN = 0.5 * fs;
+        // Tight = the row genuinely overflows its column (the label ellipsis-
+        // truncates first and is allowed to; only real overflow means the
+        // controls would be cut off). No spare-based margin - that fired as soon
+        // as a long label began to ellipsis, far wider than an actual clip.
         const anyTight = (): boolean =>
-          cgrid.findAll(".ep-entry-head").some((h) => {
-            if (h.clientWidth === 0) return false;
-            if (h.scrollWidth > h.clientWidth + 1) return true;
-            const nm = h.querySelector<HTMLElement>(".ep-line-name");
-            return !!nm && spareOf(nm) < MARGIN;
-          });
+          cgrid.findAll(".ep-entry-head").some((h) => h.clientWidth > 0 && h.scrollWidth > h.clientWidth + 1);
         if (anyTight()) {
           cgrid.addClass("ep-compact");
           let cols = ncol;
