@@ -125,7 +125,9 @@ export class PopupManager {
     if (!key) return;
     const existing = view.note.raw[key];
     const isList = Array.isArray(value) || Array.isArray(existing);
-    const entry = { id: genId(), kind: "prop", key, dataType: isList ? "list" : view.deriveType(key) };
+    // New properties start visible even while empty - hiding them again is
+    // a per-entry option (hideIfEmpty).
+    const entry = { id: genId(), kind: "prop", key, dataType: isList ? "list" : view.deriveType(key), hideIfEmpty: false };
     let idx = target?.index ?? section.entries.length;
     if (target?.replaceId) {
       const ri = section.entries.findIndex((e) => e.id === target.replaceId);

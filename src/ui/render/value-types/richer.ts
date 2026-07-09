@@ -248,6 +248,10 @@ function relativeDays(i18n: I18n, d: Date): string {
 export const datetimeType: ValueTypeDef = {
   id: "datetime",
   name: (i18n) => i18n.t("type.datetime"),
+  // Superseded by the "date" type (custom calendars, eras, time systems,
+  // serial storage). Existing datetime properties keep rendering; the type
+  // is no longer offered for new properties.
+  deprecated: true,
 
   render(ctx) {
     const { view, file, entry } = ctx;

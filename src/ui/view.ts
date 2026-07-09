@@ -438,7 +438,11 @@ export class SidebarView extends ItemView implements ViewCtx {
         /* one addon must not break the rename */
       }
     }
-    entry.dataType = this.deriveType(newKey);
+    // Run the same initiation a freshly added property gets: sniff the
+    // note's existing value for the data type (lists included) and start
+    // visible even while empty.
+    entry.dataType = Array.isArray(this.note.raw[newKey]) ? "list" : this.deriveType(newKey);
+    entry.hideIfEmpty = false;
     this.saveLayout();
     this.render();
   }
@@ -864,6 +868,16 @@ export class SidebarView extends ItemView implements ViewCtx {
               cols--;
               cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
             }
+            // Rows created by RESPONSIVE flow (fewer columns than authored)
+            // get a visual divide; author-designed rows keep their look.
+            const flowed = cols < ncol;
+            const cells: HTMLElement[] = [];
+            for (const child of Array.from(cgrid.children)) {
+              if (child.instanceOf(HTMLElement)) cells.push(child);
+            }
+            let firstTop = Infinity;
+            for (const el of cells) firstTop = Math.min(firstTop, el.offsetTop);
+            for (const el of cells) el.toggleClass("ep-rowflow", flowed && el.offsetTop > firstTop + 1);
           };
         }
       }

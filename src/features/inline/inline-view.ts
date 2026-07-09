@@ -82,7 +82,11 @@ class InlineViewCtx implements ViewCtx {
     private target: TFile,
     layout: Layout | null,
     mount: HTMLElement,
-    private redraw: () => void
+    private redraw: () => void,
+    /** The note the inline TEXT lives in (may differ from `target`). */
+    private srcFile: TFile | null = null,
+    /** The reference exactly as written in that text (`Key`, `[[N]].Key`). */
+    private srcBody = ""
   ) {
     this.app = ctx.app;
     this.i18n = ctx.i18n;
@@ -200,9 +204,37 @@ class InlineViewCtx implements ViewCtx {
 
   // -- structural ops (a single inline card has no layout) --------------------
   renameKey(entry: Entry, newKey: string): void {
+    newKey = newKey.trim();
+    if (!newKey || newKey === entry.key) return;
+    const oldBody = this.srcBody;
+    // Per-reference entries move to the id the new reference will resolve to,
+    // so the card's options survive the property change.
+    const store = this.ctx.settings.inlineEntries;
+    if (store && entry.id.startsWith("ep-inline:")) {
+      const oldId = entry.id.slice("ep-inline:".length);
+      const noteRef = oldBody ? parseNoteRef(oldBody) : null;
+      const newId = (noteRef?.accessor ? noteRef.link.toLowerCase() + "/" : "") + newKey.toLowerCase();
+      if (oldId !== newId) {
+        delete store[oldId];
+        entry.id = "ep-inline:" + newId;
+        store[newId] = entry;
+      }
+    }
     entry.key = newKey;
-    delete entry.dataType;
+    delete entry.dataType; // re-derived from the new property on next draw
     this.ctx.save();
+    // Rewrite the inline TEXT itself: the reference in the note is the
+    // source of truth, so `vals:`/`val:` spans naming the old property are
+    // updated to the new one (the noteRef prefix, if any, is preserved).
+    if (this.srcFile && oldBody) {
+      const noteRef = parseNoteRef(oldBody);
+      const newBody = noteRef?.accessor
+        ? oldBody.slice(0, oldBody.length - noteRef.accessor.length) + newKey
+        : newKey;
+      const escRe = (x: string): string => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const re = new RegExp("(`(?:vals|val)\\s*:\\s*)" + escRe(oldBody) + "(\\s*`)", "g");
+      void this.app.vault.process(this.srcFile, (text) => text.replace(re, "$1" + newBody.replace(/\$/g, "$$$$") + "$2"));
+    }
   }
   removeEntry(): void { /* inline cards never delete layout entries */ }
   openAddMenu(): void {}
@@ -254,7 +286,7 @@ export function makeValsEl(ctx: InlineCtx, file: TFile, body: string, onEditSour
         ref = noteRef.accessor;
       }
       const layout = layoutForFile(ctx, target);
-      view = new InlineViewCtx(ctx, target, layout, wrap, draw);
+      view = new InlineViewCtx(ctx, target, layout, wrap, draw, file, body);
       const key = keyForShortForm(ctx.settings, ref, Object.keys(view.note.raw)) ?? ref;
       // Prefer the real layout entry (stays in sync with the sidebar); else a
       // persistent per-reference entry so the card can carry sliders/rolls.

@@ -228,3 +228,56 @@ describe("parseDateFlexible (lenient input)", () => {
     expect(tokenOrder({ format: "YYYY-MM-DD" })).toEqual(["Y", "M", "D"]);
   });
 });
+
+describe("time of day (custom hour/minute systems)", () => {
+  const tcfg: DateConfig = {
+    format: "YYYY-MM-DD HH:mm",
+    time: { hoursPerDay: 24, minutesPerHour: 60 },
+  };
+
+  it("formats and parses HH:mm tokens", () => {
+    const p = { year: 2024, month: 3, day: 7, hour: 13, minute: 5 };
+    expect(formatDate(p, tcfg)).toBe("2024-03-07 13:05");
+    expect(parseDate("2024-03-07 13:05", tcfg)).toMatchObject({ hour: 13, minute: 5 });
+    expect(parseDate("2024-03-07 25:05", tcfg)).toBeNull(); // hour out of range
+  });
+
+  it("encode/decode round-trips at minute resolution", () => {
+    const p = { year: -12, month: 11, day: 30, hour: 23, minute: 59 };
+    expect(decodeSerial(encodeSerial(p, tcfg), tcfg)).toMatchObject(p);
+  });
+
+  it("adjacent minutes order correctly", () => {
+    const a = encodeSerial({ year: 2024, month: 1, day: 1, hour: 0, minute: 59 }, tcfg);
+    const b = encodeSerial({ year: 2024, month: 1, day: 1, hour: 1, minute: 0 }, tcfg);
+    expect(a).toBeLessThan(b);
+  });
+
+  it("custom hour/minute counts honor their bounds", () => {
+    const odd: DateConfig = { format: "Y-M-D H:m", time: { hoursPerDay: 10, minutesPerHour: 100 } };
+    expect(parseDate("5-1-1 9:99", odd)).toMatchObject({ hour: 9, minute: 99 });
+    expect(parseDate("5-1-1 10:0", odd)).toBeNull();
+    const p = { year: 5, month: 1, day: 1, hour: 9, minute: 99 };
+    expect(decodeSerial(encodeSerial(p, odd), odd)).toMatchObject(p);
+  });
+
+  it("translation crosses the day/minute boundary and clamps time", () => {
+    const dayCfg: DateConfig = { format: "Y-M-D" };
+    const v = encodeSerial({ year: 1024, month: 6, day: 15 }, dayCfg);
+    // Enabling time keeps the date, midnight time.
+    const on = translateSerial(v, dayCfg, tcfg);
+    expect(decodeSerial(on, tcfg)).toMatchObject({ year: 1024, month: 6, day: 15, hour: 0, minute: 0 });
+    // Shrinking the hour count clamps the hour.
+    const small: DateConfig = { format: "Y-M-D H:m", time: { hoursPerDay: 10, minutesPerHour: 60 } };
+    const late = encodeSerial({ year: 1024, month: 6, day: 15, hour: 23, minute: 30 }, tcfg);
+    expect(decodeSerial(translateSerial(late, tcfg, small), small)).toMatchObject({ hour: 9, minute: 30, day: 15 });
+    // Disabling time drops back to day resolution, date preserved.
+    const off = translateSerial(late, tcfg, dayCfg);
+    expect(decodeSerial(off, dayCfg)).toMatchObject({ year: 1024, month: 6, day: 15 });
+  });
+
+  it("flexible input accepts an H:MM anywhere", () => {
+    expect(parseDateFlexible("mar-15 1024 13:30", tcfg)).toMatchObject({ month: 3, day: 15, year: 1024, hour: 13, minute: 30 });
+    expect(parseDateFlexible("13:30 15 March 1024", tcfg)).toMatchObject({ hour: 13, minute: 30, month: 3 });
+  });
+});

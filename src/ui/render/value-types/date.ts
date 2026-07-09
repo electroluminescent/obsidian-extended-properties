@@ -415,27 +415,27 @@ function renderOptions(octx: OptionsCtx): void {
         octx.redraw();
       });
     });
+  // Number fields commit on change (blur/Enter), NOT per keystroke: a
+  // half-typed "1" of "13" must never trigger a destructive re-encode.
+  const numRow = (name: string, get: () => number, set: (n: number) => void, o: { migrates?: boolean; onDone?: () => void }): void => {
+    new Setting(c).setName(name).addText((tx) => {
+      tx.inputEl.type = "number";
+      tx.setValue(String(get()));
+      tx.inputEl.addEventListener("change", () => {
+        const n = Math.max(1, Math.floor(Number(tx.getValue())));
+        if (!Number.isFinite(n) || n === get()) return;
+        const before = snapshotCfg(cfg);
+        saveCfg(view, () => set(n));
+        if (o.migrates) void migrateDateSerials(view, key, before, cfg);
+        changed();
+        o.onDone?.();
+      });
+    });
+  };
   if (cfg.system) {
     const sys = cfg.system;
     let renderMonthNames = (): void => undefined;
-    // Number fields commit on change (blur/Enter), NOT per keystroke: a
-    // half-typed "1" of "13" must never trigger a destructive re-encode.
-    const numRow = (name: string, get: () => number, set: (n: number) => void, o: { redraw?: boolean; migrates?: boolean }): void => {
-      new Setting(c).setName(name).addText((tx) => {
-        tx.inputEl.type = "number";
-        tx.setValue(String(get()));
-        tx.inputEl.addEventListener("change", () => {
-          const n = Math.max(1, Math.floor(Number(tx.getValue())));
-          if (!Number.isFinite(n) || n === get()) return;
-          const before = snapshotCfg(cfg);
-          saveCfg(view, () => set(n));
-          if (o.migrates) void migrateDateSerials(view, key, before, cfg);
-          changed();
-          if (o.redraw) renderMonthNames();
-        });
-      });
-    };
-    numRow(t("options.months"), () => sys.months, (n) => (sys.months = n), { redraw: true, migrates: true });
+    numRow(t("options.months"), () => sys.months, (n) => (sys.months = n), { migrates: true, onDone: () => renderMonthNames() });
     numRow(t("options.daysPerMonth"), () => sys.daysPerMonth, (n) => (sys.daysPerMonth = n), { migrates: true });
     numRow(t("options.daysPerWeek"), () => sys.daysPerWeek, (n) => (sys.daysPerWeek = n), {});
     const box = c.createDiv({ cls: "ep-monthnames" });
@@ -457,6 +457,29 @@ function renderOptions(octx: OptionsCtx): void {
       }
     };
     renderMonthNames();
+  }
+
+  // -- time of day (shared per property) --------------------------------------
+  // Enabling/disabling time changes the serial resolution (day <-> minute),
+  // so both directions re-encode every note, as do the custom counts.
+  new Setting(c)
+    .setName(t("options.time"))
+    .setDesc(t("options.timeDesc"))
+    .addToggle((tg) => {
+      tg.setValue(!!cfg.time).onChange((v) => {
+        const before = snapshotCfg(cfg);
+        saveCfg(view, () => {
+          cfg.time = v ? { hoursPerDay: 24, minutesPerHour: 60 } : undefined;
+        });
+        void migrateDateSerials(view, key, before, cfg);
+        changed();
+        octx.redraw();
+      });
+    });
+  if (cfg.time) {
+    const tm = cfg.time;
+    numRow(t("options.hoursPerDay"), () => tm.hoursPerDay, (n) => (tm.hoursPerDay = n), { migrates: true });
+    numRow(t("options.minutesPerHour"), () => tm.minutesPerHour, (n) => (tm.minutesPerHour = n), { migrates: true });
   }
 
   // -- era pool (shared per property) ----------------------------------------

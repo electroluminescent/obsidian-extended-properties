@@ -994,4 +994,6 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-dateplot-pop .ep-dateplot-pop-when { padding: 2px 8px 4px; font-size: var(--font-ui-smaller); color: var(--text-muted); border-bottom: 1px solid var(--background-modifier-border); margin-bottom: 2px; }
 .ep-dateplot-pop .ep-pop-row { cursor: pointer; }
 .ep-dateplot-ticks { position: absolute; inset: 0; }
-.ep-dateplot-marker { position: absolute; top: 1px; width: 6px; height: 12px; margin-left: -3px; border-radius: 3px; background: var(--interactive-accent); z-index: 1; }
+.ep-dateplot-marker { position: absolute; top: 1px; width: 6px; height: 12px; margin-left: -3px; border-radius: 3px; background: var(--interactive-accent); z-index: 1; pointer-events: none; }
+/* Rows created by responsive column flow get a clear divide (both modes). */
+.ep-grid.ep-mode-columns > .ep-rowflow, .ep-grid.ep-mode-grid > .ep-rowflow { border-top: 2px solid var(--background-modifier-border-hover); padding-top: 8px; margin-top: 4px; }

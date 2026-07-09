@@ -245,13 +245,13 @@ var en_default = {
   "type.rating": "rating",
   "type.link": "link",
   "type.unit": "unit",
-  "type.datetime": "date/time",
+  "type.datetime": "date/time (legacy)",
   "type.date": "date",
   "feature.date": "Dates (custom calendars)",
   "feature.dateDesc": "The date value type with per-property formats, custom calendars and era pools.",
   "options.dateHeading": "Date",
   "options.dateFormat": "Format",
-  "options.dateFormatDesc": "Shared by every instance of this property. Tokens: YYYY/Y year, MM/M month, MMMM/MMM month name, DD/D day, E era suffix. E.g. MM/DD/YYYY or D MMMM, Y E. Input is lenient: month names (full, short or prefixed), reordered numeric dates and pooled era suffixes translate even when they don't match this format; values always display in it.",
+  "options.dateFormatDesc": "Shared by every instance of this property. Tokens: YYYY/Y year, MM/M month, MMMM/MMM month name, DD/D day, HH/H hour, mm/m minute, E era suffix. E.g. MM/DD/YYYY or D MMMM, Y E HH:mm. Input is lenient: month names (full, short or prefixed), reordered numeric dates, an H:MM time and pooled era suffixes translate even when they don't match this format; values always display in it.",
   "options.datePlot": "Show timeline plot",
   "options.datePlotDesc": "Where the slider would be, plot every other note's value for this property as reference points; this note is the marker. Hover a point to see its notes; click a name to open it (Ctrl/Cmd: new tab). The plot never changes the value.",
   "options.dateRangeAuto": "In the property's format. Blank = the earliest/latest value across all notes.",
@@ -260,6 +260,10 @@ var en_default = {
   "options.months": "Months per year",
   "options.daysPerMonth": "Days per month",
   "options.daysPerWeek": "Days per week",
+  "options.time": "Time of day",
+  "options.timeDesc": "Add hours and minutes to this property (shared by all notes). Serials re-encode at minute resolution; turning it off re-encodes back to days.",
+  "options.hoursPerDay": "Hours per day",
+  "options.minutesPerHour": "Minutes per hour",
   "options.monthName": "Month {n} name",
   "options.eraPool": "Era suffixes",
   "options.eraPoolDesc": "The pool offered by the era chip (e.g. BCE, CE), oldest first. Each note picks its own; typing a new suffix when editing a value adds it here. Removing an era re-encodes stored values (affected notes fall back to no era).",
@@ -704,7 +708,7 @@ var en_default = {
   "feature.unit": "Units",
   "feature.unitDesc": "The number-with-unit value type.",
   "feature.datetime": "Dates & times",
-  "feature.datetimeDesc": "The date and time value type.",
+  "feature.datetimeDesc": "The legacy native-picker date/time value type. Deprecated: superseded by the date type (custom calendars, eras, time). Existing properties keep rendering.",
   "feature.table": "Type table view",
   "feature.tableDesc": "The table listing every note of a type: ribbon icon, command and view.",
   "feature.sticky": "Section pinning",
@@ -5890,6 +5894,10 @@ function relativeDays(i18n, d) {
 var datetimeType = {
   id: "datetime",
   name: (i18n) => i18n.t("type.datetime"),
+  // Superseded by the "date" type (custom calendars, eras, time systems,
+  // serial storage). Existing datetime properties keep rendering; the type
+  // is no longer offered for new properties.
+  deprecated: true,
   render(ctx2) {
     const { view, file, entry } = ctx2;
     const key = entry.key;
@@ -5979,11 +5987,19 @@ function systemOf(cfg) {
     monthNames: (_a = s.monthNames) != null ? _a : []
   };
 }
+var timeOn = (cfg) => !!cfg.time;
+function timeOf(cfg) {
+  var _a, _b, _c, _d;
+  return {
+    hoursPerDay: Math.max(1, Math.floor((_b = (_a = cfg.time) == null ? void 0 : _a.hoursPerDay) != null ? _b : 24) || 1),
+    minutesPerHour: Math.max(1, Math.floor((_d = (_c = cfg.time) == null ? void 0 : _c.minutesPerHour) != null ? _d : 60) || 1)
+  };
+}
 function monthName(sys, m) {
   var _a;
   return ((_a = sys.monthNames[m - 1]) != null ? _a : "").trim() || `Month ${m}`;
 }
-var TOKENS = ["YYYY", "MMMM", "MMM", "MM", "DD", "Y", "M", "D", "E"];
+var TOKENS = ["YYYY", "MMMM", "MMM", "MM", "DD", "HH", "mm", "Y", "M", "D", "H", "m", "E"];
 function formatPieces(format) {
   const out = [];
   let i = 0;
@@ -6003,7 +6019,7 @@ function formatPieces(format) {
   return out;
 }
 function formatDate(parts, cfg) {
-  var _a;
+  var _a, _b, _c, _d, _e;
   const sys = systemOf(cfg);
   const pad = (n, w) => String(Math.abs(n)).padStart(w, "0");
   let pieces = formatPieces(cfg.format);
@@ -6044,8 +6060,20 @@ function formatDate(parts, cfg) {
       case "D":
         out += String(parts.day);
         break;
+      case "HH":
+        out += pad((_a = parts.hour) != null ? _a : 0, 2);
+        break;
+      case "H":
+        out += String((_b = parts.hour) != null ? _b : 0);
+        break;
+      case "mm":
+        out += pad((_c = parts.minute) != null ? _c : 0, 2);
+        break;
+      case "m":
+        out += String((_d = parts.minute) != null ? _d : 0);
+        break;
       case "E":
-        out += (_a = parts.era) != null ? _a : "";
+        out += (_e = parts.era) != null ? _e : "";
         break;
     }
   }
@@ -6124,7 +6152,9 @@ function parseDate(text, cfg) {
       } else if (tok === "MM" || tok === "M") {
         parts.month = n;
         sawMonth = true;
-      } else {
+      } else if (tok === "HH" || tok === "H") parts.hour = n;
+      else if (tok === "mm" || tok === "m") parts.minute = n;
+      else {
         parts.day = n;
         sawDay = true;
       }
@@ -6132,13 +6162,17 @@ function parseDate(text, cfg) {
   }
   if (sawMonth && (parts.month < 1 || parts.month > sys.months)) return null;
   if (sawDay && (parts.day < 1 || parts.day > sys.daysPerMonth)) return null;
+  const tm = timeOf(cfg);
+  if (parts.hour !== void 0 && (parts.hour < 0 || parts.hour >= tm.hoursPerDay)) return null;
+  if (parts.minute !== void 0 && (parts.minute < 0 || parts.minute >= tm.minutesPerHour)) return null;
   if (!sawYear && !sawMonth && !sawDay) return null;
   return parts;
 }
-var ERA_SPAN = 2e10;
-var ERA_HALF = 1e10;
+var ERA_SPAN_DAY = 2e10;
+var ERA_SPAN_MIN = 2e12;
+var eraSpanOf = (cfg) => timeOn(cfg) ? ERA_SPAN_MIN : ERA_SPAN_DAY;
 function encodeSerial(parts, cfg) {
-  var _a;
+  var _a, _b, _c;
   const sys = systemOf(cfg);
   const eras = (_a = cfg.eras) != null ? _a : [];
   let eraIdx = 0;
@@ -6146,29 +6180,49 @@ function encodeSerial(parts, cfg) {
     const i = eras.findIndex((e) => e.toLowerCase() === parts.era.toLowerCase());
     eraIdx = i >= 0 ? i + 1 : eras.length + 1;
   }
-  const d = (parts.year * sys.months + (parts.month - 1)) * sys.daysPerMonth + (parts.day - 1);
-  const day = Math.max(-ERA_HALF + 1, Math.min(ERA_HALF - 1, d));
-  return eraIdx * ERA_SPAN + day;
+  let d = (parts.year * sys.months + (parts.month - 1)) * sys.daysPerMonth + (parts.day - 1);
+  if (timeOn(cfg)) {
+    const tm = timeOf(cfg);
+    d = d * tm.hoursPerDay * tm.minutesPerHour + ((_b = parts.hour) != null ? _b : 0) * tm.minutesPerHour + ((_c = parts.minute) != null ? _c : 0);
+  }
+  const span = eraSpanOf(cfg);
+  const half = span / 2;
+  const idx = Math.max(-half + 1, Math.min(half - 1, d));
+  return eraIdx * span + idx;
 }
 function decodeSerial(serial, cfg) {
   var _a;
   if (!Number.isFinite(serial)) return null;
   const sys = systemOf(cfg);
   const eras = (_a = cfg.eras) != null ? _a : [];
-  const eraIdx = Math.round(serial / ERA_SPAN);
-  const d = Math.round(serial - eraIdx * ERA_SPAN);
+  const span = eraSpanOf(cfg);
+  const eraIdx = Math.round(serial / span);
+  let d = Math.round(serial - eraIdx * span);
+  let hour;
+  let minute;
+  if (timeOn(cfg)) {
+    const tm = timeOf(cfg);
+    const perDay = tm.hoursPerDay * tm.minutesPerHour;
+    const dayIdx = Math.floor(d / perDay);
+    const t = d - dayIdx * perDay;
+    hour = Math.floor(t / tm.minutesPerHour);
+    minute = t % tm.minutesPerHour;
+    d = dayIdx;
+  }
   const perYear = sys.months * sys.daysPerMonth;
   const year = Math.floor(d / perYear);
   const rem = d - year * perYear;
   const month = Math.floor(rem / sys.daysPerMonth) + 1;
   const day = rem % sys.daysPerMonth + 1;
   const parts = { year, month, day };
+  if (hour !== void 0) parts.hour = hour;
+  if (minute !== void 0) parts.minute = minute;
   const era = eraIdx > 0 ? eras[eraIdx - 1] : void 0;
   if (era) parts.era = era;
   return parts;
 }
 function translateSerial(serial, before, after) {
-  var _a;
+  var _a, _b, _c;
   const p = decodeSerial(serial, before);
   if (!p) return serial;
   const sys = systemOf(after);
@@ -6177,7 +6231,12 @@ function translateSerial(serial, before, after) {
     month: Math.min(Math.max(1, p.month), sys.months),
     day: Math.min(Math.max(1, p.day), sys.daysPerMonth)
   };
-  if (p.era && ((_a = after.eras) != null ? _a : []).some((e) => e.toLowerCase() === p.era.toLowerCase())) q.era = p.era;
+  if (timeOn(after)) {
+    const tm = timeOf(after);
+    q.hour = Math.min(Math.max(0, (_a = p.hour) != null ? _a : 0), tm.hoursPerDay - 1);
+    q.minute = Math.min(Math.max(0, (_b = p.minute) != null ? _b : 0), tm.minutesPerHour - 1);
+  }
+  if (p.era && ((_c = after.eras) != null ? _c : []).some((e) => e.toLowerCase() === p.era.toLowerCase())) q.era = p.era;
   return encodeSerial(q, after);
 }
 function tokenOrder(cfg) {
@@ -6211,6 +6270,19 @@ function parseDateFlexible(text, cfg) {
       break;
     }
   }
+  let hour;
+  let minute;
+  const tmatch = /(\d{1,2}):(\d{1,2})/.exec(s);
+  if (tmatch) {
+    const tm = timeOf(cfg);
+    const h = parseInt(tmatch[1], 10);
+    const mi = parseInt(tmatch[2], 10);
+    if (h < 0 || h >= tm.hoursPerDay || mi < 0 || mi >= tm.minutesPerHour) return null;
+    hour = h;
+    minute = mi;
+    s = (s.slice(0, tmatch.index) + " " + s.slice(tmatch.index + tmatch[0].length)).trim();
+    if (!s) return null;
+  }
   const tokens = s.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
   const nums = [];
   const words = [];
@@ -6220,7 +6292,12 @@ function parseDateFlexible(text, cfg) {
   }
   const order = tokenOrder(cfg);
   const withEra = (p) => {
-    if (p && era) p.era = era;
+    if (!p) return p;
+    if (era) p.era = era;
+    if (hour !== void 0) {
+      p.hour = hour;
+      p.minute = minute;
+    }
     return p;
   };
   if (words.length === 1) {
@@ -6576,25 +6653,26 @@ function renderOptions2(octx) {
       octx.redraw();
     });
   });
+  const numRow = (name, get, set, o) => {
+    new import_obsidian18.Setting(c).setName(name).addText((tx) => {
+      tx.inputEl.type = "number";
+      tx.setValue(String(get()));
+      tx.inputEl.addEventListener("change", () => {
+        var _a;
+        const n = Math.max(1, Math.floor(Number(tx.getValue())));
+        if (!Number.isFinite(n) || n === get()) return;
+        const before = snapshotCfg(cfg);
+        saveCfg(view, () => set(n));
+        if (o.migrates) void migrateDateSerials(view, key, before, cfg);
+        changed();
+        (_a = o.onDone) == null ? void 0 : _a.call(o);
+      });
+    });
+  };
   if (cfg.system) {
     const sys = cfg.system;
     let renderMonthNames = () => void 0;
-    const numRow = (name, get, set, o) => {
-      new import_obsidian18.Setting(c).setName(name).addText((tx) => {
-        tx.inputEl.type = "number";
-        tx.setValue(String(get()));
-        tx.inputEl.addEventListener("change", () => {
-          const n = Math.max(1, Math.floor(Number(tx.getValue())));
-          if (!Number.isFinite(n) || n === get()) return;
-          const before = snapshotCfg(cfg);
-          saveCfg(view, () => set(n));
-          if (o.migrates) void migrateDateSerials(view, key, before, cfg);
-          changed();
-          if (o.redraw) renderMonthNames();
-        });
-      });
-    };
-    numRow(t("options.months"), () => sys.months, (n) => sys.months = n, { redraw: true, migrates: true });
+    numRow(t("options.months"), () => sys.months, (n) => sys.months = n, { migrates: true, onDone: () => renderMonthNames() });
     numRow(t("options.daysPerMonth"), () => sys.daysPerMonth, (n) => sys.daysPerMonth = n, { migrates: true });
     numRow(t("options.daysPerWeek"), () => sys.daysPerWeek, (n) => sys.daysPerWeek = n, {});
     const box = c.createDiv({ cls: "ep-monthnames" });
@@ -6616,6 +6694,22 @@ function renderOptions2(octx) {
       }
     };
     renderMonthNames();
+  }
+  new import_obsidian18.Setting(c).setName(t("options.time")).setDesc(t("options.timeDesc")).addToggle((tg) => {
+    tg.setValue(!!cfg.time).onChange((v) => {
+      const before = snapshotCfg(cfg);
+      saveCfg(view, () => {
+        cfg.time = v ? { hoursPerDay: 24, minutesPerHour: 60 } : void 0;
+      });
+      void migrateDateSerials(view, key, before, cfg);
+      changed();
+      octx.redraw();
+    });
+  });
+  if (cfg.time) {
+    const tm = cfg.time;
+    numRow(t("options.hoursPerDay"), () => tm.hoursPerDay, (n) => tm.hoursPerDay = n, { migrates: true });
+    numRow(t("options.minutesPerHour"), () => tm.minutesPerHour, (n) => tm.minutesPerHour = n, { migrates: true });
   }
   new import_obsidian18.Setting(c).setName(t("options.eraPool")).setDesc(t("options.eraPoolDesc")).setHeading();
   const eraBox = c.createDiv({ cls: "ep-erapool" });
@@ -9326,7 +9420,7 @@ var PopupManager = class {
     if (!key) return;
     const existing = view.note.raw[key];
     const isList = Array.isArray(value) || Array.isArray(existing);
-    const entry = { id: genId(), kind: "prop", key, dataType: isList ? "list" : view.deriveType(key) };
+    const entry = { id: genId(), kind: "prop", key, dataType: isList ? "list" : view.deriveType(key), hideIfEmpty: false };
     let idx = (_a = target == null ? void 0 : target.index) != null ? _a : section.entries.length;
     if (target == null ? void 0 : target.replaceId) {
       const ri = section.entries.findIndex((e) => e.id === target.replaceId);
@@ -10138,7 +10232,8 @@ var SidebarView = class extends import_obsidian28.ItemView {
       } catch (e) {
       }
     }
-    entry.dataType = this.deriveType(newKey);
+    entry.dataType = Array.isArray(this.note.raw[newKey]) ? "list" : this.deriveType(newKey);
+    entry.hideIfEmpty = false;
     this.saveLayout();
     this.render();
   }
@@ -10487,6 +10582,14 @@ var SidebarView = class extends import_obsidian28.ItemView {
               cols--;
               cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
             }
+            const flowed = cols < ncol;
+            const cells = [];
+            for (const child of Array.from(cgrid.children)) {
+              if (child.instanceOf(HTMLElement)) cells.push(child);
+            }
+            let firstTop = Infinity;
+            for (const el2 of cells) firstTop = Math.min(firstTop, el2.offsetTop);
+            for (const el2 of cells) el2.toggleClass("ep-rowflow", flowed && el2.offsetTop > firstTop + 1);
           };
         }
       }
@@ -14876,10 +14979,12 @@ function findPropEntry(layout, key) {
   return null;
 }
 var InlineViewCtx = class {
-  constructor(ctx2, target, layout, mount, redraw) {
+  constructor(ctx2, target, layout, mount, redraw, srcFile = null, srcBody = "") {
     this.ctx = ctx2;
     this.target = target;
     this.redraw = redraw;
+    this.srcFile = srcFile;
+    this.srcBody = srcBody;
     this.hub = new ServiceHub();
     this.editMode = false;
     this.activeTypeKey = null;
@@ -15012,9 +15117,30 @@ var InlineViewCtx = class {
   }
   // -- structural ops (a single inline card has no layout) --------------------
   renameKey(entry, newKey) {
+    newKey = newKey.trim();
+    if (!newKey || newKey === entry.key) return;
+    const oldBody = this.srcBody;
+    const store = this.ctx.settings.inlineEntries;
+    if (store && entry.id.startsWith("ep-inline:")) {
+      const oldId = entry.id.slice("ep-inline:".length);
+      const noteRef = oldBody ? parseNoteRef(oldBody) : null;
+      const newId = ((noteRef == null ? void 0 : noteRef.accessor) ? noteRef.link.toLowerCase() + "/" : "") + newKey.toLowerCase();
+      if (oldId !== newId) {
+        delete store[oldId];
+        entry.id = "ep-inline:" + newId;
+        store[newId] = entry;
+      }
+    }
     entry.key = newKey;
     delete entry.dataType;
     this.ctx.save();
+    if (this.srcFile && oldBody) {
+      const noteRef = parseNoteRef(oldBody);
+      const newBody = (noteRef == null ? void 0 : noteRef.accessor) ? oldBody.slice(0, oldBody.length - noteRef.accessor.length) + newKey : newKey;
+      const escRe = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const re = new RegExp("(`(?:vals|val)\\s*:\\s*)" + escRe(oldBody) + "(\\s*`)", "g");
+      void this.app.vault.process(this.srcFile, (text) => text.replace(re, "$1" + newBody.replace(/\$/g, "$$$$") + "$2"));
+    }
   }
   removeEntry() {
   }
@@ -15054,7 +15180,7 @@ function makeValsEl(ctx2, file, body, onEditSource) {
         ref = noteRef.accessor;
       }
       const layout = layoutForFile(ctx2, target);
-      view = new InlineViewCtx(ctx2, target, layout, wrap, draw);
+      view = new InlineViewCtx(ctx2, target, layout, wrap, draw, file, body);
       const key = (_a = keyForShortForm(ctx2.settings, ref, Object.keys(view.note.raw))) != null ? _a : ref;
       const inLayout = layout ? findPropEntry(layout, key) : null;
       if (inLayout) {

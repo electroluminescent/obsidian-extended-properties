@@ -23,23 +23,35 @@ export interface DateSystem {
   monthNames: string[];
 }
 
+/** Optional time-of-day system (enables minute-resolution serials). */
+export interface TimeSystem {
+  /** Hours per day. */
+  hoursPerDay: number;
+  /** Minutes per hour. */
+  minutesPerHour: number;
+}
+
 /** Per-property (vault-shared) date configuration. */
 export interface DateConfig {
-  /** Display/parse format, e.g. "MM/DD/YYYY" or "D MMMM, Y E". */
+  /** Display/parse format, e.g. "MM/DD/YYYY" or "D MMMM, Y E HH:mm". */
   format: string;
   /** Custom calendar; unset = standard months/names. */
   system?: DateSystem;
   /** Era suffix pool (e.g. ["BCE", "CE"]), oldest first. */
   eras?: string[];
+  /** Time of day; unset = dates only (day-resolution serials). */
+  time?: TimeSystem;
 }
 
-/** A parsed date. Month and day are 1-based. */
+/** A parsed date. Month and day are 1-based; hour/minute are 0-based. */
 export interface DateParts {
   year: number;
   month: number;
   day: number;
   /** Era suffix as written (may be absent even when the pool isn't empty). */
   era?: string;
+  hour?: number;
+  minute?: number;
 }
 
 export const DEFAULT_DATE_FORMAT = "YYYY-MM-DD";
@@ -66,13 +78,24 @@ export function systemOf(cfg: DateConfig): DateSystem {
   };
 }
 
+/** Whether the config carries a time-of-day system. */
+export const timeOn = (cfg: DateConfig): boolean => !!cfg.time;
+
+/** The effective time system (defaults 24/60), sanitized. */
+export function timeOf(cfg: DateConfig): TimeSystem {
+  return {
+    hoursPerDay: Math.max(1, Math.floor(cfg.time?.hoursPerDay ?? 24) || 1),
+    minutesPerHour: Math.max(1, Math.floor(cfg.time?.minutesPerHour ?? 60) || 1),
+  };
+}
+
 /** Name of 1-based month `m` under `sys` ("Month N" past the named ones). */
 export function monthName(sys: DateSystem, m: number): string {
   return (sys.monthNames[m - 1] ?? "").trim() || `Month ${m}`;
 }
 
 /** Format tokens, longest first so "MMMM" wins over "MM". */
-const TOKENS = ["YYYY", "MMMM", "MMM", "MM", "DD", "Y", "M", "D", "E"] as const;
+const TOKENS = ["YYYY", "MMMM", "MMM", "MM", "DD", "HH", "mm", "Y", "M", "D", "H", "m", "E"] as const;
 type Token = (typeof TOKENS)[number];
 
 interface FormatPiece {
@@ -125,6 +148,10 @@ export function formatDate(parts: DateParts, cfg: DateConfig): string {
       case "MMM": out += monthName(sys, parts.month).slice(0, 3); break;
       case "DD": out += pad(parts.day, 2); break;
       case "D": out += String(parts.day); break;
+      case "HH": out += pad(parts.hour ?? 0, 2); break;
+      case "H": out += String(parts.hour ?? 0); break;
+      case "mm": out += pad(parts.minute ?? 0, 2); break;
+      case "m": out += String(parts.minute ?? 0); break;
       case "E": out += parts.era ?? ""; break;
     }
   }
@@ -214,12 +241,17 @@ export function parseDate(text: string, cfg: DateConfig): DateParts | null {
       if (!Number.isFinite(n)) return null;
       if (tok === "YYYY" || tok === "Y") { parts.year = n; sawYear = true; }
       else if (tok === "MM" || tok === "M") { parts.month = n; sawMonth = true; }
+      else if (tok === "HH" || tok === "H") parts.hour = n;
+      else if (tok === "mm" || tok === "m") parts.minute = n;
       else { parts.day = n; sawDay = true; }
     }
   }
   // Range checks for the parts the format actually captured.
   if (sawMonth && (parts.month < 1 || parts.month > sys.months)) return null;
   if (sawDay && (parts.day < 1 || parts.day > sys.daysPerMonth)) return null;
+  const tm = timeOf(cfg);
+  if (parts.hour !== undefined && (parts.hour < 0 || parts.hour >= tm.hoursPerDay)) return null;
+  if (parts.minute !== undefined && (parts.minute < 0 || parts.minute >= tm.minutesPerHour)) return null;
   if (!sawYear && !sawMonth && !sawDay) return null;
   return parts;
 }
@@ -242,9 +274,17 @@ export function dateSerial(parts: DateParts, cfg: DateConfig): number {
 // day, era - survives the change, clamped to the closest representable date
 // when the new system is smaller.
 
-/** One era occupies this span; day indexes stay within half of it. */
-const ERA_SPAN = 2e10;
-const ERA_HALF = 1e10;
+/**
+ * One era occupies this span; indexes stay within half of it. Time-enabled
+ * configs store MINUTE-resolution indexes, which need more headroom - and
+ * a different span cannot collide with day-resolution values because
+ * enabling/disabling time is a config change that re-encodes every note
+ * (translateSerial via the settings migration).
+ */
+const ERA_SPAN_DAY = 2e10;
+const ERA_SPAN_MIN = 2e12;
+
+const eraSpanOf = (cfg: DateConfig): number => (timeOn(cfg) ? ERA_SPAN_MIN : ERA_SPAN_DAY);
 
 /** Encode parts as a storable integer under the config's system and eras. */
 export function encodeSerial(parts: DateParts, cfg: DateConfig): number {
@@ -255,9 +295,15 @@ export function encodeSerial(parts: DateParts, cfg: DateConfig): number {
     const i = eras.findIndex((e) => e.toLowerCase() === parts.era!.toLowerCase());
     eraIdx = i >= 0 ? i + 1 : eras.length + 1;
   }
-  const d = (parts.year * sys.months + (parts.month - 1)) * sys.daysPerMonth + (parts.day - 1);
-  const day = Math.max(-ERA_HALF + 1, Math.min(ERA_HALF - 1, d));
-  return eraIdx * ERA_SPAN + day;
+  let d = (parts.year * sys.months + (parts.month - 1)) * sys.daysPerMonth + (parts.day - 1);
+  if (timeOn(cfg)) {
+    const tm = timeOf(cfg);
+    d = d * tm.hoursPerDay * tm.minutesPerHour + (parts.hour ?? 0) * tm.minutesPerHour + (parts.minute ?? 0);
+  }
+  const span = eraSpanOf(cfg);
+  const half = span / 2;
+  const idx = Math.max(-half + 1, Math.min(half - 1, d));
+  return eraIdx * span + idx;
 }
 
 /**
@@ -269,14 +315,28 @@ export function decodeSerial(serial: number, cfg: DateConfig): DateParts | null 
   if (!Number.isFinite(serial)) return null;
   const sys = systemOf(cfg);
   const eras = cfg.eras ?? [];
-  const eraIdx = Math.round(serial / ERA_SPAN);
-  const d = Math.round(serial - eraIdx * ERA_SPAN);
+  const span = eraSpanOf(cfg);
+  const eraIdx = Math.round(serial / span);
+  let d = Math.round(serial - eraIdx * span);
+  let hour: number | undefined;
+  let minute: number | undefined;
+  if (timeOn(cfg)) {
+    const tm = timeOf(cfg);
+    const perDay = tm.hoursPerDay * tm.minutesPerHour;
+    const dayIdx = Math.floor(d / perDay);
+    const t = d - dayIdx * perDay;
+    hour = Math.floor(t / tm.minutesPerHour);
+    minute = t % tm.minutesPerHour;
+    d = dayIdx;
+  }
   const perYear = sys.months * sys.daysPerMonth;
   const year = Math.floor(d / perYear);
   const rem = d - year * perYear;
   const month = Math.floor(rem / sys.daysPerMonth) + 1;
   const day = (rem % sys.daysPerMonth) + 1;
   const parts: DateParts = { year, month, day };
+  if (hour !== undefined) parts.hour = hour;
+  if (minute !== undefined) parts.minute = minute;
   const era = eraIdx > 0 ? eras[eraIdx - 1] : undefined;
   if (era) parts.era = era;
   return parts;
@@ -297,6 +357,11 @@ export function translateSerial(serial: number, before: DateConfig, after: DateC
     month: Math.min(Math.max(1, p.month), sys.months),
     day: Math.min(Math.max(1, p.day), sys.daysPerMonth),
   };
+  if (timeOn(after)) {
+    const tm = timeOf(after);
+    q.hour = Math.min(Math.max(0, p.hour ?? 0), tm.hoursPerDay - 1);
+    q.minute = Math.min(Math.max(0, p.minute ?? 0), tm.minutesPerHour - 1);
+  }
   if (p.era && (after.eras ?? []).some((e) => e.toLowerCase() === p.era!.toLowerCase())) q.era = p.era;
   return encodeSerial(q, after);
 }
@@ -360,6 +425,21 @@ export function parseDateFlexible(text: string, cfg: DateConfig): DateParts | nu
     }
   }
 
+  // Time of day: one "H:MM" group anywhere is hour:minute.
+  let hour: number | undefined;
+  let minute: number | undefined;
+  const tmatch = /(\d{1,2}):(\d{1,2})/.exec(s);
+  if (tmatch) {
+    const tm = timeOf(cfg);
+    const h = parseInt(tmatch[1], 10);
+    const mi = parseInt(tmatch[2], 10);
+    if (h < 0 || h >= tm.hoursPerDay || mi < 0 || mi >= tm.minutesPerHour) return null;
+    hour = h;
+    minute = mi;
+    s = (s.slice(0, tmatch.index) + " " + s.slice(tmatch.index + tmatch[0].length)).trim();
+    if (!s) return null;
+  }
+
   // Tokenize into words and numbers (any separator).
   const tokens = s.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
   const nums: number[] = [];
@@ -370,7 +450,12 @@ export function parseDateFlexible(text: string, cfg: DateConfig): DateParts | nu
   }
   const order = tokenOrder(cfg);
   const withEra = (p: DateParts | null): DateParts | null => {
-    if (p && era) p.era = era;
+    if (!p) return p;
+    if (era) p.era = era;
+    if (hour !== undefined) {
+      p.hour = hour;
+      p.minute = minute;
+    }
     return p;
   };
 
