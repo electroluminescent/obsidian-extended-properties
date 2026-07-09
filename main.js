@@ -8022,6 +8022,11 @@ function entryFlags(view, file, section, entry) {
 }
 function alignClustersNow(det) {
   var _a;
+  for (const el of det.findAll(".ep-mode-grid .ep-cluster [data-ep-slot], .ep-mode-grid .ep-cluster .ep-num")) {
+    el.setCssStyles({ minWidth: "" });
+    const w = el.offsetWidth;
+    if (w > 0) el.setCssStyles({ minWidth: w + "px" });
+  }
   const groups = /* @__PURE__ */ new Map();
   for (const el of det.findAll(".ep-cluster [data-ep-slot]")) {
     if (el.closest(".ep-mode-grid")) continue;
@@ -9593,7 +9598,9 @@ var SidebarView = class extends import_obsidian27.ItemView {
             return m;
           };
           const gridW = cgrid.clientWidth;
-          const colW = (n) => (gridW - 8 * (n - 1)) / n;
+          const gapPx = parseFloat(window.getComputedStyle(cgrid).columnGap || "0") || 0;
+          const inset = cgrid.hasClass("ep-mode-grid") || cgrid.hasClass("ep-mode-columns") ? 8 : 0;
+          const colW = (n) => (gridW - gapPx * (n - 1)) / n - inset;
           const labelMin = 3.5 * fs + 5;
           const fullNeed = labelMin + maxCluster();
           cgrid.addClass("ep-compact-steppers");

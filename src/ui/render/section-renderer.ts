@@ -55,6 +55,18 @@ function entryFlags(view: ViewCtx, file: TFile, section: Section, entry: Section
  * numbers line up vertically even though every row owns its own grid.
  */
 export function alignClustersNow(det: HTMLElement): void {
+  // Grid cells: pin every cluster cell to its OWN natural width. Aligned
+  // columns get this pinning as a side effect of cross-row alignment - it is
+  // what keeps their tracks from compressing or spilling. Grid cells need the
+  // same rigidity without the cross-cell sharing (that showed as margins), so
+  // each cell is pinned to itself: the value cannot spill under neighbors,
+  // the roll slot cannot drift, and the wrap measurement reads stable widths.
+  for (const el of det.findAll(".ep-mode-grid .ep-cluster [data-ep-slot], .ep-mode-grid .ep-cluster .ep-num")) {
+    el.setCssStyles({ minWidth: "" });
+    const w = el.offsetWidth;
+    if (w > 0) el.setCssStyles({ minWidth: w + "px" });
+  }
+
   const groups = new Map<string, HTMLElement[]>();
   for (const el of det.findAll(".ep-cluster [data-ep-slot]")) {
     // Grid cells share the column cell's ASSEMBLY (.ep-col wrapper), but not

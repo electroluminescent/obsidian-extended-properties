@@ -847,7 +847,12 @@ export class SidebarView extends ItemView implements ViewCtx {
             return m;
           };
           const gridW = cgrid.clientWidth;
-          const colW = (n: number): number => (gridW - 8 * (n - 1)) / n;
+          // Real geometry, not assumptions: the actual grid gap, and the
+          // entry's horizontal padding (the head's content box is that much
+          // narrower than the track) plus a rounding pixel.
+          const gapPx = parseFloat(window.getComputedStyle(cgrid).columnGap || "0") || 0;
+          const inset = cgrid.hasClass("ep-mode-grid") || cgrid.hasClass("ep-mode-columns") ? 8 : 0;
+          const colW = (n: number): number => (gridW - gapPx * (n - 1)) / n - inset;
           const labelMin = 3.5 * fs + 5; // .ep-line-name min-width + the label/cluster gap
           // Grid cells are assembled exactly like column cells (.ep-col
           // wrappers), so both modes measure the same way - no per-mode
