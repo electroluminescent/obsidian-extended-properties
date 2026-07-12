@@ -417,7 +417,7 @@ var en_default = {
   "options.numberHeading": "Number & slider",
   "options.showSlider": "Show slider",
   "options.ratingToggle": "Rating icons",
-  "options.ratingToggleDesc": "Show the value as clickable icons instead of the slider. The icon count is the Maximum above; a negative value (allowed by a negative Minimum) fills the icons red.",
+  "options.ratingToggleDesc": "Show the value as clickable icons instead of the slider. The icon count is the Maximum above; a negative Minimum adds its own red icons left of the positives. There is no zero icon - zero is every icon clicked off.",
   "options.ratingBalance": "Balance rating rows",
   "options.ratingBalanceDesc": "When the icons need several rows, split them evenly (12 icons with room for 10 = 6 + 6). Off = fill each row before wrapping (10 + 2).",
   "options.ratingAlign": "Rating alignment",
@@ -4441,16 +4441,28 @@ function render(kind, ctx2) {
     const setRating = (n) => {
       view.note.set(file, key, clamp(Math.round(n), kmin, count));
     };
+    const negCount = Math.max(0, -kmin);
     const drawRating = () => {
       strip.empty();
       const cur = Math.round(get());
       strip.setAttr("aria-valuenow", String(cur));
-      const fill = Math.min(Math.abs(cur), count);
-      const neg = cur < 0;
-      for (let i = 1; i <= count; i++) {
+      for (let k = negCount; k >= 1; k--) {
+        const kk = k;
         const pip = strip.createSpan({
-          cls: "ep-rating-pip" + (i <= fill ? neg ? " is-on is-neg" : " is-on" : "")
+          cls: "ep-rating-pip pip-neg" + (cur <= -kk ? " is-on is-neg" : "") + (kk === 1 ? " pip-negend" : "")
         });
+        (0, import_obsidian11.setIcon)(pip, icon);
+        pip.setAttr("aria-hidden", "true");
+        pip.onclick = (e2) => {
+          e2.preventDefault();
+          e2.stopPropagation();
+          sfx.tick();
+          setRating(cur === -kk ? -(kk - 1) : -kk);
+        };
+      }
+      const fill = Math.min(Math.max(cur, 0), count);
+      for (let i = 1; i <= count; i++) {
+        const pip = strip.createSpan({ cls: "ep-rating-pip" + (i <= fill ? " is-on" : "") });
         (0, import_obsidian11.setIcon)(pip, icon);
         pip.setAttr("aria-hidden", "true");
         pip.onclick = (e2) => {

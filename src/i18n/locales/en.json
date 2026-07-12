@@ -328,7 +328,7 @@
   "options.numberHeading": "Number & slider",
   "options.showSlider": "Show slider",
   "options.ratingToggle": "Rating icons",
-  "options.ratingToggleDesc": "Show the value as clickable icons instead of the slider. The icon count is the Maximum above; a negative value (allowed by a negative Minimum) fills the icons red.",
+  "options.ratingToggleDesc": "Show the value as clickable icons instead of the slider. The icon count is the Maximum above; a negative Minimum adds its own red icons left of the positives. There is no zero icon - zero is every icon clicked off.",
   "options.ratingBalance": "Balance rating rows",
   "options.ratingBalanceDesc": "When the icons need several rows, split them evenly (12 icons with room for 10 = 6 + 6). Off = fill each row before wrapping (10 + 2).",
   "options.ratingAlign": "Rating alignment",

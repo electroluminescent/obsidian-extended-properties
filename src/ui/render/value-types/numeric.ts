@@ -196,16 +196,32 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
     const setRating = (n: number): void => {
       view.note.set(file, key, clamp(Math.round(n), kmin, count));
     };
+    // A negative Minimum adds its own icons LEFT of the positives (number
+    // line order); the icon for -k fills red once the value reaches -k.
+    // There is no zero icon: zero is every icon clicked off.
+    const negCount = Math.max(0, -kmin);
     const drawRating = (): void => {
       strip.empty();
       const cur = Math.round(get());
       strip.setAttr("aria-valuenow", String(cur));
-      const fill = Math.min(Math.abs(cur), count);
-      const neg = cur < 0;
-      for (let i = 1; i <= count; i++) {
+      for (let k = negCount; k >= 1; k--) {
+        const kk = k;
         const pip = strip.createSpan({
-          cls: "ep-rating-pip" + (i <= fill ? (neg ? " is-on is-neg" : " is-on") : ""),
+          cls: "ep-rating-pip pip-neg" + (cur <= -kk ? " is-on is-neg" : "") + (kk === 1 ? " pip-negend" : ""),
         });
+        setIcon(pip, icon);
+        pip.setAttr("aria-hidden", "true");
+        pip.onclick = (e2) => {
+          e2.preventDefault();
+          e2.stopPropagation();
+          sfx.tick();
+          // Clicking the current magnitude steps back toward zero.
+          setRating(cur === -kk ? -(kk - 1) : -kk);
+        };
+      }
+      const fill = Math.min(Math.max(cur, 0), count);
+      for (let i = 1; i <= count; i++) {
+        const pip = strip.createSpan({ cls: "ep-rating-pip" + (i <= fill ? " is-on" : "") });
         setIcon(pip, icon);
         pip.setAttr("aria-hidden", "true");
         pip.onclick = (e2) => {
