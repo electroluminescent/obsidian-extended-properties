@@ -158,6 +158,7 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
     const count = Math.min(1000, Math.max(1, Math.round(Number.isFinite(emax) ? emax : 5)));
     const kmin = Math.round(entry.min ?? 0);
     const strip = ctx.extra.createDiv({ cls: "ep-rating ep-rating-strip ep-ralign-" + align });
+    if (entry.ratingFill) strip.addClass("ep-rating-fill");
     if (entry.valueColor) strip.setCssStyles({ color: entry.valueColor });
     // Balanced mode: rows = what the width forces, icons split evenly across
     // them (12 icons with room for 10 = 6 + 6, not 10 + 2). Flex row breaks
@@ -370,6 +371,15 @@ function renderOptions(kind: NumericKind, octx: OptionsCtx): void {
         .addToggle((tg) => {
           tg.setValue(!!entry.ratingBalance).onChange((v) => {
             entry.ratingBalance = v || undefined;
+            changed();
+          });
+        });
+      new Setting(c)
+        .setName(t("options.ratingFill"))
+        .setDesc(t("options.ratingFillDesc"))
+        .addToggle((tg) => {
+          tg.setValue(!!entry.ratingFill).onChange((v) => {
+            entry.ratingFill = v || undefined;
             changed();
           });
         });

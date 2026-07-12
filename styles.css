@@ -1016,3 +1016,6 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-hide-value .ep-cluster .ep-num { display: none; }
 .ep-hide-value .ep-val-right .ep-editable, .ep-hide-value .ep-val-right .ep-num,
 .ep-hide-value .ep-dateval .ep-editable, .ep-hide-value .ep-date-rel, .ep-hide-value .ep-unit-suffix { display: none; }
+
+/* Rating: solid icon fill (where the glyph supports it). */
+.ep-rating-strip.ep-rating-fill .ep-rating-pip svg { fill: currentColor; }

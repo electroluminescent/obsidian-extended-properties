@@ -82,6 +82,8 @@ export interface EntryBase {
   ratingBalance?: boolean;
   /** Rating icon justification: left (default), center, right, space. */
   ratingAlign?: "left" | "center" | "right" | "space";
+  /** Rating: fill the icon glyphs solid (where the icon supports it). */
+  ratingFill?: boolean;
   /** false = hide the textual value (universal; controls stay). */
   showValue?: boolean;
 
@@ -156,6 +158,8 @@ export interface Section {
    * content unreachable on a small window.
    */
   pin?: SectionPin;
+  /** Grid: hide fully-empty leading/trailing rows outside edit mode. */
+  trimEmptyRows?: boolean;
   /** Height preset; scrolls internally when limited. */
   size?: SectionSize;
   icon?: string;

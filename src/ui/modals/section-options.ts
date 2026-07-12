@@ -537,6 +537,18 @@ export class SectionOptionsModal extends Modal {
         this.changed();
       });
     });
+    if (sectionMode(s) === "grid") {
+      new Setting(c)
+        .setName(t("sectionOptions.trimEmptyRows"))
+        .setDesc(t("sectionOptions.trimEmptyRowsDesc"))
+        .addToggle((tg) => {
+          tg.setValue(!!s.trimEmptyRows).onChange((v) => {
+            s.trimEmptyRows = v || undefined;
+            this.view.saveLayout();
+            this.view.rerender();
+          });
+        });
+    }
     new Setting(c).setName(t("sectionOptions.vdividers")).addToggle((tg) => {
       tg.setValue(!!s.vdividers).onChange((v) => {
         s.vdividers = v || undefined;

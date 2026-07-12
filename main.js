@@ -420,6 +420,8 @@ var en_default = {
   "options.ratingToggleDesc": "Show the value as clickable icons instead of the slider. The icon count is the Maximum above; a negative Minimum adds its own red icons left of the positives. There is no zero icon - zero is every icon clicked off.",
   "options.ratingBalance": "Balance rating rows",
   "options.ratingBalanceDesc": "When the icons need several rows, split them evenly (12 icons with room for 10 = 6 + 6). Off = fill each row before wrapping (10 + 2).",
+  "options.ratingFill": "Filled icons",
+  "options.ratingFillDesc": "Fill the icon glyphs solid instead of outlined (works on icons with fillable shapes, like the star).",
   "options.ratingAlign": "Rating alignment",
   "options.alignLeft": "Left",
   "options.alignCenter": "Center",
@@ -490,6 +492,8 @@ var en_default = {
   "sectionOptions.collapsible": "Collapsible",
   "sectionOptions.dividers": "Horizontal dividers",
   "sectionOptions.vdividers": "Vertical dividers",
+  "sectionOptions.trimEmptyRows": "Remove white space",
+  "sectionOptions.trimEmptyRowsDesc": "Hide fully-empty rows at the top or bottom of the grid outside edit mode (rows whose cells hold no visible property). Empty rows between properties keep their place.",
   "sectionOptions.hideIfEmptyDesc": "Hide the whole section when it has no visible properties (outside edit mode)",
   "sectionOptions.layoutHeading": "Layout",
   "sectionOptions.layout": "Layout",
@@ -4406,6 +4410,7 @@ function render(kind, ctx2) {
     const count = Math.min(1e3, Math.max(1, Math.round(Number.isFinite(emax) ? emax : 5)));
     const kmin = Math.round((_c = entry.min) != null ? _c : 0);
     const strip = ctx2.extra.createDiv({ cls: "ep-rating ep-rating-strip ep-ralign-" + align });
+    if (entry.ratingFill) strip.addClass("ep-rating-fill");
     if (entry.valueColor) strip.setCssStyles({ color: entry.valueColor });
     const layoutBreaks = () => {
       if (!strip.isConnected) return;
@@ -4612,6 +4617,12 @@ function renderOptions(kind, octx) {
       new import_obsidian11.Setting(c).setName(t("options.ratingBalance")).setDesc(t("options.ratingBalanceDesc")).addToggle((tg) => {
         tg.setValue(!!entry.ratingBalance).onChange((v) => {
           entry.ratingBalance = v || void 0;
+          changed();
+        });
+      });
+      new import_obsidian11.Setting(c).setName(t("options.ratingFill")).setDesc(t("options.ratingFillDesc")).addToggle((tg) => {
+        tg.setValue(!!entry.ratingFill).onChange((v) => {
+          entry.ratingFill = v || void 0;
           changed();
         });
       });
@@ -8713,6 +8724,15 @@ var SectionOptionsModal = class extends import_obsidian24.Modal {
         this.changed();
       });
     });
+    if (sectionMode(s) === "grid") {
+      new import_obsidian24.Setting(c).setName(t("sectionOptions.trimEmptyRows")).setDesc(t("sectionOptions.trimEmptyRowsDesc")).addToggle((tg) => {
+        tg.setValue(!!s.trimEmptyRows).onChange((v) => {
+          s.trimEmptyRows = v || void 0;
+          this.view.saveLayout();
+          this.view.rerender();
+        });
+      });
+    }
     new import_obsidian24.Setting(c).setName(t("sectionOptions.vdividers")).addToggle((tg) => {
       tg.setValue(!!s.vdividers).onChange((v) => {
         s.vdividers = v || void 0;
@@ -9329,7 +9349,22 @@ function renderSection(parent, view, file, section, drag, host) {
   } else {
     grid.setCssStyles({ gridTemplateColumns: `repeat(${ncol}, minmax(0, 1fr))` });
     if (section.rows && section.rows > 0) grid.setCssStyles({ gridTemplateRows: `repeat(${section.rows}, auto)` });
-    for (const entry of section.entries) {
+    let entries = section.entries;
+    if (section.trimEmptyRows && !view.editMode && ncol > 0) {
+      const rowHasContent = (r) => {
+        for (const e of section.entries.slice(r * ncol, (r + 1) * ncol)) {
+          if (e.kind === "prop" ? !isHiddenEntry(view, e) : e.kind !== "blank") return true;
+        }
+        return false;
+      };
+      const rows = Math.ceil(section.entries.length / ncol);
+      let first = 0;
+      let last = rows - 1;
+      while (first <= last && !rowHasContent(first)) first++;
+      while (last >= first && !rowHasContent(last)) last--;
+      entries = first > last ? [] : section.entries.slice(first * ncol, (last + 1) * ncol);
+    }
+    for (const entry of entries) {
       if (isHiddenEntry(view, entry)) {
         grid.createDiv({ cls: "ep-empty-cell" });
         continue;

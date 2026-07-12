@@ -272,7 +272,26 @@ export function renderSection(
   } else {
     grid.setCssStyles({ gridTemplateColumns: `repeat(${ncol}, minmax(0, 1fr))` });
     if (section.rows && section.rows > 0) grid.setCssStyles({ gridTemplateRows: `repeat(${section.rows}, auto)` });
-    for (const entry of section.entries) {
+    // "Remove white space": rows at the TOP or BOTTOM of the grid whose cells
+    // hold no visible property (hidden-empty props and blank placeholders
+    // only) are skipped entirely outside edit mode. Interior empty rows keep
+    // their place - only the leading/trailing whitespace goes.
+    let entries = section.entries;
+    if (section.trimEmptyRows && !view.editMode && ncol > 0) {
+      const rowHasContent = (r: number): boolean => {
+        for (const e of section.entries.slice(r * ncol, (r + 1) * ncol)) {
+          if (e.kind === "prop" ? !isHiddenEntry(view, e) : e.kind !== "blank") return true;
+        }
+        return false;
+      };
+      const rows = Math.ceil(section.entries.length / ncol);
+      let first = 0;
+      let last = rows - 1;
+      while (first <= last && !rowHasContent(first)) first++;
+      while (last >= first && !rowHasContent(last)) last--;
+      entries = first > last ? [] : section.entries.slice(first * ncol, (last + 1) * ncol);
+    }
+    for (const entry of entries) {
       if (isHiddenEntry(view, entry)) {
         grid.createDiv({ cls: "ep-empty-cell" });
         continue;
