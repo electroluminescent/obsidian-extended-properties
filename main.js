@@ -418,8 +418,13 @@ var en_default = {
   "options.showSlider": "Show slider",
   "options.ratingToggle": "Rating icons",
   "options.ratingToggleDesc": "Show the value as clickable icons instead of the slider. The icon count is the Maximum above; a negative value (allowed by a negative Minimum) fills the icons red.",
-  "options.ratingRows": "Rating rows",
-  "options.ratingRowsDesc": "Split the icons across this many rows.",
+  "options.ratingBalance": "Balance rating rows",
+  "options.ratingBalanceDesc": "When the icons need several rows, split them evenly (12 icons with room for 10 = 6 + 6). Off = fill each row before wrapping (10 + 2).",
+  "options.ratingAlign": "Rating alignment",
+  "options.alignLeft": "Left",
+  "options.alignCenter": "Center",
+  "options.alignRight": "Right",
+  "options.alignSpace": "Distributed",
   "options.showValue": "Show value",
   "options.showValueDesc": "Off = hide the textual value. The label and controls (steppers, slider, rating, roll) stay.",
   "options.showSteppers": "Show - / + buttons",
@@ -4395,14 +4400,39 @@ function render(kind, ctx2) {
   let syncKnob = null;
   if (entry.rating && !isFormula) {
     const icon = entry.ratingIcon || "star";
-    const rows = Math.max(1, Math.round(Number(entry.ratingRows) || 1));
+    const balance = !!entry.ratingBalance;
+    const align = entry.ratingAlign || "left";
     const emax = Number(entry.max);
     const count = Math.min(1e3, Math.max(1, Math.round(Number.isFinite(emax) ? emax : 5)));
     const kmin = Math.round((_c = entry.min) != null ? _c : 0);
-    const perRow = Math.ceil(count / rows);
-    const strip = ctx2.extra.createDiv({ cls: "ep-rating ep-rating-grid" });
-    strip.setCssStyles({ gridTemplateColumns: `repeat(${perRow}, auto)` });
+    const strip = ctx2.extra.createDiv({ cls: "ep-rating ep-rating-strip ep-ralign-" + align });
     if (entry.valueColor) strip.setCssStyles({ color: entry.valueColor });
+    const layoutBreaks = () => {
+      if (!strip.isConnected) return;
+      strip.findAll(".ep-rating-break").forEach((b) => b.remove());
+      if (!balance) return;
+      const pips = strip.findAll(".ep-rating-pip");
+      if (!pips.length) return;
+      const gap = 2;
+      const w = strip.clientWidth;
+      const pw = pips[0].offsetWidth || 1;
+      const fit = Math.max(1, Math.floor((w + gap) / (pw + gap)));
+      if (fit >= pips.length) return;
+      const rows = Math.ceil(pips.length / fit);
+      const per = Math.ceil(pips.length / rows);
+      for (let i = per; i < pips.length; i += per) {
+        const br = createSpan({ cls: "ep-rating-break" });
+        strip.insertBefore(br, pips[i]);
+      }
+    };
+    const ro = new ResizeObserver(() => {
+      if (!strip.isConnected) {
+        ro.disconnect();
+        return;
+      }
+      window.requestAnimationFrame(layoutBreaks);
+    });
+    ro.observe(strip);
     strip.setAttr("role", "slider");
     strip.tabIndex = 0;
     strip.setAttr("aria-label", view.defaultLabelFor(entry));
@@ -4430,6 +4460,7 @@ function render(kind, ctx2) {
           setRating(i === cur ? i - 1 : i);
         };
       }
+      window.requestAnimationFrame(layoutBreaks);
     };
     drawRating();
     strip.addEventListener("keydown", (e2) => {
@@ -4566,12 +4597,20 @@ function renderOptions(kind, octx) {
           changed();
         }
       );
-      new import_obsidian11.Setting(c).setName(t("options.ratingRows")).setDesc(t("options.ratingRowsDesc")).addText((tx) => {
-        tx.inputEl.type = "number";
-        tx.setValue(String(Math.max(1, Math.round(Number(entry.ratingRows) || 1))));
-        tx.onChange((v) => {
-          const n = Math.max(1, Math.round(Number(v)));
-          entry.ratingRows = Number.isFinite(n) && n > 1 ? n : void 0;
+      new import_obsidian11.Setting(c).setName(t("options.ratingBalance")).setDesc(t("options.ratingBalanceDesc")).addToggle((tg) => {
+        tg.setValue(!!entry.ratingBalance).onChange((v) => {
+          entry.ratingBalance = v || void 0;
+          changed();
+        });
+      });
+      new import_obsidian11.Setting(c).setName(t("options.ratingAlign")).addDropdown((d) => {
+        d.addOption("left", t("options.alignLeft"));
+        d.addOption("center", t("options.alignCenter"));
+        d.addOption("right", t("options.alignRight"));
+        d.addOption("space", t("options.alignSpace"));
+        d.setValue(entry.ratingAlign || "left");
+        d.onChange((v) => {
+          entry.ratingAlign = v === "left" ? void 0 : v;
           changed();
         });
       });

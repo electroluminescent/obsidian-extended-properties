@@ -1,7 +1,7 @@
 {
 	"id": "extended-properties",
 	"name": "Extended Properties",
-	"version": "4.7.0",
+	"version": "4.7.1",
 	"minAppVersion": "1.7.2",
 	"description": "A configurable properties sidebar with arrangeable sections, rich value types (sliders, colors, images, formulas, derived numbers), dice rolling, inline rolls and properties, per-type layouts, and optional modules like a D&D 5e sheet.",
 	"author": "electroluminescent",

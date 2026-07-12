@@ -1002,7 +1002,12 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-grid.ep-mode-columns > .ep-rowflow, .ep-grid.ep-mode-grid > .ep-rowflow { border-top: 2px solid var(--background-modifier-border-hover); padding-top: 8px; margin-top: 4px; }
 
 /* -- number rating + universal Show value ---------------------------------- */
-.ep-rating-grid { display: inline-grid; gap: 2px; justify-content: end; justify-items: center; margin-left: auto; padding: 1px 0 3px; }
+.ep-rating-strip { display: flex; flex-wrap: wrap; gap: 2px; width: 100%; min-width: 0; padding: 1px 0 3px; }
+.ep-rating-strip.ep-ralign-left { justify-content: flex-start; }
+.ep-rating-strip.ep-ralign-center { justify-content: center; }
+.ep-rating-strip.ep-ralign-right { justify-content: flex-end; }
+.ep-rating-strip.ep-ralign-space { justify-content: space-between; }
+.ep-rating-break { flex-basis: 100%; height: 0; }
 .ep-rating-pip.is-neg { color: var(--text-error); }
 /* "Show value" off: the textual value hides, controls stay. */
 .ep-hide-value .ep-cluster .ep-num { display: none; }

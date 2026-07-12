@@ -148,16 +148,46 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
   if ((entry.rating as boolean) && !isFormula) {
     // Icon rating (absorbed from the legacy rating type): the alternative to
     // the slider. The icon count is the entry's MAX (the same slider range
-    // settings); negative values (allowed by a negative min) fill red.
+    // settings); negative values (allowed by a negative min) fill red. The
+    // strip is CONTAINED like the slider - icons wrap to new rows instead of
+    // clipping past the entry - and can balance those rows evenly.
     const icon = (entry.ratingIcon as string) || "star";
-    const rows = Math.max(1, Math.round(Number(entry.ratingRows) || 1));
+    const balance = !!entry.ratingBalance;
+    const align = (entry.ratingAlign as string) || "left";
     const emax = Number(entry.max);
     const count = Math.min(1000, Math.max(1, Math.round(Number.isFinite(emax) ? emax : 5)));
     const kmin = Math.round(entry.min ?? 0);
-    const perRow = Math.ceil(count / rows);
-    const strip = ctx.extra.createDiv({ cls: "ep-rating ep-rating-grid" });
-    strip.setCssStyles({ gridTemplateColumns: `repeat(${perRow}, auto)` });
+    const strip = ctx.extra.createDiv({ cls: "ep-rating ep-rating-strip ep-ralign-" + align });
     if (entry.valueColor) strip.setCssStyles({ color: entry.valueColor });
+    // Balanced mode: rows = what the width forces, icons split evenly across
+    // them (12 icons with room for 10 = 6 + 6, not 10 + 2). Flex row breaks
+    // are recomputed from measurements whenever the strip resizes.
+    const layoutBreaks = (): void => {
+      if (!strip.isConnected) return;
+      strip.findAll(".ep-rating-break").forEach((b) => b.remove());
+      if (!balance) return;
+      const pips = strip.findAll(".ep-rating-pip");
+      if (!pips.length) return;
+      const gap = 2;
+      const w = strip.clientWidth;
+      const pw = pips[0].offsetWidth || 1;
+      const fit = Math.max(1, Math.floor((w + gap) / (pw + gap)));
+      if (fit >= pips.length) return;
+      const rows = Math.ceil(pips.length / fit);
+      const per = Math.ceil(pips.length / rows);
+      for (let i = per; i < pips.length; i += per) {
+        const br = createSpan({ cls: "ep-rating-break" });
+        strip.insertBefore(br, pips[i]);
+      }
+    };
+    const ro = new ResizeObserver(() => {
+      if (!strip.isConnected) {
+        ro.disconnect();
+        return;
+      }
+      window.requestAnimationFrame(layoutBreaks);
+    });
+    ro.observe(strip);
     strip.setAttr("role", "slider");
     strip.tabIndex = 0;
     strip.setAttr("aria-label", view.defaultLabelFor(entry));
@@ -186,6 +216,7 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
           setRating(i === cur ? i - 1 : i);
         };
       }
+      window.requestAnimationFrame(layoutBreaks);
     };
     drawRating();
     strip.addEventListener("keydown", (e2: KeyboardEvent) => {
@@ -317,12 +348,23 @@ function renderOptions(kind: NumericKind, octx: OptionsCtx): void {
           entry.ratingIcon = v;
           changed();
         });
-      new Setting(c).setName(t("options.ratingRows")).setDesc(t("options.ratingRowsDesc")).addText((tx) => {
-        tx.inputEl.type = "number";
-        tx.setValue(String(Math.max(1, Math.round(Number(entry.ratingRows) || 1))));
-        tx.onChange((v) => {
-          const n = Math.max(1, Math.round(Number(v)));
-          entry.ratingRows = Number.isFinite(n) && n > 1 ? n : undefined;
+      new Setting(c)
+        .setName(t("options.ratingBalance"))
+        .setDesc(t("options.ratingBalanceDesc"))
+        .addToggle((tg) => {
+          tg.setValue(!!entry.ratingBalance).onChange((v) => {
+            entry.ratingBalance = v || undefined;
+            changed();
+          });
+        });
+      new Setting(c).setName(t("options.ratingAlign")).addDropdown((d) => {
+        d.addOption("left", t("options.alignLeft"));
+        d.addOption("center", t("options.alignCenter"));
+        d.addOption("right", t("options.alignRight"));
+        d.addOption("space", t("options.alignSpace"));
+        d.setValue((entry.ratingAlign as string) || "left");
+        d.onChange((v) => {
+          entry.ratingAlign = v === "left" ? undefined : (v as typeof entry.ratingAlign);
           changed();
         });
       });

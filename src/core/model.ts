@@ -77,8 +77,11 @@ export interface EntryBase {
   unit?: string;
   /** Number type: render the icon rating instead of the slider. */
   rating?: boolean;
-  /** Rating rows; the icons split across them (default 1). */
-  ratingRows?: number;
+  /** Rating: balance icons evenly across the rows they need (12 icons in
+   * room for 10 = two rows of 6; off = 10 + 2). */
+  ratingBalance?: boolean;
+  /** Rating icon justification: left (default), center, right, space. */
+  ratingAlign?: "left" | "center" | "right" | "space";
   /** false = hide the textual value (universal; controls stay). */
   showValue?: boolean;
 
