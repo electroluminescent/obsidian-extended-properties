@@ -205,10 +205,14 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
       strip.empty();
       const cur = Math.round(get());
       strip.setAttr("aria-valuenow", String(cur));
+      // The divider pip (the one squeezed by the vertical line) sits on
+      // whichever side of zero the value is NOT: at 2 the -1 icon shrinks,
+      // at -1 the +1 icon does. Redrawn per value change, so it follows.
+      const divideOnNeg = cur >= 0;
       for (let k = negCount; k >= 1; k--) {
         const kk = k;
         const pip = strip.createSpan({
-          cls: "ep-rating-pip pip-neg" + (cur <= -kk ? " is-on is-neg" : "") + (kk === 1 ? " pip-negend" : ""),
+          cls: "ep-rating-pip pip-neg" + (cur <= -kk ? " is-on is-neg" : "") + (kk === 1 && divideOnNeg ? " pip-negend" : ""),
         });
         setIcon(pip, icon);
         pip.setAttr("aria-hidden", "true");
@@ -222,7 +226,10 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
       }
       const fill = Math.min(Math.max(cur, 0), count);
       for (let i = 1; i <= count; i++) {
-        const pip = strip.createSpan({ cls: "ep-rating-pip" + (i <= fill ? " is-on" : "") });
+        const pip = strip.createSpan({
+          cls: "ep-rating-pip" + (i <= fill ? " is-on" : "") +
+            (i === 1 && negCount > 0 && !divideOnNeg ? " pip-posend" : ""),
+        });
         setIcon(pip, icon);
         pip.setAttr("aria-hidden", "true");
         pip.onclick = (e2) => {

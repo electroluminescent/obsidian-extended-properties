@@ -4451,10 +4451,11 @@ function render(kind, ctx2) {
       strip.empty();
       const cur = Math.round(get());
       strip.setAttr("aria-valuenow", String(cur));
+      const divideOnNeg = cur >= 0;
       for (let k = negCount; k >= 1; k--) {
         const kk = k;
         const pip = strip.createSpan({
-          cls: "ep-rating-pip pip-neg" + (cur <= -kk ? " is-on is-neg" : "") + (kk === 1 ? " pip-negend" : "")
+          cls: "ep-rating-pip pip-neg" + (cur <= -kk ? " is-on is-neg" : "") + (kk === 1 && divideOnNeg ? " pip-negend" : "")
         });
         (0, import_obsidian11.setIcon)(pip, icon);
         pip.setAttr("aria-hidden", "true");
@@ -4467,7 +4468,9 @@ function render(kind, ctx2) {
       }
       const fill = Math.min(Math.max(cur, 0), count);
       for (let i = 1; i <= count; i++) {
-        const pip = strip.createSpan({ cls: "ep-rating-pip" + (i <= fill ? " is-on" : "") });
+        const pip = strip.createSpan({
+          cls: "ep-rating-pip" + (i <= fill ? " is-on" : "") + (i === 1 && negCount > 0 && !divideOnNeg ? " pip-posend" : "")
+        });
         (0, import_obsidian11.setIcon)(pip, icon);
         pip.setAttr("aria-hidden", "true");
         pip.onclick = (e2) => {

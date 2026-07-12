@@ -1010,8 +1010,10 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-rating-break { flex-basis: 100%; height: 0; }
 .ep-rating-pip.is-neg { color: var(--text-error); }
 .ep-rating-pip.pip-neg { color: var(--text-error); }
-/* The negative/positive divide is a vertical line, not blank space. */
+/* The negative/positive divide is a vertical line, not blank space. The
+   squeezed pip sits on whichever side of zero the value is NOT. */
 .ep-rating-pip.pip-negend { padding-right: 2px; border-right: 1px solid var(--text-faint); }
+.ep-rating-pip.pip-posend { padding-left: 2px; border-left: 1px solid var(--text-faint); }
 /* "Show value" off: the textual value hides, controls stay. */
 .ep-hide-value .ep-cluster .ep-num { display: none; }
 .ep-hide-value .ep-val-right .ep-editable, .ep-hide-value .ep-val-right .ep-num,
