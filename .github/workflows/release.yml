@@ -1,11 +1,15 @@
 name: Release
 
-# Push a tag that exactly matches manifest.json's version, e.g.
-#   git tag 2.28.0 && git push origin 2.28.0
-# to build, verify, and publish a draft GitHub Release with the BRAT/community
-# assets attached.
+# Two ways in:
+#  - Push to main: if manifest.json's version has no tag yet, the workflow
+#    builds, verifies, tags the commit with the version (10.1.5 style) and
+#    publishes the release automatically.
+#  - Push a tag matching manifest.json's version by hand: same build, but the
+#    release is created as a draft (the manual escape hatch).
 on:
   push:
+    branches:
+      - main
     tags:
       - "*.*.*"
 
@@ -23,39 +27,63 @@ jobs:
         with:
           node-version: "20"
 
-      # obsidian pins @codemirror/state, so peer resolution needs the legacy flag
-      - run: npm install --legacy-peer-deps --no-audit --no-fund
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
-
-      - name: Verify the tag matches manifest.json
+      - name: Determine the version and whether to release
+        id: ver
         run: |
-          MAN="$(node -p "require('./manifest.json').version")"
-          if [ "${GITHUB_REF_NAME}" != "$MAN" ]; then
-            echo "::error::Tag ${GITHUB_REF_NAME} does not match manifest version $MAN"
-            exit 1
+          VER="$(node -p "require('./manifest.json').version")"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            if [ "${GITHUB_REF_NAME}" != "$VER" ]; then
+              echo "::error::Tag ${GITHUB_REF_NAME} does not match manifest version $VER"
+              exit 1
+            fi
+            echo "mode=draft" >> "$GITHUB_OUTPUT"
+          elif git ls-remote --exit-code origin "refs/tags/$VER" > /dev/null 2>&1; then
+            echo "Version $VER is already tagged - nothing to release."
+            echo "mode=skip" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=publish" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Package the full project zip
-        run: zip -r "obsidian-extended-properties-${GITHUB_REF_NAME}.zip" . -x '.git/*' 'node_modules/*'
+      # obsidian pins @codemirror/state, so peer resolution needs the legacy flag
+      - if: steps.ver.outputs.mode != 'skip'
+        run: npm install --legacy-peer-deps --no-audit --no-fund
+      - if: steps.ver.outputs.mode != 'skip'
+        run: npm run typecheck
+      - if: steps.ver.outputs.mode != 'skip'
+        run: npm test
+      - if: steps.ver.outputs.mode != 'skip'
+        run: npm run build
 
+      # Release assets are exactly the three files Obsidian installs from:
+      # main.js, manifest.json, styles.css. Nothing else.
       - name: Attest build provenance for the release assets
+        if: steps.ver.outputs.mode != 'skip'
         uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
             main.js
             manifest.json
             styles.css
-            obsidian-extended-properties-${{ github.ref_name }}.zip
 
-      - name: Create the draft release
+      - name: Publish the release (tagging the commit with the version)
+        if: steps.ver.outputs.mode == 'publish'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" \
-            --title "${GITHUB_REF_NAME}" \
+          gh release create "${{ steps.ver.outputs.version }}" \
+            --target "${GITHUB_SHA}" \
+            --title "${{ steps.ver.outputs.version }}" \
+            --generate-notes \
+            main.js manifest.json styles.css
+
+      - name: Create the draft release (manual tag push)
+        if: steps.ver.outputs.mode == 'draft'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.ver.outputs.version }}" \
+            --title "${{ steps.ver.outputs.version }}" \
             --draft \
             --generate-notes \
-            main.js manifest.json styles.css \
-            "obsidian-extended-properties-${GITHUB_REF_NAME}.zip"
+            main.js manifest.json styles.css

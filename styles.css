@@ -1021,3 +1021,8 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 
 /* Rating: solid icon fill (where the glyph supports it). */
 .ep-rating-strip.ep-rating-fill .ep-rating-pip svg { fill: currentColor; }
+
+/* Touch multi-select toggle in the section-options tab bar. */
+.ep-tab-multi { display: inline-flex; align-items: center; padding: 2px 6px; opacity: 0.7; }
+.ep-tab-multi.is-active { opacity: 1; color: var(--interactive-accent); }
+.ep-tab-multi svg { width: 14px; height: 14px; }

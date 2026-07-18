@@ -400,6 +400,8 @@ export interface EPSettings {
    * autocomplete fields even when no note uses them yet.
    */
   poolExtras?: Record<string, string[]>;
+  /** One-time seed guard for the dnd5e preset pools. */
+  dnd5ePoolsSeeded?: boolean;
   /** Master switch for cross-note references and aggregates (default on). */
   crossNote?: boolean;
   /**

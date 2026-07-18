@@ -13,7 +13,7 @@
  * section including its entries, so tab edits are undoable too).
  */
 
-import { Modal, Setting, TFile } from "obsidian";
+import { Modal, Setting, TFile, setIcon } from "obsidian";
 import type { OptionsCtx, ViewCtx } from "../../core/context";
 import { Entry, LayoutMode, Section, SectionPin, SectionSize, sectionMode, sectionPin } from "../../core/model";
 import { restoreFromSnapshot } from "../../utils/misc";
@@ -34,6 +34,8 @@ export class SectionOptionsModal extends Modal {
   private snapshot = "";
   private selected = new Set<string>([SECTION_TAB]);
   private file: TFile | null = null;
+  /** Tap-to-toggle selection mode (the touch alternative to drag/Ctrl). */
+  private multiTap = false;
   /** Anchor for Shift ranges and drag selection. */
   private anchorId: string | null = null;
 
@@ -96,6 +98,21 @@ export class SectionOptionsModal extends Modal {
       chip.addEventListener("pointerdown", (ev: PointerEvent) => {
         if (ev.button !== 0) return;
         ev.preventDefault();
+        if (this.multiTap) {
+          // Touch path: every tap toggles membership - no drag, no modifier
+          // keys needed. The section tab stays a plain switch.
+          if (id === SECTION_TAB) {
+            this.selected = new Set([SECTION_TAB]);
+          } else if (this.selected.has(id)) {
+            if (this.selected.size > 1) this.selected.delete(id);
+          } else {
+            this.selected.add(id);
+            this.selected.delete(SECTION_TAB);
+          }
+          this.anchorId = id;
+          this.draw();
+          return;
+        }
         if (ev.shiftKey && this.anchorId) {
           const range = rangeIds(this.anchorId, id);
           this.selected = ev.ctrlKey || ev.metaKey ? new Set([...this.selected, ...range]) : new Set(range);
@@ -134,6 +151,16 @@ export class SectionOptionsModal extends Modal {
     };
 
     const bar = c.createDiv({ cls: "ep-tabs" });
+    // Touch alternative to drag/Ctrl selection: with the toggle on, taps
+    // toggle each property in and out of the selection.
+    const multiBtn = bar.createDiv({ cls: "ep-tab ep-tab-multi" + (this.multiTap ? " is-active" : "") });
+    setIcon(multiBtn.createSpan(), "copy-check");
+    multiBtn.setAttr("title", t("sectionOptions.multiSelect"));
+    multiBtn.setAttr("aria-label", t("sectionOptions.multiSelect"));
+    multiBtn.onclick = () => {
+      this.multiTap = !this.multiTap;
+      this.draw();
+    };
     mk(bar, SECTION_TAB, t("sectionOptions.tabSection"));
 
     // How to divide the property tabs: by column, by row, or by data type.

@@ -45,6 +45,29 @@ export const dnd5eModule: FeatureModule = {
    */
   migrate(settings: EPSettings): boolean {
     let changed = false;
+    // Preset autofill pools (Class/Race/Alignment/...), seeded once so the
+    // .p pool editor and value pickers offer the standard options out of the
+    // box. Users can prune them; pruning is not undone on reload.
+    if (!settings.dnd5ePoolsSeeded) {
+      const PRESET_POOLS: Record<string, string[]> = {
+        class: ["Artificer", "Barbarian", "Bard", "Cleric", "Druid", "Fighter", "Monk", "Paladin", "Ranger", "Rogue", "Sorcerer", "Warlock", "Wizard"],
+        subclass: ["Champion", "Battle Master", "Eldritch Knight", "Thief", "Assassin", "Arcane Trickster", "Life Domain", "Light Domain", "Circle of the Land", "Circle of the Moon", "College of Lore", "College of Valor", "Draconic Bloodline", "Wild Magic", "The Fiend", "School of Evocation", "Oath of Devotion", "Hunter", "Beast Master", "Way of the Open Hand", "Path of the Berserker", "Path of the Totem Warrior"],
+        race: ["Human", "Elf", "Half-Elf", "Dwarf", "Halfling", "Gnome", "Half-Orc", "Tiefling", "Dragonborn", "Aasimar", "Goliath", "Orc", "Tabaxi", "Firbolg", "Kenku", "Genasi"],
+        alignment: ["LG", "NG", "CG", "LN", "N", "CN", "LE", "NE", "CE"],
+        background: ["Acolyte", "Charlatan", "Criminal", "Entertainer", "Folk Hero", "Guild Artisan", "Hermit", "Noble", "Outlander", "Sage", "Sailor", "Soldier", "Urchin"],
+        "spellcasting ability": ["Intelligence", "Wisdom", "Charisma"],
+        languages: ["Common", "Dwarvish", "Elvish", "Giant", "Gnomish", "Goblin", "Halfling", "Orc", "Abyssal", "Celestial", "Draconic", "Deep Speech", "Infernal", "Primordial", "Sylvan", "Undercommon"],
+      };
+      const pools = (settings.poolExtras ??= {});
+      for (const [key, values] of Object.entries(PRESET_POOLS)) {
+        const pool = (pools[key] ??= []);
+        for (const v of values) {
+          if (!pool.some((x) => x.toLowerCase() === v.toLowerCase())) pool.push(v);
+        }
+      }
+      settings.dnd5ePoolsSeeded = true;
+      changed = true;
+    }
     for (const lk of Object.keys(settings.layouts)) {
       for (const section of settings.layouts[lk].sections) {
         const out: Entry[] = [];

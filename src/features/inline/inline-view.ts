@@ -30,6 +30,7 @@ import { ColorPickerModal } from "../../ui/modals/color-picker";
 import { EntryOptionsModal } from "../../ui/modals/entry-options";
 import { keyForShortForm, VaultAccess } from "../../core/influences";
 import { makeVaultAccess, parseNoteRef } from "../../core/note-ref";
+import { PopupManager } from "../../ui/components/popups";
 import type { InlineCtx } from "./inline-render";
 import { makeValEl } from "./inline-render";
 
@@ -238,7 +239,12 @@ class InlineViewCtx implements ViewCtx {
   }
   removeEntry(): void { /* inline cards never delete layout entries */ }
   openAddMenu(): void {}
-  openListValuePicker(): void {}
+  private popupsMgr: PopupManager | null = null;
+  openListValuePicker(x: number, y: number, key: string): void {
+    // The same pool-backed picker the sidebar uses, so the .p autofill pool
+    // shows its possibilities inside notes too.
+    (this.popupsMgr ??= new PopupManager(this)).openListValuePicker(x, y, this.target, key);
+  }
   scrollToSection(): void {}
   propCandidates(): { key: string; onNote: boolean; type: string; typeName: string }[] {
     return Object.keys(this.note.raw)

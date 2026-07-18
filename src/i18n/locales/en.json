@@ -388,6 +388,7 @@
   "options.placementHeading": "Placement",
   "sectionOptions.title": "Format \"{name}\"",
   "sectionOptions.tabSection": "Section",
+  "sectionOptions.multiSelect": "Select multiple (tap to toggle)",
   "sectionOptions.tabsHint": "Click a tab to edit it. Ctrl/Cmd-click toggles single tabs, Shift-click selects a range, and dragging across tabs selects several - the body then shows their shared settings, and only settings you change are written to all selected tabs.",
   "sectionOptions.columnN": "Column {n}",
   "sectionOptions.rowN": "Row {n}",

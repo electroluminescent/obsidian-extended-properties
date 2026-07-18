@@ -477,6 +477,7 @@ var en_default = {
   "options.placementHeading": "Placement",
   "sectionOptions.title": 'Format "{name}"',
   "sectionOptions.tabSection": "Section",
+  "sectionOptions.multiSelect": "Select multiple (tap to toggle)",
   "sectionOptions.tabsHint": "Click a tab to edit it. Ctrl/Cmd-click toggles single tabs, Shift-click selects a range, and dragging across tabs selects several - the body then shows their shared settings, and only settings you change are written to all selected tabs.",
   "sectionOptions.columnN": "Column {n}",
   "sectionOptions.rowN": "Row {n}",
@@ -1748,6 +1749,7 @@ var HANDLED_KEYS = /* @__PURE__ */ new Set([
   "modifierSuffix",
   "poolSuffix",
   "poolExtras",
+  "dnd5ePoolsSeeded",
   "crossNote",
   "conflictGuard",
   "tableLayouts",
@@ -1857,6 +1859,7 @@ function normalizeSettings(raw, defaultLayout) {
     if (data.failOnOne === false) s.failOnOne = false;
     if (typeof data.modifierSuffix === "string") s.modifierSuffix = data.modifierSuffix;
     if (typeof data.poolSuffix === "string") s.poolSuffix = data.poolSuffix;
+    if (data.dnd5ePoolsSeeded === true) s.dnd5ePoolsSeeded = true;
     if (data.poolExtras && typeof data.poolExtras === "object") {
       const cleanPool = {};
       for (const [k, v] of Object.entries(data.poolExtras)) {
@@ -8274,6 +8277,8 @@ var SectionOptionsModal = class extends import_obsidian24.Modal {
     this.snapshot = "";
     this.selected = /* @__PURE__ */ new Set([SECTION_TAB]);
     this.file = null;
+    /** Tap-to-toggle selection mode (the touch alternative to drag/Ctrl). */
+    this.multiTap = false;
     /** Anchor for Shift ranges and drag selection. */
     this.anchorId = null;
     if (initialTab && section.entries.some((e) => e.id === initialTab)) {
@@ -8324,6 +8329,19 @@ var SectionOptionsModal = class extends import_obsidian24.Modal {
       chip.addEventListener("pointerdown", (ev) => {
         if (ev.button !== 0) return;
         ev.preventDefault();
+        if (this.multiTap) {
+          if (id === SECTION_TAB) {
+            this.selected = /* @__PURE__ */ new Set([SECTION_TAB]);
+          } else if (this.selected.has(id)) {
+            if (this.selected.size > 1) this.selected.delete(id);
+          } else {
+            this.selected.add(id);
+            this.selected.delete(SECTION_TAB);
+          }
+          this.anchorId = id;
+          this.draw();
+          return;
+        }
         if (ev.shiftKey && this.anchorId) {
           const range = rangeIds(this.anchorId, id);
           this.selected = ev.ctrlKey || ev.metaKey ? /* @__PURE__ */ new Set([...this.selected, ...range]) : new Set(range);
@@ -8360,6 +8378,14 @@ var SectionOptionsModal = class extends import_obsidian24.Modal {
       });
     };
     const bar = c.createDiv({ cls: "ep-tabs" });
+    const multiBtn = bar.createDiv({ cls: "ep-tab ep-tab-multi" + (this.multiTap ? " is-active" : "") });
+    (0, import_obsidian24.setIcon)(multiBtn.createSpan(), "copy-check");
+    multiBtn.setAttr("title", t("sectionOptions.multiSelect"));
+    multiBtn.setAttr("aria-label", t("sectionOptions.multiSelect"));
+    multiBtn.onclick = () => {
+      this.multiTap = !this.multiTap;
+      this.draw();
+    };
     mk(bar, SECTION_TAB, t("sectionOptions.tabSection"));
     const mode = sectionMode(this.section);
     const groupMode = (_a = this.section.tabGroup) != null ? _a : mode === "columns" ? "column" : mode === "grid" ? "row" : "type";
@@ -14803,17 +14829,17 @@ var builders = {
     entries: [
       prop(LEVEL_KEY, { dataType: "number", min: 1, max: 20 }),
       profBonusEntry(),
-      prop("Armor Class", { dataType: "number", min: 0, max: 40 }),
-      prop("Speed", { dataType: "number", min: 0, max: 200 }),
-      prop("Current HP", { dataType: "number", min: 0, max: 9999 }),
-      prop("Max HP", { dataType: "number", min: 0, max: 9999 }),
-      prop("Temporary HP", { dataType: "number", min: 0, max: 9999 }),
+      prop("Armor Class", { dataType: "number", min: 0, max: 40, unit: "AC" }),
+      prop("Speed", { dataType: "number", min: 0, max: 200, unit: "ft" }),
+      prop("Current HP", { dataType: "number", min: 0, max: 9999, unit: "HP" }),
+      prop("Max HP", { dataType: "number", min: 0, max: 9999, unit: "HP" }),
+      prop("Temporary HP", { dataType: "number", min: 0, max: 9999, unit: "HP" }),
       prop("Hit Dice"),
       prop("Death Save Successes", { dataType: "number", min: 0, max: 3 }),
       prop("Death Save Failures", { dataType: "number", min: 0, max: 3 }),
       prop("Inspiration", { dataType: "checkbox" }),
       prop("Passive Perception", { dataType: "number", min: 0, max: 40 }),
-      prop("Experience Points", { dataType: "number", min: 0, max: 999999 }),
+      prop("Experience Points", { dataType: "number", min: 0, max: 999999, unit: "XP" }),
       initiativeEntry()
     ]
   }),
@@ -14846,7 +14872,7 @@ var builders = {
     dividers: true,
     entries: [
       prop("Spellcasting Ability"),
-      prop("Spell Save DC", { dataType: "number", min: 0, max: 40 }),
+      prop("Spell Save DC", { dataType: "number", min: 0, max: 40, unit: "DC" }),
       prop("Spell Attack Bonus", { dataType: "number", min: -5, max: 40 }),
       prop("Cantrips Known", { dataType: "number", min: 0, max: 30 })
     ]
@@ -14876,11 +14902,11 @@ var builders = {
     dividers: true,
     entries: [
       prop("Equipment", { dataType: "list" }),
-      prop("Copper", { dataType: "number", min: 0 }),
-      prop("Silver", { dataType: "number", min: 0 }),
-      prop("Electrum", { dataType: "number", min: 0 }),
-      prop("Gold", { dataType: "number", min: 0 }),
-      prop("Platinum", { dataType: "number", min: 0 })
+      prop("Copper", { dataType: "number", min: 0, unit: "cp" }),
+      prop("Silver", { dataType: "number", min: 0, unit: "sp" }),
+      prop("Electrum", { dataType: "number", min: 0, unit: "ep" }),
+      prop("Gold", { dataType: "number", min: 0, unit: "gp" }),
+      prop("Platinum", { dataType: "number", min: 0, unit: "pp" })
     ]
   }),
   personality: (i18n) => ({
@@ -14896,7 +14922,14 @@ var builders = {
     columns: 2,
     layoutMode: "columns",
     dividers: true,
-    entries: [prop("Age"), prop("Height"), prop("Weight"), prop("Eyes"), prop("Skin"), prop("Hair")]
+    entries: [
+      prop("Age", { dataType: "number", min: 0, unit: "yrs" }),
+      prop("Height", { dataType: "decimal", min: 0, unit: "ft" }),
+      prop("Weight", { dataType: "number", min: 0, unit: "lb" }),
+      prop("Eyes", { dataType: "color" }),
+      prop("Skin", { dataType: "color" }),
+      prop("Hair", { dataType: "color" })
+    ]
   })
 };
 var TEMPLATE_ORDER = [
@@ -14993,7 +15026,28 @@ var dnd5eModule = {
    * skills value type, which offers its own one-click conversion.
    */
   migrate(settings) {
+    var _a, _b;
     let changed = false;
+    if (!settings.dnd5ePoolsSeeded) {
+      const PRESET_POOLS = {
+        class: ["Artificer", "Barbarian", "Bard", "Cleric", "Druid", "Fighter", "Monk", "Paladin", "Ranger", "Rogue", "Sorcerer", "Warlock", "Wizard"],
+        subclass: ["Champion", "Battle Master", "Eldritch Knight", "Thief", "Assassin", "Arcane Trickster", "Life Domain", "Light Domain", "Circle of the Land", "Circle of the Moon", "College of Lore", "College of Valor", "Draconic Bloodline", "Wild Magic", "The Fiend", "School of Evocation", "Oath of Devotion", "Hunter", "Beast Master", "Way of the Open Hand", "Path of the Berserker", "Path of the Totem Warrior"],
+        race: ["Human", "Elf", "Half-Elf", "Dwarf", "Halfling", "Gnome", "Half-Orc", "Tiefling", "Dragonborn", "Aasimar", "Goliath", "Orc", "Tabaxi", "Firbolg", "Kenku", "Genasi"],
+        alignment: ["LG", "NG", "CG", "LN", "N", "CN", "LE", "NE", "CE"],
+        background: ["Acolyte", "Charlatan", "Criminal", "Entertainer", "Folk Hero", "Guild Artisan", "Hermit", "Noble", "Outlander", "Sage", "Sailor", "Soldier", "Urchin"],
+        "spellcasting ability": ["Intelligence", "Wisdom", "Charisma"],
+        languages: ["Common", "Dwarvish", "Elvish", "Giant", "Gnomish", "Goblin", "Halfling", "Orc", "Abyssal", "Celestial", "Draconic", "Deep Speech", "Infernal", "Primordial", "Sylvan", "Undercommon"]
+      };
+      const pools = (_a = settings.poolExtras) != null ? _a : settings.poolExtras = {};
+      for (const [key, values] of Object.entries(PRESET_POOLS)) {
+        const pool = (_b = pools[key]) != null ? _b : pools[key] = [];
+        for (const v of values) {
+          if (!pool.some((x) => x.toLowerCase() === v.toLowerCase())) pool.push(v);
+        }
+      }
+      settings.dnd5ePoolsSeeded = true;
+      changed = true;
+    }
     for (const lk of Object.keys(settings.layouts)) {
       for (const section of settings.layouts[lk].sections) {
         const out = [];
@@ -15212,6 +15266,7 @@ var InlineViewCtx = class {
     this.editMode = false;
     this.activeTypeKey = null;
     this.updaters = [];
+    this.popupsMgr = null;
     this.app = ctx2.app;
     this.i18n = ctx2.i18n;
     this.settings = ctx2.settings;
@@ -15369,7 +15424,9 @@ var InlineViewCtx = class {
   }
   openAddMenu() {
   }
-  openListValuePicker() {
+  openListValuePicker(x, y, key) {
+    var _a;
+    ((_a = this.popupsMgr) != null ? _a : this.popupsMgr = new PopupManager(this)).openListValuePicker(x, y, this.target, key);
   }
   scrollToSection() {
   }

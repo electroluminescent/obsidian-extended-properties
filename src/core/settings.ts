@@ -80,7 +80,7 @@ const HANDLED_KEYS: ReadonlySet<string> = new Set([
   "sound", "soundVolume", "diceAnimStay", "diceAnimBlock", "karmicRolls",
   "modsOffProp", "macros", "rollHistory", "rollHistoryLimit",
   "rollHistoryEnabled", "critRanges", "failOnOne", "modifierSuffix",
-  "poolSuffix", "poolExtras",
+  "poolSuffix", "poolExtras", "dnd5ePoolsSeeded",
   "crossNote", "conflictGuard", "tableLayouts", "tableLastType",
   "schemaVersion", "soundUi", "soundDice", "soundCrit", "layoutVault",
   "layoutVaultFolder", "appVersion", "snapshots", "snapshotKeep", "lastSnapshot",
@@ -214,6 +214,7 @@ export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EP
     if (typeof data.modifierSuffix === "string") s.modifierSuffix = data.modifierSuffix;
     if (typeof data.poolSuffix === "string") s.poolSuffix = data.poolSuffix;
     // Autofill-pool extras: keep only string arrays of non-empty strings.
+    if (data.dnd5ePoolsSeeded === true) s.dnd5ePoolsSeeded = true;
     if (data.poolExtras && typeof data.poolExtras === "object") {
       const cleanPool: Record<string, string[]> = {};
       for (const [k, v] of Object.entries(data.poolExtras as Record<string, unknown>)) {
