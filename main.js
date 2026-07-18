@@ -574,8 +574,10 @@ var en_default = {
   "settings.newSectionHeading": "New section defaults",
   "settings.entryDividers": "Dividers between properties",
   "settings.derivationsHeading": "Modifier building blocks",
-  "settings.derivationsDesc": "Named formulas (in x) that influences can apply to a source value - e.g. an ability modifier. Fully editable; influences reference them by name.",
+  "settings.derivationsDesc": "Reusable formula blocks for derived values and modifiers. Each block can carry a reference suffix: write Level.pb (or Strength.am) in notes, expressions and inline chips to apply that block to the property. The modifier short form below is the influence-sum reference; block suffixes are checked after it.",
   "settings.derivationName": "Name",
+  "settings.blockSuffix": "suffix",
+  "settings.blockSuffixDesc": "Dotted reference suffix for this block, e.g. pb makes Level.pb apply it to Level. Blank = no reference.",
   "settings.derivationDelete": "Delete",
   "settings.derivationAdd": "Add a building block",
   "settings.derivationAddBtn": "+ Block",
@@ -1228,8 +1230,8 @@ function restoreFromSnapshot(target, snapshot) {
 // src/core/influences.ts
 function defaultDerivations() {
   return [
-    { id: "abilityMod", name: "Ability modifier", formula: "floor((x - 10) / 2)" },
-    { id: "profBonus", name: "Proficiency bonus", formula: "2 + floor((max(x, 1) - 1) / 4)" }
+    { id: "abilityMod", name: "Ability modifier", formula: "floor((x - 10) / 2)", suffix: "am" },
+    { id: "profBonus", name: "Proficiency bonus", formula: "2 + floor((max(x, 1) - 1) / 4)", suffix: "pb" }
   ];
 }
 function registerDerivations(registries, settings) {
@@ -1446,6 +1448,14 @@ var NoteEval = class {
         if (entry) return this.totalAt(entry, depth);
       }
     }
+    const dref = derivationBaseFor(this.env.settings, name);
+    if (dref) {
+      const v = this.refValue(dref.base, depth);
+      if (v !== void 0) {
+        const f = compileFormula(dref.formula);
+        if (f) return f(v);
+      }
+    }
     return void 0;
   }
   /** Map a referenced name (key or short form) to a property key. */
@@ -1597,6 +1607,17 @@ function modifierBaseFor(settings, name) {
   const tail = "." + suf;
   if (name.length <= tail.length) return null;
   return name.toLowerCase().endsWith(tail.toLowerCase()) ? name.slice(0, name.length - tail.length) : null;
+}
+function derivationBaseFor(settings, name) {
+  var _a, _b;
+  for (const d of (_a = settings.derivations) != null ? _a : []) {
+    const suf = ((_b = d.suffix) != null ? _b : "").trim();
+    if (!suf) continue;
+    const tail = "." + suf;
+    if (name.length > tail.length && name.toLowerCase().endsWith(tail.toLowerCase()))
+      return { base: name.slice(0, name.length - tail.length), formula: d.formula };
+  }
+  return null;
 }
 function poolSuffix(settings) {
   var _a;
@@ -12508,6 +12529,14 @@ var EPSettingTab = class extends import_obsidian32.PluginSettingTab {
           dv.formula = v.trim() || "x";
           applyDerivations();
         });
+      }).addText((tx) => {
+        var _a;
+        tx.inputEl.addClass("ep-suffix-input");
+        tx.setPlaceholder(t("settings.blockSuffix")).setValue((_a = dv.suffix) != null ? _a : "").onChange((v) => {
+          dv.suffix = v.trim().replace(/^\./, "") || void 0;
+          applyDerivations();
+        });
+        tx.inputEl.setAttr("title", t("settings.blockSuffixDesc"));
       }).addExtraButton(
         (b) => b.setIcon("trash").setTooltip(t("settings.derivationDelete")).onClick(() => {
           plugin.settings.derivations = plugin.settings.derivations.filter((x) => x !== dv);
@@ -12516,6 +12545,13 @@ var EPSettingTab = class extends import_obsidian32.PluginSettingTab {
         })
       );
     }
+    new import_obsidian32.Setting(c).setName(t("settings.modSuffix")).setDesc(t("settings.modSuffixDesc")).addText((tx) => {
+      var _a;
+      tx.setPlaceholder("s").setValue((_a = plugin.settings.modifierSuffix) != null ? _a : "s").onChange((v) => {
+        plugin.settings.modifierSuffix = v;
+        save();
+      });
+    });
     new import_obsidian32.Setting(c).setName(t("settings.modDepth")).setDesc(t("settings.modDepthDesc")).addSlider((sl) => {
       var _a;
       sl.setLimits(0, 16, 1).setValue((_a = plugin.settings.modDepth) != null ? _a : 8).onChange((v) => {
@@ -12545,13 +12581,6 @@ var EPSettingTab = class extends import_obsidian32.PluginSettingTab {
     );
     new import_obsidian32.Setting(c).setName(t("settings.abbrHeading")).setHeading();
     c.createEl("p", { cls: "setting-item-description", text: t("settings.abbrDesc") });
-    new import_obsidian32.Setting(c).setName(t("settings.modSuffix")).setDesc(t("settings.modSuffixDesc")).addText((tx) => {
-      var _a;
-      tx.setPlaceholder("s").setValue((_a = plugin.settings.modifierSuffix) != null ? _a : "s").onChange((v) => {
-        plugin.settings.modifierSuffix = v;
-        save();
-      });
-    });
     new import_obsidian32.Setting(c).setName(t("settings.poolSuffix")).setDesc(t("settings.poolSuffixDesc")).addText((tx) => {
       var _a;
       tx.setPlaceholder("p").setValue((_a = plugin.settings.poolSuffix) != null ? _a : "p").onChange((v) => {

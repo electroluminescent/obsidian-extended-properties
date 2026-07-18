@@ -187,6 +187,16 @@ export class EPSettingTab extends PluginSettingTab {
             applyDerivations();
           });
         })
+        .addText((tx) => {
+          tx.inputEl.addClass("ep-suffix-input");
+          tx.setPlaceholder(t("settings.blockSuffix"))
+            .setValue(dv.suffix ?? "")
+            .onChange((v) => {
+              dv.suffix = v.trim().replace(/^\./, "") || undefined;
+              applyDerivations();
+            });
+          tx.inputEl.setAttr("title", t("settings.blockSuffixDesc"));
+        })
         .addExtraButton((b) =>
           b.setIcon("trash").setTooltip(t("settings.derivationDelete")).onClick(() => {
             plugin.settings.derivations = plugin.settings.derivations.filter((x) => x !== dv);
@@ -195,6 +205,19 @@ export class EPSettingTab extends PluginSettingTab {
           })
         );
     }
+    // The modifier short form lives with the blocks: `.s` (configurable) is
+    // the influence-sum reference, and each block above adds its own suffix.
+    new Setting(c)
+      .setName(t("settings.modSuffix"))
+      .setDesc(t("settings.modSuffixDesc"))
+      .addText((tx) => {
+        tx.setPlaceholder("s")
+          .setValue(plugin.settings.modifierSuffix ?? "s")
+          .onChange((v) => {
+            plugin.settings.modifierSuffix = v;
+            save();
+          });
+      });
     new Setting(c)
       .setName(t("settings.modDepth"))
       .setDesc(t("settings.modDepthDesc"))
@@ -236,17 +259,6 @@ export class EPSettingTab extends PluginSettingTab {
     // -- short forms ------------------------------------------------------------------
     new Setting(c).setName(t("settings.abbrHeading")).setHeading();
     c.createEl("p", { cls: "setting-item-description", text: t("settings.abbrDesc") });
-    new Setting(c)
-      .setName(t("settings.modSuffix"))
-      .setDesc(t("settings.modSuffixDesc"))
-      .addText((tx) => {
-        tx.setPlaceholder("s")
-          .setValue(plugin.settings.modifierSuffix ?? "s")
-          .onChange((v) => {
-            plugin.settings.modifierSuffix = v;
-            save();
-          });
-      });
     new Setting(c)
       .setName(t("settings.poolSuffix"))
       .setDesc(t("settings.poolSuffixDesc"))

@@ -97,6 +97,8 @@ export interface DerivationSetting {
   name: string;
   /** Expression in `x` (see `utils/formula.ts` for the grammar). */
   formula: string;
+  /** Dotted reference suffix: `Level.pb` applies this block to Level. */
+  suffix?: string;
 }
 
 /**
@@ -105,8 +107,8 @@ export interface DerivationSetting {
  */
 export function defaultDerivations(): DerivationSetting[] {
   return [
-    { id: "abilityMod", name: "Ability modifier", formula: "floor((x - 10) / 2)" },
-    { id: "profBonus", name: "Proficiency bonus", formula: "2 + floor((max(x, 1) - 1) / 4)" },
+    { id: "abilityMod", name: "Ability modifier", formula: "floor((x - 10) / 2)", suffix: "am" },
+    { id: "profBonus", name: "Proficiency bonus", formula: "2 + floor((max(x, 1) - 1) / 4)", suffix: "pb" },
   ];
 }
 
@@ -393,6 +395,17 @@ class NoteEval {
         if (entry) return this.totalAt(entry, depth);
       }
     }
+    // Building-block references: `Level.pb` applies the block's formula to
+    // the base reference's value (which may itself be a key, short form, or
+    // another suffixed reference - the name shrinks, so this terminates).
+    const dref = derivationBaseFor(this.env.settings, name);
+    if (dref) {
+      const v = this.refValue(dref.base, depth);
+      if (v !== undefined) {
+        const f = compileFormula(dref.formula);
+        if (f) return f(v);
+      }
+    }
     return undefined;
   }
 
@@ -618,6 +631,27 @@ export function modifierBaseFor(settings: EPSettings, name: string): string | nu
   const tail = "." + suf;
   if (name.length <= tail.length) return null;
   return name.toLowerCase().endsWith(tail.toLowerCase()) ? name.slice(0, name.length - tail.length) : null;
+}
+
+/**
+ * If `name` is a dotted BUILDING-BLOCK reference (`Level.pb`,
+ * `Strength.am`), the base reference and the block's formula; else null.
+ * Every block carries its own user-editable suffix, so notes can apply any
+ * derivation to any property. The modifier suffix wins on a collision
+ * (callers check it first).
+ */
+export function derivationBaseFor(
+  settings: EPSettings,
+  name: string
+): { base: string; formula: string } | null {
+  for (const d of settings.derivations ?? []) {
+    const suf = (d.suffix ?? "").trim();
+    if (!suf) continue;
+    const tail = "." + suf;
+    if (name.length > tail.length && name.toLowerCase().endsWith(tail.toLowerCase()))
+      return { base: name.slice(0, name.length - tail.length), formula: d.formula };
+  }
+  return null;
 }
 
 /** The configured pool suffix (default "p"); empty disables pool references. */

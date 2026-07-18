@@ -311,7 +311,7 @@ export interface EPSettings {
    * available to influences. Seeded with d20-style defaults; see
    * `core/influences.ts`.
    */
-  derivations: { id: string; name: string; formula: string }[];
+  derivations: { id: string; name: string; formula: string; suffix?: string }[];
   /**
    * Short-form overrides for modifier denotations, keyed by source
    * property. Missing keys fall back to the capitalized first three

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  modifierBaseFor, modifierSuffix, keyForShortForm, defaultAbbr, abbrFor, referenceSuggestions,
+  derivationBaseFor, modifierBaseFor, modifierSuffix, keyForShortForm, defaultAbbr, abbrFor, referenceSuggestions,
 } from "../src/core/influences";
 import type { EPSettings } from "../src/core/model";
 
@@ -46,5 +46,31 @@ describe("short forms", () => {
     const texts = referenceSuggestions(s(), ["Strength"]).map((x) => x.text);
     expect(texts).toContain("Strength");
     expect(texts).toContain("STR");
+  });
+});
+
+describe("derivationBaseFor (building-block suffixes)", () => {
+  const withBlocks = () =>
+    s({
+      derivations: [
+        { id: "abilityMod", name: "Ability modifier", formula: "floor((x - 10) / 2)", suffix: "am" },
+        { id: "profBonus", name: "Proficiency bonus", formula: "2 + floor((max(x, 1) - 1) / 4)", suffix: "pb" },
+        { id: "noSuffix", name: "No ref", formula: "x * 2" },
+      ],
+    });
+
+  it("matches each block's own suffix, case-insensitively", () => {
+    expect(derivationBaseFor(withBlocks(), "Level.pb")).toMatchObject({ base: "Level" });
+    expect(derivationBaseFor(withBlocks(), "strength.AM")).toMatchObject({ base: "strength" });
+  });
+
+  it("requires the dot and a non-empty base; blank suffixes never match", () => {
+    expect(derivationBaseFor(withBlocks(), "Levelpb")).toBeNull();
+    expect(derivationBaseFor(withBlocks(), ".pb")).toBeNull();
+    expect(derivationBaseFor(withBlocks(), "X.noSuffix")).toBeNull();
+  });
+
+  it("returns the block formula for the caller to apply", () => {
+    expect(derivationBaseFor(withBlocks(), "Level.pb")?.formula).toContain("max(x, 1)");
   });
 });
