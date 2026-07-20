@@ -34,25 +34,14 @@ function writeConflictNotice(
   conflictKeys: string[] = []
 ): void {
   const frag = activeDocument.createDocumentFragment();
-  const msg = activeDocument.createElement("div");
-  msg.className = "ep-conflict-msg";
-  msg.textContent = i18n.t("conflict.message", { note: fileName });
+  const msg = createDiv({ cls: "ep-conflict-msg", text: i18n.t("conflict.message", { note: fileName }) });
   frag.appendChild(msg);
   if (conflictKeys.length) {
-    const keys = activeDocument.createElement("div");
-    keys.className = "ep-conflict-keys";
-    keys.textContent = i18n.t("conflict.keys", { keys: conflictKeys.join(", ") });
-    frag.appendChild(keys);
+    frag.appendChild(createDiv({ cls: "ep-conflict-keys", text: i18n.t("conflict.keys", { keys: conflictKeys.join(", ") }) }));
   }
-  const row = activeDocument.createElement("div");
-  row.className = "ep-conflict-actions";
-  const mine = activeDocument.createElement("button");
-  mine.className = "mod-warning";
-  mine.textContent = i18n.t("conflict.keepMine");
-  const theirs = activeDocument.createElement("button");
-  theirs.textContent = i18n.t("conflict.takeTheirs");
-  row.appendChild(mine);
-  row.appendChild(theirs);
+  const row = createDiv({ cls: "ep-conflict-actions" });
+  const mine = row.createEl("button", { cls: "mod-warning", text: i18n.t("conflict.keepMine") });
+  const theirs = row.createEl("button", { text: i18n.t("conflict.takeTheirs") });
   frag.appendChild(row);
   let notice: Notice;
   mine.onclick = () => {

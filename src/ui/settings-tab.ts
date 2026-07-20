@@ -5,7 +5,7 @@
  * feature module toggles.
  */
 
-import { App, Notice, PluginSettingTab, Setting } from "obsidian";
+import { App, Notice, PluginSettingTab, Setting, SettingDefinitionItem } from "obsidian";
 import type ExtendedPropertiesPlugin from "../main";
 import { TYPE_FEATURES, UI_FEATURES } from "../core/features";
 import { COLOR_SPACES, ColorSpace } from "../utils/color";
@@ -27,6 +27,144 @@ const OVERRIDE_ROW_LIMIT = 25;
 export class EPSettingTab extends PluginSettingTab {
   constructor(app: App, private plugin: ExtendedPropertiesPlugin) {
     super(app, plugin);
+  }
+
+
+  /**
+   * Declarative map of the tab for Obsidian 1.13's settings search. The tab
+   * itself still renders imperatively in display() (several sections are
+   * bespoke editors), but every heading and setting is declared here with
+   * its localized name/description so search can find and open them.
+   */
+  getSettingDefinitions(): SettingDefinitionItem[] {
+    const i18n = this.plugin.i18n;
+    const t = i18n.t.bind(i18n);
+    return [
+    {
+      type: "group",
+      heading: t("settings.typesHeading"),
+      items: [
+        { name: t("settings.addType"), aliases: ["settings.addType"] },
+      ],
+    },
+    {
+      type: "group",
+      heading: t("settings.defaultsHeading"),
+      items: [
+        { name: t("settings.defaultDataType"), desc: t("settings.defaultDataTypeDesc"), aliases: ["settings.defaultDataType"] },
+        { name: t("settings.defaultColorSpace"), aliases: ["settings.defaultColorSpace"] },
+      ],
+    },
+    {
+      type: "group",
+      heading: t("settings.newSectionHeading"),
+      items: [],
+    },
+    {
+      type: "group",
+      heading: t("settings.derivationsHeading"),
+      items: [
+        { name: t("settings.modSuffix"), desc: t("settings.modSuffixDesc"), aliases: ["settings.modSuffix"] },
+        { name: t("settings.modDepth"), desc: t("settings.modDepthDesc"), aliases: ["settings.modDepth"] },
+        { name: t("settings.modsOffProp"), desc: t("settings.modsOffPropDesc"), aliases: ["settings.modsOffProp"] },
+        { name: t("settings.derivationAdd"), aliases: ["settings.derivationAdd"] },
+      ],
+    },
+    {
+      type: "group",
+      heading: t("settings.abbrHeading"),
+      items: [
+        { name: t("settings.poolSuffix"), desc: t("settings.poolSuffixDesc"), aliases: ["settings.poolSuffix"] },
+        { name: t("settings.crossNote"), desc: t("settings.crossNoteDesc"), aliases: ["settings.crossNote"] },
+        { name: t("settings.conflictGuard"), desc: t("settings.conflictGuardDesc"), aliases: ["settings.conflictGuard"] },
+        { name: t("settings.snapshots"), desc: t("settings.snapshotsDesc"), aliases: ["settings.snapshots"] },
+        { name: t("settings.layoutVault"), desc: t("settings.layoutVaultDesc"), aliases: ["settings.layoutVault"] },
+        { name: t("settings.layoutVaultFolder"), desc: t("settings.layoutVaultFolderDesc"), aliases: ["settings.layoutVaultFolder"] },
+        { name: t("settings.abbrAdd"), aliases: ["settings.abbrAdd"] },
+      ],
+    },
+    {
+      type: "group",
+      heading: t("settings.diceHeading"),
+      items: [
+        { name: t("settings.diceAnim"), desc: t("settings.diceAnimDesc"), aliases: ["settings.diceAnim"] },
+        { name: t("settings.diceStyle"), desc: t("settings.diceStyleDesc"), aliases: ["settings.diceStyle"] },
+        { name: t("settings.diceAa"), desc: t("settings.diceAaDesc"), aliases: ["settings.diceAa"] },
+        { name: t("settings.diceAnimMs"), desc: t("settings.diceAnimMsDesc"), aliases: ["settings.diceAnimMs"] },
+        { name: t("settings.diceAnimStay"), desc: t("settings.diceAnimStayDesc"), aliases: ["settings.diceAnimStay"] },
+        { name: t("settings.diceAnimBlock"), desc: t("settings.diceAnimBlockDesc"), aliases: ["settings.diceAnimBlock"] },
+        { name: t("settings.sound"), desc: t("settings.soundDesc"), aliases: ["settings.sound"] },
+        { name: t("settings.soundVolume"), desc: t("settings.soundVolumeDesc"), aliases: ["settings.soundVolume"] },
+        { name: t("settings.failOnOne"), desc: t("settings.failOnOneDesc"), aliases: ["settings.failOnOne"] },
+        { name: t("settings.critRangeAdd"), aliases: ["settings.critRangeAdd"] },
+      ],
+    },
+    {
+      type: "group",
+      heading: t("settings.rollsHeading"),
+      visible: () => this.plugin.settings.features["rolling"] !== false,
+      items: [
+        { name: t("settings.rollHistory"), desc: t("settings.rollHistoryDesc"), aliases: ["settings.rollHistory"] },
+        { name: t("settings.rollHistoryLimit"), desc: t("settings.rollHistoryLimitDesc"), aliases: ["settings.rollHistoryLimit"] },
+        { name: t("settings.rollHistoryClear"), aliases: ["settings.rollHistoryClear"] },
+      ],
+    },
+    {
+      type: "group",
+      heading: t("settings.macrosHeading"),
+      visible: () => this.plugin.settings.features["rolling"] !== false,
+      items: [
+        { name: t("settings.macroAdd"), aliases: ["settings.macroAdd"] },
+      ],
+    },
+    {
+      type: "group",
+      heading: t("settings.typographyHeading"),
+      items: [
+        { name: t("settings.fontFamily"), aliases: ["settings.fontFamily"] },
+      ],
+    },
+    {
+      type: "group",
+      heading: t("settings.languageHeading"),
+      items: [],
+    },
+    {
+      type: "group",
+      heading: t("settings.obsidianHeading"),
+      items: [
+        { name: t("settings.hideShown"), desc: t("settings.hideShownDesc"), aliases: ["settings.hideShown"] },
+        { name: t("settings.propMenu"), desc: t("settings.propMenuDesc"), aliases: ["settings.propMenu"] },
+      ],
+    },
+    {
+      type: "group",
+      heading: t("settings.hiddenHeading"),
+      items: [
+        { name: t("settings.hideProperty"), aliases: ["settings.hideProperty"] },
+      ],
+    },
+    {
+      type: "group",
+      heading: t("settings.featuresHeading"),
+      items: this.plugin.featureModules.map((m) => ({ name: m.name(i18n), desc: m.description(i18n) })),
+    },
+    {
+      type: "group",
+      heading: t("settings.featuresTypes"),
+      items: TYPE_FEATURES.map((f) => ({ name: t("feature." + f.id), desc: t("feature." + f.id + "Desc") })),
+    },
+    {
+      type: "group",
+      heading: t("settings.featuresUi"),
+      items: UI_FEATURES.map((f) => ({ name: t("feature." + f.id), desc: t("feature." + f.id + "Desc") })),
+    },
+    {
+      type: "group",
+      heading: t("settings.overrides"),
+      items: [{ name: t("settings.overrides"), desc: t("settings.overridesDesc"), aliases: ["settings.overrides"] }, { name: t("settings.resetHeading"), aliases: ["settings.resetHeading"] }],
+    },
+    ];
   }
 
   display(): void {

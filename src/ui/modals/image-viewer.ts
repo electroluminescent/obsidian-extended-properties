@@ -48,7 +48,7 @@ export class ImageViewerModal extends Modal {
       ty = 0;
       apply();
     });
-    c.createEl("div", { cls: "ep-imgview-hint", text: this.i18n.t("imageViewer.hint") });
+    c.createDiv({ cls: "ep-imgview-hint", text: this.i18n.t("imageViewer.hint") });
     apply();
   }
 

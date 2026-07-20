@@ -9,11 +9,9 @@ let region: HTMLElement | null = null;
 
 function live(): HTMLElement {
   if (!region || !region.isConnected) {
-    region = activeDocument.createElement("div");
-    region.className = "ep-sr-only";
+    region = activeDocument.body.createDiv({ cls: "ep-sr-only" });
     region.setAttribute("aria-live", "polite");
     region.setAttribute("aria-atomic", "true");
-    activeDocument.body.appendChild(region);
   }
   return region;
 }
