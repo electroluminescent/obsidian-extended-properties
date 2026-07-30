@@ -1,5 +1,18 @@
 # Changelog
 
+## 4.18.1
+
+- **The settings popup only closes when you click away from it.** Using a row
+  could dismiss it: a native dropdown draws its option list outside the page,
+  so the press that picked an option was read as a press elsewhere. The same
+  went for anything a row opens beside the popup - autocomplete lists, menus,
+  the icon picker and other prompts - and Escape closed the popup instead of
+  the list or modal in front of it. All of those now belong to the popup, so
+  its dropdowns and suggestions behave exactly as they do in the full property
+  settings.
+- Rows that rebuild after a change (renaming the property, switching its data
+  type) keep their scroll position instead of jumping back to the top.
+
 ## 4.18.0
 
 - **One press, one action on mobile.** A touch screen has a single long press,

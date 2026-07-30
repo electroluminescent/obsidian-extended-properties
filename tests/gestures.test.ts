@@ -5,8 +5,8 @@
  * right-click-and-hold option - otherwise one press fires two actions.
  */
 
-import { describe, expect, it } from "vitest";
-import { effectiveGesture, interactionFor } from "../src/ui/components/hold-config";
+import { beforeAll, describe, expect, it } from "vitest";
+import { effectiveGesture, interactionFor, outsidePopup } from "../src/ui/components/hold-config";
 
 describe("gesture mapping", () => {
   it("keeps the four gestures apart on desktop", () => {
@@ -43,5 +43,95 @@ describe("gesture mapping", () => {
     expect(interactionFor({}, "click")).toBe("none");
     // So an unconfigured mobile long press opens the property settings.
     expect(interactionFor({}, effectiveGesture("hold", true))).toBe("settings");
+  });
+});
+
+/**
+ * The settings popup dismisses on a press away from it - but a row can open
+ * layers that live outside its element (autocomplete, menus, modals, other
+ * plugin popups), and a native `<select>` list is drawn outside the page
+ * entirely. Only a press that is none of those is "away".
+ *
+ * The node types are faked because the test environment has no DOM; only the
+ * three members `outsidePopup` uses are modelled.
+ */
+class FakeNode {
+  parent: FakeNode | null = null;
+  classes: string[] = [];
+  contains(other: FakeNode | null): boolean {
+    for (let n = other; n; n = n.parent) if (n === this) return true;
+    return false;
+  }
+  closest(sel: string): FakeNode | null {
+    const wanted = sel.split(",").map((s) => s.trim());
+    for (let n: FakeNode | null = this; n; n = n.parent) {
+      if (n.classes.some((c) => wanted.includes("." + c))) return n;
+    }
+    return null;
+  }
+}
+class FakeElement extends FakeNode {}
+class FakeSelect extends FakeElement {}
+
+/** `outsidePopup` narrows with instanceof; point those globals at the fakes. */
+beforeAll(() => {
+  const g = globalThis as Record<string, unknown>;
+  g.Node = FakeNode;
+  g.HTMLElement = FakeElement;
+  g.HTMLSelectElement = FakeSelect;
+});
+
+/** A child element `depth` levels under `parent`, carrying `classes`. */
+function child(parent: FakeNode | null, classes: string[] = []): FakeElement {
+  const el = new FakeElement();
+  el.parent = parent;
+  el.classes = classes;
+  return el;
+}
+
+describe("settings popup dismissal", () => {
+  const setup = () => {
+    const body = new FakeElement();
+    const pop = child(body, ["ep-popup", "ep-entrysettings"]);
+    const doc = { body, documentElement: body, activeElement: null } as unknown as Document;
+    const away = (target: unknown): boolean =>
+      outsidePopup(pop as unknown as HTMLElement, target as EventTarget, doc);
+    return { body, pop, doc, away };
+  };
+
+  it("dismisses on a press somewhere else in the app", () => {
+    const { body, away } = setup();
+    expect(away(child(body, ["ep-sidebar"]))).toBe(true);
+    expect(away(body)).toBe(true);
+  });
+
+  it("stays open for a press inside itself", () => {
+    const { pop, away } = setup();
+    expect(away(child(pop, ["setting-item"]))).toBe(false);
+  });
+
+  it("stays open for the layers its own rows open", () => {
+    const { body, away } = setup();
+    for (const layer of ["suggestion-container", "menu", "modal-container", "prompt", "ep-popup"]) {
+      const item = child(child(body, [layer]), ["item"]);
+      expect(away(item)).toBe(false);
+    }
+  });
+
+  it("stays open while a dropdown inside it is picking an option", () => {
+    const { body, pop, doc, away } = setup();
+    const select = new FakeSelect();
+    select.parent = pop;
+    // The native list is drawn outside the page: the press reports the
+    // document while the select keeps focus.
+    (doc as { activeElement: unknown }).activeElement = select;
+    expect(away(body)).toBe(false);
+    // A real press elsewhere still dismisses, focused select or not.
+    expect(away(child(body, ["ep-sidebar"]))).toBe(true);
+  });
+
+  it("ignores events with no node at all", () => {
+    const { away } = setup();
+    expect(away(null)).toBe(false);
   });
 });

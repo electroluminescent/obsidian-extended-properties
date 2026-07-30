@@ -8370,6 +8370,17 @@ function closeSettingsPopup() {
   pop.addEventListener("animationend", drop, { once: true });
   window.setTimeout(drop, 200);
 }
+var OUTSIDE_LAYERS = ".ep-popup, .suggestion-container, .menu, .modal-container, .prompt, .notice, .notice-container";
+var OWN_ESCAPE = ".modal-container, .suggestion-container, .menu, .ep-popup:not(.ep-entrysettings)";
+function outsidePopup(pop, target, doc) {
+  if (!(target instanceof Node)) return false;
+  if (pop.contains(target)) return false;
+  if (target instanceof HTMLElement && target.closest(OUTSIDE_LAYERS)) return false;
+  const active = doc.activeElement;
+  const onSelect = active instanceof HTMLSelectElement && pop.contains(active);
+  if (onSelect && (target === doc.body || target === doc.documentElement)) return false;
+  return true;
+}
 function openEntrySettingsPopup(view, file, section, entry, x, y) {
   closeSettingsPopup();
   const doc = activeDocument;
@@ -8448,6 +8459,7 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
   const body = pop.createDiv({ cls: "ep-entrysettings-body" });
   const build = () => {
     var _a, _b, _c, _d, _e;
+    const scroll = body.scrollTop;
     body.empty();
     const octx = {
       view,
@@ -8467,6 +8479,7 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
       const name = (_e = (_d = (_c = item.querySelector(".setting-item-name")) == null ? void 0 : _c.textContent) == null ? void 0 : _d.trim()) != null ? _e : "";
       if (desc) item.setAttr("title", name ? name + " - " + desc : desc);
     }
+    if (scroll) body.scrollTop = scroll;
   };
   build();
   const place = () => {
@@ -8480,12 +8493,14 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
   place();
   window.requestAnimationFrame(place);
   const onDown = (ev) => {
-    if (ev.target instanceof Node && pop.contains(ev.target)) return;
-    if (ev.target instanceof HTMLElement && ev.target.closest(".suggestion-container")) return;
+    if (!outsidePopup(pop, ev.target, doc)) return;
     closeSettingsPopup();
   };
   const onKey = (ev) => {
-    if (ev.key === "Escape") closeSettingsPopup();
+    if (ev.key !== "Escape") return;
+    if (!outsidePopup(pop, ev.target, doc)) return;
+    if (doc.querySelector(OWN_ESCAPE)) return;
+    closeSettingsPopup();
   };
   doc.addEventListener("pointerdown", onDown, true);
   doc.addEventListener("keydown", onKey, true);

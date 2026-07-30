@@ -131,6 +131,39 @@ function closeSettingsPopup(): void {
 }
 
 /**
+ * Layers a settings row legitimately opens *outside* the popup element:
+ * autocomplete lists, Obsidian menus, modals (the icon picker, prompts,
+ * confirmations) and notices. A press in one of these belongs to the popup's
+ * own workflow, so it must not be read as "clicked away".
+ */
+const OUTSIDE_LAYERS =
+  ".ep-popup, .suggestion-container, .menu, .modal-container, .prompt, .notice, .notice-container";
+
+/** Layers that consume Escape themselves before the popup should see it. */
+const OWN_ESCAPE =
+  ".modal-container, .suggestion-container, .menu, .ep-popup:not(.ep-entrysettings)";
+
+/**
+ * Whether a press or key really landed away from the popup.
+ *
+ * Two cases are deliberately *not* "away": the extra layers above, and the
+ * native `<select>` list. The browser draws that list outside the page, so the
+ * press that picks an option is reported against the document rather than the
+ * select - dismissing on it would close the popup every time a dropdown is
+ * used. While a select inside the popup holds focus, a press with no element
+ * of its own belongs to that list.
+ */
+export function outsidePopup(pop: HTMLElement, target: EventTarget | null, doc: Document): boolean {
+  if (!(target instanceof Node)) return false;
+  if (pop.contains(target)) return false;
+  if (target instanceof HTMLElement && target.closest(OUTSIDE_LAYERS)) return false;
+  const active = doc.activeElement;
+  const onSelect = active instanceof HTMLSelectElement && pop.contains(active);
+  if (onSelect && (target === doc.body || target === doc.documentElement)) return false;
+  return true;
+}
+
+/**
  * A scrollable popup at (x, y) hosting the property's full settings page -
  * the same body the options modal renders, ported to the cursor.
  */
@@ -224,6 +257,10 @@ export function openEntrySettingsPopup(
   });
   const body = pop.createDiv({ cls: "ep-entrysettings-body" });
   const build = (): void => {
+    // Rows rebuild in place (a rename, a data-type change): keep the reader
+    // where they were instead of snapping back to the top, which reads as the
+    // popup having closed and reopened.
+    const scroll = body.scrollTop;
     body.empty();
     const octx: OptionsCtx = {
       view,
@@ -245,6 +282,7 @@ export function openEntrySettingsPopup(
       const name = item.querySelector<HTMLElement>(".setting-item-name")?.textContent?.trim() ?? "";
       if (desc) item.setAttr("title", name ? name + " - " + desc : desc);
     }
+    if (scroll) body.scrollTop = scroll;
   };
   build();
   // Clamp near the cursor once sized. The mobile sheet is placed by CSS.
@@ -259,14 +297,16 @@ export function openEntrySettingsPopup(
   place();
   window.requestAnimationFrame(place);
   const onDown = (ev: PointerEvent): void => {
-    if (ev.target instanceof Node && pop.contains(ev.target)) return;
-    // Suggestion popovers (autocomplete) live outside the popup - keep it
-    // open while the pointer lands on one of them.
-    if (ev.target instanceof HTMLElement && ev.target.closest(".suggestion-container")) return;
+    if (!outsidePopup(pop, ev.target, doc)) return;
     closeSettingsPopup();
   };
   const onKey = (ev: KeyboardEvent): void => {
-    if (ev.key === "Escape") closeSettingsPopup();
+    if (ev.key !== "Escape") return;
+    // A modal, suggestion list or menu opened from a row owns Escape first -
+    // it closes, and the popup it was opened from stays put.
+    if (!outsidePopup(pop, ev.target, doc)) return;
+    if (doc.querySelector(OWN_ESCAPE)) return;
+    closeSettingsPopup();
   };
   doc.addEventListener("pointerdown", onDown, true);
   doc.addEventListener("keydown", onKey, true);
