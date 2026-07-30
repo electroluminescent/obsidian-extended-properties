@@ -221,7 +221,7 @@ export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EP
     if (typeof data.defaultTypeIcon === "string" && data.defaultTypeIcon.trim())
       s.defaultTypeIcon = data.defaultTypeIcon.trim();
     for (const k of ["clickAction", "holdAction", "rightClickAction", "rightHoldAction"] as const) {
-      if (typeof data[k] === "string") s[k] = data[k] as string;
+      if (typeof data[k] === "string") s[k] = data[k];
     }
     if (typeof data.holdMs === "number" && data.holdMs >= 100) s.holdMs = Math.min(5000, Math.floor(data.holdMs));
     if (data.dnd5ePoolsSeeded === true) s.dnd5ePoolsSeeded = true;

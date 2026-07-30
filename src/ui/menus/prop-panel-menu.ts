@@ -42,7 +42,7 @@ export function showPropMenu(host: PropPanelHost, e: MouseEvent, key: string): v
   if (fm) {
     const want = (settings.typeProp ?? "Type").trim().toLowerCase() || "type";
     let raw: unknown;
-    for (const k of Object.keys(fm as Record<string, unknown>)) {
+    for (const k of Object.keys(fm)) {
       if (k.toLowerCase() === want) { raw = (fm as Record<string, unknown>)[k]; break; }
     }
     if (Array.isArray(raw)) (raw as unknown[]).forEach((x) => typeValues.push(String(x)));

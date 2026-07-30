@@ -5,7 +5,7 @@
  * feature module toggles.
  */
 
-import { App, Notice, PluginSettingTab, Setting, setIcon } from "obsidian";
+import { App, Notice, PluginSettingTab, Setting, setIcon, SettingDefinitionItem } from "obsidian";
 import type ExtendedPropertiesPlugin from "../main";
 import { TYPE_FEATURES, UI_FEATURES } from "../core/features";
 import { COLOR_SPACES, ColorSpace } from "../utils/color";
@@ -27,19 +27,67 @@ import { DICE_STYLES } from "../features/rolling/dice-styles";
 /** Max override rows rendered at once (the list is searchable). */
 const OVERRIDE_ROW_LIMIT = 25;
 
+/** Section headings, offered to the settings search as aliases. */
+const SEARCH_SECTIONS = [
+  "settings.typesHeading", "settings.defaultsHeading", "settings.newSectionHeading",
+  "settings.derivationsHeading", "settings.abbrHeading", "settings.diceHeading",
+  "settings.rollsHeading", "settings.macrosHeading", "settings.typographyHeading",
+  "settings.languageHeading", "settings.obsidianHeading", "settings.hiddenHeading",
+  "settings.featuresHeading", "settings.featuresTypes", "settings.featuresUi",
+  "settings.resetHeading",
+];
+
 export class EPSettingTab extends PluginSettingTab {
   constructor(app: App, private plugin: ExtendedPropertiesPlugin) {
     super(app, plugin);
   }
 
+  /**
+   * Obsidian 1.13 renders a tab from its setting DEFINITIONS and only falls
+   * back to display() when there are none - and in 1.13.4 that fallback does
+   * not fire for this tab, leaving an empty placeholder. So the tab declares
+   * a single `render` item and draws itself inside that row: several sections
+   * are bespoke editors rather than name/control pairs, and the item carries
+   * every section heading as a search alias so the settings search can still
+   * find and open it.
+   */
+  getSettingDefinitions(): SettingDefinitionItem[] {
+    const t = this.plugin.i18n.t.bind(this.plugin.i18n);
+    return [
+      {
+        name: this.plugin.manifest.name,
+        aliases: SEARCH_SECTIONS.map((k) => t(k)),
+        render: (setting) => {
+          const host = setting.settingEl;
+          host.empty();
+          host.removeClass("setting-item");
+          host.addClass("ep-settings-host");
+          this.renderTarget = host;
+          this.render();
+          return () => {
+            this.renderTarget = null;
+          };
+        },
+      },
+    ];
+  }
 
+  /** Fallback for Obsidian versions older than 1.13. */
   display(): void {
+    if (this.renderTarget) return; // already drawn by the definition above
     this.render();
   }
 
   /** Every render ends by tinting the configured type name in the prose. */
   private tint(): void {
-    tintTypeNames(this.containerEl, this.plugin.settings);
+    tintTypeNames(this.host, this.plugin.settings);
+  }
+
+  /** Where the tab draws: the definition's row, else the tab container. */
+  private renderTarget: HTMLElement | null = null;
+
+  private get host(): HTMLElement {
+    return this.renderTarget ?? this.containerEl;
   }
 
   render(): void {
@@ -48,7 +96,7 @@ export class EPSettingTab extends PluginSettingTab {
   }
 
   private renderBody(): void {
-    const c = this.containerEl;
+    const c = this.host;
     const plugin = this.plugin;
     const i18n = plugin.i18n;
     const t = i18n.t.bind(i18n);
@@ -81,7 +129,7 @@ export class EPSettingTab extends PluginSettingTab {
         tx.inputEl.addEventListener("change", () => {
           this.render();
           // The tab rebuilt: put the caret back where the user left it.
-          const next = this.containerEl.querySelector<HTMLInputElement>(".ep-typeprop-input");
+          const next = this.host.querySelector<HTMLInputElement>(".ep-typeprop-input");
           next?.focus();
         });
         tx.inputEl.addClass("ep-typeprop-input");

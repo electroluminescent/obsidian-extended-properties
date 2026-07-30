@@ -13054,24 +13054,79 @@ function pickDiceStyle(id) {
 
 // src/ui/settings-tab.ts
 var OVERRIDE_ROW_LIMIT = 25;
+var SEARCH_SECTIONS = [
+  "settings.typesHeading",
+  "settings.defaultsHeading",
+  "settings.newSectionHeading",
+  "settings.derivationsHeading",
+  "settings.abbrHeading",
+  "settings.diceHeading",
+  "settings.rollsHeading",
+  "settings.macrosHeading",
+  "settings.typographyHeading",
+  "settings.languageHeading",
+  "settings.obsidianHeading",
+  "settings.hiddenHeading",
+  "settings.featuresHeading",
+  "settings.featuresTypes",
+  "settings.featuresUi",
+  "settings.resetHeading"
+];
 var EPSettingTab = class extends import_obsidian33.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
+    /** Where the tab draws: the definition's row, else the tab container. */
+    this.renderTarget = null;
   }
+  /**
+   * Obsidian 1.13 renders a tab from its setting DEFINITIONS and only falls
+   * back to display() when there are none - and in 1.13.4 that fallback does
+   * not fire for this tab, leaving an empty placeholder. So the tab declares
+   * a single `render` item and draws itself inside that row: several sections
+   * are bespoke editors rather than name/control pairs, and the item carries
+   * every section heading as a search alias so the settings search can still
+   * find and open it.
+   */
+  getSettingDefinitions() {
+    const t = this.plugin.i18n.t.bind(this.plugin.i18n);
+    return [
+      {
+        name: this.plugin.manifest.name,
+        aliases: SEARCH_SECTIONS.map((k) => t(k)),
+        render: (setting) => {
+          const host = setting.settingEl;
+          host.empty();
+          host.removeClass("setting-item");
+          host.addClass("ep-settings-host");
+          this.renderTarget = host;
+          this.render();
+          return () => {
+            this.renderTarget = null;
+          };
+        }
+      }
+    ];
+  }
+  /** Fallback for Obsidian versions older than 1.13. */
   display() {
+    if (this.renderTarget) return;
     this.render();
   }
   /** Every render ends by tinting the configured type name in the prose. */
   tint() {
-    tintTypeNames(this.containerEl, this.plugin.settings);
+    tintTypeNames(this.host, this.plugin.settings);
+  }
+  get host() {
+    var _a;
+    return (_a = this.renderTarget) != null ? _a : this.containerEl;
   }
   render() {
     this.renderBody();
     this.tint();
   }
   renderBody() {
-    const c = this.containerEl;
+    const c = this.host;
     const plugin = this.plugin;
     const i18n = plugin.i18n;
     const t = i18n.t.bind(i18n);
@@ -13094,7 +13149,7 @@ var EPSettingTab = class extends import_obsidian33.PluginSettingTab {
       });
       tx.inputEl.addEventListener("change", () => {
         this.render();
-        const next = this.containerEl.querySelector(".ep-typeprop-input");
+        const next = this.host.querySelector(".ep-typeprop-input");
         next == null ? void 0 : next.focus();
       });
       tx.inputEl.addClass("ep-typeprop-input");

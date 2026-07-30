@@ -1,6 +1,15 @@
 # Changelog
 
-## 4.16.11
+## 4.17.0
+
+- **The settings tab renders on Obsidian 1.13 again.** 1.13 draws a tab from its
+  setting definitions and only falls back to `display()` when there are none - and
+  in 1.13.4 that fallback did not fire here, so the tab showed an empty
+  placeholder. It now declares a `render` item and draws itself inside that row,
+  which also puts it back in the settings search (every section heading is an
+  alias, so searching "dice" or "features" finds it).
+- Removed three redundant type assertions flagged by the plugin review.
+
 
 Everything since 4.10.1, grouped by what it changes.
 

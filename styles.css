@@ -1113,3 +1113,7 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 
 /* The configured type-property name, wherever it appears in a sentence. */
 .ep-typename { color: var(--text-accent); }
+
+/* The settings tab draws inside its declarative row: strip the row's own
+   frame so the sections lay out exactly as before. */
+.ep-settings-host { display: block; padding: 0; border: none; background: none; }
