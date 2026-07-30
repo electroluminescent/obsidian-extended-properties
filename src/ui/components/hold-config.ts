@@ -86,8 +86,21 @@ let popupCleanup: (() => void) | null = null;
 function closeSettingsPopup(): void {
   popupCleanup?.();
   popupCleanup = null;
-  openPopup?.remove();
+  const pop = openPopup;
   openPopup = null;
+  if (!pop) return;
+  // Mirror the open animation on the way out (shared .ep-closing keyframes);
+  // the element is detached once it finishes, or immediately when animations
+  // are off (reduced motion emits no animationend).
+  pop.addClass("ep-closing");
+  let removed = false;
+  const drop = (): void => {
+    if (removed) return;
+    removed = true;
+    pop.remove();
+  };
+  pop.addEventListener("animationend", drop, { once: true });
+  window.setTimeout(drop, 200);
 }
 
 /**

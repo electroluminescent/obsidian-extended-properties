@@ -1045,19 +1045,28 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)); }
 .ep-entry.ep-holdfocus { outline: 2px solid var(--interactive-accent); outline-offset: -1px; border-radius: var(--ep-radius, 4px); }
 /* The property-settings popup: the options page, scrollable at the cursor. */
-.ep-entrysettings { position: fixed; z-index: var(--layer-menu, 25); width: min(300px, 92vw); }
+.ep-entrysettings { position: fixed; z-index: var(--layer-menu, 25); width: min(280px, 92vw); padding: 0; }
 /* Menu-like: tall, vertically scrollable, never horizontally. */
-.ep-entrysettings .ep-entrysettings-body { max-height: min(80vh, 640px); overflow-y: auto; overflow-x: hidden; padding: 6px 8px; }
-/* Compact options: descriptions hidden, controls stack under their name so
-   every row fits the popup width. */
+.ep-entrysettings .ep-entrysettings-body { max-height: min(80vh, 640px); overflow-y: auto; overflow-x: hidden; padding: 4px 8px; }
+/* Compact options: descriptions hidden, controls stack under their name, and
+   EVERY box measures border-box so a full-width field ends exactly at the
+   card's padding instead of overhanging it. */
+.ep-compactopts, .ep-compactopts * { box-sizing: border-box; }
 .ep-compactopts .setting-item-description { display: none; }
-.ep-compactopts .setting-item { display: block; padding: 4px 0; border: none; }
-.ep-compactopts .setting-item-info { margin: 0 0 2px; }
-.ep-compactopts .setting-item-name { font-size: var(--font-ui-smaller); color: var(--text-muted); }
-.ep-compactopts .setting-item-control { justify-content: flex-start; flex-wrap: wrap; gap: 4px; width: 100%; }
-.ep-compactopts .setting-item-control > * { max-width: 100%; }
+.ep-compactopts .setting-item { display: block; padding: 3px 0; margin: 0; border: none; width: 100%; }
+.ep-compactopts .setting-item-info { margin: 0 0 1px; padding: 0; overflow: visible; }
+.ep-compactopts .setting-item-name { font-size: var(--font-ui-smaller); line-height: 1.25; color: var(--text-muted); }
+.ep-compactopts .setting-item-control { justify-content: flex-start; flex-wrap: wrap; gap: 4px; width: 100%; margin: 0; padding: 0; }
+.ep-compactopts .setting-item-control > * { max-width: 100%; margin: 0; }
 .ep-compactopts .setting-item-control input[type="text"],
 .ep-compactopts .setting-item-control input[type="number"],
+.ep-compactopts .setting-item-control input[type="search"],
+.ep-compactopts .setting-item-control textarea,
 .ep-compactopts .setting-item-control select,
 .ep-compactopts .setting-item-control .dropdown { width: 100%; min-width: 0; }
-.ep-compactopts h3, .ep-compactopts h4 { margin: 6px 0 2px; font-size: var(--font-ui-small); }
+/* Buttons share a row rather than each taking a full line. */
+.ep-compactopts .setting-item-control button { width: auto; flex: 0 1 auto; }
+.ep-compactopts h3, .ep-compactopts h4 { margin: 5px 0 1px; padding: 0; font-size: var(--font-ui-smaller); text-transform: uppercase; letter-spacing: .04em; color: var(--text-faint); }
+.ep-compactopts h3:first-child, .ep-compactopts h4:first-child { margin-top: 0; }
+/* Nested editors (month names, era pools) keep to the card's width. */
+.ep-compactopts .ep-monthnames, .ep-compactopts .ep-erapool { margin: 0; padding: 0; }

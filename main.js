@@ -8192,8 +8192,18 @@ var popupCleanup = null;
 function closeSettingsPopup() {
   popupCleanup == null ? void 0 : popupCleanup();
   popupCleanup = null;
-  openPopup == null ? void 0 : openPopup.remove();
+  const pop = openPopup;
   openPopup = null;
+  if (!pop) return;
+  pop.addClass("ep-closing");
+  let removed = false;
+  const drop = () => {
+    if (removed) return;
+    removed = true;
+    pop.remove();
+  };
+  pop.addEventListener("animationend", drop, { once: true });
+  window.setTimeout(drop, 200);
 }
 function openEntrySettingsPopup(view, file, section, entry, x, y) {
   closeSettingsPopup();
