@@ -54,6 +54,20 @@ export function typedText(
 }
 
 /**
+ * Words that turn a following "type" into a DIFFERENT concept: the data type
+ * of a property, not the note's type. "data type", "value type", "number
+ * type", "date type" and friends must never be highlighted as if they named
+ * the user's type property - which matters most when that property is itself
+ * called "Type".
+ */
+const QUALIFIERS = new Set([
+  "data", "value", "property", "obsidian", "custom", "legacy", "same", "this",
+  "text", "number", "decimal", "derived", "list", "checkbox", "color", "colour",
+  "formula", "image", "media", "audio", "video", "pdf", "iframe", "rating",
+  "link", "unit", "date", "datetime", "time", "skills", "star", "embed", "sheet",
+]);
+
+/**
  * Tint every occurrence of the configured type name inside `root`.
  *
  * Most strings reach the DOM as plain text (Setting.setName/setDesc, headings,
@@ -62,21 +76,38 @@ export function typedText(
  * in prose, which keeps the highlight consistent without every call site
  * having to know about it.
  *
- * Values are left alone: fields, code, the type chip and anything already
- * tinted are skipped, so a note's own value that happens to match the name is
- * never restyled.
+ * Two things are deliberately left alone: values (fields, code, the type chip,
+ * editable text and anything already tinted), so a note's own value that
+ * happens to match is never restyled; and qualified compounds like "data type"
+ * or "date type", which name the value-type system rather than this one.
  */
 export function tintTypeNames(root: HTMLElement, settings: TypePropSettings): void {
   const name = typeName(settings);
   if (!name) return;
   const re = new RegExp("\\b" + name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "gi");
   const SKIP = "input, textarea, select, code, pre, .ep-typename, .ep-type-badge, .ep-title, .ep-editable, .ep-num, .ep-chip";
+  /** Whether the word before `index` makes this a different concept. */
+  const qualified = (value: string, index: number): boolean => {
+    const before = value.slice(0, index).trimEnd();
+    if (before.endsWith("/") || before.endsWith("-")) return true; // date/time type
+    const word = /([A-Za-z]+)$/.exec(before)?.[1];
+    return !!word && QUALIFIERS.has(word.toLowerCase());
+  };
   const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const targets: Text[] = [];
   for (let n = walker.nextNode(); n; n = walker.nextNode()) {
     const text = n as Text;
-    if (!text.nodeValue || !re.test(text.nodeValue)) continue;
+    if (!text.nodeValue) continue;
     re.lastIndex = 0;
+    let any = false;
+    for (let m = re.exec(text.nodeValue); m; m = re.exec(text.nodeValue)) {
+      if (!qualified(text.nodeValue, m.index)) {
+        any = true;
+        break;
+      }
+    }
+    re.lastIndex = 0;
+    if (!any) continue;
     const parent = text.parentElement;
     if (!parent || parent.closest(SKIP)) continue;
     targets.push(text);
@@ -87,6 +118,7 @@ export function tintTypeNames(root: HTMLElement, settings: TypePropSettings): vo
     let last = 0;
     re.lastIndex = 0;
     for (let m = re.exec(value); m; m = re.exec(value)) {
+      if (qualified(value, m.index)) continue; // "data type", "date type", ...
       if (m.index > last) frag.appendText(value.slice(last, m.index));
       frag.createSpan({ cls: "ep-typename", text: m[0] });
       last = m.index + m[0].length;

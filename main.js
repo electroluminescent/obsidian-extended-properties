@@ -7889,18 +7889,69 @@ function setTypedText(el, i18n, settings, key, vars = {}) {
 function typedText(i18n, settings, key, vars = {}) {
   return i18n.t(key, { ...vars, typeProp: typeName(settings) });
 }
+var QUALIFIERS = /* @__PURE__ */ new Set([
+  "data",
+  "value",
+  "property",
+  "obsidian",
+  "custom",
+  "legacy",
+  "same",
+  "this",
+  "text",
+  "number",
+  "decimal",
+  "derived",
+  "list",
+  "checkbox",
+  "color",
+  "colour",
+  "formula",
+  "image",
+  "media",
+  "audio",
+  "video",
+  "pdf",
+  "iframe",
+  "rating",
+  "link",
+  "unit",
+  "date",
+  "datetime",
+  "time",
+  "skills",
+  "star",
+  "embed",
+  "sheet"
+]);
 function tintTypeNames(root, settings) {
   var _a;
   const name = typeName(settings);
   if (!name) return;
   const re = new RegExp("\\b" + name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "gi");
   const SKIP = "input, textarea, select, code, pre, .ep-typename, .ep-type-badge, .ep-title, .ep-editable, .ep-num, .ep-chip";
+  const qualified = (value, index) => {
+    var _a2;
+    const before = value.slice(0, index).trimEnd();
+    if (before.endsWith("/") || before.endsWith("-")) return true;
+    const word = (_a2 = /([A-Za-z]+)$/.exec(before)) == null ? void 0 : _a2[1];
+    return !!word && QUALIFIERS.has(word.toLowerCase());
+  };
   const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const targets = [];
   for (let n = walker.nextNode(); n; n = walker.nextNode()) {
     const text = n;
-    if (!text.nodeValue || !re.test(text.nodeValue)) continue;
+    if (!text.nodeValue) continue;
     re.lastIndex = 0;
+    let any = false;
+    for (let m = re.exec(text.nodeValue); m; m = re.exec(text.nodeValue)) {
+      if (!qualified(text.nodeValue, m.index)) {
+        any = true;
+        break;
+      }
+    }
+    re.lastIndex = 0;
+    if (!any) continue;
     const parent = text.parentElement;
     if (!parent || parent.closest(SKIP)) continue;
     targets.push(text);
@@ -7911,6 +7962,7 @@ function tintTypeNames(root, settings) {
     let last = 0;
     re.lastIndex = 0;
     for (let m = re.exec(value); m; m = re.exec(value)) {
+      if (qualified(value, m.index)) continue;
       if (m.index > last) frag.appendText(value.slice(last, m.index));
       frag.createSpan({ cls: "ep-typename", text: m[0] });
       last = m.index + m[0].length;

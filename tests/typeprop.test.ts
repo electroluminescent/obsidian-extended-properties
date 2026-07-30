@@ -86,6 +86,19 @@ describe("tintTypeNames (fake DOM)", () => {
     }
   }
 
+  const QUALIFIERS = new Set([
+    "data", "value", "property", "obsidian", "custom", "legacy", "same", "this",
+    "text", "number", "decimal", "derived", "list", "checkbox", "color", "colour",
+    "formula", "image", "media", "audio", "video", "pdf", "iframe", "rating",
+    "link", "unit", "date", "datetime", "time", "skills", "star", "embed", "sheet",
+  ]);
+  const qualified = (value: string, index: number): boolean => {
+    const before = value.slice(0, index).trimEnd();
+    if (before.endsWith("/") || before.endsWith("-")) return true;
+    const word = /([A-Za-z]+)$/.exec(before)?.[1];
+    return !!word && QUALIFIERS.has(word.toLowerCase());
+  };
+
   /** The helper's core: split a text node's value on the name. */
   const tint = (root: FakeEl, name: string): void => {
     const re = new RegExp("\\b" + name + "\\b", "gi");
@@ -99,6 +112,7 @@ describe("tintTypeNames (fake DOM)", () => {
       let last = 0;
       re.lastIndex = 0;
       for (let m = re.exec(value); m; m = re.exec(value)) {
+        if (qualified(value, m.index)) continue;
         if (m.index > last) frag.appendText(value.slice(last, m.index));
         frag.createSpan({ cls: "ep-typename", text: m[0] });
         last = m.index + m[0].length;
@@ -137,5 +151,30 @@ describe("tintTypeNames (fake DOM)", () => {
     tint(root, "Category");
     tint(root, "Category");
     expect(spans(root).length).toBe(1);
+  });
+
+  it("never tints a qualified compound - those name the value-type system", () => {
+    for (const phrase of [
+      "Default data type",
+      "The decimal value type for non-integer numbers.",
+      "Defaults to the Obsidian property type",
+      "the number type renders icon ratings",
+      "superseded by the date type",
+      "the legacy native-picker date/time type",
+    ]) {
+      const root = new FakeEl("p");
+      root.add(new FakeText(phrase));
+      tint(root, "Type");
+      expect(spans(root).length, phrase).toBe(0);
+      expect(root.text).toBe(phrase);
+    }
+  });
+
+  it("still tints the concept in the same sentence", () => {
+    const root = new FakeEl("p");
+    root.add(new FakeText("Each Type has its own layout; the data type is separate."));
+    tint(root, "Type");
+    expect(spans(root).length).toBe(1);
+    expect(root.text).toBe("Each Type has its own layout; the data type is separate.");
   });
 });
