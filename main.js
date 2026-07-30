@@ -11378,7 +11378,7 @@ var SidebarView = class extends import_obsidian29.ItemView {
               cols--;
               cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
             }
-            const flowed = cols < ncol && cols > 1;
+            const flowed = cols < ncol && cols > 1 && cgrid.hasClass("ep-mode-columns");
             const cells = [];
             for (const child of Array.from(cgrid.children)) {
               if (child.instanceOf(HTMLElement)) cells.push(child);

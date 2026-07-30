@@ -1050,7 +1050,10 @@ export class SidebarView extends ItemView implements ViewCtx {
             // later row only - and not at all once the section is down to a
             // single column, where every cell is its own row and the rule
             // would draw a line between every property.
-            const flowed = cols < ncol && cols > 1;
+            // Columns mode only: in grid mode the cells are author-placed,
+            // and a measured divide there flickers and leaves artefacts as
+            // the pass re-runs, for no layout benefit.
+            const flowed = cols < ncol && cols > 1 && cgrid.hasClass("ep-mode-columns");
             const cells: HTMLElement[] = [];
             for (const child of Array.from(cgrid.children)) {
               if (child.instanceOf(HTMLElement)) cells.push(child);
