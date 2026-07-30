@@ -1,5 +1,18 @@
 # Changelog
 
+## 4.18.2
+
+- **Autocomplete shows up in the settings popup.** The list was opening all
+  along - correctly placed, fully rendered - with the popup painted on top of
+  it, because both sat on the same layer and Obsidian's suggestion container
+  precedes the popup in the document. The popup now sits one layer lower, so
+  suggestions, menus, notices and modals all come out in front of it, exactly
+  as they do over the full property settings.
+- Choosing a suggestion no longer throws: the rows underneath were rebuilt
+  while the list was still closing over the field, which aborted the rebuild
+  (`NotFoundError` on the container). This affected the full settings window
+  too.
+
 ## 4.18.1
 
 - **The settings popup only closes when you click away from it.** Using a row

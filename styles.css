@@ -1063,7 +1063,13 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)); }
 .ep-entry.ep-holdfocus { outline: 2px solid var(--interactive-accent); outline-offset: -1px; border-radius: var(--ep-radius, 4px); }
 /* The property-settings popup: the options page, scrollable at the cursor. */
-.ep-entrysettings { position: fixed; z-index: var(--layer-menu, 25); width: min(280px, 92vw); padding: 0; }
+/* Deliberately below the popover layer. Obsidian's autocomplete list is a
+   body child created at startup - so it precedes this popup in the DOM, and on
+   an equal z-index the popup would paint over it: the list opens, correctly
+   positioned and visible, with the popup on top of it. Sitting one layer lower
+   keeps suggestions, menus, notices and modals in front, and --layer-popover
+   still clears the workspace and both sidebars. */
+.ep-entrysettings { position: fixed; z-index: var(--layer-popover, 30); width: min(280px, 92vw); padding: 0; }
 /* Menu-like: tall, vertically scrollable, never horizontally. */
 /* Icon toolbar mirroring the context menu's actions. */
 .ep-entrysettings .ep-entrysettings-bar { display: flex; align-items: center; gap: 2px; padding: 4px 6px; border-bottom: 1px solid var(--background-modifier-border); }

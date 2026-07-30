@@ -119,7 +119,10 @@ export function renderEntryOptionsBody(
           tx.setValue((e.key as string) ?? "");
           new PropSuggest(view.app, tx.inputEl, view.i18n, () => view.propCandidates(true), (k) => {
             view.renameKey(e, k);
-            redraw();
+            // The suggestion list is still closing over this input: rebuilding
+            // the rows underneath it now makes its teardown remove a node that
+            // has already gone (NotFoundError), which aborts the rebuild.
+            window.setTimeout(redraw, 0);
           }, false);
           tx.inputEl.addEventListener("change", () => {
             const v = tx.getValue().trim();

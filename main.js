@@ -8127,7 +8127,7 @@ function renderEntryOptionsBody(octx, onDone, onRemoved, opts = {}) {
         tx.setValue((_a2 = e.key) != null ? _a2 : "");
         new PropSuggest(view.app, tx.inputEl, view.i18n, () => view.propCandidates(true), (k) => {
           view.renameKey(e, k);
-          redraw();
+          window.setTimeout(redraw, 0);
         }, false);
         tx.inputEl.addEventListener("change", () => {
           const v = tx.getValue().trim();
