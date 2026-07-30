@@ -1,13 +1,13 @@
 # Changelog
 
-## 4.16.8
+## 4.16.9
 
 Everything since 4.10.1, grouped by what it changes.
 
 ### Works with an existing vault
 
 - **The type property is configurable.** *Settings -> Types -> Type property* (default `Type`). Point it at a property you already use - `category`, `kind`, anything - and the plugin recognizes those notes retroactively: the sidebar match, the property index's buckets, the table view and the properties-panel menu all read the configured name, and assigning a type writes to it. No renaming, no double entry, no clash with other plugins that use `Type`.
-- **The interface speaks that name.** Every string that means the note-type concept renders your property's name - the no-type screen, the chip tooltip, the entry-options heading, the table view and command, settings headings and prompts, import/export, macros, snapshots, layout files, the inline sheet block. Where the name lands mid-sentence it carries a slight accent tint. Strings about *data* types (the data-type dropdown, Value types, per-value-type descriptions) deliberately keep saying "type": they mean something else.
+- **The interface speaks that name.** Every string that means the note-type concept renders your property's name - the no-type screen, the chip tooltip, the entry-options heading, the table view and command, settings headings and prompts, import/export, macros, snapshots, layout files, the inline sheet block. Wherever the name appears in prose it carries a slight accent tint - applied by a pass over the rendered settings tab and sidebar, so it reaches strings that reach the DOM as plain text too (values, fields, code and the chip are left alone). Strings about *data* types (the data-type dropdown, Value types, per-value-type descriptions) deliberately keep saying "type": they mean something else.
 
 ### Types in the sidebar
 

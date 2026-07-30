@@ -7889,6 +7889,36 @@ function setTypedText(el, i18n, settings, key, vars = {}) {
 function typedText(i18n, settings, key, vars = {}) {
   return i18n.t(key, { ...vars, typeProp: typeName(settings) });
 }
+function tintTypeNames(root, settings) {
+  var _a;
+  const name = typeName(settings);
+  if (!name) return;
+  const re = new RegExp("\\b" + name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "gi");
+  const SKIP = "input, textarea, select, code, pre, .ep-typename, .ep-type-badge, .ep-title, .ep-editable, .ep-num, .ep-chip";
+  const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const targets = [];
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const text = n;
+    if (!text.nodeValue || !re.test(text.nodeValue)) continue;
+    re.lastIndex = 0;
+    const parent = text.parentElement;
+    if (!parent || parent.closest(SKIP)) continue;
+    targets.push(text);
+  }
+  for (const text of targets) {
+    const value = (_a = text.nodeValue) != null ? _a : "";
+    const frag = createFragment();
+    let last = 0;
+    re.lastIndex = 0;
+    for (let m = re.exec(value); m; m = re.exec(value)) {
+      if (m.index > last) frag.appendText(value.slice(last, m.index));
+      frag.createSpan({ cls: "ep-typename", text: m[0] });
+      last = m.index + m[0].length;
+    }
+    if (last < value.length) frag.appendText(value.slice(last));
+    text.replaceWith(frag);
+  }
+}
 
 // src/ui/render/section-renderer.ts
 var import_obsidian27 = require("obsidian");
@@ -11636,6 +11666,7 @@ var SidebarView = class extends import_obsidian29.ItemView {
     }
     this.lastEmptySig = this.emptySig();
     this.initRovingFocus();
+    tintTypeNames(container, this.settings);
     container.scrollTop = prevScroll;
     window.requestAnimationFrame(() => {
       this.reflowSticky();
@@ -12979,7 +13010,15 @@ var EPSettingTab = class extends import_obsidian33.PluginSettingTab {
   display() {
     this.render();
   }
+  /** Every render ends by tinting the configured type name in the prose. */
+  tint() {
+    tintTypeNames(this.containerEl, this.plugin.settings);
+  }
   render() {
+    this.renderBody();
+    this.tint();
+  }
+  renderBody() {
     const c = this.containerEl;
     const plugin = this.plugin;
     const i18n = plugin.i18n;

@@ -24,7 +24,7 @@ import { parseExpr, evalCondition } from "../core/expr";
 import type { ExprEnv, ExprNode } from "../core/expr";
 import { makeVaultAccess } from "../core/note-ref";
 import { guardScrollTaps } from "./components/long-press";
-import { setTypedText, typedText } from "./components/type-label";
+import { setTypedText, tintTypeNames, typedText } from "./components/type-label";
 import * as ops from "../core/layout-ops";
 import { genId } from "../utils/misc";
 import { buildCluster } from "./render/cluster";
@@ -1336,6 +1336,7 @@ export class SidebarView extends ItemView implements ViewCtx {
     }
     this.lastEmptySig = this.emptySig();
     this.initRovingFocus();
+    tintTypeNames(container, this.settings);
 
     container.scrollTop = prevScroll;
     window.requestAnimationFrame(() => {

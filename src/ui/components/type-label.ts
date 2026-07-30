@@ -52,3 +52,46 @@ export function typedText(
 ): string {
   return i18n.t(key, { ...vars, typeProp: typeName(settings) });
 }
+
+/**
+ * Tint every occurrence of the configured type name inside `root`.
+ *
+ * Most strings reach the DOM as plain text (Setting.setName/setDesc, headings,
+ * notices), so a call-site helper can only ever cover a fraction of them. This
+ * pass runs after a container renders and wraps the name wherever it appears
+ * in prose, which keeps the highlight consistent without every call site
+ * having to know about it.
+ *
+ * Values are left alone: fields, code, the type chip and anything already
+ * tinted are skipped, so a note's own value that happens to match the name is
+ * never restyled.
+ */
+export function tintTypeNames(root: HTMLElement, settings: TypePropSettings): void {
+  const name = typeName(settings);
+  if (!name) return;
+  const re = new RegExp("\\b" + name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "gi");
+  const SKIP = "input, textarea, select, code, pre, .ep-typename, .ep-type-badge, .ep-title, .ep-editable, .ep-num, .ep-chip";
+  const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const targets: Text[] = [];
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const text = n as Text;
+    if (!text.nodeValue || !re.test(text.nodeValue)) continue;
+    re.lastIndex = 0;
+    const parent = text.parentElement;
+    if (!parent || parent.closest(SKIP)) continue;
+    targets.push(text);
+  }
+  for (const text of targets) {
+    const value = text.nodeValue ?? "";
+    const frag = createFragment();
+    let last = 0;
+    re.lastIndex = 0;
+    for (let m = re.exec(value); m; m = re.exec(value)) {
+      if (m.index > last) frag.appendText(value.slice(last, m.index));
+      frag.createSpan({ cls: "ep-typename", text: m[0] });
+      last = m.index + m[0].length;
+    }
+    if (last < value.length) frag.appendText(value.slice(last));
+    text.replaceWith(frag);
+  }
+}

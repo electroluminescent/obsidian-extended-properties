@@ -18,7 +18,7 @@ import { RefSuggest } from "./components/suggest";
 import { destructive } from "./components/setting-helpers";
 import { ConfirmModal, TextPromptModal } from "./modals/dialogs";
 import { IconPickerModal } from "./modals/icon-picker";
-import { setTypedText } from "./components/type-label";
+import { setTypedText, tintTypeNames } from "./components/type-label";
 import { ImportModal } from "./modals/transfer-modal";
 import { packType } from "../core/transfer";
 import { segsToText, textToSegs } from "../features/rolling/macros";
@@ -37,7 +37,17 @@ export class EPSettingTab extends PluginSettingTab {
     this.render();
   }
 
+  /** Every render ends by tinting the configured type name in the prose. */
+  private tint(): void {
+    tintTypeNames(this.containerEl, this.plugin.settings);
+  }
+
   render(): void {
+    this.renderBody();
+    this.tint();
+  }
+
+  private renderBody(): void {
     const c = this.containerEl;
     const plugin = this.plugin;
     const i18n = plugin.i18n;
