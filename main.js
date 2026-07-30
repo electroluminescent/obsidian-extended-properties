@@ -31,6 +31,12 @@ var I18n = class {
     this.names = /* @__PURE__ */ new Map();
     this.locale = "en";
     this.overrides = {};
+    /**
+     * Supplies `{typeProp}` - the user's configured type-property name - to
+     * every string, so a sentence mentioning the concept never has to be
+     * threaded through a special call site.
+     */
+    this.typePropProvider = () => "Type";
   }
   /**
    * Merge `dict` into the dictionary for `locale`. Later registrations win,
@@ -48,6 +54,10 @@ var I18n = class {
   }
   getLocale() {
     return this.locale;
+  }
+  /** Register the source of `{typeProp}` (see the field's note). */
+  setTypeProp(fn) {
+    this.typePropProvider = fn;
   }
   /** Install the user's per-string overrides (from settings). */
   setOverrides(overrides) {
@@ -75,8 +85,11 @@ var I18n = class {
   t(key, vars) {
     var _a, _b, _c, _d, _e;
     const raw = (_e = (_d = (_b = this.overrides[key]) != null ? _b : (_a = this.dicts.get(this.locale)) == null ? void 0 : _a[key]) != null ? _d : (_c = this.dicts.get("en")) == null ? void 0 : _c[key]) != null ? _e : humanize(key);
-    if (!vars) return raw;
-    return raw.replace(/\{(\w+)\}/g, (m, name) => vars[name] !== void 0 ? String(vars[name]) : m);
+    if (!vars && !raw.includes("{typeProp}")) return raw;
+    return raw.replace(/\{(\w+)\}/g, (m, name) => {
+      if ((vars == null ? void 0 : vars[name]) !== void 0) return String(vars[name]);
+      return name === "typeProp" ? this.typePropProvider() : m;
+    });
   }
 };
 function humanize(key) {
@@ -102,7 +115,7 @@ var en_default = {
   "view.noTypesConfigured": "No types are configured yet. Give this note any {typeProp} value to create one (it starts empty), or add types in the plugin settings.",
   "view.typeBadgeHint": "This note's {typeProp} - selects which saved layout is shown",
   "view.typeChipHint": "Click to change this note's {typeProp}, or type a new name to create one",
-  "view.createTypeRow": 'Create type "{name}"',
+  "view.createTypeRow": 'Create {typeProp} "{name}"',
   "view.copyLayoutPrompt": 'Start "{to}" with a copy of the "{from}" layout?',
   "view.copyLayoutYes": "Copy layout",
   "view.copyLayoutNo": "Start empty",
@@ -126,9 +139,9 @@ var en_default = {
   "a11y.entryMenu": "Entry options",
   "settings.resetHeading": "Reset",
   "settings.resetAll": "Reset plugin",
-  "settings.resetAllDesc": "Reset all Extended Properties settings, types and layouts to their defaults. Your current configuration is backed up to the plugin's backups folder first. Your note properties (frontmatter) are not touched. Tip: hold Shift while clicking to skip the confirmation.",
+  "settings.resetAllDesc": "Reset all Extended Properties settings and layouts to their defaults. Your current configuration is backed up first.",
   "settings.resetAllBtn": "Reset plugin",
-  "settings.resetAllConfirm": "Reset all Extended Properties settings, types and layouts to defaults? Your current configuration is backed up first; your note data is left untouched.",
+  "settings.resetAllConfirm": "Reset all Extended Properties settings and layouts to defaults? Your current configuration is backed up first.",
   "settings.resetAllDone": "Extended Properties was reset to defaults.",
   "section.namePlaceholder": "Section",
   "section.newName": "New section",
@@ -177,23 +190,23 @@ var en_default = {
   "section.menu.moveDown": "Move down",
   "section.menu.export": "Export section...",
   "section.menu.delete": "Delete section",
-  "transfer.exportType": "Export",
-  "transfer.exportTypeTip": "Copy this type (layout + referenced derivations) to the clipboard as a shareable snippet",
+  "transfer.exportType": "Export {typeProp}",
+  "transfer.exportTypeTip": "Copy this {typeProp} (layout + referenced derivations) to the clipboard as a shareable snippet",
   "transfer.copied": "Copied to clipboard",
-  "transfer.importHeading": "Import type or section",
+  "transfer.importHeading": "Import {typeProp} or section",
   "transfer.importHeadingDesc": "Paste a snippet exported from another vault to add its sections here.",
-  "transfer.importTitle": "Import type or section",
-  "transfer.importPlaceholder": "Paste an exported type or section snippet (JSON)...",
+  "transfer.importTitle": "Import {typeProp} or section",
+  "transfer.importPlaceholder": "Paste an exported {typeProp} or section snippet (JSON)...",
   "transfer.importBtn": "Import",
   "transfer.invalid": "Not a valid Extended Properties snippet.",
-  "transfer.kindType": "type",
+  "transfer.kindType": "{typeProp}",
   "transfer.kindSection": "section",
   "transfer.summary": '{kind} "{name}" - {sections} section(s), {entries} propert(y/ies).',
   "transfer.missingDerivations": "Missing derivation building blocks: {list}",
   "transfer.createMissing": "Create missing derivations",
-  "transfer.targetType": "Add to type",
-  "transfer.targetTypeDesc": "Sections are appended to this type (created if it doesn't exist). Existing: {types}",
-  "transfer.pickType": "Enter a target type name.",
+  "transfer.targetType": "Add to {typeProp}",
+  "transfer.targetTypeDesc": "Sections are appended to this {typeProp} (created if it doesn't exist). Existing: {types}",
+  "transfer.pickType": "Enter a target {typeProp} name.",
   "transfer.imported": 'Imported "{name}" into {type}',
   "entry.addProperty": "+ add property",
   "entry.addToColumnHint": 'Add a property to this column of "{section}"',
@@ -540,14 +553,14 @@ var en_default = {
   "propPanel.sidebarSuffix": "{key} (sidebar)",
   "propPanel.showAll": "Show all hidden",
   "command.openSidebar": "Open properties sidebar",
-  "command.openTable": "Open type table",
+  "command.openTable": "Open {typeProp} table",
   "command.hideProperty": "Hide a property from Obsidian's properties panel",
   "table.title": "{typeProp} table",
   "table.columns": "Columns",
   "table.filter": "Filter...",
   "table.name": "Name",
   "table.count": "{n} notes",
-  "table.noTypes": "No note types are configured yet. Add one in the plugin settings to see its notes here.",
+  "table.noTypes": "No {typeProp} values are configured yet. Add one in the plugin settings to see its notes here.",
   "table.removeColumn": "Remove column",
   "table.resize": "Resize {name} column",
   "roll.summary.settings": "Roll settings",
@@ -563,20 +576,20 @@ var en_default = {
   "conflict.keys": "Both sides changed: {keys}",
   "preset.empty": "Empty",
   "settings.intro": "Open a note whose {typeProp} matches one below, then click Edit (or right-click anything) to arrange it. Drag handles, use ... / right-click for options (Configure for the full panel), click labels to rename, add properties at each section's bottom.",
-  "settings.typesHeading": "Types",
+  "settings.typesHeading": "{typeProp}",
   "settings.typeProp": "Type property",
   "settings.typePropDesc": "The frontmatter property that selects a note's type (default: Type). Point it at an existing property - e.g. category - and the plugin recognizes those notes retroactively, without renaming anything in your vault.",
-  "settings.typeIcon": "Choose this type's icon (shown on the header chip)",
-  "settings.defaultTypeIcon": "Default type icon",
-  "settings.defaultTypeIconDesc": "Used by types that have no icon of their own. The header chip collapses to this icon when space runs out.",
+  "settings.typeIcon": "Choose this {typeProp}'s icon (shown on the header chip)",
+  "settings.defaultTypeIcon": "Default {typeProp} icon",
+  "settings.defaultTypeIconDesc": "Used by any {typeProp} with no icon of its own. The header chip collapses to this icon when space runs out.",
   "settings.typesDesc": "Each type has its own layout; a note's {typeProp} property selects it.",
   "settings.resetLayout": "Reset layout",
   "settings.resetLayoutConfirm": 'Reset the "{type}" layout to defaults?',
   "settings.deleteType": "Delete",
-  "settings.addType": "Add a type",
-  "settings.addTypeBtn": "+ Type",
-  "settings.newTypePrompt": "New type name",
-  "settings.typeExists": "That type already exists.",
+  "settings.addType": "Add a {typeProp}",
+  "settings.addTypeBtn": "+ {typeProp}",
+  "settings.newTypePrompt": "New {typeProp} name",
+  "settings.typeExists": "That {typeProp} already exists.",
   "settings.defaultsHeading": "Defaults",
   "settings.defaultDataType": "Default data type",
   "settings.defaultDataTypeDesc": "For new properties with no Obsidian type",
@@ -637,9 +650,9 @@ var en_default = {
   "settings.conflictGuard": "Guard against edit conflicts",
   "settings.conflictGuardDesc": "When a note changes on disk (sync, another pane) while you're editing it here, ask before overwriting instead of clobbering the on-disk version.",
   "settings.layoutVault": "Store layouts as vault files",
-  "settings.layoutVaultDesc": "Save each note type's layout as a JSON file in your vault (so it syncs, diffs and shares) instead of only in data.json. data.json keeps a backup copy; the vault files win on load.",
+  "settings.layoutVaultDesc": "Save each {typeProp}'s layout as a JSON file in your vault (so it syncs, diffs and shares) instead of only in data.json. data.json keeps a backup copy; the vault files win on load.",
   "settings.layoutVaultFolder": "Layout folder",
-  "settings.layoutVaultFolderDesc": "Vault folder for the per-type layout files.",
+  "settings.layoutVaultFolderDesc": "Vault folder for the per-{typeProp} layout files.",
   "settings.layoutVaultReload": "Reload from files",
   "layoutStore.badFile": "Skipped an invalid layout file: {file}",
   "layoutStore.writeFailed": 'Could not write the layout file for "{type}".',
@@ -670,7 +683,7 @@ var en_default = {
   "secure.unlockedNotice": "Unlocked - encrypted values will show until you lock again.",
   "secure.lockedNotice": "Locked - encrypted values are hidden.",
   "settings.snapshots": "Auto-snapshot configuration",
-  "settings.snapshotsDesc": "Once a day on load, save a snapshot of your types, layouts, derivations and settings to the layout folder's snapshots/ subfolder, so a change can be rolled back. Restore any snapshot from the button here or the command palette.",
+  "settings.snapshotsDesc": "Once a day on load, save a snapshot of your {typeProp} layouts, derivations and settings to the layout folder's snapshots subfolder, so a bad edit can be rolled back. Restore any snapshot from the button here or the command palette.",
   "settings.snapshotSaveNow": "Save snapshot now",
   "settings.snapshotRestore": "Restore...",
   "settings.abbrHeading": "Short forms",
@@ -752,7 +765,7 @@ var en_default = {
   "feature.datetime": "Dates & times",
   "feature.datetimeDesc": "The legacy native-picker date/time value type. Deprecated: superseded by the date type (custom calendars, eras, time). Existing properties keep rendering.",
   "feature.table": "{typeProp} table view",
-  "feature.tableDesc": "The table listing every note of a type: ribbon icon, command and view.",
+  "feature.tableDesc": "The table listing every note of a {typeProp}: ribbon icon, command and view.",
   "feature.sticky": "Section pinning",
   "feature.stickyDesc": "Pinning sections to the sticky header and footer zones. Off, every section flows with the body.",
   "feature.pool": "Autofill pool editor",
@@ -771,15 +784,16 @@ var en_default = {
   "settings.rollHistoryClearConfirm": "Clear the entire roll history?",
   "settings.rollHistoryCleared": "Roll history cleared.",
   "settings.macrosHeading": "Saved rolls (macros)",
-  "settings.macrosDesc": 'Reusable rolls shown on the roll screen and available as commands. Notation like "2d6 + 1d8 + 3"; scope to a type or leave it available to all.',
+  "settings.macrosDesc": 'Reusable rolls shown on the roll screen and available as commands. Notation like "2d6 + 1d8 + 3"; scope to a {typeProp} or leave it available to all.',
   "settings.macroName": "Name",
-  "settings.macroGlobal": "All types",
+  "settings.macroGlobal": "Any {typeProp}",
   "settings.macroDelete": "Delete macro",
   "settings.macroAdd": "Add a macro",
   "settings.macroAddBtn": "+ Macro",
   "settings.macroNewName": "New macro",
-  "view.createType": "+ New type",
-  "view.createTypePrompt": "Name the new type"
+  "view.createType": "+ New {typeProp}",
+  "view.createTypePrompt": "Name the new {typeProp}",
+  "settings.typeIconReset": "Use the default icon"
 };
 
 // src/i18n/locales/en.ts
@@ -13021,21 +13035,31 @@ var EPSettingTab = class extends import_obsidian33.PluginSettingTab {
         iconPrev.toggleClass("ep-typeicon-default", !((_a = plugin.settings.typeIcons) == null ? void 0 : _a[type.toLowerCase()]));
       };
       paintIcon();
+      const setTypeIcon = (v) => {
+        var _a, _b;
+        const icons = (_b = (_a = plugin.settings).typeIcons) != null ? _b : _a.typeIcons = {};
+        if (v) icons[type.toLowerCase()] = v;
+        else delete icons[type.toLowerCase()];
+        save();
+        paintIcon();
+        plugin.refreshViews();
+      };
       setting.addExtraButton(
         (b) => b.setIcon("image").setTooltip(t("settings.typeIcon")).onClick(
           () => {
             var _a, _b;
-            return new IconPickerModal(this.app, i18n, (_b = (_a = plugin.settings.typeIcons) == null ? void 0 : _a[type.toLowerCase()]) != null ? _b : "", (v) => {
-              var _a2, _b2;
-              const icons = (_b2 = (_a2 = plugin.settings).typeIcons) != null ? _b2 : _a2.typeIcons = {};
-              if (v) icons[type.toLowerCase()] = v;
-              else delete icons[type.toLowerCase()];
-              save();
-              paintIcon();
-              plugin.refreshViews();
-            }).open();
+            return new IconPickerModal(this.app, i18n, (_b = (_a = plugin.settings.typeIcons) == null ? void 0 : _a[type.toLowerCase()]) != null ? _b : "", setTypeIcon).open();
           }
         )
+      );
+      setting.addExtraButton(
+        (b) => {
+          var _a;
+          return b.setIcon("rotate-ccw").setTooltip(t("settings.typeIconReset")).setDisabled(!((_a = plugin.settings.typeIcons) == null ? void 0 : _a[type.toLowerCase()])).onClick(() => {
+            setTypeIcon(void 0);
+            this.render();
+          });
+        }
       );
       setting.addButton(
         (b) => b.setButtonText(t("settings.resetLayout")).onClick(
@@ -17127,6 +17151,10 @@ var ExtendedPropertiesPlugin = class extends import_obsidian45.Plugin {
     registerDiceIcons();
     trackModifiers(this);
     this.i18n.register("en", coreEn, "English");
+    this.i18n.setTypeProp(() => {
+      var _a2, _b2;
+      return ((_b2 = (_a2 = this.settings) == null ? void 0 : _a2.typeProp) != null ? _b2 : "Type").trim() || "Type";
+    });
     let data = null;
     try {
       data = await this.loadData();

@@ -97,6 +97,9 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     // The default layout depends on registries, so bootstrap in two steps:
     // build registries assuming defaults, then normalize settings with them.
     this.i18n.register("en", coreEn, "English");
+    // Every string that mentions the note-type concept renders the user's
+    // configured property name instead of a hardcoded "Type".
+    this.i18n.setTypeProp(() => (this.settings?.typeProp ?? "Type").trim() || "Type");
     // English is the built-in locale; feature modules and API consumers can
     // register additional dictionaries.
     let data: unknown = null;

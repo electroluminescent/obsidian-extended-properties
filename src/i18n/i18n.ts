@@ -23,6 +23,12 @@ export class I18n {
   private names = new Map<string, string>();
   private locale = "en";
   private overrides: StringDict = {};
+  /**
+   * Supplies `{typeProp}` - the user's configured type-property name - to
+   * every string, so a sentence mentioning the concept never has to be
+   * threaded through a special call site.
+   */
+  private typePropProvider: () => string = () => "Type";
 
   /**
    * Merge `dict` into the dictionary for `locale`. Later registrations win,
@@ -41,6 +47,11 @@ export class I18n {
 
   getLocale(): string {
     return this.locale;
+  }
+
+  /** Register the source of `{typeProp}` (see the field's note). */
+  setTypeProp(fn: () => string): void {
+    this.typePropProvider = fn;
   }
 
   /** Install the user's per-string overrides (from settings). */
@@ -72,8 +83,11 @@ export class I18n {
       this.dicts.get(this.locale)?.[key] ??
       this.dicts.get("en")?.[key] ??
       humanize(key);
-    if (!vars) return raw;
-    return raw.replace(/\{(\w+)\}/g, (m, name) => (vars[name] !== undefined ? String(vars[name]) : m));
+    if (!vars && !raw.includes("{typeProp}")) return raw;
+    return raw.replace(/\{(\w+)\}/g, (m, name) => {
+      if (vars?.[name] !== undefined) return String(vars[name]);
+      return name === "typeProp" ? this.typePropProvider() : m;
+    });
   }
 }
 

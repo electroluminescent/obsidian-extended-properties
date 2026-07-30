@@ -99,17 +99,28 @@ export class EPSettingTab extends PluginSettingTab {
         iconPrev.toggleClass("ep-typeicon-default", !plugin.settings.typeIcons?.[type.toLowerCase()]);
       };
       paintIcon();
+      const setTypeIcon = (v: string | undefined): void => {
+        const icons = (plugin.settings.typeIcons ??= {});
+        if (v) icons[type.toLowerCase()] = v;
+        else delete icons[type.toLowerCase()];
+        save();
+        paintIcon();
+        plugin.refreshViews();
+      };
       setting.addExtraButton((b) =>
         b.setIcon("image").setTooltip(t("settings.typeIcon")).onClick(() =>
-          new IconPickerModal(this.app, i18n, plugin.settings.typeIcons?.[type.toLowerCase()] ?? "", (v) => {
-            const icons = (plugin.settings.typeIcons ??= {});
-            if (v) icons[type.toLowerCase()] = v;
-            else delete icons[type.toLowerCase()];
-            save();
-            paintIcon();
-            plugin.refreshViews();
-          }).open()
+          new IconPickerModal(this.app, i18n, plugin.settings.typeIcons?.[type.toLowerCase()] ?? "", setTypeIcon).open()
         )
+      );
+      // Back to the default icon (the row's preview greys out again).
+      setting.addExtraButton((b) =>
+        b.setIcon("rotate-ccw")
+          .setTooltip(t("settings.typeIconReset"))
+          .setDisabled(!plugin.settings.typeIcons?.[type.toLowerCase()])
+          .onClick(() => {
+            setTypeIcon(undefined);
+            this.render();
+          })
       );
       setting
         .addButton((b) =>
