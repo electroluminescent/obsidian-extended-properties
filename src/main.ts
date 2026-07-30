@@ -89,7 +89,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
   }
 
   async onload(): Promise<void> {
-    this.props = new PropertyIndex(this.app);
+    this.props = new PropertyIndex(this.app, () => (this.settings?.typeProp ?? "Type").trim() || "Type");
     registerDiceIcons();
     trackModifiers(this); // Shift-to-bypass-confirmations power-user shortcut
 

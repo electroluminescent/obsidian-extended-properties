@@ -44,6 +44,7 @@ export class EPSettingTab extends PluginSettingTab {
       type: "group",
       heading: t("settings.typesHeading"),
       items: [
+        { name: t("settings.typeProp"), desc: t("settings.typePropDesc"), aliases: ["settings.typeProp"] },
         { name: t("settings.addType"), aliases: ["settings.addType"] },
       ],
     },
@@ -187,6 +188,20 @@ export class EPSettingTab extends PluginSettingTab {
 
     // -- types ---------------------------------------------------------------
     new Setting(c).setName(t("settings.typesHeading")).setHeading();
+    new Setting(c)
+      .setName(t("settings.typeProp"))
+      .setDesc(t("settings.typePropDesc"))
+      .addText((tx) => {
+        tx.setPlaceholder("Type")
+          .setValue(plugin.settings.typeProp ?? "")
+          .onChange((v) => {
+            plugin.settings.typeProp = v.trim() || undefined;
+            save();
+            // The index bucketed notes under the old property - rebuild.
+            plugin.props.invalidateAll();
+            plugin.refreshViews();
+          });
+      });
     c.createEl("p", { cls: "setting-item-description", text: t("settings.typesDesc") });
     for (const type of plugin.settings.types) {
       new Setting(c)

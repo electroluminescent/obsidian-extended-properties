@@ -184,6 +184,11 @@ export function sectionMode(section: Section): LayoutMode {
 }
 
 /** Resolve a section's effective pin zone (legacy `sticky` fallback). */
+/** The frontmatter property that selects a note's type (default "Type"). */
+export function typePropOf(settings: { typeProp?: string }): string {
+  return (settings.typeProp ?? "Type").trim() || "Type";
+}
+
 export function sectionPin(section: Section): SectionPin {
   return section.pin ?? (section.sticky ? "header" : "body");
 }
@@ -400,6 +405,8 @@ export interface EPSettings {
    * autocomplete fields even when no note uses them yet.
    */
   poolExtras?: Record<string, string[]>;
+  /** Frontmatter property that selects a note's type (default "Type"). */
+  typeProp?: string;
   /** One-time seed guard for the dnd5e preset pools. */
   dnd5ePoolsSeeded?: boolean;
   /** Master switch for cross-note references and aggregates (default on). */

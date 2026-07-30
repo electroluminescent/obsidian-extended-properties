@@ -17,6 +17,19 @@ export interface NumberInputOptions {
   onEmpty?: () => void;
 }
 
+/**
+ * After a Tab commit, open the neighboring editable value in the same view,
+ * so the sidebar works as a primary data-entry surface: click once, then
+ * Tab (Shift+Tab) through every field.
+ */
+function focusEditableFrom(span: HTMLElement, backwards: boolean): void {
+  const scope = span.closest(".view-content") ?? span.ownerDocument.body;
+  const all = Array.from(scope.querySelectorAll<HTMLElement>(".ep-editable"));
+  const i = all.indexOf(span);
+  const next = i >= 0 ? all[i + (backwards ? -1 : 1)] : undefined;
+  if (next) window.setTimeout(() => next.click(), 0);
+}
+
 /** Swap `span` for a number input; commit the parsed (and clamped) value. */
 export function openNumberInput(
   span: HTMLElement,
@@ -51,6 +64,7 @@ export function openNumberInput(
   input.onkeydown = (e: KeyboardEvent) => {
     if (e.key === "Enter") { e.preventDefault(); finish(true); }
     else if (e.key === "Escape") { e.preventDefault(); finish(false); }
+    else if (e.key === "Tab") { e.preventDefault(); finish(true); focusEditableFrom(span, e.shiftKey); }
   };
 }
 
@@ -84,6 +98,7 @@ export function openTextInput(
   input.onkeydown = (e: KeyboardEvent) => {
     if (e.key === "Enter") { e.preventDefault(); finish(true); }
     else if (e.key === "Escape") { e.preventDefault(); finish(false); }
+    else if (e.key === "Tab") { e.preventDefault(); finish(true); focusEditableFrom(span, e.shiftKey); }
   };
 }
 

@@ -15,7 +15,7 @@ import { ItemView, Menu, Notice, TFile, WorkspaceLeaf } from "obsidian";
 import type ExtendedPropertiesPlugin from "../main";
 import { isEnvelope } from "../core/secure";
 import type { ClusterFlags, ClusterOptions, ClusterRefs, EntryRenderCtx, ViewCtx } from "../core/context";
-import { Entry, Layout, Section, sectionPin } from "../core/model";
+import { Entry, Layout, Section, sectionPin, typePropOf } from "../core/model";
 import { ServiceHub, SectionTemplateDef } from "../core/registry";
 import { NoteModel } from "../core/note-model";
 import { influenceSources, poolBaseFor, VaultAccess } from "../core/influences";
@@ -1009,7 +1009,7 @@ export class SidebarView extends ItemView implements ViewCtx {
     }
 
     // Match the note's Type against configured types; adopt unknown types.
-    const types = this.note.noteTypes();
+    const types = this.note.noteTypes(typePropOf(this.settings));
     let match = this.settings.types.find((tp) => types.some((x) => x.toLowerCase() === tp.toLowerCase()));
     if (!match && types.length) {
       match = types[0];
@@ -1022,17 +1022,29 @@ export class SidebarView extends ItemView implements ViewCtx {
     if (!match) {
       const box = container.createDiv({ cls: "ep-empty" });
       box.createDiv({ text: t("view.noType", { note: file.basename }) });
+      const assign = (tp: string): void => this.note.set(file, typePropOf(this.settings), tp, true);
       if (this.settings.types.length) {
         box.createDiv({ cls: "ep-empty-sub", text: t("view.noTypeHint") });
         for (const tp of this.settings.types) {
           const b = box.createEl("button", { text: t("view.setType", { type: tp }), cls: "mod-cta" });
-          b.onclick = () => this.note.set(file, "Type", tp, true);
+          b.onclick = () => assign(tp);
         }
       } else {
-        // No default type exists - any Type value the note gets is adopted
-        // as a new, empty type.
         box.createDiv({ cls: "ep-empty-sub", text: t("view.noTypesConfigured") });
       }
+      // A note with no type can mint a brand-new one on the spot.
+      const nb = box.createEl("button", { text: t("view.createType"), cls: "ep-createtype" });
+      nb.onclick = () =>
+        new TextPromptModal(this.app, this.i18n, t("view.createTypePrompt"), "", (v) => {
+          const name = v.trim();
+          if (!name) return;
+          if (!this.settings.types.some((x) => x.toLowerCase() === name.toLowerCase())) {
+            this.settings.types.push(name);
+            this.plugin.ensureLayout(name.toLowerCase());
+            void this.plugin.saveSettings();
+          }
+          assign(name);
+        }).open();
       return;
     }
 

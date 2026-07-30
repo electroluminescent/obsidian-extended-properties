@@ -559,6 +559,8 @@ var en_default = {
   "preset.empty": "Empty",
   "settings.intro": "Open a note whose Type matches one below, then click Edit (or right-click anything) to arrange it. Drag handles, use ... / right-click for options (Configure for the full panel), click labels to rename, add properties at each section's bottom.",
   "settings.typesHeading": "Types",
+  "settings.typeProp": "Type property",
+  "settings.typePropDesc": "The frontmatter property that selects a note's type (default: Type). Point it at an existing property - e.g. category - and the plugin recognizes those notes retroactively, without renaming anything in your vault.",
   "settings.typesDesc": "Each Type has its own layout; a note's Type property selects it.",
   "settings.resetLayout": "Reset layout",
   "settings.resetLayoutConfirm": 'Reset the "{type}" layout to defaults?',
@@ -753,7 +755,9 @@ var en_default = {
   "settings.macroDelete": "Delete macro",
   "settings.macroAdd": "Add a macro",
   "settings.macroAddBtn": "+ Macro",
-  "settings.macroNewName": "New macro"
+  "settings.macroNewName": "New macro",
+  "view.createType": "+ New type",
+  "view.createTypePrompt": "Name the new type"
 };
 
 // src/i18n/locales/en.ts
@@ -766,6 +770,10 @@ function ext(entry) {
 function sectionMode(section) {
   var _a;
   return (_a = section.layoutMode) != null ? _a : section.columns > 1 ? "columns" : "list";
+}
+function typePropOf(settings) {
+  var _a;
+  return ((_a = settings.typeProp) != null ? _a : "Type").trim() || "Type";
 }
 function sectionPin(section) {
   var _a;
@@ -1787,7 +1795,8 @@ var HANDLED_KEYS = /* @__PURE__ */ new Set([
   "lastSnapshot",
   "inlineEntries",
   "propTypes",
-  "dateProps"
+  "dateProps",
+  "typeProp"
 ]);
 function cleanTypes(raw) {
   return Array.isArray(raw) ? raw.filter((t) => typeof t === "string" && t.trim() !== "") : [];
@@ -1880,6 +1889,7 @@ function normalizeSettings(raw, defaultLayout) {
     if (data.failOnOne === false) s.failOnOne = false;
     if (typeof data.modifierSuffix === "string") s.modifierSuffix = data.modifierSuffix;
     if (typeof data.poolSuffix === "string") s.poolSuffix = data.poolSuffix;
+    if (typeof data.typeProp === "string" && data.typeProp.trim()) s.typeProp = data.typeProp.trim();
     if (data.dnd5ePoolsSeeded === true) s.dnd5ePoolsSeeded = true;
     if (data.poolExtras && typeof data.poolExtras === "object") {
       const cleanPool = {};
@@ -2413,13 +2423,14 @@ function linkTarget(raw) {
   const m = /\[\[([^\]|#]+)/.exec(raw);
   return (m ? m[1] : raw).trim();
 }
-function typesOf(fm) {
-  const tv = getCI(fm, "Type");
+function typesOf(fm, prop2) {
+  const tv = getCI(fm, prop2);
   return Array.isArray(tv) ? tv.map((x) => String(x).toLowerCase()) : tv === void 0 || tv === null ? [] : [String(tv).toLowerCase()];
 }
 var PropertyIndex = class {
-  constructor(app) {
+  constructor(app, getTypeProp = () => "Type") {
     this.app = app;
+    this.getTypeProp = getTypeProp;
     /**
      * Per-file frontmatter snapshot cache. Every query above used to call
      * `vault.getMarkdownFiles()` + `metadataCache.getFileCache()` fresh, which
@@ -2465,7 +2476,7 @@ var PropertyIndex = class {
   }
   bucketAdd(path, fm) {
     if (!fm) return;
-    for (const t of typesOf(fm)) {
+    for (const t of typesOf(fm, this.getTypeProp())) {
       let b = this.buckets.get(t);
       if (!b) this.buckets.set(t, b = /* @__PURE__ */ new Set());
       b.add(path);
@@ -2474,7 +2485,7 @@ var PropertyIndex = class {
   bucketRemove(path, fm) {
     var _a;
     if (!fm) return;
-    for (const t of typesOf(fm)) (_a = this.buckets.get(t)) == null ? void 0 : _a.delete(path);
+    for (const t of typesOf(fm, this.getTypeProp())) (_a = this.buckets.get(t)) == null ? void 0 : _a.delete(path);
   }
   /** Drop every memoized aggregate of the given (lower-cased) types. */
   dirtyTypes(types) {
@@ -2493,7 +2504,7 @@ var PropertyIndex = class {
     if (old) this.bucketRemove(file.path, old.fm);
     this.cache.set(file.path, { file, fm });
     this.bucketAdd(file.path, fm);
-    this.dirtyTypes(/* @__PURE__ */ new Set([...(old == null ? void 0 : old.fm) ? typesOf(old.fm) : [], ...fm ? typesOf(fm) : []]));
+    this.dirtyTypes(/* @__PURE__ */ new Set([...(old == null ? void 0 : old.fm) ? typesOf(old.fm, this.getTypeProp()) : [], ...fm ? typesOf(fm, this.getTypeProp()) : []]));
   }
   /** Drop one file (called on delete). */
   invalidatePath(path) {
@@ -2501,7 +2512,7 @@ var PropertyIndex = class {
     const old = this.cache.get(path);
     if (old) {
       this.bucketRemove(path, old.fm);
-      this.dirtyTypes(old.fm ? typesOf(old.fm) : []);
+      this.dirtyTypes(old.fm ? typesOf(old.fm, this.getTypeProp()) : []);
     }
     this.cache.delete(path);
   }
@@ -3039,6 +3050,14 @@ var sfx = {
 };
 
 // src/ui/components/inline-edit.ts
+function focusEditableFrom(span, backwards) {
+  var _a;
+  const scope = (_a = span.closest(".view-content")) != null ? _a : span.ownerDocument.body;
+  const all = Array.from(scope.querySelectorAll(".ep-editable"));
+  const i = all.indexOf(span);
+  const next = i >= 0 ? all[i + (backwards ? -1 : 1)] : void 0;
+  if (next) window.setTimeout(() => next.click(), 0);
+}
 function openNumberInput(span, value, commit2, o) {
   const input = createEl("input", { cls: "ep-edit-input" });
   input.type = "number";
@@ -3074,6 +3093,10 @@ function openNumberInput(span, value, commit2, o) {
     } else if (e.key === "Escape") {
       e.preventDefault();
       finish(false);
+    } else if (e.key === "Tab") {
+      e.preventDefault();
+      finish(true);
+      focusEditableFrom(span, e.shiftKey);
     }
   };
 }
@@ -3105,6 +3128,10 @@ function openTextInput(app, span, key, value, valuesFor, commit2) {
     } else if (e.key === "Escape") {
       e.preventDefault();
       finish(false);
+    } else if (e.key === "Tab") {
+      e.preventDefault();
+      finish(true);
+      focusEditableFrom(span, e.shiftKey);
     }
   };
 }
@@ -7400,10 +7427,11 @@ var NoteModel = class {
     const v = this.raw[key];
     return v === void 0 || v === null || v === "" || Array.isArray(v) && v.length === 0;
   }
-  /** The note's `Type` property as a list (case-insensitive key match). */
-  noteTypes() {
+  /** The note's type property as a list (case-insensitive key match). */
+  noteTypes(prop2 = "Type") {
+    const want = prop2.toLowerCase();
     for (const k of Object.keys(this.raw)) {
-      if (k.toLowerCase() === "type") {
+      if (k.toLowerCase() === want) {
         const v = this.raw[k];
         return Array.isArray(v) ? v.map((x) => String(x)) : v === void 0 || v === null ? [] : [String(v)];
       }
@@ -10952,7 +10980,7 @@ var SidebarView = class extends import_obsidian28.ItemView {
       this.note.load(file);
       this.hub.notifyFileChanged();
     }
-    const types = this.note.noteTypes();
+    const types = this.note.noteTypes(typePropOf(this.settings));
     let match = this.settings.types.find((tp) => types.some((x) => x.toLowerCase() === tp.toLowerCase()));
     if (!match && types.length) {
       match = types[0];
@@ -10964,15 +10992,27 @@ var SidebarView = class extends import_obsidian28.ItemView {
     if (!match) {
       const box = container.createDiv({ cls: "ep-empty" });
       box.createDiv({ text: t("view.noType", { note: file.basename }) });
+      const assign = (tp) => this.note.set(file, typePropOf(this.settings), tp, true);
       if (this.settings.types.length) {
         box.createDiv({ cls: "ep-empty-sub", text: t("view.noTypeHint") });
         for (const tp of this.settings.types) {
           const b = box.createEl("button", { text: t("view.setType", { type: tp }), cls: "mod-cta" });
-          b.onclick = () => this.note.set(file, "Type", tp, true);
+          b.onclick = () => assign(tp);
         }
       } else {
         box.createDiv({ cls: "ep-empty-sub", text: t("view.noTypesConfigured") });
       }
+      const nb = box.createEl("button", { text: t("view.createType"), cls: "ep-createtype" });
+      nb.onclick = () => new TextPromptModal(this.app, this.i18n, t("view.createTypePrompt"), "", (v) => {
+        const name = v.trim();
+        if (!name) return;
+        if (!this.settings.types.some((x) => x.toLowerCase() === name.toLowerCase())) {
+          this.settings.types.push(name);
+          this.plugin.ensureLayout(name.toLowerCase());
+          void this.plugin.saveSettings();
+        }
+        assign(name);
+      }).open();
       return;
     }
     const header = container.createDiv({ cls: "ep-header" });
@@ -11171,7 +11211,7 @@ var TableView = class extends import_obsidian29.ItemView {
     var _a;
     if (file && !this.shownPaths.has(file.path)) {
       const fm = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter;
-      const tv = fm ? getCI(fm, "Type") : void 0;
+      const tv = fm ? getCI(fm, typePropOf(this.plugin.settings)) : void 0;
       const types = Array.isArray(tv) ? tv.map((x) => String(x).toLowerCase()) : tv === void 0 || tv === null ? [] : [String(tv).toLowerCase()];
       if (!types.includes(this.typeKey.trim().toLowerCase())) return;
     }
@@ -12398,6 +12438,7 @@ var EPSettingTab = class extends import_obsidian32.PluginSettingTab {
         type: "group",
         heading: t("settings.typesHeading"),
         items: [
+          { name: t("settings.typeProp"), desc: t("settings.typePropDesc"), aliases: ["settings.typeProp"] },
           { name: t("settings.addType"), aliases: ["settings.addType"] }
         ]
       },
@@ -12536,6 +12577,15 @@ var EPSettingTab = class extends import_obsidian32.PluginSettingTab {
     c.addClass("ep-settings");
     c.createEl("p", { text: t("settings.intro") });
     new import_obsidian32.Setting(c).setName(t("settings.typesHeading")).setHeading();
+    new import_obsidian32.Setting(c).setName(t("settings.typeProp")).setDesc(t("settings.typePropDesc")).addText((tx) => {
+      var _a;
+      tx.setPlaceholder("Type").setValue((_a = plugin.settings.typeProp) != null ? _a : "").onChange((v) => {
+        plugin.settings.typeProp = v.trim() || void 0;
+        save();
+        plugin.props.invalidateAll();
+        plugin.refreshViews();
+      });
+    });
     c.createEl("p", { cls: "setting-item-description", text: t("settings.typesDesc") });
     for (const type of plugin.settings.types) {
       new import_obsidian32.Setting(c).setName(type).addButton(
@@ -13158,7 +13208,14 @@ function showPropMenu(host, e, key) {
   }
   const typeValues = [];
   if (fm) {
-    const raw = (_b = fm["Type"]) != null ? _b : fm["type"];
+    const want = ((_b = settings.typeProp) != null ? _b : "Type").trim().toLowerCase() || "type";
+    let raw;
+    for (const k of Object.keys(fm)) {
+      if (k.toLowerCase() === want) {
+        raw = fm[k];
+        break;
+      }
+    }
     if (Array.isArray(raw)) raw.forEach((x) => typeValues.push(String(x)));
     else if (raw != null) typeValues.push(String(raw));
   }
@@ -16551,7 +16608,10 @@ var ExtendedPropertiesPlugin = class extends import_obsidian44.Plugin {
   }
   async onload() {
     var _a, _b, _c;
-    this.props = new PropertyIndex(this.app);
+    this.props = new PropertyIndex(this.app, () => {
+      var _a2, _b2;
+      return ((_b2 = (_a2 = this.settings) == null ? void 0 : _a2.typeProp) != null ? _b2 : "Type").trim() || "Type";
+    });
     registerDiceIcons();
     trackModifiers(this);
     this.i18n.register("en", coreEn, "English");

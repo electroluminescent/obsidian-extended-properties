@@ -40,7 +40,11 @@ export function showPropMenu(host: PropPanelHost, e: MouseEvent, key: string): v
   if (fm) for (const k of Object.keys(fm)) if (k.toLowerCase() !== "position") noteKeys.add(k);
   const typeValues: string[] = [];
   if (fm) {
-    const raw: unknown = (fm as Record<string, unknown>)["Type"] ?? (fm as Record<string, unknown>)["type"];
+    const want = (settings.typeProp ?? "Type").trim().toLowerCase() || "type";
+    let raw: unknown;
+    for (const k of Object.keys(fm as Record<string, unknown>)) {
+      if (k.toLowerCase() === want) { raw = (fm as Record<string, unknown>)[k]; break; }
+    }
     if (Array.isArray(raw)) (raw as unknown[]).forEach((x) => typeValues.push(String(x)));
     else if (raw != null) typeValues.push(String(raw));
   }

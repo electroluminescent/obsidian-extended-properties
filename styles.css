@@ -1029,3 +1029,7 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 
 /* Building-block suffix field: narrow beside the formula. */
 .ep-suffix-input { max-width: 64px; }
+
+/* Narrow sidebars: the type pill and Edit button wrap to their own line
+   under the note title instead of squeezing beside it. */
+.ep-titlerow { flex-wrap: wrap; row-gap: 4px; }

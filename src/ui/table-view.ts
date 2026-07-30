@@ -21,6 +21,7 @@
 import { ItemView, Menu, Notice, setIcon, TFile, WorkspaceLeaf } from "obsidian";
 import type ExtendedPropertiesPlugin from "../main";
 import type { Entry, TableLayout } from "../core/model";
+import { typePropOf } from "../core/model";
 import { getCI, parseNumeric } from "../utils/misc";
 import { parseDiceOrDefault } from "../utils/dice";
 import { TextLinkSuggest } from "./components/suggest";
@@ -102,7 +103,7 @@ export class TableView extends ItemView {
   refresh(file?: TFile): void {
     if (file && !this.shownPaths.has(file.path)) {
       const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
-      const tv = fm ? getCI(fm, "Type") : undefined;
+      const tv = fm ? getCI(fm, typePropOf(this.plugin.settings)) : undefined;
       const types = Array.isArray(tv)
         ? tv.map((x) => String(x).toLowerCase())
         : tv === undefined || tv === null

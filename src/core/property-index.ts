@@ -16,8 +16,8 @@ function linkTarget(raw: string): string {
 }
 
 /** The `Type` values of a frontmatter block, lower-cased. */
-function typesOf(fm: Record<string, unknown>): string[] {
-  const tv = getCI(fm, "Type");
+function typesOf(fm: Record<string, unknown>, prop: string): string[] {
+  const tv = getCI(fm, prop);
   return Array.isArray(tv)
     ? tv.map((x) => String(x).toLowerCase())
     : tv === undefined || tv === null
@@ -31,7 +31,11 @@ interface FileSnap {
 }
 
 export class PropertyIndex {
-  constructor(private app: App) {}
+  constructor(
+    private app: App,
+    /** The frontmatter property that selects a note's type. */
+    private getTypeProp: () => string = () => "Type"
+  ) {}
 
   /**
    * Per-file frontmatter snapshot cache. Every query above used to call
@@ -81,7 +85,7 @@ export class PropertyIndex {
 
   private bucketAdd(path: string, fm?: Record<string, unknown>): void {
     if (!fm) return;
-    for (const t of typesOf(fm)) {
+    for (const t of typesOf(fm, this.getTypeProp())) {
       let b = this.buckets.get(t);
       if (!b) this.buckets.set(t, (b = new Set()));
       b.add(path);
@@ -90,7 +94,7 @@ export class PropertyIndex {
 
   private bucketRemove(path: string, fm?: Record<string, unknown>): void {
     if (!fm) return;
-    for (const t of typesOf(fm)) this.buckets.get(t)?.delete(path);
+    for (const t of typesOf(fm, this.getTypeProp())) this.buckets.get(t)?.delete(path);
   }
 
   /** Drop every memoized aggregate of the given (lower-cased) types. */
@@ -112,7 +116,7 @@ export class PropertyIndex {
     this.bucketAdd(file.path, fm);
     // Dirty the aggregates of every type the note belonged to OR now belongs
     // to - the broader dependency N1 tracks (bucket moves hit both sides).
-    this.dirtyTypes(new Set([...(old?.fm ? typesOf(old.fm) : []), ...(fm ? typesOf(fm) : [])]));
+    this.dirtyTypes(new Set([...(old?.fm ? typesOf(old.fm, this.getTypeProp()) : []), ...(fm ? typesOf(fm, this.getTypeProp()) : [])]));
   }
 
   /** Drop one file (called on delete). */
@@ -121,7 +125,7 @@ export class PropertyIndex {
     const old = this.cache.get(path);
     if (old) {
       this.bucketRemove(path, old.fm);
-      this.dirtyTypes(old.fm ? typesOf(old.fm) : []);
+      this.dirtyTypes(old.fm ? typesOf(old.fm, this.getTypeProp()) : []);
     }
     this.cache.delete(path);
   }

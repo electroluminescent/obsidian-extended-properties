@@ -119,10 +119,11 @@ export class NoteModel {
     return v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0);
   }
 
-  /** The note's `Type` property as a list (case-insensitive key match). */
-  noteTypes(): string[] {
+  /** The note's type property as a list (case-insensitive key match). */
+  noteTypes(prop = "Type"): string[] {
+    const want = prop.toLowerCase();
     for (const k of Object.keys(this.raw)) {
-      if (k.toLowerCase() === "type") {
+      if (k.toLowerCase() === want) {
         const v = this.raw[k];
         return Array.isArray(v) ? v.map((x) => String(x)) : v === undefined || v === null ? [] : [String(v)];
       }

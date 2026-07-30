@@ -470,6 +470,8 @@
   "preset.empty": "Empty",
   "settings.intro": "Open a note whose Type matches one below, then click Edit (or right-click anything) to arrange it. Drag handles, use ... / right-click for options (Configure for the full panel), click labels to rename, add properties at each section's bottom.",
   "settings.typesHeading": "Types",
+  "settings.typeProp": "Type property",
+  "settings.typePropDesc": "The frontmatter property that selects a note's type (default: Type). Point it at an existing property - e.g. category - and the plugin recognizes those notes retroactively, without renaming anything in your vault.",
   "settings.typesDesc": "Each Type has its own layout; a note's Type property selects it.",
   "settings.resetLayout": "Reset layout",
   "settings.resetLayoutConfirm": "Reset the \"{type}\" layout to defaults?",
@@ -664,5 +666,7 @@
   "settings.macroDelete": "Delete macro",
   "settings.macroAdd": "Add a macro",
   "settings.macroAddBtn": "+ Macro",
-  "settings.macroNewName": "New macro"
+  "settings.macroNewName": "New macro",
+  "view.createType": "+ New type",
+  "view.createTypePrompt": "Name the new type"
 }
