@@ -8375,9 +8375,9 @@ var OWN_ESCAPE = ".modal-container, .suggestion-container, .menu, .ep-popup:not(
 function outsidePopup(pop, target, doc) {
   if (!(target instanceof Node)) return false;
   if (pop.contains(target)) return false;
-  if (target instanceof HTMLElement && target.closest(OUTSIDE_LAYERS)) return false;
+  if (target.instanceOf(HTMLElement) && target.closest(OUTSIDE_LAYERS)) return false;
   const active = doc.activeElement;
-  const onSelect = active instanceof HTMLSelectElement && pop.contains(active);
+  const onSelect = !!(active == null ? void 0 : active.instanceOf(HTMLSelectElement)) && pop.contains(active);
   if (onSelect && (target === doc.body || target === doc.documentElement)) return false;
   return true;
 }
@@ -8624,7 +8624,7 @@ function wireGestures(el, settings, handlers) {
   }
 }
 function onControl(t) {
-  return t instanceof HTMLElement && !!t.closest("input, button, textarea, select, a, .ep-editable, .ep-step-btn, .ep-rating-pip, .ep-slider2-knob, .ep-grip, .ep-menu-btn, .ep-era-chip");
+  return t instanceof Node && t.instanceOf(HTMLElement) && !!t.closest("input, button, textarea, select, a, .ep-editable, .ep-step-btn, .ep-rating-pip, .ep-slider2-knob, .ep-grip, .ep-menu-btn, .ep-era-chip");
 }
 function wireEntryInteractions(wrap, view, file, section, entry) {
   wireGestures(wrap, view.settings, {

@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.18.4
+
+- Review compliance: the popup's dismissal and control checks use Obsidian's
+  cross-window `.instanceOf(...)` rather than `instanceof`, so they still hold
+  in a popped-out window - where an element comes from that window's own class
+  and a plain `instanceof` is false.
+
 ## 4.18.3
 
 - Review compliance: `ValueTypeDef.menuItems` declares `this: void`. The

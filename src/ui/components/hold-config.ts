@@ -156,9 +156,9 @@ const OWN_ESCAPE =
 export function outsidePopup(pop: HTMLElement, target: EventTarget | null, doc: Document): boolean {
   if (!(target instanceof Node)) return false;
   if (pop.contains(target)) return false;
-  if (target instanceof HTMLElement && target.closest(OUTSIDE_LAYERS)) return false;
+  if (target.instanceOf(HTMLElement) && target.closest(OUTSIDE_LAYERS)) return false;
   const active = doc.activeElement;
-  const onSelect = active instanceof HTMLSelectElement && pop.contains(active);
+  const onSelect = !!active?.instanceOf(HTMLSelectElement) && pop.contains(active);
   if (onSelect && (target === doc.body || target === doc.documentElement)) return false;
   return true;
 }
@@ -469,7 +469,8 @@ export function wireGestures(
 /** Whether a press began on an interactive control (never start a hold there). */
 function onControl(t: EventTarget | null): boolean {
   return (
-    t instanceof HTMLElement &&
+    t instanceof Node &&
+    t.instanceOf(HTMLElement) &&
     !!t.closest("input, button, textarea, select, a, .ep-editable, .ep-step-btn, .ep-rating-pip, .ep-slider2-knob, .ep-grip, .ep-menu-btn, .ep-era-chip")
   );
 }

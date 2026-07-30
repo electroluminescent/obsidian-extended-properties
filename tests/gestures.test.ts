@@ -58,6 +58,10 @@ describe("gesture mapping", () => {
 class FakeNode {
   parent: FakeNode | null = null;
   classes: string[] = [];
+  /** Obsidian's cross-window `instanceof` (added to Node by the app). */
+  instanceOf(type: abstract new (...args: never[]) => unknown): boolean {
+    return this instanceof type;
+  }
   contains(other: FakeNode | null): boolean {
     for (let n = other; n; n = n.parent) if (n === this) return true;
     return false;
