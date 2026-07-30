@@ -1,6 +1,6 @@
 # Changelog
 
-## 4.16.7
+## 4.16.8
 
 Everything since 4.10.1, grouped by what it changes.
 
