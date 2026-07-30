@@ -69,8 +69,14 @@ export interface ValueTypeDef {
   clusterNeeds?(ref: EntryRef): ClusterNeeds;
   /** Contribute rows to the entry-options modal. */
   renderOptions?(ctx: OptionsCtx): void;
-  /** Contribute items to the entry's context menu. */
-  menuItems?(menu: Menu, ref: EntryRef, pos: { x: number; y: number }): void;
+  /**
+   * Contribute items to the entry's context menu.
+   *
+   * `this: void` is part of the contract: callers may hold the function on its
+   * own (the settings popup keeps it to decide whether to offer a value-actions
+   * button), so an implementation must never depend on its defining object.
+   */
+  menuItems?(this: void, menu: Menu, ref: EntryRef, pos: { x: number; y: number }): void;
 }
 
 // ---------------------------------------------------------------------------

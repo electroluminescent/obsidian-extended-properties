@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.18.3
+
+- Review compliance: `ValueTypeDef.menuItems` declares `this: void`. The
+  settings popup holds the function on its own to decide whether to offer its
+  value-actions button, so the contract that it never depends on its defining
+  object is now stated in the type rather than assumed.
+
 ## 4.18.2
 
 - **Autocomplete shows up in the settings popup.** The list was opening all
