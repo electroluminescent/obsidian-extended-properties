@@ -7459,7 +7459,10 @@ var NoteModel = class {
     var _a;
     if (this.path && this.path !== file.path) this.flushPending(this.path);
     const fm = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter;
-    this.raw = fm ? { ...fm } : {};
+    const fresh = fm ? { ...fm } : {};
+    const pending2 = this.pendingKeys.get(file.path);
+    if (pending2) for (const k of pending2) fresh[k] = this.raw[k];
+    this.raw = fresh;
     this.path = file.path;
   }
   /** Whether a metadata-changed event for `file` is an echo of our own write. */

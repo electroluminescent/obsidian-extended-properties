@@ -97,7 +97,14 @@ export class NoteModel {
     // Persist any queued writes for the note we're leaving before switching.
     if (this.path && this.path !== file.path) this.flushPending(this.path);
     const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
-    this.raw = fm ? { ...fm } : {};
+    const fresh: Record<string, unknown> = fm ? { ...fm } : {};
+    // Keys with a write still in the debounce window are OURS: the cache has
+    // not seen them yet, and applyWrites reads their value from `raw` when it
+    // flushes. Reloading over them would both revert the screen and make the
+    // queued write persist the stale value (or delete the key outright).
+    const pending = this.pendingKeys.get(file.path);
+    if (pending) for (const k of pending) fresh[k] = this.raw[k];
+    this.raw = fresh;
     this.path = file.path;
   }
 

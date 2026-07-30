@@ -106,6 +106,20 @@ describe("NoteModel (sidebar write path)", () => {
     expect(app.fm("m.md")).toMatchObject({ HP: 11, MP: 12 });
   });
 
+  it("reloading mid-debounce keeps the pending value (sidebar focus churn)", async () => {
+    const app = new SeamApp();
+    const f = app.note("t.md", {});
+    const model = new NoteModel(app as never, fakeI18n, hostOf());
+    model.load(f);
+    model.set(f, "Type", "Character");
+    // A focus event reloads the note before the debounced write lands: the
+    // metadata cache still has no Type, but ours must survive and persist.
+    model.load(f);
+    expect(model.raw.Type).toBe("Character");
+    await vi.advanceTimersByTimeAsync(500);
+    expect(app.fm("t.md")!.Type).toBe("Character");
+  });
+
   it("revertUndo writes every captured original back and resolves when done", async () => {
     const app = new SeamApp();
     const f = app.note("u.md", { HP: 1, Name: "Ari" });
