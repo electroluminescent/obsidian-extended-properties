@@ -233,25 +233,123 @@ export function openEntrySettingsPopup(
 
 // -- routing -----------------------------------------------------------------
 
-function runInteraction(
-  action: EntryInteraction,
-  wrap: HTMLElement,
-  view: ViewCtx,
-  file: TFile,
-  section: Section,
-  entry: Entry,
-  x: number,
-  y: number
+
+/** Per-action handlers a surface supplies to {@link wireGestures}. */
+export interface GestureHandlers {
+  menu: (x: number, y: number) => void;
+  settings?: (x: number, y: number) => void;
+  focus?: () => void;
+}
+
+/**
+ * Wire the four mappable gestures onto any element (sidebar entries, inline
+ * cards, inline chips). Actions the surface can't provide fall back to its
+ * menu, so a mapping never leaves a gesture dead.
+ */
+export function wireGestures(
+  el: HTMLElement,
+  settings: InteractionSettings,
+  handlers: GestureHandlers
 ): void {
-  if (action === "none") {
-    return;
-  } else if (action === "focus") {
-    focusEntry(wrap);
-  } else if (action === "settings") {
-    focusEntry(wrap);
-    openEntrySettingsPopup(view, file, section, entry, x, y);
-  } else {
-    openEntryMenu(new MouseEvent("contextmenu", { clientX: x, clientY: y, bubbles: true }), view, file, section, entry);
+  const run = (action: EntryInteraction, x: number, y: number): void => {
+    if (action === "none") return;
+    if (action === "focus") {
+      if (handlers.focus) handlers.focus();
+      else focusEntry(el);
+      return;
+    }
+    if (action === "settings") {
+      if (handlers.settings) {
+        handlers.focus ? handlers.focus() : focusEntry(el);
+        handlers.settings(x, y);
+      } else {
+        handlers.menu(x, y);
+      }
+      return;
+    }
+    handlers.menu(x, y);
+  };
+
+  let ring: HTMLElement | null = null;
+  let raf = 0;
+  let start = 0;
+  let sx = 0;
+  let sy = 0;
+  let holding = false;
+  let heldButton = 0;
+  let consumed = false;
+
+  const stop = (keepFocus: boolean): void => {
+    if (!holding) return;
+    holding = false;
+    window.cancelAnimationFrame(raf);
+    ring?.remove();
+    ring = null;
+    if (!keepFocus) el.removeClass("ep-holdfocus");
+  };
+
+  el.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (consumed) {
+      consumed = false;
+      return;
+    }
+    run(interactionFor(settings, "right"), e.clientX, e.clientY);
+  });
+
+  el.addEventListener("click", (e: MouseEvent) => {
+    if (consumed) {
+      consumed = false;
+      return;
+    }
+    if (onControl(e.target)) return;
+    const action = interactionFor(settings, "click");
+    if (action === "none") return;
+    e.preventDefault();
+    e.stopPropagation();
+    run(action, e.clientX, e.clientY);
+  });
+
+  el.addEventListener("pointerdown", (e: PointerEvent) => {
+    if (holding || (e.button !== 0 && e.button !== 2) || onControl(e.target)) return;
+    const kind: GestureKind = e.button === 2 ? "rightHold" : "hold";
+    if (interactionFor(settings, kind) === "none") return;
+    holding = true;
+    heldButton = e.button;
+    consumed = false;
+    start = performance.now();
+    sx = e.clientX;
+    sy = e.clientY;
+    ring = activeDocument.body.createDiv({ cls: "ep-holdring" });
+    ring.setCssStyles({ left: e.clientX + "px", top: e.clientY + "px" });
+    el.addClass("ep-holdfocus");
+    const holdMs = holdMsOf(settings);
+    const tick = (): void => {
+      if (!holding) return;
+      const p = Math.min(1, (performance.now() - start) / holdMs);
+      ring?.setCssProps({ "--ep-hold": String(p) });
+      if (p >= 1) {
+        const action = interactionFor(settings, kind);
+        stop(action === "focus" || action === "settings");
+        if (action === "focus") focused = el;
+        consumed = true;
+        run(action, sx, sy);
+        return;
+      }
+      raf = window.requestAnimationFrame(tick);
+    };
+    raf = window.requestAnimationFrame(tick);
+  });
+  el.addEventListener("pointermove", (e: PointerEvent) => {
+    if (!holding) return;
+    if (Math.hypot(e.clientX - sx, e.clientY - sy) > MOVE_TOLERANCE) stop(false);
+  });
+  el.addEventListener("pointerup", (e: PointerEvent) => {
+    if (holding && e.button === heldButton) stop(false);
+  });
+  for (const ev of ["pointercancel", "pointerleave"] as const) {
+    el.addEventListener(ev, () => stop(false));
   }
 }
 
@@ -275,90 +373,9 @@ export function wireEntryInteractions(
   section: Section,
   entry: Entry
 ): void {
-  let ring: HTMLElement | null = null;
-  let raf = 0;
-  let start = 0;
-  let sx = 0;
-  let sy = 0;
-  let holding = false;
-  let heldButton = 0;
-  /** Set when a hold fired, so the following click/contextmenu is swallowed. */
-  let consumed = false;
-
-  const stop = (keepFocus: boolean): void => {
-    if (!holding) return;
-    holding = false;
-    window.cancelAnimationFrame(raf);
-    ring?.remove();
-    ring = null;
-    if (!keepFocus) wrap.removeClass("ep-holdfocus");
-  };
-
-  // Right-click: the hold variant fires from the timer, so a plain
-  // contextmenu only runs when no right-hold already did.
-  wrap.addEventListener("contextmenu", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (consumed) {
-      consumed = false;
-      return;
-    }
-    runInteraction(interactionFor(view.settings, "right"), wrap, view, file, section, entry, e.clientX, e.clientY);
+  wireGestures(wrap, view.settings, {
+    menu: (x, y) =>
+      openEntryMenu(new MouseEvent("contextmenu", { clientX: x, clientY: y, bubbles: true }), view, file, section, entry),
+    settings: (x, y) => openEntrySettingsPopup(view, file, section, entry, x, y),
   });
-
-  // Plain click on the entry body (never on a control, which owns its click).
-  wrap.addEventListener("click", (e: MouseEvent) => {
-    if (consumed) {
-      consumed = false;
-      return;
-    }
-    if (onControl(e.target)) return;
-    const action = interactionFor(view.settings, "click");
-    if (action === "none") return;
-    e.preventDefault();
-    e.stopPropagation();
-    runInteraction(action, wrap, view, file, section, entry, e.clientX, e.clientY);
-  });
-
-  wrap.addEventListener("pointerdown", (e: PointerEvent) => {
-    if (holding || (e.button !== 0 && e.button !== 2) || onControl(e.target)) return;
-    const kind: GestureKind = e.button === 2 ? "rightHold" : "hold";
-    if (interactionFor(view.settings, kind) === "none") return;
-    holding = true;
-    heldButton = e.button;
-    consumed = false;
-    start = performance.now();
-    sx = e.clientX;
-    sy = e.clientY;
-    // The charging ring hugs the cursor; the property lights up while held.
-    ring = activeDocument.body.createDiv({ cls: "ep-holdring" });
-    ring.setCssStyles({ left: e.clientX + "px", top: e.clientY + "px" });
-    wrap.addClass("ep-holdfocus");
-    const holdMs = holdMsOf(view.settings);
-    const tick = (): void => {
-      if (!holding) return;
-      const p = Math.min(1, (performance.now() - start) / holdMs);
-      ring?.setCssProps({ "--ep-hold": String(p) });
-      if (p >= 1) {
-        const action = interactionFor(view.settings, kind);
-        stop(action === "focus" || action === "settings");
-        if (action === "focus") focused = wrap; // ring already lit it
-        consumed = true; // the release must not also fire click/contextmenu
-        runInteraction(action, wrap, view, file, section, entry, sx, sy);
-        return;
-      }
-      raf = window.requestAnimationFrame(tick);
-    };
-    raf = window.requestAnimationFrame(tick);
-  });
-  wrap.addEventListener("pointermove", (e: PointerEvent) => {
-    if (!holding) return;
-    if (Math.hypot(e.clientX - sx, e.clientY - sy) > MOVE_TOLERANCE) stop(false);
-  });
-  wrap.addEventListener("pointerup", (e: PointerEvent) => {
-    if (holding && e.button === heldButton) stop(false);
-  });
-  for (const ev of ["pointercancel", "pointerleave"] as const) {
-    wrap.addEventListener(ev, () => stop(false));
-  }
 }

@@ -28,7 +28,8 @@ import {
 } from "../../core/influences";
 import { makeNoteAwareResolver, makeVaultAccess, parseNoteRef } from "../../core/note-ref";
 import { makeValsEl } from "./inline-view";
-import { guardScrollTaps, longPressContextMenu } from "../../ui/components/long-press";
+import { guardScrollTaps } from "../../ui/components/long-press";
+import { wireGestures } from "../../ui/components/hold-config";
 import { DiceNode, parseRoll, RollAst, serializeRoll } from "../../utils/dice-expr";
 import { parseDiceOrDefault } from "../../utils/dice";
 import { fmtMod, fmtNum, getList, getNum } from "../../utils/misc";
@@ -205,12 +206,18 @@ export function makeRollChip(ctx: InlineCtx, file: TFile, body: string, opt: str
     ev.stopPropagation();
     runInlineRoll(ctx, file, body, mode, 1);
   };
-  chip.oncontextmenu = (ev) => {
-    ev.preventDefault();
-    ev.stopPropagation();
-    openRollMenu(ev, ctx.i18n, mode, (mo, ti) => runInlineRoll(ctx, file, body, mo, ti), onEdit ? { onEdit } : undefined);
-  };
-  longPressContextMenu(chip); // touch parity for the roll menu
+  // Roll chips keep their roll menu, driven by the same gesture mapping
+  // (its click stays the roll, so the click mapping is deliberately skipped).
+  wireGestures(chip, ctx.settings, {
+    menu: (x, y) =>
+      openRollMenu(
+        new MouseEvent("contextmenu", { clientX: x, clientY: y, bubbles: true }),
+        ctx.i18n,
+        mode,
+        (mo, ti) => runInlineRoll(ctx, file, body, mo, ti),
+        onEdit ? { onEdit } : undefined
+      ),
+  });
   guardScrollTaps(chip); // don't roll when a scroll ends on the chip
   return chip;
 }
@@ -361,16 +368,16 @@ export function makeValEl(ctx: InlineCtx, file: TFile, body: string, onEditSourc
   }
 
   if (editValue || onEditSource) {
-    chip.oncontextmenu = (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
+    // The chip's menu, driven by the same mappable gestures as the sidebar
+    // and inline cards (right click, hold, right hold, click).
+    const openChipMenu = (x: number, y: number): void => {
       const menu = new Menu();
       if (editValue && directKey)
         menu.addItem((i) => i.setTitle(t("inline.editValue", { prop: directKey })).setIcon("pencil").onClick(editValue));
       if (onEditSource) menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
-      menu.showAtMouseEvent(ev);
+      menu.showAtMouseEvent(new MouseEvent("contextmenu", { clientX: x, clientY: y, bubbles: true }));
     };
-    longPressContextMenu(chip); // touch parity
+    wireGestures(chip, ctx.settings, { menu: openChipMenu });
   }
   guardScrollTaps(chip); // don't edit/navigate when a scroll ends on the chip
   return chip;

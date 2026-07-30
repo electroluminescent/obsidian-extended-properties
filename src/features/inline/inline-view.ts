@@ -25,7 +25,8 @@ import type { HistoryService } from "../rolling/history";
 import { NoteModel } from "../../core/note-model";
 import { buildCluster, emptyFlags, mergeNeeds } from "../../ui/render/cluster";
 import { renderLinkedText } from "../../ui/components/links";
-import { guardScrollTaps, longPressContextMenu } from "../../ui/components/long-press";
+import { guardScrollTaps } from "../../ui/components/long-press";
+import { openEntrySettingsPopup, wireGestures } from "../../ui/components/hold-config";
 import { ColorPickerModal } from "../../ui/modals/color-picker";
 import { EntryOptionsModal } from "../../ui/modals/entry-options";
 import { keyForShortForm, VaultAccess } from "../../core/influences";
@@ -343,11 +344,11 @@ export function makeValsEl(ctx: InlineCtx, file: TFile, body: string, onEditSour
         .setText(v === undefined || v === null || v === "" ? "-" : Array.isArray(v) ? v.join(", ") : String(v));
     }
 
-    // Context menu: configure (options modal), clear value, value-type items,
-    // and Edit source - but none of the sidebar's structural (grid) actions.
-    wrap.addEventListener("contextmenu", (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
+    // The card's own menu: configure (options modal), clear value, value-type
+    // items, and Edit source - but none of the sidebar's structural (grid)
+    // actions. Routed through the shared gesture mapping below.
+    const openCardMenu = (x: number, y: number): void => {
+      const ev = new MouseEvent("contextmenu", { clientX: x, clientY: y, bubbles: true });
       const menu = new Menu();
       const name = (entry.alias as string) || view.defaultLabelFor(entry);
       menu.addItem((i) =>
@@ -372,8 +373,13 @@ export function makeValsEl(ctx: InlineCtx, file: TFile, body: string, onEditSour
         menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
       }
       menu.showAtMouseEvent(ev);
+    };
+    // Same four mappable gestures as the sidebar: right click, hold, right
+    // hold and click, with the property-settings popup available too.
+    wireGestures(wrap, ctx.settings, {
+      menu: openCardMenu,
+      settings: (x, y) => openEntrySettingsPopup(view, target, section, entry, x, y),
     });
-    longPressContextMenu(wrap); // touch parity for the configure menu
     guardScrollTaps(wrap); // don't edit/roll when a scroll ends on the card
   };
 

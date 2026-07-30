@@ -8337,22 +8337,25 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
     doc.removeEventListener("keydown", onKey, true);
   };
 }
-function runInteraction(action, wrap, view, file, section, entry, x, y) {
-  if (action === "none") {
-    return;
-  } else if (action === "focus") {
-    focusEntry(wrap);
-  } else if (action === "settings") {
-    focusEntry(wrap);
-    openEntrySettingsPopup(view, file, section, entry, x, y);
-  } else {
-    openEntryMenu(new MouseEvent("contextmenu", { clientX: x, clientY: y, bubbles: true }), view, file, section, entry);
-  }
-}
-function onControl(t) {
-  return t instanceof HTMLElement && !!t.closest("input, button, textarea, select, a, .ep-editable, .ep-step-btn, .ep-rating-pip, .ep-slider2-knob, .ep-grip, .ep-menu-btn, .ep-era-chip");
-}
-function wireEntryInteractions(wrap, view, file, section, entry) {
+function wireGestures(el, settings, handlers) {
+  const run = (action, x, y) => {
+    if (action === "none") return;
+    if (action === "focus") {
+      if (handlers.focus) handlers.focus();
+      else focusEntry(el);
+      return;
+    }
+    if (action === "settings") {
+      if (handlers.settings) {
+        handlers.focus ? handlers.focus() : focusEntry(el);
+        handlers.settings(x, y);
+      } else {
+        handlers.menu(x, y);
+      }
+      return;
+    }
+    handlers.menu(x, y);
+  };
   let ring = null;
   let raf = 0;
   let start = 0;
@@ -8367,33 +8370,33 @@ function wireEntryInteractions(wrap, view, file, section, entry) {
     window.cancelAnimationFrame(raf);
     ring == null ? void 0 : ring.remove();
     ring = null;
-    if (!keepFocus) wrap.removeClass("ep-holdfocus");
+    if (!keepFocus) el.removeClass("ep-holdfocus");
   };
-  wrap.addEventListener("contextmenu", (e) => {
+  el.addEventListener("contextmenu", (e) => {
     e.preventDefault();
     e.stopPropagation();
     if (consumed) {
       consumed = false;
       return;
     }
-    runInteraction(interactionFor(view.settings, "right"), wrap, view, file, section, entry, e.clientX, e.clientY);
+    run(interactionFor(settings, "right"), e.clientX, e.clientY);
   });
-  wrap.addEventListener("click", (e) => {
+  el.addEventListener("click", (e) => {
     if (consumed) {
       consumed = false;
       return;
     }
     if (onControl(e.target)) return;
-    const action = interactionFor(view.settings, "click");
+    const action = interactionFor(settings, "click");
     if (action === "none") return;
     e.preventDefault();
     e.stopPropagation();
-    runInteraction(action, wrap, view, file, section, entry, e.clientX, e.clientY);
+    run(action, e.clientX, e.clientY);
   });
-  wrap.addEventListener("pointerdown", (e) => {
+  el.addEventListener("pointerdown", (e) => {
     if (holding || e.button !== 0 && e.button !== 2 || onControl(e.target)) return;
     const kind = e.button === 2 ? "rightHold" : "hold";
-    if (interactionFor(view.settings, kind) === "none") return;
+    if (interactionFor(settings, kind) === "none") return;
     holding = true;
     heldButton = e.button;
     consumed = false;
@@ -8402,34 +8405,43 @@ function wireEntryInteractions(wrap, view, file, section, entry) {
     sy = e.clientY;
     ring = activeDocument.body.createDiv({ cls: "ep-holdring" });
     ring.setCssStyles({ left: e.clientX + "px", top: e.clientY + "px" });
-    wrap.addClass("ep-holdfocus");
-    const holdMs = holdMsOf(view.settings);
+    el.addClass("ep-holdfocus");
+    const holdMs = holdMsOf(settings);
     const tick = () => {
       if (!holding) return;
       const p = Math.min(1, (performance.now() - start) / holdMs);
       ring == null ? void 0 : ring.setCssProps({ "--ep-hold": String(p) });
       if (p >= 1) {
-        const action = interactionFor(view.settings, kind);
+        const action = interactionFor(settings, kind);
         stop(action === "focus" || action === "settings");
-        if (action === "focus") focused = wrap;
+        if (action === "focus") focused = el;
         consumed = true;
-        runInteraction(action, wrap, view, file, section, entry, sx, sy);
+        run(action, sx, sy);
         return;
       }
       raf = window.requestAnimationFrame(tick);
     };
     raf = window.requestAnimationFrame(tick);
   });
-  wrap.addEventListener("pointermove", (e) => {
+  el.addEventListener("pointermove", (e) => {
     if (!holding) return;
     if (Math.hypot(e.clientX - sx, e.clientY - sy) > MOVE_TOLERANCE) stop(false);
   });
-  wrap.addEventListener("pointerup", (e) => {
+  el.addEventListener("pointerup", (e) => {
     if (holding && e.button === heldButton) stop(false);
   });
   for (const ev of ["pointercancel", "pointerleave"]) {
-    wrap.addEventListener(ev, () => stop(false));
+    el.addEventListener(ev, () => stop(false));
   }
+}
+function onControl(t) {
+  return t instanceof HTMLElement && !!t.closest("input, button, textarea, select, a, .ep-editable, .ep-step-btn, .ep-rating-pip, .ep-slider2-knob, .ep-grip, .ep-menu-btn, .ep-era-chip");
+}
+function wireEntryInteractions(wrap, view, file, section, entry) {
+  wireGestures(wrap, view.settings, {
+    menu: (x, y) => openEntryMenu(new MouseEvent("contextmenu", { clientX: x, clientY: y, bubbles: true }), view, file, section, entry),
+    settings: (x, y) => openEntrySettingsPopup(view, file, section, entry, x, y)
+  });
 }
 
 // src/ui/render/entry-renderer.ts
@@ -16055,10 +16067,9 @@ function makeValsEl(ctx2, file, body, onEditSource) {
       const v = ctx2.facade.get(target, entry.key);
       head.createDiv({ cls: "ep-val-right" }).setText(v === void 0 || v === null || v === "" ? "-" : Array.isArray(v) ? v.join(", ") : String(v));
     }
-    wrap.addEventListener("contextmenu", (ev) => {
+    const openCardMenu = (x, y) => {
       var _a2, _b2;
-      ev.preventDefault();
-      ev.stopPropagation();
+      const ev = new MouseEvent("contextmenu", { clientX: x, clientY: y, bubbles: true });
       const menu = new import_obsidian42.Menu();
       const name = entry.alias || view.defaultLabelFor(entry);
       menu.addItem(
@@ -16081,8 +16092,11 @@ function makeValsEl(ctx2, file, body, onEditSource) {
         menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
       }
       menu.showAtMouseEvent(ev);
+    };
+    wireGestures(wrap, ctx2.settings, {
+      menu: openCardMenu,
+      settings: (x, y) => openEntrySettingsPopup(view, target, section, entry, x, y)
     });
-    longPressContextMenu(wrap);
     guardScrollTaps(wrap);
   };
   draw();
@@ -16302,12 +16316,15 @@ function makeRollChip(ctx2, file, body, opt, onEdit) {
     ev.stopPropagation();
     runInlineRoll(ctx2, file, body, mode, 1);
   };
-  chip.oncontextmenu = (ev) => {
-    ev.preventDefault();
-    ev.stopPropagation();
-    openRollMenu(ev, ctx2.i18n, mode, (mo, ti) => runInlineRoll(ctx2, file, body, mo, ti), onEdit ? { onEdit } : void 0);
-  };
-  longPressContextMenu(chip);
+  wireGestures(chip, ctx2.settings, {
+    menu: (x, y) => openRollMenu(
+      new MouseEvent("contextmenu", { clientX: x, clientY: y, bubbles: true }),
+      ctx2.i18n,
+      mode,
+      (mo, ti) => runInlineRoll(ctx2, file, body, mo, ti),
+      onEdit ? { onEdit } : void 0
+    )
+  });
   guardScrollTaps(chip);
   return chip;
 }
@@ -16452,16 +16469,14 @@ function makeValEl(ctx2, file, body, onEditSource) {
     chip.setAttr("title", body);
   }
   if (editValue || onEditSource) {
-    chip.oncontextmenu = (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
+    const openChipMenu = (x, y) => {
       const menu = new import_obsidian43.Menu();
       if (editValue && directKey)
         menu.addItem((i) => i.setTitle(t("inline.editValue", { prop: directKey })).setIcon("pencil").onClick(editValue));
       if (onEditSource) menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
-      menu.showAtMouseEvent(ev);
+      menu.showAtMouseEvent(new MouseEvent("contextmenu", { clientX: x, clientY: y, bubbles: true }));
     };
-    longPressContextMenu(chip);
+    wireGestures(chip, ctx2.settings, { menu: openChipMenu });
   }
   guardScrollTaps(chip);
   return chip;
