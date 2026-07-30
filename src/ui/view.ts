@@ -760,12 +760,30 @@ export class SidebarView extends ItemView implements ViewCtx {
     const header = this.headerEl;
     if (!header) return;
     const row = header.querySelector<HTMLElement>(".ep-titlerow");
-    if (!row) return;
+    const title = row?.querySelector<HTMLElement>(".ep-title");
+    if (!row || !title) return;
     header.removeClass("ep-header-tight1");
     header.removeClass("ep-header-tight2");
-    const tight = (): boolean => row.scrollWidth > row.clientWidth + 1;
-    if (tight()) header.addClass("ep-header-tight1"); // icon-only Edit
-    if (tight()) header.addClass("ep-header-tight2"); // badge hides too
+    // The title is flex:1 with an ellipsis, so the ROW never overflows -
+    // measuring scrollWidth would always say "fits". Compare the title's
+    // natural text width against the room its siblings leave instead.
+    const range = row.ownerDocument.createRange();
+    const titleWidth = (): number => {
+      range.selectNodeContents(title);
+      return range.getBoundingClientRect().width;
+    };
+    const siblings = (): number => {
+      let w = 0;
+      for (const el of Array.from(row.children)) {
+        if (el === title || !el.instanceOf(HTMLElement)) continue;
+        const r = el.getBoundingClientRect();
+        if (r.width > 0) w += r.width + 6; // + the row's gap
+      }
+      return w;
+    };
+    const cramped = (): boolean => titleWidth() > row.clientWidth - siblings() - 1;
+    if (cramped()) header.addClass("ep-header-tight1"); // icon-only Edit
+    if (cramped()) header.addClass("ep-header-tight2"); // badge hides too
   }
 
   private responsivePass(): void {

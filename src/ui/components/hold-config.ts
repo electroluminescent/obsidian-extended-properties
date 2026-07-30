@@ -13,9 +13,10 @@
  * (a scroll or drag) cancels the hold.
  */
 
-import { TFile } from "obsidian";
+import { setIcon, TFile } from "obsidian";
 import type { ViewCtx, OptionsCtx } from "../../core/context";
-import type { Entry, Section } from "../../core/model";
+import { Entry, Section, sectionMode } from "../../core/model";
+import * as ops from "../../core/layout-ops";
 import { openEntryMenu } from "../menus/entry-menu";
 import { renderEntryOptionsBody } from "../modals/entry-options";
 
@@ -121,6 +122,57 @@ export function openEntrySettingsPopup(
   // its name, so everything fits the menu width with no horizontal scroll.
   const pop = doc.body.createDiv({ cls: "ep-popup ep-entrysettings ep-options ep-compactopts" });
   openPopup = pop;
+  // Icon toolbar: the regular context menu's actions, one button each.
+  const bar = pop.createDiv({ cls: "ep-entrysettings-bar" });
+  const tool = (icon: string, label: string, run: () => void): void => {
+    const b = bar.createEl("button", { cls: "ep-entrysettings-tool" });
+    setIcon(b, icon);
+    b.setAttr("aria-label", label);
+    b.setAttr("title", label);
+    b.onclick = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      run();
+    };
+  };
+  const t = view.i18n.t.bind(view.i18n);
+  if (entry.kind === "prop" && entry.key) {
+    const key = entry.key;
+    const hidden = view.hide.isHidden(key);
+    tool(hidden ? "eye" : "eye-off",
+      hidden ? t("entry.menu.showInObsidian", { key }) : t("entry.menu.hideFromObsidian", { key }),
+      () => {
+        view.hide.toggle(key);
+        closeSettingsPopup();
+      });
+    tool("eraser", t("entry.menu.clearValue", { key }), () => {
+      view.note.set(file, key, undefined);
+      closeSettingsPopup();
+    });
+  }
+  const mode = sectionMode(section);
+  const kindDef = view.registries.entryKinds.get(entry.kind);
+  if ((mode === "grid" || mode === "columns") && !kindDef?.wide) {
+    const cols = section.columns || 1;
+    const idx = section.entries.indexOf(entry);
+    if (idx >= 0) {
+      const structural = (icon: string, label: string, act: () => void): void =>
+        tool(icon, label, () => {
+          act();
+          view.saveLayout();
+          view.rerender();
+          closeSettingsPopup();
+        });
+      if (mode === "grid")
+        structural("rows-3", t("grid.removeRow"), () => ops.removeRowAt(section, Math.floor(idx / cols)));
+      structural("columns-3", mode === "grid" ? t("grid.removeColumn") : t("grid.removeAColumn"),
+        () => ops.removeColumnAt(section, idx % cols, mode === "grid"));
+    }
+  }
+  tool("trash", t("entry.menu.remove"), () => {
+    view.removeEntry(section, entry);
+    closeSettingsPopup();
+  });
   const body = pop.createDiv({ cls: "ep-entrysettings-body" });
   const build = (): void => {
     body.empty();

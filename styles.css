@@ -1047,13 +1047,20 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 /* The property-settings popup: the options page, scrollable at the cursor. */
 .ep-entrysettings { position: fixed; z-index: var(--layer-menu, 25); width: min(280px, 92vw); padding: 0; }
 /* Menu-like: tall, vertically scrollable, never horizontally. */
+/* Icon toolbar mirroring the context menu's actions. */
+.ep-entrysettings .ep-entrysettings-bar { display: flex; align-items: center; gap: 2px; padding: 4px 6px; border-bottom: 1px solid var(--background-modifier-border); }
+.ep-entrysettings .ep-entrysettings-bar:empty { display: none; }
+.ep-entrysettings-tool { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; background: transparent; border: none; box-shadow: none; border-radius: 5px; color: var(--text-muted); cursor: pointer; }
+.ep-entrysettings-tool:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.ep-entrysettings-tool svg { width: 15px; height: 15px; }
 .ep-entrysettings .ep-entrysettings-body { max-height: min(80vh, 640px); overflow-y: auto; overflow-x: hidden; padding: 4px 8px; }
 /* Compact options: descriptions hidden, controls stack under their name, and
    EVERY box measures border-box so a full-width field ends exactly at the
    card's padding instead of overhanging it. */
 .ep-compactopts, .ep-compactopts * { box-sizing: border-box; }
 .ep-compactopts .setting-item-description { display: none; }
-.ep-compactopts .setting-item { display: block; padding: 3px 0; margin: 0; border: none; width: 100%; }
+/* No per-row card: the popup is one surface, the rows are just rows. */
+.ep-compactopts .setting-item { display: block; padding: 3px 0; margin: 0; border: none; width: 100%; background: transparent; box-shadow: none; border-radius: 0; }
 .ep-compactopts .setting-item-info { margin: 0 0 1px; padding: 0; overflow: visible; }
 .ep-compactopts .setting-item-name { font-size: var(--font-ui-smaller); line-height: 1.25; color: var(--text-muted); }
 .ep-compactopts .setting-item-control { justify-content: flex-start; flex-wrap: wrap; gap: 4px; width: 100%; margin: 0; padding: 0; }
