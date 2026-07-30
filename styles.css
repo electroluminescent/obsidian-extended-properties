@@ -1030,6 +1030,20 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 /* Building-block suffix field: narrow beside the formula. */
 .ep-suffix-input { max-width: 64px; }
 
-/* Narrow sidebars: the type pill and Edit button wrap to their own line
-   under the note title instead of squeezing beside it. */
-.ep-titlerow { flex-wrap: wrap; row-gap: 4px; }
+/* Staged header shrink: Edit collapses to its icon, then the type badge
+   disappears, instead of the row squeezing or wrapping. */
+.ep-edit-toggle { display: inline-flex; align-items: center; gap: 4px; }
+.ep-edit-toggle .ep-edit-ico { display: none; }
+.ep-edit-toggle .ep-edit-ico svg { width: 14px; height: 14px; }
+.ep-header-tight1 .ep-edit-toggle .ep-edit-ico { display: inline-flex; }
+.ep-header-tight1 .ep-edit-toggle .ep-edit-text { display: none; }
+.ep-header-tight2 .ep-type-badge { display: none; }
+
+/* Press-and-hold: the charging ring around the cursor + focused entry. */
+.ep-holdring { position: fixed; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; pointer-events: none; z-index: var(--layer-menu, 25);
+  background: conic-gradient(var(--interactive-accent) calc(var(--ep-hold, 0) * 1turn), transparent 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)); }
+.ep-entry.ep-holdfocus { outline: 2px solid var(--interactive-accent); outline-offset: -1px; border-radius: var(--ep-radius, 4px); }
+/* The property-settings popup: the options page, scrollable at the cursor. */
+.ep-entrysettings { position: fixed; z-index: var(--layer-menu, 25); width: min(360px, 92vw); }
+.ep-entrysettings .ep-entrysettings-body { max-height: min(60vh, 480px); overflow-y: auto; padding: 8px 10px; }

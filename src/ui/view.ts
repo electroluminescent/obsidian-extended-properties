@@ -11,7 +11,7 @@
  * set of *visible* entries would change (tracked by an "empty signature").
  */
 
-import { ItemView, Menu, Notice, TFile, WorkspaceLeaf } from "obsidian";
+import { ItemView, Menu, Notice, setIcon, TFile, WorkspaceLeaf } from "obsidian";
 import type ExtendedPropertiesPlugin from "../main";
 import { isEnvelope } from "../core/secure";
 import type { ClusterFlags, ClusterOptions, ClusterRefs, EntryRenderCtx, ViewCtx } from "../core/context";
@@ -752,7 +752,24 @@ export class SidebarView extends ItemView implements ViewCtx {
    * any row overflows - and bring them back when the sidebar grows.
    * Re-run on every render and on container resize.
    */
+  /**
+   * Staged header shrink: when the title row is tight the Edit button
+   * collapses to its icon; still tight, the type badge disappears.
+   */
+  private headerFit(): void {
+    const header = this.headerEl;
+    if (!header) return;
+    const row = header.querySelector<HTMLElement>(".ep-titlerow");
+    if (!row) return;
+    header.removeClass("ep-header-tight1");
+    header.removeClass("ep-header-tight2");
+    const tight = (): boolean => row.scrollWidth > row.clientWidth + 1;
+    if (tight()) header.addClass("ep-header-tight1"); // icon-only Edit
+    if (tight()) header.addClass("ep-header-tight2"); // badge hides too
+  }
+
   private responsivePass(): void {
+    this.headerFit();
     // Decorations need this much spare room before they may stay - derived from
     // the view's font size (~1.5em) so it scales with the user's text size and
     // gives larger touch targets on mobile.
@@ -1055,10 +1072,10 @@ export class SidebarView extends ItemView implements ViewCtx {
     titleRow.createDiv({ cls: "ep-title", text: file.basename });
     const badge = titleRow.createSpan({ cls: "ep-type-badge", text: match });
     badge.setAttr("title", t("view.typeBadgeHint"));
-    const editBtn = titleRow.createEl("button", {
-      cls: "ep-edit-toggle",
-      text: this.editMode ? t("view.done") : t("view.edit"),
-    });
+    const editBtn = titleRow.createEl("button", { cls: "ep-edit-toggle" });
+    const editIcon = editBtn.createSpan({ cls: "ep-edit-ico" });
+    setIcon(editIcon, this.editMode ? "check" : "pencil");
+    editBtn.createSpan({ cls: "ep-edit-text", text: this.editMode ? t("view.done") : t("view.edit") });
     if (this.editMode) editBtn.addClass("is-active");
     editBtn.setAttr("title", this.editMode ? t("view.doneHint") : t("view.editHint"));
     editBtn.onclick = () => {

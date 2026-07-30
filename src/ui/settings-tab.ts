@@ -652,6 +652,30 @@ export class EPSettingTab extends PluginSettingTab {
           save();
         });
       });
+    const interactionDrop = (name: string, desc: string, get: () => string, set: (v: string) => void, def: string): void => {
+      new Setting(c).setName(name).setDesc(desc).addDropdown((d) => {
+        d.addOption("menu", t("settings.interactMenu"));
+        d.addOption("settings", t("settings.interactSettings"));
+        d.addOption("focus", t("settings.interactFocus"));
+        d.setValue(get() || def);
+        d.onChange((v) => {
+          set(v);
+          save();
+        });
+      });
+    };
+    interactionDrop(
+      t("settings.rightClickAction"), t("settings.rightClickActionDesc"),
+      () => plugin.settings.rightClickAction ?? "menu",
+      (v) => (plugin.settings.rightClickAction = v === "menu" ? undefined : v),
+      "menu"
+    );
+    interactionDrop(
+      t("settings.holdAction"), t("settings.holdActionDesc"),
+      () => plugin.settings.holdAction ?? "settings",
+      (v) => (plugin.settings.holdAction = v === "settings" ? undefined : v),
+      "settings"
+    );
     new Setting(c)
       .setName(t("settings.propMenu"))
       .setDesc(t("settings.propMenuDesc"))

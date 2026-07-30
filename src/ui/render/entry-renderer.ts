@@ -9,7 +9,7 @@ import type { TFile } from "obsidian";
 import type { ClusterFlags, EntryRenderCtx, ViewCtx } from "../../core/context";
 import type { Entry, Section } from "../../core/model";
 import { openEntryMenu } from "../menus/entry-menu";
-import { longPressContextMenu } from "../components/long-press";
+import { wireEntryInteractions } from "../components/hold-config";
 import type { DragController } from "../drag";
 
 /** True when the entry should be hidden outside edit mode (empty prop). */
@@ -97,11 +97,9 @@ export function renderEntry(
     v.createSpan({ cls: "ep-placeholder", text: view.i18n.t("entry.unknownKind", { kind: entry.kind }) });
   }
 
-  wrap.addEventListener("contextmenu", (e) => {
-    e.preventDefault();
-    openEntryMenu(e, view, file, section, entry);
-  });
-  longPressContextMenu(wrap); // touch parity for the entry menu
+  // Right-click and press-and-hold are user-mappable (menu / property
+  // settings popup / focus); the hold charges a ring around the cursor.
+  wireEntryInteractions(wrap, view, file, section, entry);
   if (view.editMode) {
     const menuBtn = head.createSpan({ cls: "ep-menu-btn", text: "..." });
     menuBtn.setAttr("role", "button");

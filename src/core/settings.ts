@@ -84,7 +84,7 @@ const HANDLED_KEYS: ReadonlySet<string> = new Set([
   "crossNote", "conflictGuard", "tableLayouts", "tableLastType",
   "schemaVersion", "soundUi", "soundDice", "soundCrit", "layoutVault",
   "layoutVaultFolder", "appVersion", "snapshots", "snapshotKeep", "lastSnapshot",
-  "inlineEntries", "propTypes", "dateProps", "typeProp",
+  "inlineEntries", "propTypes", "dateProps", "typeProp", "rightClickAction", "holdAction",
 ]);
 
 /** Coerce a persisted `types` value to a clean list of non-empty strings. */
@@ -215,6 +215,8 @@ export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EP
     if (typeof data.poolSuffix === "string") s.poolSuffix = data.poolSuffix;
     // Autofill-pool extras: keep only string arrays of non-empty strings.
     if (typeof data.typeProp === "string" && data.typeProp.trim()) s.typeProp = data.typeProp.trim();
+    if (typeof data.rightClickAction === "string") s.rightClickAction = data.rightClickAction;
+    if (typeof data.holdAction === "string") s.holdAction = data.holdAction;
     if (data.dnd5ePoolsSeeded === true) s.dnd5ePoolsSeeded = true;
     if (data.poolExtras && typeof data.poolExtras === "object") {
       const cleanPool: Record<string, string[]> = {};
