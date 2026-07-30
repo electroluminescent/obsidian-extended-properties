@@ -1101,3 +1101,6 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-typeicon-prev { display: inline-flex; align-items: center; margin-left: 6px; vertical-align: -2px; color: var(--text-muted); }
 .ep-typeicon-prev svg { width: 15px; height: 15px; }
 .ep-typeicon-prev.ep-typeicon-default { opacity: .45; }
+
+/* The configured type-property name, wherever it appears in a sentence. */
+.ep-typename { color: var(--text-accent); }

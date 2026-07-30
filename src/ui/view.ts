@@ -24,6 +24,7 @@ import { parseExpr, evalCondition } from "../core/expr";
 import type { ExprEnv, ExprNode } from "../core/expr";
 import { makeVaultAccess } from "../core/note-ref";
 import { guardScrollTaps } from "./components/long-press";
+import { setTypedText, typedText } from "./components/type-label";
 import * as ops from "../core/layout-ops";
 import { genId } from "../utils/misc";
 import { buildCluster } from "./render/cluster";
@@ -834,7 +835,8 @@ export class SidebarView extends ItemView implements ViewCtx {
           create(typed);
         };
       }
-      if (!pop.firstElementChild) pop.createDiv({ cls: "ep-empty-sub", text: t("view.noTypesConfigured") });
+      if (!pop.firstElementChild)
+        setTypedText(pop.createDiv({ cls: "ep-empty-sub" }), this.i18n, this.settings, "view.noTypesConfigured");
       place();
     };
     render();
@@ -1157,16 +1159,16 @@ export class SidebarView extends ItemView implements ViewCtx {
 
     if (!match) {
       const box = container.createDiv({ cls: "ep-empty" });
-      box.createDiv({ text: t("view.noType", { note: file.basename }) });
+      setTypedText(box.createDiv(), this.i18n, this.settings, "view.noType", { note: file.basename });
       const assign = (tp: string): void => this.note.set(file, typePropOf(this.settings), tp, true);
       if (this.settings.types.length) {
-        box.createDiv({ cls: "ep-empty-sub", text: t("view.noTypeHint") });
+        setTypedText(box.createDiv({ cls: "ep-empty-sub" }), this.i18n, this.settings, "view.noTypeHint");
         for (const tp of this.settings.types) {
-          const b = box.createEl("button", { text: t("view.setType", { type: tp }), cls: "mod-cta" });
+          const b = box.createEl("button", { text: typedText(this.i18n, this.settings, "view.setType", { type: tp }), cls: "mod-cta" });
           b.onclick = () => assign(tp);
         }
       } else {
-        box.createDiv({ cls: "ep-empty-sub", text: t("view.noTypesConfigured") });
+        setTypedText(box.createDiv({ cls: "ep-empty-sub" }), this.i18n, this.settings, "view.noTypesConfigured");
       }
       // A note with no type can mint a brand-new one on the spot.
       const nb = box.createEl("button", { text: t("view.createType"), cls: "ep-createtype" });
@@ -1194,7 +1196,7 @@ export class SidebarView extends ItemView implements ViewCtx {
     // header runs out of room the name drops and the icon carries it.
     setIcon(badge.createSpan({ cls: "ep-type-ico" }), typeIconOf(this.settings, match as string));
     badge.createSpan({ cls: "ep-type-text", text: match });
-    badge.setAttr("title", t("view.typeChipHint"));
+    badge.setAttr("title", typedText(this.i18n, this.settings, "view.typeChipHint"));
     badge.onclick = (ev) => {
       ev.preventDefault();
       ev.stopPropagation();

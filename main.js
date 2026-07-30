@@ -96,12 +96,12 @@ var en_default = {
   "common.done": "Done",
   "view.title": "Extended properties",
   "view.noNote": "Open a note to see its properties here.",
-  "view.noType": '"{note}" has no matching Type.',
-  "view.noTypeHint": "Set its Type property to one of:",
-  "view.setType": "Set Type: {type}",
-  "view.noTypesConfigured": "No types are configured yet. Give this note any Type value to create one (it starts empty), or add types in the plugin settings.",
-  "view.typeBadgeHint": "This note's Type - selects which saved layout is shown",
-  "view.typeChipHint": "Click to change this note's type, or type a new name to create one",
+  "view.noType": '"{note}" has no matching {typeProp}.',
+  "view.noTypeHint": "Set its {typeProp} property to one of:",
+  "view.setType": "Set {typeProp}: {type}",
+  "view.noTypesConfigured": "No types are configured yet. Give this note any {typeProp} value to create one (it starts empty), or add types in the plugin settings.",
+  "view.typeBadgeHint": "This note's {typeProp} - selects which saved layout is shown",
+  "view.typeChipHint": "Click to change this note's {typeProp}, or type a new name to create one",
   "view.createTypeRow": 'Create type "{name}"',
   "view.copyLayoutPrompt": 'Start "{to}" with a copy of the "{from}" layout?',
   "view.copyLayoutYes": "Copy layout",
@@ -416,7 +416,7 @@ var en_default = {
   "options.propertyDesc": "Which note property this entry shows",
   "options.label": "Display label",
   "options.labelDesc": 'Optional - leave blank to use "{default}"',
-  "options.typeHeading": "Type",
+  "options.typeHeading": "{typeProp}",
   "options.dataType": "Data type",
   "options.dataTypeDesc": "Defaults to the Obsidian property type",
   "options.numberHeading": "Number & slider",
@@ -542,7 +542,7 @@ var en_default = {
   "command.openSidebar": "Open properties sidebar",
   "command.openTable": "Open type table",
   "command.hideProperty": "Hide a property from Obsidian's properties panel",
-  "table.title": "Type table",
+  "table.title": "{typeProp} table",
   "table.columns": "Columns",
   "table.filter": "Filter...",
   "table.name": "Name",
@@ -562,14 +562,14 @@ var en_default = {
   "conflict.merged": 'Merged your edits into "{note}" ({n} changed) - no conflicts.',
   "conflict.keys": "Both sides changed: {keys}",
   "preset.empty": "Empty",
-  "settings.intro": "Open a note whose Type matches one below, then click Edit (or right-click anything) to arrange it. Drag handles, use ... / right-click for options (Configure for the full panel), click labels to rename, add properties at each section's bottom.",
+  "settings.intro": "Open a note whose {typeProp} matches one below, then click Edit (or right-click anything) to arrange it. Drag handles, use ... / right-click for options (Configure for the full panel), click labels to rename, add properties at each section's bottom.",
   "settings.typesHeading": "Types",
   "settings.typeProp": "Type property",
   "settings.typePropDesc": "The frontmatter property that selects a note's type (default: Type). Point it at an existing property - e.g. category - and the plugin recognizes those notes retroactively, without renaming anything in your vault.",
   "settings.typeIcon": "Choose this type's icon (shown on the header chip)",
   "settings.defaultTypeIcon": "Default type icon",
   "settings.defaultTypeIconDesc": "Used by types that have no icon of their own. The header chip collapses to this icon when space runs out.",
-  "settings.typesDesc": "Each Type has its own layout; a note's Type property selects it.",
+  "settings.typesDesc": "Each type has its own layout; a note's {typeProp} property selects it.",
   "settings.resetLayout": "Reset layout",
   "settings.resetLayoutConfirm": 'Reset the "{type}" layout to defaults?',
   "settings.deleteType": "Delete",
@@ -751,7 +751,7 @@ var en_default = {
   "feature.unitDesc": "The legacy number-with-unit value type. Deprecated: the number type carries unit suffix and display factor. Existing properties keep rendering.",
   "feature.datetime": "Dates & times",
   "feature.datetimeDesc": "The legacy native-picker date/time value type. Deprecated: superseded by the date type (custom calendars, eras, time). Existing properties keep rendering.",
-  "feature.table": "Type table view",
+  "feature.table": "{typeProp} table view",
   "feature.tableDesc": "The table listing every note of a type: ribbon icon, command and view.",
   "feature.sticky": "Section pinning",
   "feature.stickyDesc": "Pinning sections to the sticky header and footer zones. Off, every section flows with the body.",
@@ -7855,6 +7855,24 @@ function makeNoteAwareResolver(app, settings, registries, localEnv, sourcePath) 
   };
 }
 
+// src/ui/components/type-label.ts
+var MARK = "\0";
+var typeName = (settings) => typePropOf(settings);
+function setTypedText(el, i18n, settings, key, vars = {}) {
+  const text = i18n.t(key, { ...vars, typeProp: MARK + typeName(settings) + MARK });
+  el.empty();
+  const parts = text.split(MARK);
+  parts.forEach((part, i) => {
+    if (!part) return;
+    if (i % 2 === 1) el.createSpan({ cls: "ep-typename", text: part });
+    else el.appendText(part);
+  });
+  return el;
+}
+function typedText(i18n, settings, key, vars = {}) {
+  return i18n.t(key, { ...vars, typeProp: typeName(settings) });
+}
+
 // src/ui/render/section-renderer.ts
 var import_obsidian27 = require("obsidian");
 
@@ -8033,7 +8051,7 @@ function renderEntryOptionsBody(octx, onDone, onRemoved, opts = {}) {
     }
   }
   if (isProp) {
-    c.createEl("h4", { text: t("options.typeHeading") });
+    setTypedText(c.createEl("h4"), view.i18n, view.settings, "options.typeHeading");
     const cur = view.resolveType(e);
     new import_obsidian22.Setting(c).setName(t("options.dataType")).setDesc(t("options.dataTypeDesc")).addDropdown((d) => {
       for (const def of view.registries.valueTypes.all()) {
@@ -8889,14 +8907,14 @@ var SectionOptionsModal = class extends import_obsidian25.Modal {
     const t = view.i18n.t.bind(view.i18n);
     const SKIP = /* @__PURE__ */ new Set(["id", "key", "alias", "__multi"]);
     const typeId = view.resolveType(ents[0]);
-    const typeName = (_b = (_a = view.registries.valueTypes.get(typeId)) == null ? void 0 : _a.name(view.i18n)) != null ? _b : typeId;
+    const typeName2 = (_b = (_a = view.registries.valueTypes.get(typeId)) == null ? void 0 : _a.name(view.i18n)) != null ? _b : typeId;
     const allKeys = /* @__PURE__ */ new Set();
     for (const e of ents) for (const k of Object.keys(e)) if (!SKIP.has(k)) allKeys.add(k);
     const mixed = [...allKeys].filter((k) => {
       const first = JSON.stringify(ents[0][k]);
       return ents.some((e) => JSON.stringify(e[k]) !== first);
     });
-    let note = t("options.multiNote", { n: ents.length, type: typeName });
+    let note = t("options.multiNote", { n: ents.length, type: typeName2 });
     if (mixed.length) note += " " + t("options.multiMixed", { list: mixed.sort().join(", ") });
     c.createEl("p", { cls: "setting-item-description ep-multi-note", text: note });
     const proxy = JSON.parse(JSON.stringify(ents[0]));
@@ -11213,7 +11231,8 @@ var SidebarView = class extends import_obsidian29.ItemView {
           create(typed);
         };
       }
-      if (!pop.firstElementChild) pop.createDiv({ cls: "ep-empty-sub", text: t("view.noTypesConfigured") });
+      if (!pop.firstElementChild)
+        setTypedText(pop.createDiv({ cls: "ep-empty-sub" }), this.i18n, this.settings, "view.noTypesConfigured");
       place();
     };
     render3();
@@ -11453,16 +11472,16 @@ var SidebarView = class extends import_obsidian29.ItemView {
     this.activeTypeKey = match ? match.toLowerCase() : null;
     if (!match) {
       const box = container.createDiv({ cls: "ep-empty" });
-      box.createDiv({ text: t("view.noType", { note: file.basename }) });
+      setTypedText(box.createDiv(), this.i18n, this.settings, "view.noType", { note: file.basename });
       const assign = (tp) => this.note.set(file, typePropOf(this.settings), tp, true);
       if (this.settings.types.length) {
-        box.createDiv({ cls: "ep-empty-sub", text: t("view.noTypeHint") });
+        setTypedText(box.createDiv({ cls: "ep-empty-sub" }), this.i18n, this.settings, "view.noTypeHint");
         for (const tp of this.settings.types) {
-          const b = box.createEl("button", { text: t("view.setType", { type: tp }), cls: "mod-cta" });
+          const b = box.createEl("button", { text: typedText(this.i18n, this.settings, "view.setType", { type: tp }), cls: "mod-cta" });
           b.onclick = () => assign(tp);
         }
       } else {
-        box.createDiv({ cls: "ep-empty-sub", text: t("view.noTypesConfigured") });
+        setTypedText(box.createDiv({ cls: "ep-empty-sub" }), this.i18n, this.settings, "view.noTypesConfigured");
       }
       const nb = box.createEl("button", { text: t("view.createType"), cls: "ep-createtype" });
       nb.onclick = () => new TextPromptModal(this.app, this.i18n, t("view.createTypePrompt"), "", (v) => {
@@ -11484,7 +11503,7 @@ var SidebarView = class extends import_obsidian29.ItemView {
     const badge = titleRow.createSpan({ cls: "ep-type-badge ep-editable" });
     (0, import_obsidian29.setIcon)(badge.createSpan({ cls: "ep-type-ico" }), typeIconOf(this.settings, match));
     badge.createSpan({ cls: "ep-type-text", text: match });
-    badge.setAttr("title", t("view.typeChipHint"));
+    badge.setAttr("title", typedText(this.i18n, this.settings, "view.typeChipHint"));
     badge.onclick = (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
@@ -11659,7 +11678,7 @@ var TableView = class extends import_obsidian30.ItemView {
     return VIEW_TYPE_TABLE;
   }
   getDisplayText() {
-    return this.plugin.i18n.t("table.title");
+    return typedText(this.plugin.i18n, this.plugin.settings, "table.title");
   }
   getIcon() {
     return "table";
@@ -12226,8 +12245,8 @@ var ImportModal = class extends import_obsidian31.Modal {
   apply(doc) {
     const t = this.plugin.i18n.t.bind(this.plugin.i18n);
     const p = this.plugin;
-    const typeName = (this.target || doc.name).trim();
-    if (!typeName) {
+    const typeName2 = (this.target || doc.name).trim();
+    if (!typeName2) {
       new import_obsidian31.Notice(t("transfer.pickType"));
       return;
     }
@@ -12238,13 +12257,13 @@ var ImportModal = class extends import_obsidian31.Modal {
         p.rebuildRegistries();
       }
     }
-    const key = typeName.toLowerCase();
-    if (!p.settings.types.some((x) => x.toLowerCase() === key)) p.settings.types.push(typeName);
+    const key = typeName2.toLowerCase();
+    if (!p.settings.types.some((x) => x.toLowerCase() === key)) p.settings.types.push(typeName2);
     const layout = p.ensureLayout(key);
     layout.sections.push(...freshSections(doc));
     void p.saveSettings();
     p.refreshViews();
-    new import_obsidian31.Notice(t("transfer.imported", { name: doc.name, type: typeName }));
+    new import_obsidian31.Notice(t("transfer.imported", { name: doc.name, type: typeName2 }));
     this.close();
   }
   onClose() {
@@ -12907,7 +12926,7 @@ var EPSettingTab = class extends import_obsidian33.PluginSettingTab {
     };
     c.empty();
     c.addClass("ep-settings");
-    c.createEl("p", { text: t("settings.intro") });
+    setTypedText(c.createEl("p"), i18n, plugin.settings, "settings.intro");
     new import_obsidian33.Setting(c).setName(t("settings.typesHeading")).setHeading();
     new import_obsidian33.Setting(c).setName(t("settings.typeProp")).setDesc(t("settings.typePropDesc")).addText((tx) => {
       var _a;
@@ -12918,7 +12937,7 @@ var EPSettingTab = class extends import_obsidian33.PluginSettingTab {
         plugin.refreshViews();
       });
     });
-    c.createEl("p", { cls: "setting-item-description", text: t("settings.typesDesc") });
+    setTypedText(c.createEl("p", { cls: "setting-item-description" }), i18n, plugin.settings, "settings.typesDesc");
     {
       const setting = new import_obsidian33.Setting(c).setName(t("settings.defaultTypeIcon")).setDesc(t("settings.defaultTypeIconDesc"));
       const prev = setting.controlEl.createSpan({ cls: "ep-typeicon-prev" });

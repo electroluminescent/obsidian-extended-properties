@@ -18,6 +18,7 @@ import { RefSuggest } from "./components/suggest";
 import { destructive } from "./components/setting-helpers";
 import { ConfirmModal, TextPromptModal } from "./modals/dialogs";
 import { IconPickerModal } from "./modals/icon-picker";
+import { setTypedText } from "./components/type-label";
 import { ImportModal } from "./modals/transfer-modal";
 import { packType } from "../core/transfer";
 import { segsToText, textToSegs } from "../features/rolling/macros";
@@ -48,7 +49,7 @@ export class EPSettingTab extends PluginSettingTab {
     c.empty();
     c.addClass("ep-settings");
 
-    c.createEl("p", { text: t("settings.intro") });
+    setTypedText(c.createEl("p"), i18n, plugin.settings, "settings.intro");
 
     // -- types ---------------------------------------------------------------
     new Setting(c).setName(t("settings.typesHeading")).setHeading();
@@ -66,7 +67,7 @@ export class EPSettingTab extends PluginSettingTab {
             plugin.refreshViews();
           });
       });
-    c.createEl("p", { cls: "setting-item-description", text: t("settings.typesDesc") });
+    setTypedText(c.createEl("p", { cls: "setting-item-description" }), i18n, plugin.settings, "settings.typesDesc");
     // Fallback icon for types that define none - the header chip always has
     // something to collapse to.
     {

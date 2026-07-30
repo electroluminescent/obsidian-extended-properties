@@ -20,6 +20,7 @@ import type { OptionsCtx, ViewCtx } from "../../core/context";
 import type { Entry, Section } from "../../core/model";
 import type { Constraints } from "../../core/validate";
 import { destructive } from "../components/setting-helpers";
+import { setTypedText } from "../components/type-label";
 import { parseExpr } from "../../core/expr";
 import { setSharedDataType } from "../../core/layout-ops";
 import { restoreFromSnapshot } from "../../utils/misc";
@@ -154,7 +155,7 @@ export function renderEntryOptionsBody(
 
   // -- type-specific -------------------------------------------------------
   if (isProp) {
-    c.createEl("h4", { text: t("options.typeHeading") });
+    setTypedText(c.createEl("h4"), view.i18n, view.settings, "options.typeHeading");
     const cur = view.resolveType(e);
     new Setting(c)
       .setName(t("options.dataType"))

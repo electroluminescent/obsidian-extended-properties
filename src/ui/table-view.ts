@@ -22,6 +22,7 @@ import { ItemView, Menu, Notice, setIcon, TFile, WorkspaceLeaf } from "obsidian"
 import type ExtendedPropertiesPlugin from "../main";
 import type { Entry, TableLayout } from "../core/model";
 import { typePropOf } from "../core/model";
+import { typedText } from "./components/type-label";
 import { getCI, parseNumeric } from "../utils/misc";
 import { parseDiceOrDefault } from "../utils/dice";
 import { TextLinkSuggest } from "./components/suggest";
@@ -79,7 +80,7 @@ export class TableView extends ItemView {
     return VIEW_TYPE_TABLE;
   }
   getDisplayText(): string {
-    return this.plugin.i18n.t("table.title");
+    return typedText(this.plugin.i18n, this.plugin.settings, "table.title");
   }
   getIcon(): string {
     return "table";
