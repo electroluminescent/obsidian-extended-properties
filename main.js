@@ -567,6 +567,8 @@ var en_default = {
   "settings.typeProp": "Type property",
   "settings.typePropDesc": "The frontmatter property that selects a note's type (default: Type). Point it at an existing property - e.g. category - and the plugin recognizes those notes retroactively, without renaming anything in your vault.",
   "settings.typeIcon": "Choose this type's icon (shown on the header chip)",
+  "settings.defaultTypeIcon": "Default type icon",
+  "settings.defaultTypeIconDesc": "Used by types that have no icon of their own. The header chip collapses to this icon when space runs out.",
   "settings.typesDesc": "Each Type has its own layout; a note's Type property selects it.",
   "settings.resetLayout": "Reset layout",
   "settings.resetLayoutConfirm": 'Reset the "{type}" layout to defaults?',
@@ -790,6 +792,11 @@ function ext(entry) {
 function sectionMode(section) {
   var _a;
   return (_a = section.layoutMode) != null ? _a : section.columns > 1 ? "columns" : "list";
+}
+function typeIconOf(settings, type) {
+  var _a, _b;
+  const own = (_a = settings.typeIcons) == null ? void 0 : _a[type.toLowerCase()];
+  return ((_b = own != null ? own : settings.defaultTypeIcon) != null ? _b : "tag").trim() || "tag";
 }
 function typePropOf(settings) {
   var _a;
@@ -1818,6 +1825,7 @@ var HANDLED_KEYS = /* @__PURE__ */ new Set([
   "dateProps",
   "typeProp",
   "typeIcons",
+  "defaultTypeIcon",
   "clickAction",
   "holdAction",
   "rightClickAction",
@@ -1918,6 +1926,8 @@ function normalizeSettings(raw, defaultLayout) {
     if (typeof data.typeProp === "string" && data.typeProp.trim()) s.typeProp = data.typeProp.trim();
     if (data.typeIcons && typeof data.typeIcons === "object")
       s.typeIcons = data.typeIcons;
+    if (typeof data.defaultTypeIcon === "string" && data.defaultTypeIcon.trim())
+      s.defaultTypeIcon = data.defaultTypeIcon.trim();
     for (const k of ["clickAction", "holdAction", "rightClickAction", "rightHoldAction"]) {
       if (typeof data[k] === "string") s[k] = data[k];
     }
@@ -11231,6 +11241,7 @@ var SidebarView = class extends import_obsidian29.ItemView {
     if (!row || !title) return;
     header.removeClass("ep-header-tight1");
     header.removeClass("ep-header-tight2");
+    header.removeClass("ep-header-tight3");
     const range = row.ownerDocument.createRange();
     const titleWidth = () => {
       range.selectNodeContents(title);
@@ -11248,6 +11259,7 @@ var SidebarView = class extends import_obsidian29.ItemView {
     const cramped = () => titleWidth() > row.clientWidth - siblings() - 1;
     if (cramped()) header.addClass("ep-header-tight1");
     if (cramped()) header.addClass("ep-header-tight2");
+    if (cramped()) header.addClass("ep-header-tight3");
   }
   responsivePass() {
     var _a, _b;
@@ -11400,7 +11412,6 @@ var SidebarView = class extends import_obsidian29.ItemView {
     set("--ep-size-list", d.listSize);
   }
   render() {
-    var _a;
     const t = this.i18n.t.bind(this.i18n);
     const container = this.content;
     const prevScroll = container.scrollTop;
@@ -11471,13 +11482,7 @@ var SidebarView = class extends import_obsidian29.ItemView {
     const titleRow = header.createDiv({ cls: "ep-titlerow" });
     titleRow.createDiv({ cls: "ep-title", text: file.basename });
     const badge = titleRow.createSpan({ cls: "ep-type-badge ep-editable" });
-    const typeIcon = (_a = this.settings.typeIcons) == null ? void 0 : _a[match.toLowerCase()];
-    if (typeIcon) {
-      const ib = badge.createSpan({ cls: "ep-type-ico" });
-      (0, import_obsidian29.setIcon)(ib, typeIcon);
-    } else {
-      badge.addClass("ep-type-noicon");
-    }
+    (0, import_obsidian29.setIcon)(badge.createSpan({ cls: "ep-type-ico" }), typeIconOf(this.settings, match));
     badge.createSpan({ cls: "ep-type-text", text: match });
     badge.setAttr("title", t("view.typeChipHint"));
     badge.onclick = (ev) => {
@@ -12914,14 +12919,37 @@ var EPSettingTab = class extends import_obsidian33.PluginSettingTab {
       });
     });
     c.createEl("p", { cls: "setting-item-description", text: t("settings.typesDesc") });
+    {
+      const setting = new import_obsidian33.Setting(c).setName(t("settings.defaultTypeIcon")).setDesc(t("settings.defaultTypeIconDesc"));
+      const prev = setting.controlEl.createSpan({ cls: "ep-typeicon-prev" });
+      const paint = () => {
+        var _a;
+        prev.empty();
+        (0, import_obsidian33.setIcon)(prev, (_a = plugin.settings.defaultTypeIcon) != null ? _a : "tag");
+      };
+      paint();
+      setting.addExtraButton(
+        (b) => b.setIcon("image").setTooltip(t("settings.typeIcon")).onClick(
+          () => {
+            var _a;
+            return new IconPickerModal(this.app, i18n, (_a = plugin.settings.defaultTypeIcon) != null ? _a : "tag", (v) => {
+              plugin.settings.defaultTypeIcon = v || void 0;
+              save();
+              paint();
+              plugin.refreshViews();
+            }).open();
+          }
+        )
+      );
+    }
     for (const type of plugin.settings.types) {
       const setting = new import_obsidian33.Setting(c).setName(type);
       const iconPrev = setting.nameEl.createSpan({ cls: "ep-typeicon-prev" });
       const paintIcon = () => {
         var _a;
         iconPrev.empty();
-        const ic = (_a = plugin.settings.typeIcons) == null ? void 0 : _a[type.toLowerCase()];
-        if (ic) (0, import_obsidian33.setIcon)(iconPrev, ic);
+        (0, import_obsidian33.setIcon)(iconPrev, typeIconOf(plugin.settings, type));
+        iconPrev.toggleClass("ep-typeicon-default", !((_a = plugin.settings.typeIcons) == null ? void 0 : _a[type.toLowerCase()]));
       };
       paintIcon();
       setting.addExtraButton(

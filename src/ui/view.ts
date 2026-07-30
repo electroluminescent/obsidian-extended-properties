@@ -15,7 +15,7 @@ import { ItemView, Menu, Notice, setIcon, TFile, WorkspaceLeaf } from "obsidian"
 import type ExtendedPropertiesPlugin from "../main";
 import { isEnvelope } from "../core/secure";
 import type { ClusterFlags, ClusterOptions, ClusterRefs, EntryRenderCtx, ViewCtx } from "../core/context";
-import { Entry, Layout, Section, sectionPin, typePropOf } from "../core/model";
+import { Entry, Layout, Section, sectionPin, typeIconOf, typePropOf } from "../core/model";
 import { ServiceHub, SectionTemplateDef } from "../core/registry";
 import { NoteModel } from "../core/note-model";
 import { influenceSources, poolBaseFor, VaultAccess } from "../core/influences";
@@ -863,6 +863,7 @@ export class SidebarView extends ItemView implements ViewCtx {
     if (!row || !title) return;
     header.removeClass("ep-header-tight1");
     header.removeClass("ep-header-tight2");
+    header.removeClass("ep-header-tight3");
     // The title is flex:1 with an ellipsis, so the ROW never overflows -
     // measuring scrollWidth would always say "fits". Compare the title's
     // natural text width against the room its siblings leave instead.
@@ -882,7 +883,8 @@ export class SidebarView extends ItemView implements ViewCtx {
     };
     const cramped = (): boolean => titleWidth() > row.clientWidth - siblings() - 1;
     if (cramped()) header.addClass("ep-header-tight1"); // icon-only Edit
-    if (cramped()) header.addClass("ep-header-tight2"); // badge hides too
+    if (cramped()) header.addClass("ep-header-tight2"); // chip drops its label
+    if (cramped()) header.addClass("ep-header-tight3"); // chip + Edit wrap below
   }
 
   private responsivePass(): void {
@@ -1190,13 +1192,7 @@ export class SidebarView extends ItemView implements ViewCtx {
     const badge = titleRow.createSpan({ cls: "ep-type-badge ep-editable" });
     // The chip shows its icon (if the type has one) plus its name; when the
     // header runs out of room the name drops and the icon carries it.
-    const typeIcon = this.settings.typeIcons?.[(match as string).toLowerCase()];
-    if (typeIcon) {
-      const ib = badge.createSpan({ cls: "ep-type-ico" });
-      setIcon(ib, typeIcon);
-    } else {
-      badge.addClass("ep-type-noicon");
-    }
+    setIcon(badge.createSpan({ cls: "ep-type-ico" }), typeIconOf(this.settings, match as string));
     badge.createSpan({ cls: "ep-type-text", text: match });
     badge.setAttr("title", t("view.typeChipHint"));
     badge.onclick = (ev) => {

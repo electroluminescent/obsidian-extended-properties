@@ -10,6 +10,7 @@ import type ExtendedPropertiesPlugin from "../main";
 import { TYPE_FEATURES, UI_FEATURES } from "../core/features";
 import { COLOR_SPACES, ColorSpace } from "../utils/color";
 import type { SectionSize } from "../core/model";
+import { typeIconOf } from "../core/model";
 import { defaultAbbr, defaultDerivations, referenceSuggestions } from "../core/influences";
 import { compileFormula } from "../utils/formula";
 import { genId } from "../utils/misc";
@@ -66,14 +67,35 @@ export class EPSettingTab extends PluginSettingTab {
           });
       });
     c.createEl("p", { cls: "setting-item-description", text: t("settings.typesDesc") });
+    // Fallback icon for types that define none - the header chip always has
+    // something to collapse to.
+    {
+      const setting = new Setting(c).setName(t("settings.defaultTypeIcon")).setDesc(t("settings.defaultTypeIconDesc"));
+      const prev = setting.controlEl.createSpan({ cls: "ep-typeicon-prev" });
+      const paint = (): void => {
+        prev.empty();
+        setIcon(prev, plugin.settings.defaultTypeIcon ?? "tag");
+      };
+      paint();
+      setting.addExtraButton((b) =>
+        b.setIcon("image").setTooltip(t("settings.typeIcon")).onClick(() =>
+          new IconPickerModal(this.app, i18n, plugin.settings.defaultTypeIcon ?? "tag", (v) => {
+            plugin.settings.defaultTypeIcon = v || undefined;
+            save();
+            paint();
+            plugin.refreshViews();
+          }).open()
+        )
+      );
+    }
     for (const type of plugin.settings.types) {
       const setting = new Setting(c).setName(type);
       // Icon preview + picker: this is what the header chip collapses to.
       const iconPrev = setting.nameEl.createSpan({ cls: "ep-typeicon-prev" });
       const paintIcon = (): void => {
         iconPrev.empty();
-        const ic = plugin.settings.typeIcons?.[type.toLowerCase()];
-        if (ic) setIcon(iconPrev, ic);
+        setIcon(iconPrev, typeIconOf(plugin.settings, type));
+        iconPrev.toggleClass("ep-typeicon-default", !plugin.settings.typeIcons?.[type.toLowerCase()]);
       };
       paintIcon();
       setting.addExtraButton((b) =>

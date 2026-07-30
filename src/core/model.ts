@@ -185,6 +185,15 @@ export function sectionMode(section: Section): LayoutMode {
 
 /** Resolve a section's effective pin zone (legacy `sticky` fallback). */
 /** The frontmatter property that selects a note's type (default "Type"). */
+/** The icon for a type: its own, else the configured fallback, else "tag". */
+export function typeIconOf(
+  settings: { typeIcons?: Record<string, string>; defaultTypeIcon?: string },
+  type: string
+): string {
+  const own = settings.typeIcons?.[type.toLowerCase()];
+  return (own ?? settings.defaultTypeIcon ?? "tag").trim() || "tag";
+}
+
 export function typePropOf(settings: { typeProp?: string }): string {
   return (settings.typeProp ?? "Type").trim() || "Type";
 }
@@ -417,6 +426,8 @@ export interface EPSettings {
   holdMs?: number;
   /** Per-type icons (Obsidian icon ids), keyed by lower-cased type name. */
   typeIcons?: Record<string, string>;
+  /** Icon used by types that define none (default "tag"). */
+  defaultTypeIcon?: string;
   /** Frontmatter property that selects a note's type (default "Type"). */
   typeProp?: string;
   /** One-time seed guard for the dnd5e preset pools. */

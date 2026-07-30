@@ -1037,11 +1037,16 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-edit-toggle .ep-edit-ico svg { width: 14px; height: 14px; }
 .ep-header-tight1 .ep-edit-toggle .ep-edit-ico { display: inline-flex; }
 .ep-header-tight1 .ep-edit-toggle .ep-edit-text { display: none; }
-/* Tight: the chip drops its label and keeps just the type icon. A type
-   with no icon configured hides entirely, as before. */
+/* Tight: the chip drops its label and keeps just its icon (every type has
+   one - its own or the configured default), so it never disappears. */
 .ep-header-tight2 .ep-type-badge .ep-type-text { display: none; }
-.ep-header-tight2 .ep-type-badge.ep-type-noicon { display: none; }
 .ep-header-tight2 .ep-type-badge { padding: 0 4px; }
+/* Tighter still: the chip and Edit wrap onto their own line under the title. */
+.ep-header-tight3 .ep-titlerow { flex-wrap: wrap; row-gap: 4px; }
+.ep-header-tight3 .ep-titlerow .ep-title { flex: 1 0 100%; }
+.ep-header-tight3 .ep-type-badge .ep-type-text { display: inline; }
+.ep-header-tight3 .ep-edit-toggle .ep-edit-text { display: inline; }
+.ep-header-tight3 .ep-edit-toggle .ep-edit-ico { display: none; }
 
 /* Press-and-hold: the charging ring around the cursor + focused entry. */
 .ep-holdring { position: fixed; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; pointer-events: none; z-index: var(--layer-menu, 25);
@@ -1095,3 +1100,4 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-type-badge .ep-type-ico svg { width: 13px; height: 13px; }
 .ep-typeicon-prev { display: inline-flex; align-items: center; margin-left: 6px; vertical-align: -2px; color: var(--text-muted); }
 .ep-typeicon-prev svg { width: 15px; height: 15px; }
+.ep-typeicon-prev.ep-typeicon-default { opacity: .45; }
