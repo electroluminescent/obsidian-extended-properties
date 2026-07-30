@@ -1116,4 +1116,24 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 
 /* The settings tab draws inside its declarative row: strip the row's own
    frame so the sections lay out exactly as before. */
-.ep-settings-host { display: block; padding: 0; border: none; background: none; }
+/* Top padding only: the first child is loose copy, and a bare margin would
+   collapse straight out of the host. */
+.ep-settings-host {
+  display: block;
+  padding: var(--ep-row-pad-t, var(--size-4-3, 12px)) 0 0;
+  border: none;
+  background: none;
+}
+/* Text and controls that are not setting rows still line up with them: the
+   inline padding is measured from a real row (see alignLooseText). */
+.ep-settings-host > p,
+.ep-settings-host > input,
+.ep-settings-host > h3,
+.ep-settings-host > h4,
+.ep-settings-host > .setting-item-description,
+.ep-settings-host > div > .setting-item-description {
+  padding-left: var(--ep-row-pad-l, var(--size-4-3, 12px));
+  padding-right: var(--ep-row-pad-r, var(--size-4-3, 12px));
+}
+/* The override search field spans the row, minus that padding. */
+.ep-settings-host > input { box-sizing: border-box; }

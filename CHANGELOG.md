@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.17.1
+
+- **Settings text lines up again.** Drawing the tab inside a setting row (4.17.0)
+  left the loose prose - the intro, section blurbs like "Crit threshold per die
+  size...", the override search field and its hints - flush against the panel
+  edge while every setting row sat indented, and the intro sat hard against the
+  top in body-sized text. The tab now measures a real row's padding and matches
+  it on all three sides, and the intro reads as a description like every other
+  blurb.
+
 ## 4.17.0
 
 - **The settings tab renders on Obsidian 1.13 again.** 1.13 draws a tab from its

@@ -93,6 +93,26 @@ export class EPSettingTab extends PluginSettingTab {
   render(): void {
     this.renderBody();
     this.tint();
+    this.alignLooseText();
+  }
+
+  /**
+   * Loose copy (section blurbs, the intro, the override search field) is not
+   * inside a `.setting-item`, so it misses the row padding and sits flush
+   * against the edge. Measure a real row and hand its inline padding to the
+   * stylesheet, so the alignment follows whatever the theme uses rather than
+   * a hardcoded guess.
+   */
+  private alignLooseText(): void {
+    const host = this.host;
+    const row = host.querySelector<HTMLElement>(".setting-item");
+    if (!row) return;
+    const cs = (row.ownerDocument.defaultView ?? window).getComputedStyle(row);
+    host.setCssProps({
+      "--ep-row-pad-l": cs.paddingLeft,
+      "--ep-row-pad-r": cs.paddingRight,
+      "--ep-row-pad-t": cs.paddingTop,
+    });
   }
 
   private renderBody(): void {
@@ -107,7 +127,12 @@ export class EPSettingTab extends PluginSettingTab {
     c.empty();
     c.addClass("ep-settings");
 
-    setTypedText(c.createEl("p"), i18n, plugin.settings, "settings.intro");
+    setTypedText(
+      c.createEl("p", { cls: "setting-item-description" }),
+      i18n,
+      plugin.settings,
+      "settings.intro"
+    );
 
     // -- types ---------------------------------------------------------------
     new Setting(c).setName(t("settings.typesHeading")).setHeading();

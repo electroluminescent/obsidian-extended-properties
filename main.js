@@ -13124,6 +13124,26 @@ var EPSettingTab = class extends import_obsidian33.PluginSettingTab {
   render() {
     this.renderBody();
     this.tint();
+    this.alignLooseText();
+  }
+  /**
+   * Loose copy (section blurbs, the intro, the override search field) is not
+   * inside a `.setting-item`, so it misses the row padding and sits flush
+   * against the edge. Measure a real row and hand its inline padding to the
+   * stylesheet, so the alignment follows whatever the theme uses rather than
+   * a hardcoded guess.
+   */
+  alignLooseText() {
+    var _a;
+    const host = this.host;
+    const row = host.querySelector(".setting-item");
+    if (!row) return;
+    const cs = ((_a = row.ownerDocument.defaultView) != null ? _a : window).getComputedStyle(row);
+    host.setCssProps({
+      "--ep-row-pad-l": cs.paddingLeft,
+      "--ep-row-pad-r": cs.paddingRight,
+      "--ep-row-pad-t": cs.paddingTop
+    });
   }
   renderBody() {
     const c = this.host;
@@ -13136,7 +13156,12 @@ var EPSettingTab = class extends import_obsidian33.PluginSettingTab {
     };
     c.empty();
     c.addClass("ep-settings");
-    setTypedText(c.createEl("p"), i18n, plugin.settings, "settings.intro");
+    setTypedText(
+      c.createEl("p", { cls: "setting-item-description" }),
+      i18n,
+      plugin.settings,
+      "settings.intro"
+    );
     new import_obsidian33.Setting(c).setName(t("settings.typesHeading")).setHeading();
     new import_obsidian33.Setting(c).setName(t("settings.typeProp")).setDesc(t("settings.typePropDesc")).addText((tx) => {
       var _a;
