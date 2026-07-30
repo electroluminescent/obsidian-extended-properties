@@ -1045,15 +1045,25 @@ export class SidebarView extends ItemView implements ViewCtx {
               cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
             }
             // Rows created by RESPONSIVE flow (fewer columns than authored)
-            // get a visual divide; author-designed rows keep their look.
-            const flowed = cols < ncol;
+            // get a visual divide; author-designed rows keep their look. The
+            // divide marks a WRAP, so it belongs on the first cell of each
+            // later row only - and not at all once the section is down to a
+            // single column, where every cell is its own row and the rule
+            // would draw a line between every property.
+            const flowed = cols < ncol && cols > 1;
             const cells: HTMLElement[] = [];
             for (const child of Array.from(cgrid.children)) {
               if (child.instanceOf(HTMLElement)) cells.push(child);
             }
             let firstTop = Infinity;
             for (const el of cells) firstTop = Math.min(firstTop, el.offsetTop);
-            for (const el of cells) el.toggleClass("ep-rowflow", flowed && el.offsetTop > firstTop + 1);
+            const seen = new Set<number>();
+            for (const el of cells) {
+              const top = Math.round(el.offsetTop);
+              const startsRow = !seen.has(top);
+              seen.add(top);
+              el.toggleClass("ep-rowflow", flowed && startsRow && top > firstTop + 1);
+            }
             markRowEnds(cgrid, cells, cols);
           };
         }

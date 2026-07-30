@@ -11378,14 +11378,20 @@ var SidebarView = class extends import_obsidian29.ItemView {
               cols--;
               cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
             }
-            const flowed = cols < ncol;
+            const flowed = cols < ncol && cols > 1;
             const cells = [];
             for (const child of Array.from(cgrid.children)) {
               if (child.instanceOf(HTMLElement)) cells.push(child);
             }
             let firstTop = Infinity;
             for (const el2 of cells) firstTop = Math.min(firstTop, el2.offsetTop);
-            for (const el2 of cells) el2.toggleClass("ep-rowflow", flowed && el2.offsetTop > firstTop + 1);
+            const seen = /* @__PURE__ */ new Set();
+            for (const el2 of cells) {
+              const top = Math.round(el2.offsetTop);
+              const startsRow = !seen.has(top);
+              seen.add(top);
+              el2.toggleClass("ep-rowflow", flowed && startsRow && top > firstTop + 1);
+            }
             markRowEnds(cgrid, cells, cols);
           };
         }
