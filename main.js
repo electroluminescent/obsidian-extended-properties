@@ -11012,6 +11012,12 @@ var SidebarView = class extends import_obsidian29.ItemView {
       this.render();
       return;
     }
+    if (!file && this.activeTypeKey === null) {
+      this.note.load(active);
+      const types = this.note.noteTypes(typePropOf(this.settings));
+      if (!this.settings.types.some((tp) => types.some((x) => x.toLowerCase() === tp.toLowerCase())) && !types.length)
+        return;
+    }
     this.note.load(active);
     if (this.activeTypeKey && this.emptySig() === this.lastEmptySig) {
       this.refreshValues();
@@ -11513,22 +11519,28 @@ var SidebarView = class extends import_obsidian29.ItemView {
         setTypedText(box.createDiv({ cls: "ep-empty-sub" }), this.i18n, this.settings, "view.noTypeHint");
         for (const tp of this.settings.types) {
           const b = box.createEl("button", { text: typedText(this.i18n, this.settings, "view.setType", { type: tp }), cls: "mod-cta" });
-          b.onclick = () => assign(tp);
+          b.addEventListener("pointerdown", (ev) => {
+            ev.preventDefault();
+            assign(tp);
+          });
         }
       } else {
         setTypedText(box.createDiv({ cls: "ep-empty-sub" }), this.i18n, this.settings, "view.noTypesConfigured");
       }
       const nb = box.createEl("button", { text: t("view.createType"), cls: "ep-createtype" });
-      nb.onclick = () => new TextPromptModal(this.app, this.i18n, t("view.createTypePrompt"), "", (v) => {
-        const name = v.trim();
-        if (!name) return;
-        if (!this.settings.types.some((x) => x.toLowerCase() === name.toLowerCase())) {
-          this.settings.types.push(name);
-          this.plugin.ensureLayout(name.toLowerCase());
-          void this.plugin.saveSettings();
-        }
-        assign(name);
-      }).open();
+      nb.addEventListener("pointerdown", (ev) => {
+        ev.preventDefault();
+        new TextPromptModal(this.app, this.i18n, t("view.createTypePrompt"), "", (v) => {
+          const name = v.trim();
+          if (!name) return;
+          if (!this.settings.types.some((x) => x.toLowerCase() === name.toLowerCase())) {
+            this.settings.types.push(name);
+            this.plugin.ensureLayout(name.toLowerCase());
+            void this.plugin.saveSettings();
+          }
+          assign(name);
+        }).open();
+      });
       return;
     }
     const header = container.createDiv({ cls: "ep-header" });

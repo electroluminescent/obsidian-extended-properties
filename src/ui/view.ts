@@ -600,6 +600,15 @@ export class SidebarView extends ItemView implements ViewCtx {
       this.render();
       return;
     }
+    // A focus-only event (no file, same note) on a note that still has no
+    // type would otherwise re-render the whole no-type screen, throwing away
+    // the buttons the user is in the middle of pressing.
+    if (!file && this.activeTypeKey === null) {
+      this.note.load(active);
+      const types = this.note.noteTypes(typePropOf(this.settings));
+      if (!this.settings.types.some((tp) => types.some((x) => x.toLowerCase() === tp.toLowerCase())) && !types.length)
+        return;
+    }
     this.note.load(active);
     if (this.activeTypeKey && this.emptySig() === this.lastEmptySig) {
       this.refreshValues();
@@ -1217,14 +1226,20 @@ export class SidebarView extends ItemView implements ViewCtx {
         setTypedText(box.createDiv({ cls: "ep-empty-sub" }), this.i18n, this.settings, "view.noTypeHint");
         for (const tp of this.settings.types) {
           const b = box.createEl("button", { text: typedText(this.i18n, this.settings, "view.setType", { type: tp }), cls: "mod-cta" });
-          b.onclick = () => assign(tp);
+          // pointerdown, not click: focusing the sidebar re-renders the view,
+          // which would replace this button before a click could land on it.
+          b.addEventListener("pointerdown", (ev) => {
+            ev.preventDefault();
+            assign(tp);
+          });
         }
       } else {
         setTypedText(box.createDiv({ cls: "ep-empty-sub" }), this.i18n, this.settings, "view.noTypesConfigured");
       }
       // A note with no type can mint a brand-new one on the spot.
       const nb = box.createEl("button", { text: t("view.createType"), cls: "ep-createtype" });
-      nb.onclick = () =>
+      nb.addEventListener("pointerdown", (ev) => {
+        ev.preventDefault();
         new TextPromptModal(this.app, this.i18n, t("view.createTypePrompt"), "", (v) => {
           const name = v.trim();
           if (!name) return;
@@ -1235,6 +1250,7 @@ export class SidebarView extends ItemView implements ViewCtx {
           }
           assign(name);
         }).open();
+      });
       return;
     }
 
