@@ -1072,6 +1072,29 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-entrysettings-tool:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
 .ep-entrysettings-tool svg { width: 15px; height: 15px; }
 .ep-entrysettings .ep-entrysettings-body { max-height: min(80vh, 640px); overflow-y: auto; overflow-x: hidden; padding: 4px 8px; }
+/* Mobile: this popup replaces the context menu, so it arrives the way menus do
+   there - a sheet along the bottom edge, thumb-sized rows, no cursor to hug. */
+.ep-entrysettings.ep-entrysettings-sheet {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: auto;
+  width: 100%;
+  max-width: 100%;
+  border-radius: 14px 14px 0 0;
+  border-bottom: none;
+  animation: ep-sheet-in .16s ease;
+}
+.ep-entrysettings-sheet.ep-closing { animation: ep-sheet-out .16s ease forwards; }
+.ep-entrysettings-sheet .ep-entrysettings-bar { padding: 8px 10px; gap: 6px; }
+.ep-entrysettings-sheet .ep-entrysettings-tool { width: 38px; height: 38px; }
+.ep-entrysettings-sheet .ep-entrysettings-tool svg { width: 19px; height: 19px; }
+.ep-entrysettings-sheet .ep-entrysettings-body { max-height: 60vh; padding: 4px 12px calc(12px + env(safe-area-inset-bottom, 0px)); }
+@keyframes ep-sheet-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes ep-sheet-out { from { transform: translateY(0); } to { transform: translateY(100%); } }
+@media (prefers-reduced-motion: reduce) {
+  .ep-entrysettings.ep-entrysettings-sheet, .ep-entrysettings-sheet.ep-closing { animation: none; }
+}
 /* Compact options: descriptions hidden, controls stack under their name, and
    EVERY box measures border-box so a full-width field ends exactly at the
    card's padding instead of overhanging it. */

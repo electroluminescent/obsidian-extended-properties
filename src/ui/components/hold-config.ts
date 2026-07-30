@@ -11,9 +11,15 @@
  * property while it charges; after HOLD_MS it fires the configured action.
  * Pointer events cover mouse and touch alike; moving more than a few pixels
  * (a scroll or drag) cancels the hold.
+ *
+ * Mobile has one gesture, not four: a long press is *both* a hold and the
+ * platform's context-menu trigger, so a single press would otherwise fire two
+ * mappings at once. Touch devices therefore route every long press through
+ * the "right click and hold" mapping and swallow the native context menu -
+ * see {@link mobileGestures} and the settings tab's disclaimer.
  */
 
-import { setIcon, TFile } from "obsidian";
+import { Menu, Platform, setIcon, TFile } from "obsidian";
 import type { ViewCtx, OptionsCtx } from "../../core/context";
 import { Entry, Section, sectionMode } from "../../core/model";
 import * as ops from "../../core/layout-ops";
@@ -53,6 +59,24 @@ export function interactionFor(settings: InteractionSettings, kind: GestureKind)
     : kind === "right" ? settings.rightClickAction
     : settings.rightHoldAction;
   return v === "menu" || v === "settings" || v === "focus" || v === "none" ? v : DEFAULTS[kind];
+}
+
+/**
+ * Whether this platform collapses the four gestures into one long press.
+ * Touch has no separate right button, and the webview raises `contextmenu`
+ * for the same press that charges our hold.
+ */
+export function mobileGestures(): boolean {
+  return Platform.isMobile;
+}
+
+/**
+ * The gesture whose mapping actually applies to `kind` on this platform.
+ * On mobile a plain hold and a "right click" are the same long press, so both
+ * resolve to the right-click-and-hold mapping and nothing fires twice.
+ */
+export function effectiveGesture(kind: GestureKind, mobile = mobileGestures()): GestureKind {
+  return mobile && (kind === "hold" || kind === "right") ? "rightHold" : kind;
 }
 
 /** Configured hold duration in ms (default 500). */
@@ -123,6 +147,10 @@ export function openEntrySettingsPopup(
   // ep-compactopts strips descriptions and stacks each row's control under
   // its name, so everything fits the menu width with no horizontal scroll.
   const pop = doc.body.createDiv({ cls: "ep-popup ep-entrysettings ep-options ep-compactopts" });
+  // On mobile this popup stands in for the context menu, so it presents the
+  // way menus do there: a sheet along the bottom edge, not a cursor popover.
+  const sheet = mobileGestures();
+  if (sheet) pop.addClass("ep-entrysettings-sheet");
   openPopup = pop;
   // Icon toolbar: the regular context menu's actions, one button each.
   const bar = pop.createDiv({ cls: "ep-entrysettings-bar" });
@@ -156,6 +184,20 @@ export function openEntrySettingsPopup(
       view.note.set(file, key, undefined);
       closeSettingsPopup();
     });
+    // The value type's own menu actions (edit value, pick a color, add an
+    // item, roll ...) are the one part of the context menu that has no
+    // equivalent row in the settings body, so they hang off a button here -
+    // the popup can then stand in for the menu completely.
+    const typeDef = view.registries.valueTypes.get(view.resolveType(entry));
+    const contribute = typeDef?.menuItems;
+    if (contribute) {
+      tool("wand", t("entry.menu.valueActions", { key }), () => {
+        const menu = new Menu();
+        contribute(menu, { view, file, section, entry }, { x, y });
+        closeSettingsPopup();
+        menu.showAtPosition({ x, y }, doc);
+      });
+    }
   }
   const mode = sectionMode(section);
   const kindDef = view.registries.entryKinds.get(entry.kind);
@@ -205,8 +247,9 @@ export function openEntrySettingsPopup(
     }
   };
   build();
-  // Clamp near the cursor once sized.
+  // Clamp near the cursor once sized. The mobile sheet is placed by CSS.
   const place = (): void => {
+    if (sheet) return;
     const w = pop.offsetWidth;
     const h = pop.offsetHeight;
     const left = Math.max(8, Math.min(x, window.innerWidth - w - 8));
@@ -253,6 +296,11 @@ export function wireGestures(
   settings: InteractionSettings,
   handlers: GestureHandlers
 ): void {
+  const mobile = mobileGestures();
+  /** The mapping that applies to a gesture here (see {@link effectiveGesture}). */
+  const actionFor = (kind: GestureKind): EntryInteraction =>
+    interactionFor(settings, effectiveGesture(kind, mobile));
+
   const run = (action: EntryInteraction, x: number, y: number): void => {
     if (action === "none") return;
     if (action === "focus") {
@@ -301,7 +349,10 @@ export function wireGestures(
       consumed = false;
       return;
     }
-    run(interactionFor(settings, "right"), e.clientX, e.clientY);
+    // On touch this event *is* the long press our own timer already owns:
+    // swallowing it keeps one press to one action.
+    if (mobile) return;
+    run(actionFor("right"), e.clientX, e.clientY);
   });
 
   el.addEventListener("click", (e: MouseEvent) => {
@@ -310,7 +361,7 @@ export function wireGestures(
       return;
     }
     if (onControl(e.target)) return;
-    const action = interactionFor(settings, "click");
+    const action = actionFor("click");
     if (action === "none") return;
     e.preventDefault();
     e.stopPropagation();
@@ -320,7 +371,7 @@ export function wireGestures(
   el.addEventListener("pointerdown", (e: PointerEvent) => {
     if (holding || (e.button !== 0 && e.button !== 2) || onControl(e.target)) return;
     const kind: GestureKind = e.button === 2 ? "rightHold" : "hold";
-    if (interactionFor(settings, kind) === "none") return;
+    if (actionFor(kind) === "none") return;
     holding = true;
     heldButton = e.button;
     consumed = false;
@@ -352,7 +403,7 @@ export function wireGestures(
       }
       ring?.setCssProps({ "--ep-hold": String(p) });
       if (p >= 1) {
-        const action = interactionFor(settings, kind);
+        const action = actionFor(kind);
         stop(action === "focus" || action === "settings");
         if (action === "focus") focused = el;
         consumed = true;

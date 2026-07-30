@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.18.0
+
+- **One press, one action on mobile.** A touch screen has a single long press,
+  and it is also the platform's context-menu press - so a hold could fire the
+  hold mapping and the right-click mapping at once. Mobile now routes every
+  long press through the *right click and hold* option and swallows the native
+  context menu. The interaction settings show that one option there (named
+  "Long press on a property") instead of four, and desktop carries a note
+  explaining what mobile will do.
+- **The settings popup arrives as a sheet on mobile**, the way menus do there:
+  along the bottom edge, full width, with thumb-sized toolbar buttons.
+- **The popup covers the whole context menu.** Value-type actions - edit value,
+  pick a color, add an item, roll - were the one group with no equivalent row
+  in the settings body; they now hang off a toolbar button, so nothing is
+  reachable only by right-clicking.
+
 ## 4.17.1
 
 - **Settings text lines up again.** Drawing the tab inside a setting row (4.17.0)

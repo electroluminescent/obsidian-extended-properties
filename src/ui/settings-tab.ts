@@ -19,6 +19,7 @@ import { destructive } from "./components/setting-helpers";
 import { ConfirmModal, TextPromptModal } from "./modals/dialogs";
 import { IconPickerModal } from "./modals/icon-picker";
 import { setTypedText, tintTypeNames } from "./components/type-label";
+import { mobileGestures } from "./components/hold-config";
 import { ImportModal } from "./modals/transfer-modal";
 import { packType } from "../core/transfer";
 import { segsToText, textToSegs } from "../features/rolling/macros";
@@ -812,26 +813,37 @@ export class EPSettingTab extends PluginSettingTab {
         });
       });
     };
+    // A touch screen has one gesture, and it is the platform's context-menu
+    // press: the plain-hold and right-click mappings can never apply there, so
+    // mobile is shown the one option it honours, with the reason for it.
+    const mobile = mobileGestures();
+    c.createEl("p", {
+      cls: "setting-item-description",
+      text: mobile ? t("settings.gesturesMobile") : t("settings.gesturesMobileNote"),
+    });
+    if (!mobile) {
+      interactionDrop(
+        t("settings.clickAction"), t("settings.clickActionDesc"),
+        () => plugin.settings.clickAction ?? "none",
+        (v) => (plugin.settings.clickAction = v === "none" ? undefined : v),
+        "none"
+      );
+      interactionDrop(
+        t("settings.holdAction"), t("settings.holdActionDesc"),
+        () => plugin.settings.holdAction ?? "settings",
+        (v) => (plugin.settings.holdAction = v === "settings" ? undefined : v),
+        "settings"
+      );
+      interactionDrop(
+        t("settings.rightClickAction"), t("settings.rightClickActionDesc"),
+        () => plugin.settings.rightClickAction ?? "menu",
+        (v) => (plugin.settings.rightClickAction = v === "menu" ? undefined : v),
+        "menu"
+      );
+    }
     interactionDrop(
-      t("settings.clickAction"), t("settings.clickActionDesc"),
-      () => plugin.settings.clickAction ?? "none",
-      (v) => (plugin.settings.clickAction = v === "none" ? undefined : v),
-      "none"
-    );
-    interactionDrop(
-      t("settings.holdAction"), t("settings.holdActionDesc"),
-      () => plugin.settings.holdAction ?? "settings",
-      (v) => (plugin.settings.holdAction = v === "settings" ? undefined : v),
-      "settings"
-    );
-    interactionDrop(
-      t("settings.rightClickAction"), t("settings.rightClickActionDesc"),
-      () => plugin.settings.rightClickAction ?? "menu",
-      (v) => (plugin.settings.rightClickAction = v === "menu" ? undefined : v),
-      "menu"
-    );
-    interactionDrop(
-      t("settings.rightHoldAction"), t("settings.rightHoldActionDesc"),
+      t(mobile ? "settings.rightHoldActionMobile" : "settings.rightHoldAction"),
+      t(mobile ? "settings.rightHoldActionMobileDesc" : "settings.rightHoldActionDesc"),
       () => plugin.settings.rightHoldAction ?? "settings",
       (v) => (plugin.settings.rightHoldAction = v === "settings" ? undefined : v),
       "settings"

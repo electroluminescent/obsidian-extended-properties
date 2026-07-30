@@ -221,6 +221,7 @@ var en_default = {
   "entry.menu.hideFromObsidian": 'Hide "{key}" from Obsidian properties',
   "entry.menu.clearValue": 'Remove value from "{key}"',
   "entry.menu.remove": "Remove from sidebar",
+  "entry.menu.valueActions": 'Value actions for "{key}"',
   "entry.menu.editValue": "Edit value...",
   "entry.menu.toggle": "Toggle",
   "entry.menu.addItem": "Add item...",
@@ -722,6 +723,10 @@ var en_default = {
   "settings.interactSettings": "Property settings",
   "settings.interactFocus": "Focus the property",
   "settings.interactNone": "Nothing",
+  "settings.gesturesMobileNote": "On a touch screen a long press is the only gesture there is, and it is also the platform's context-menu press. Mobile therefore uses the right-click-and-hold option below for every long press and ignores the other three.",
+  "settings.gesturesMobile": "A long press is the only gesture a touch screen has, so it is the only one mapped here. It opens whatever you choose below, presented the way a context menu is on mobile.",
+  "settings.rightHoldActionMobile": "Long press on a property",
+  "settings.rightHoldActionMobileDesc": "What a long press on a property does. This is the desktop 'right click and hold' option - on mobile it covers every long press.",
   "settings.rightHoldAction": "Right click and hold on a property",
   "settings.rightHoldActionDesc": "What holding the right button on a property does. Defaults to the same property settings a left hold opens.",
   "settings.holdMs": "Hold duration (ms)",
@@ -8322,6 +8327,12 @@ function interactionFor(settings, kind) {
   const v = kind === "click" ? settings.clickAction : kind === "hold" ? settings.holdAction : kind === "right" ? settings.rightClickAction : settings.rightHoldAction;
   return v === "menu" || v === "settings" || v === "focus" || v === "none" ? v : DEFAULTS[kind];
 }
+function mobileGestures() {
+  return import_obsidian23.Platform.isMobile;
+}
+function effectiveGesture(kind, mobile = mobileGestures()) {
+  return mobile && (kind === "hold" || kind === "right") ? "rightHold" : kind;
+}
 function holdMsOf(settings) {
   const n = Number(settings.holdMs);
   return Number.isFinite(n) && n >= 100 ? Math.min(5e3, n) : DEFAULT_HOLD_MS;
@@ -8363,6 +8374,8 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
   closeSettingsPopup();
   const doc = activeDocument;
   const pop = doc.body.createDiv({ cls: "ep-popup ep-entrysettings ep-options ep-compactopts" });
+  const sheet = mobileGestures();
+  if (sheet) pop.addClass("ep-entrysettings-sheet");
   openPopup = pop;
   const bar = pop.createDiv({ cls: "ep-entrysettings-bar" });
   const tool = (icon, label, run) => {
@@ -8396,6 +8409,16 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
       view.note.set(file, key, void 0);
       closeSettingsPopup();
     });
+    const typeDef = view.registries.valueTypes.get(view.resolveType(entry));
+    const contribute = typeDef == null ? void 0 : typeDef.menuItems;
+    if (contribute) {
+      tool("wand", t("entry.menu.valueActions", { key }), () => {
+        const menu = new import_obsidian23.Menu();
+        contribute(menu, { view, file, section, entry }, { x, y });
+        closeSettingsPopup();
+        menu.showAtPosition({ x, y }, doc);
+      });
+    }
   }
   const mode = sectionMode(section);
   const kindDef = view.registries.entryKinds.get(entry.kind);
@@ -8447,6 +8470,7 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
   };
   build();
   const place = () => {
+    if (sheet) return;
     const w = pop.offsetWidth;
     const h = pop.offsetHeight;
     const left = Math.max(8, Math.min(x, window.innerWidth - w - 8));
@@ -8471,6 +8495,8 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
   };
 }
 function wireGestures(el, settings, handlers) {
+  const mobile = mobileGestures();
+  const actionFor = (kind) => interactionFor(settings, effectiveGesture(kind, mobile));
   const run = (action, x, y) => {
     if (action === "none") return;
     if (action === "focus") {
@@ -8515,7 +8541,8 @@ function wireGestures(el, settings, handlers) {
       consumed = false;
       return;
     }
-    run(interactionFor(settings, "right"), e.clientX, e.clientY);
+    if (mobile) return;
+    run(actionFor("right"), e.clientX, e.clientY);
   });
   el.addEventListener("click", (e) => {
     if (consumed) {
@@ -8523,7 +8550,7 @@ function wireGestures(el, settings, handlers) {
       return;
     }
     if (onControl(e.target)) return;
-    const action = interactionFor(settings, "click");
+    const action = actionFor("click");
     if (action === "none") return;
     e.preventDefault();
     e.stopPropagation();
@@ -8532,7 +8559,7 @@ function wireGestures(el, settings, handlers) {
   el.addEventListener("pointerdown", (e) => {
     if (holding || e.button !== 0 && e.button !== 2 || onControl(e.target)) return;
     const kind = e.button === 2 ? "rightHold" : "hold";
-    if (interactionFor(settings, kind) === "none") return;
+    if (actionFor(kind) === "none") return;
     holding = true;
     heldButton = e.button;
     consumed = false;
@@ -8559,7 +8586,7 @@ function wireGestures(el, settings, handlers) {
       }
       ring == null ? void 0 : ring.setCssProps({ "--ep-hold": String(p) });
       if (p >= 1) {
-        const action = interactionFor(settings, kind);
+        const action = actionFor(kind);
         stop(action === "focus" || action === "settings");
         if (action === "focus") focused = el;
         consumed = true;
@@ -13706,39 +13733,46 @@ var EPSettingTab = class extends import_obsidian33.PluginSettingTab {
         });
       });
     };
+    const mobile = mobileGestures();
+    c.createEl("p", {
+      cls: "setting-item-description",
+      text: mobile ? t("settings.gesturesMobile") : t("settings.gesturesMobileNote")
+    });
+    if (!mobile) {
+      interactionDrop(
+        t("settings.clickAction"),
+        t("settings.clickActionDesc"),
+        () => {
+          var _a;
+          return (_a = plugin.settings.clickAction) != null ? _a : "none";
+        },
+        (v) => plugin.settings.clickAction = v === "none" ? void 0 : v,
+        "none"
+      );
+      interactionDrop(
+        t("settings.holdAction"),
+        t("settings.holdActionDesc"),
+        () => {
+          var _a;
+          return (_a = plugin.settings.holdAction) != null ? _a : "settings";
+        },
+        (v) => plugin.settings.holdAction = v === "settings" ? void 0 : v,
+        "settings"
+      );
+      interactionDrop(
+        t("settings.rightClickAction"),
+        t("settings.rightClickActionDesc"),
+        () => {
+          var _a;
+          return (_a = plugin.settings.rightClickAction) != null ? _a : "menu";
+        },
+        (v) => plugin.settings.rightClickAction = v === "menu" ? void 0 : v,
+        "menu"
+      );
+    }
     interactionDrop(
-      t("settings.clickAction"),
-      t("settings.clickActionDesc"),
-      () => {
-        var _a;
-        return (_a = plugin.settings.clickAction) != null ? _a : "none";
-      },
-      (v) => plugin.settings.clickAction = v === "none" ? void 0 : v,
-      "none"
-    );
-    interactionDrop(
-      t("settings.holdAction"),
-      t("settings.holdActionDesc"),
-      () => {
-        var _a;
-        return (_a = plugin.settings.holdAction) != null ? _a : "settings";
-      },
-      (v) => plugin.settings.holdAction = v === "settings" ? void 0 : v,
-      "settings"
-    );
-    interactionDrop(
-      t("settings.rightClickAction"),
-      t("settings.rightClickActionDesc"),
-      () => {
-        var _a;
-        return (_a = plugin.settings.rightClickAction) != null ? _a : "menu";
-      },
-      (v) => plugin.settings.rightClickAction = v === "menu" ? void 0 : v,
-      "menu"
-    );
-    interactionDrop(
-      t("settings.rightHoldAction"),
-      t("settings.rightHoldActionDesc"),
+      t(mobile ? "settings.rightHoldActionMobile" : "settings.rightHoldAction"),
+      t(mobile ? "settings.rightHoldActionMobileDesc" : "settings.rightHoldActionDesc"),
       () => {
         var _a;
         return (_a = plugin.settings.rightHoldAction) != null ? _a : "settings";
