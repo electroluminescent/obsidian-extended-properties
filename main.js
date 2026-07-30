@@ -7329,7 +7329,7 @@ var WRITE_DEBOUNCE_MS = 300;
 var WRITE_MAXWAIT_MS = 1e3;
 var CONFLICT_EPS_MS = 400;
 function writeConflictNotice(i18n, fileName, onKeepMine, onTakeTheirs, conflictKeys = []) {
-  const frag = activeDocument.createDocumentFragment();
+  const frag = createFragment();
   const msg = createDiv({ cls: "ep-conflict-msg", text: i18n.t("conflict.message", { note: fileName }) });
   frag.appendChild(msg);
   if (conflictKeys.length) {

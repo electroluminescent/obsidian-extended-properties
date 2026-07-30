@@ -33,7 +33,7 @@ function writeConflictNotice(
   onTakeTheirs: () => void,
   conflictKeys: string[] = []
 ): void {
-  const frag = activeDocument.createDocumentFragment();
+  const frag = createFragment();
   const msg = createDiv({ cls: "ep-conflict-msg", text: i18n.t("conflict.message", { note: fileName }) });
   frag.appendChild(msg);
   if (conflictKeys.length) {
