@@ -85,7 +85,12 @@ export function tintTypeNames(root: HTMLElement, settings: TypePropSettings): vo
   const name = typeName(settings);
   if (!name) return;
   const re = new RegExp("\\b" + name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "gi");
-  const SKIP = "input, textarea, select, code, pre, .ep-typename, .ep-type-badge, .ep-title, .ep-editable, .ep-num, .ep-chip";
+  // Controls are chrome, not prose: a button's label must stay one text node
+  // (splitting it collapses the whitespace inside its flex box - "Export Type"
+  // rendered as "ExportType") and must keep the theme's own colour.
+  const SKIP =
+    "input, textarea, select, option, button, code, pre, .clickable-icon, .dropdown, " +
+    ".setting-item-control, .ep-typename, .ep-type-badge, .ep-title, .ep-editable, .ep-num, .ep-chip";
   /** Whether the word before `index` makes this a different concept. */
   const qualified = (value: string, index: number): boolean => {
     const before = value.slice(0, index).trimEnd();

@@ -7929,7 +7929,7 @@ function tintTypeNames(root, settings) {
   const name = typeName(settings);
   if (!name) return;
   const re = new RegExp("\\b" + name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "gi");
-  const SKIP = "input, textarea, select, code, pre, .ep-typename, .ep-type-badge, .ep-title, .ep-editable, .ep-num, .ep-chip";
+  const SKIP = "input, textarea, select, option, button, code, pre, .clickable-icon, .dropdown, .setting-item-control, .ep-typename, .ep-type-badge, .ep-title, .ep-editable, .ep-num, .ep-chip";
   const qualified = (value, index) => {
     var _a2;
     const before = value.slice(0, index).trimEnd();
@@ -13085,12 +13085,19 @@ var EPSettingTab = class extends import_obsidian33.PluginSettingTab {
     new import_obsidian33.Setting(c).setName(t("settings.typesHeading")).setHeading();
     new import_obsidian33.Setting(c).setName(t("settings.typeProp")).setDesc(t("settings.typePropDesc")).addText((tx) => {
       var _a;
-      tx.setPlaceholder("Type").setValue((_a = plugin.settings.typeProp) != null ? _a : "").onChange((v) => {
+      tx.setPlaceholder("Type").setValue((_a = plugin.settings.typeProp) != null ? _a : "");
+      tx.onChange((v) => {
         plugin.settings.typeProp = v.trim() || void 0;
         save();
         plugin.props.invalidateAll();
         plugin.refreshViews();
       });
+      tx.inputEl.addEventListener("change", () => {
+        this.render();
+        const next = this.containerEl.querySelector(".ep-typeprop-input");
+        next == null ? void 0 : next.focus();
+      });
+      tx.inputEl.addClass("ep-typeprop-input");
     });
     setTypedText(c.createEl("p", { cls: "setting-item-description" }), i18n, plugin.settings, "settings.typesDesc");
     {

@@ -67,15 +67,24 @@ export class EPSettingTab extends PluginSettingTab {
       .setName(t("settings.typeProp"))
       .setDesc(t("settings.typePropDesc"))
       .addText((tx) => {
-        tx.setPlaceholder("Type")
-          .setValue(plugin.settings.typeProp ?? "")
-          .onChange((v) => {
-            plugin.settings.typeProp = v.trim() || undefined;
-            save();
-            // The index bucketed notes under the old property - rebuild.
-            plugin.props.invalidateAll();
-            plugin.refreshViews();
-          });
+        tx.setPlaceholder("Type").setValue(plugin.settings.typeProp ?? "");
+        tx.onChange((v) => {
+          plugin.settings.typeProp = v.trim() || undefined;
+          save();
+          // The index bucketed notes under the old property - rebuild.
+          plugin.props.invalidateAll();
+          plugin.refreshViews();
+        });
+        // Every heading, description and prompt names this property, so the
+        // whole tab re-renders once the field is committed (on change, not
+        // per keystroke, which would steal focus mid-word).
+        tx.inputEl.addEventListener("change", () => {
+          this.render();
+          // The tab rebuilt: put the caret back where the user left it.
+          const next = this.containerEl.querySelector<HTMLInputElement>(".ep-typeprop-input");
+          next?.focus();
+        });
+        tx.inputEl.addClass("ep-typeprop-input");
       });
     setTypedText(c.createEl("p", { cls: "setting-item-description" }), i18n, plugin.settings, "settings.typesDesc");
     // Fallback icon for types that define none - the header chip always has

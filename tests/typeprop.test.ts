@@ -102,7 +102,7 @@ describe("tintTypeNames (fake DOM)", () => {
   /** The helper's core: split a text node's value on the name. */
   const tint = (root: FakeEl, name: string): void => {
     const re = new RegExp("\\b" + name + "\\b", "gi");
-    const SKIP = "input, textarea, select, code, pre, .ep-typename, .ep-type-badge, .ep-title";
+    const SKIP = "input, textarea, select, option, button, code, pre, .clickable-icon, .dropdown, .setting-item-control, .ep-typename, .ep-type-badge, .ep-title";
     for (const text of root.texts()) {
       const value = text.nodeValue;
       if (!re.test(value)) continue;
@@ -134,8 +134,13 @@ describe("tintTypeNames (fake DOM)", () => {
     expect(root.text).toBe("Save each Category's layout as a file.");
   });
 
-  it("leaves fields, code and the chip alone", () => {
-    for (const [tag, cls] of [["input", ""], ["code", ""], ["span", "ep-type-badge"]] as const) {
+  it("leaves fields, code, controls and the chip alone", () => {
+    for (const [tag, cls] of [
+      ["input", ""], ["code", ""], ["span", "ep-type-badge"],
+      // A button's label must stay one text node: splitting it collapses the
+      // whitespace in its flex box ("Export Type" -> "ExportType").
+      ["button", ""], ["option", ""], ["div", "setting-item-control"],
+    ] as const) {
       const root = new FakeEl("div");
       const holder = new FakeEl(tag, cls);
       holder.add(new FakeText("Category"));
@@ -176,5 +181,15 @@ describe("tintTypeNames (fake DOM)", () => {
     tint(root, "Type");
     expect(spans(root).length).toBe(1);
     expect(root.text).toBe("Each Type has its own layout; the data type is separate.");
+  });
+  it("keeps a button label intact - the whitespace must not collapse", () => {
+    const root = new FakeEl("div");
+    const btn = new FakeEl("button");
+    btn.add(new FakeText("Export Type"));
+    root.add(btn);
+    tint(root, "Type");
+    expect(spans(root).length).toBe(0);
+    expect(root.text).toBe("Export Type");
+
   });
 });

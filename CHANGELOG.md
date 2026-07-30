@@ -1,13 +1,13 @@
 # Changelog
 
-## 4.16.10
+## 4.16.11
 
 Everything since 4.10.1, grouped by what it changes.
 
 ### Works with an existing vault
 
 - **The type property is configurable.** *Settings -> Types -> Type property* (default `Type`). Point it at a property you already use - `category`, `kind`, anything - and the plugin recognizes those notes retroactively: the sidebar match, the property index's buckets, the table view and the properties-panel menu all read the configured name, and assigning a type writes to it. No renaming, no double entry, no clash with other plugins that use `Type`.
-- **The interface speaks that name.** Every string that means the note-type concept renders your property's name - the no-type screen, the chip tooltip, the entry-options heading, the table view and command, settings headings and prompts, import/export, macros, snapshots, layout files, the inline sheet block. Wherever the name appears in prose it carries a slight accent tint - applied by a pass over the rendered settings tab and sidebar, so it reaches strings that reach the DOM as plain text too (values, fields, code and the chip are left alone). Strings about *data* types keep saying "type" and are never highlighted - "data type", "value type", "number type", "date/time type" and friends name the value-type system, not this one, which matters most when the property is itself called Type.
+- **The interface speaks that name.** Every string that means the note-type concept renders your property's name - the no-type screen, the chip tooltip, the entry-options heading, the table view and command, settings headings and prompts, import/export, macros, snapshots, layout files, the inline sheet block. Wherever the name appears in prose it carries a slight accent tint - applied by a pass over the rendered settings tab and sidebar, so it reaches strings that reach the DOM as plain text too. Prose only: values, fields, code and buttons keep the theme's own styling. Renaming the property re-renders the settings tab at once. Strings about *data* types keep saying "type" and are never highlighted - "data type", "value type", "number type", "date/time type" and friends name the value-type system, not this one, which matters most when the property is itself called Type.
 
 ### Types in the sidebar
 
