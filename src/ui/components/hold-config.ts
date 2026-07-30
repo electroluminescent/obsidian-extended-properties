@@ -136,6 +136,11 @@ export function openEntrySettingsPopup(
     };
   };
   const t = view.i18n.t.bind(view.i18n);
+  // Escape hatch to the full settings page (descriptions, wide controls).
+  tool("settings", t("entry.menu.configure", { name: (entry.alias as string) || view.defaultLabelFor(entry) }), () => {
+    closeSettingsPopup();
+    view.openEntryOptions(section, entry);
+  });
   if (entry.kind === "prop" && entry.key) {
     const key = entry.key;
     const hidden = view.hide.isHidden(key);
@@ -189,6 +194,13 @@ export function openEntrySettingsPopup(
       redraw: build,
     };
     renderEntryOptionsBody(octx, closeSettingsPopup, closeSettingsPopup);
+    // Descriptions are hidden for compactness (CSS) - surface them as
+    // tooltips so hovering a row still explains it.
+    for (const item of body.findAll(".setting-item")) {
+      const desc = item.querySelector<HTMLElement>(".setting-item-description")?.textContent?.trim();
+      const name = item.querySelector<HTMLElement>(".setting-item-name")?.textContent?.trim() ?? "";
+      if (desc) item.setAttr("title", name ? name + " - " + desc : desc);
+    }
   };
   build();
   // Clamp near the cursor once sized.

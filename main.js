@@ -8244,6 +8244,10 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
     };
   };
   const t = view.i18n.t.bind(view.i18n);
+  tool("settings", t("entry.menu.configure", { name: entry.alias || view.defaultLabelFor(entry) }), () => {
+    closeSettingsPopup();
+    view.openEntryOptions(section, entry);
+  });
   if (entry.kind === "prop" && entry.key) {
     const key = entry.key;
     const hidden = view.hide.isHidden(key);
@@ -8287,6 +8291,7 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
   });
   const body = pop.createDiv({ cls: "ep-entrysettings-body" });
   const build = () => {
+    var _a, _b, _c, _d, _e;
     body.empty();
     const octx = {
       view,
@@ -8301,6 +8306,11 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
       redraw: build
     };
     renderEntryOptionsBody(octx, closeSettingsPopup, closeSettingsPopup);
+    for (const item of body.findAll(".setting-item")) {
+      const desc = (_b = (_a = item.querySelector(".setting-item-description")) == null ? void 0 : _a.textContent) == null ? void 0 : _b.trim();
+      const name = (_e = (_d = (_c = item.querySelector(".setting-item-name")) == null ? void 0 : _c.textContent) == null ? void 0 : _d.trim()) != null ? _e : "";
+      if (desc) item.setAttr("title", name ? name + " - " + desc : desc);
+    }
   };
   build();
   const place = () => {
