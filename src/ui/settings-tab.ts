@@ -729,9 +729,9 @@ export class EPSettingTab extends PluginSettingTab {
     );
     interactionDrop(
       t("settings.rightHoldAction"), t("settings.rightHoldActionDesc"),
-      () => plugin.settings.rightHoldAction ?? "menu",
-      (v) => (plugin.settings.rightHoldAction = v === "menu" ? undefined : v),
-      "menu"
+      () => plugin.settings.rightHoldAction ?? "settings",
+      (v) => (plugin.settings.rightHoldAction = v === "settings" ? undefined : v),
+      "settings"
     );
     new Setting(c)
       .setName(t("settings.holdMs"))

@@ -41,6 +41,27 @@ import { openEntryMenu } from "./menus/entry-menu";
 
 export const VIEW_TYPE = "extended-properties-character";
 
+/**
+ * Flag the last cell of every visual row (and the grid itself when it holds
+ * a single column), so vertical dividers are only drawn BETWEEN cells that
+ * actually sit side by side. Without this, a section collapsed to one column
+ * shows a divider beside every property.
+ */
+function markRowEnds(grid: HTMLElement, cells: HTMLElement[], cols: number): void {
+  grid.toggleClass("ep-onecol", cols === 1);
+  if (!cells.length) return;
+  // Group by offsetTop: the last cell of each group ends its row.
+  const rows = new Map<number, HTMLElement[]>();
+  for (const el of cells) {
+    const top = Math.round(el.offsetTop);
+    const bucket = rows.get(top);
+    if (bucket) bucket.push(el);
+    else rows.set(top, [el]);
+  }
+  for (const el of cells) el.removeClass("ep-rowend");
+  for (const bucket of rows.values()) bucket[bucket.length - 1]?.addClass("ep-rowend");
+}
+
 export class SidebarView extends ItemView implements ViewCtx {
   readonly plugin: ExtendedPropertiesPlugin;
   readonly note: NoteModel;
@@ -857,6 +878,22 @@ export class SidebarView extends ItemView implements ViewCtx {
     input.onblur = () => window.setTimeout(finish, 120);
   }
 
+  private markDividers(): void {
+    // Column dividers belong BETWEEN side-by-side cells. When a section
+    // collapses to fewer columns (or one), the cells stack, and a border on
+    // every cell reads as a divider on every property. Mark the last cell of
+    // each visual row so the stylesheet can skip it.
+    for (const grid of this.content.findAll(".ep-grid.ep-vdividers")) {
+      const cells: HTMLElement[] = [];
+      for (const child of Array.from(grid.children)) {
+        if (child.instanceOf(HTMLElement) && !child.hasClass("ep-rail")) cells.push(child);
+      }
+      const tpl = grid.style.gridTemplateColumns;
+      const cols = tpl ? (tpl.match(/repeat\((\d+)/)?.[1] ?? "") : "";
+      markRowEnds(grid, cells, cols ? parseInt(cols, 10) : 0);
+    }
+  }
+
   private headerFit(): void {
     const header = this.headerEl;
     if (!header) return;
@@ -891,6 +928,7 @@ export class SidebarView extends ItemView implements ViewCtx {
 
   private responsivePass(): void {
     this.headerFit();
+    window.requestAnimationFrame(() => this.markDividers());
     // Decorations need this much spare room before they may stay - derived from
     // the view's font size (~1.5em) so it scales with the user's text size and
     // gives larger touch targets on mobile.
@@ -1016,6 +1054,7 @@ export class SidebarView extends ItemView implements ViewCtx {
             let firstTop = Infinity;
             for (const el of cells) firstTop = Math.min(firstTop, el.offsetTop);
             for (const el of cells) el.toggleClass("ep-rowflow", flowed && el.offsetTop > firstTop + 1);
+            markRowEnds(cgrid, cells, cols);
           };
         }
       }

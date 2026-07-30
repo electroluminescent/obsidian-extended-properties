@@ -710,7 +710,7 @@ var en_default = {
   "settings.interactFocus": "Focus the property",
   "settings.interactNone": "Nothing",
   "settings.rightHoldAction": "Right click and hold on a property",
-  "settings.rightHoldActionDesc": "What holding the right button on a property does.",
+  "settings.rightHoldActionDesc": "What holding the right button on a property does. Defaults to the same property settings a left hold opens.",
   "settings.holdMs": "Hold duration (ms)",
   "settings.holdMsDesc": "How long a press must be held before its action fires.",
   "settings.hiddenHeading": "Always-hidden properties",
@@ -8216,7 +8216,8 @@ var DEFAULTS = {
   // clicks belong to the value editors
   hold: "settings",
   right: "menu",
-  rightHold: "menu"
+  rightHold: "settings"
+  // same as a left hold - the property settings
 };
 function interactionFor(settings, kind) {
   const v = kind === "click" ? settings.clickAction : kind === "hold" ? settings.holdAction : kind === "right" ? settings.rightClickAction : settings.rightHoldAction;
@@ -10480,6 +10481,20 @@ function renderLinkedText(app, el, text, sourcePath) {
 
 // src/ui/view.ts
 var VIEW_TYPE = "extended-properties-character";
+function markRowEnds(grid, cells, cols) {
+  var _a;
+  grid.toggleClass("ep-onecol", cols === 1);
+  if (!cells.length) return;
+  const rows = /* @__PURE__ */ new Map();
+  for (const el of cells) {
+    const top = Math.round(el.offsetTop);
+    const bucket = rows.get(top);
+    if (bucket) bucket.push(el);
+    else rows.set(top, [el]);
+  }
+  for (const el of cells) el.removeClass("ep-rowend");
+  for (const bucket of rows.values()) (_a = bucket[bucket.length - 1]) == null ? void 0 : _a.addClass("ep-rowend");
+}
 var SidebarView = class extends import_obsidian29.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
@@ -11252,6 +11267,18 @@ var SidebarView = class extends import_obsidian29.ItemView {
     };
     input.onblur = () => window.setTimeout(finish, 120);
   }
+  markDividers() {
+    var _a, _b;
+    for (const grid of this.content.findAll(".ep-grid.ep-vdividers")) {
+      const cells = [];
+      for (const child of Array.from(grid.children)) {
+        if (child.instanceOf(HTMLElement) && !child.hasClass("ep-rail")) cells.push(child);
+      }
+      const tpl = grid.style.gridTemplateColumns;
+      const cols = tpl ? (_b = (_a = tpl.match(/repeat\((\d+)/)) == null ? void 0 : _a[1]) != null ? _b : "" : "";
+      markRowEnds(grid, cells, cols ? parseInt(cols, 10) : 0);
+    }
+  }
   headerFit() {
     const header = this.headerEl;
     if (!header) return;
@@ -11283,6 +11310,7 @@ var SidebarView = class extends import_obsidian29.ItemView {
   responsivePass() {
     var _a, _b;
     this.headerFit();
+    window.requestAnimationFrame(() => this.markDividers());
     const fs = parseFloat(getComputedStyle(this.content).fontSize) || 16;
     const SLACK = 1.5 * fs;
     const TIERS = [".ep-type-hint", ".ep-dice-tag", ".ep-denote", ".ep-tog-cell", ".ep-mod-badge"];
@@ -11358,6 +11386,7 @@ var SidebarView = class extends import_obsidian29.ItemView {
             let firstTop = Infinity;
             for (const el2 of cells) firstTop = Math.min(firstTop, el2.offsetTop);
             for (const el2 of cells) el2.toggleClass("ep-rowflow", flowed && el2.offsetTop > firstTop + 1);
+            markRowEnds(cgrid, cells, cols);
           };
         }
       }
@@ -13489,10 +13518,10 @@ var EPSettingTab = class extends import_obsidian33.PluginSettingTab {
       t("settings.rightHoldActionDesc"),
       () => {
         var _a;
-        return (_a = plugin.settings.rightHoldAction) != null ? _a : "menu";
+        return (_a = plugin.settings.rightHoldAction) != null ? _a : "settings";
       },
-      (v) => plugin.settings.rightHoldAction = v === "menu" ? void 0 : v,
-      "menu"
+      (v) => plugin.settings.rightHoldAction = v === "settings" ? void 0 : v,
+      "settings"
     );
     new import_obsidian33.Setting(c).setName(t("settings.holdMs")).setDesc(t("settings.holdMsDesc")).addSlider((sl) => {
       var _a;

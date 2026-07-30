@@ -621,7 +621,7 @@
   "settings.interactFocus": "Focus the property",
   "settings.interactNone": "Nothing",
   "settings.rightHoldAction": "Right click and hold on a property",
-  "settings.rightHoldActionDesc": "What holding the right button on a property does.",
+  "settings.rightHoldActionDesc": "What holding the right button on a property does. Defaults to the same property settings a left hold opens.",
   "settings.holdMs": "Hold duration (ms)",
   "settings.holdMsDesc": "How long a press must be held before its action fires.",
   "settings.hiddenHeading": "Always-hidden properties",

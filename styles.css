@@ -379,6 +379,12 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
 /* vertical dividers */
 .ep-grid.ep-vdividers.ep-mode-columns > .ep-col:not(:last-child) { border-right: 1px solid var(--background-modifier-border-hover); padding-right: 6px; }
 .ep-grid.ep-vdividers.ep-mode-grid > .ep-col, .ep-grid.ep-vdividers.ep-mode-grid > .ep-empty-cell { border-right: 1px solid var(--background-modifier-border-hover); }
+/* A divider belongs BETWEEN side-by-side cells: the cell that ends a visual
+   row has nothing to its right, and a one-column section has no pairs at all
+   (both cases would otherwise draw a line beside every property). */
+.ep-grid.ep-vdividers > .ep-rowend { border-right: none; padding-right: 0; }
+.ep-grid.ep-vdividers.ep-onecol > .ep-col,
+.ep-grid.ep-vdividers.ep-onecol > .ep-empty-cell { border-right: none; padding-right: 0; }
 
 /* add menu groups / badges / search / pads */
 .ep-pop-group { font-weight: 700; font-size: var(--font-ui-smaller); color: var(--text-accent); padding: 5px 8px 2px; text-transform: uppercase; letter-spacing: .04em; }

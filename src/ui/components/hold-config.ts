@@ -42,7 +42,7 @@ const DEFAULTS: Record<GestureKind, EntryInteraction> = {
   click: "none", // clicks belong to the value editors
   hold: "settings",
   right: "menu",
-  rightHold: "menu",
+  rightHold: "settings", // same as a left hold - the property settings
 };
 
 /** The configured action for a gesture (with sensible defaults). */
