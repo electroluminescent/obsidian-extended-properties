@@ -84,7 +84,8 @@ const HANDLED_KEYS: ReadonlySet<string> = new Set([
   "crossNote", "conflictGuard", "tableLayouts", "tableLastType",
   "schemaVersion", "soundUi", "soundDice", "soundCrit", "layoutVault",
   "layoutVaultFolder", "appVersion", "snapshots", "snapshotKeep", "lastSnapshot",
-  "inlineEntries", "propTypes", "dateProps", "typeProp", "rightClickAction", "holdAction",
+  "inlineEntries", "propTypes", "dateProps", "typeProp",
+  "clickAction", "holdAction", "rightClickAction", "rightHoldAction", "holdMs",
 ]);
 
 /** Coerce a persisted `types` value to a clean list of non-empty strings. */
@@ -215,8 +216,10 @@ export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EP
     if (typeof data.poolSuffix === "string") s.poolSuffix = data.poolSuffix;
     // Autofill-pool extras: keep only string arrays of non-empty strings.
     if (typeof data.typeProp === "string" && data.typeProp.trim()) s.typeProp = data.typeProp.trim();
-    if (typeof data.rightClickAction === "string") s.rightClickAction = data.rightClickAction;
-    if (typeof data.holdAction === "string") s.holdAction = data.holdAction;
+    for (const k of ["clickAction", "holdAction", "rightClickAction", "rightHoldAction"] as const) {
+      if (typeof data[k] === "string") s[k] = data[k] as string;
+    }
+    if (typeof data.holdMs === "number" && data.holdMs >= 100) s.holdMs = Math.min(5000, Math.floor(data.holdMs));
     if (data.dnd5ePoolsSeeded === true) s.dnd5ePoolsSeeded = true;
     if (data.poolExtras && typeof data.poolExtras === "object") {
       const cleanPool: Record<string, string[]> = {};

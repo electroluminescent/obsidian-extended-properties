@@ -405,10 +405,16 @@ export interface EPSettings {
    * autocomplete fields even when no note uses them yet.
    */
   poolExtras?: Record<string, string[]>;
-  /** Right-click action on a property: menu (default) / settings / focus. */
-  rightClickAction?: string;
-  /** Press-and-hold action on a property: settings (default) / menu / focus. */
+  /** Click action on a property: none (default) / menu / settings / focus. */
+  clickAction?: string;
+  /** Press-and-hold action: settings (default) / menu / focus / none. */
   holdAction?: string;
+  /** Right-click action: menu (default) / settings / focus / none. */
+  rightClickAction?: string;
+  /** Right-click-and-hold action: menu (default) / settings / focus / none. */
+  rightHoldAction?: string;
+  /** Hold duration in ms before the mapped action fires (default 500). */
+  holdMs?: number;
   /** Frontmatter property that selects a note's type (default "Type"). */
   typeProp?: string;
   /** One-time seed guard for the dnd5e preset pools. */

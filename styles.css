@@ -1045,5 +1045,19 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)); }
 .ep-entry.ep-holdfocus { outline: 2px solid var(--interactive-accent); outline-offset: -1px; border-radius: var(--ep-radius, 4px); }
 /* The property-settings popup: the options page, scrollable at the cursor. */
-.ep-entrysettings { position: fixed; z-index: var(--layer-menu, 25); width: min(360px, 92vw); }
-.ep-entrysettings .ep-entrysettings-body { max-height: min(60vh, 480px); overflow-y: auto; padding: 8px 10px; }
+.ep-entrysettings { position: fixed; z-index: var(--layer-menu, 25); width: min(300px, 92vw); }
+/* Menu-like: tall, vertically scrollable, never horizontally. */
+.ep-entrysettings .ep-entrysettings-body { max-height: min(80vh, 640px); overflow-y: auto; overflow-x: hidden; padding: 6px 8px; }
+/* Compact options: descriptions hidden, controls stack under their name so
+   every row fits the popup width. */
+.ep-compactopts .setting-item-description { display: none; }
+.ep-compactopts .setting-item { display: block; padding: 4px 0; border: none; }
+.ep-compactopts .setting-item-info { margin: 0 0 2px; }
+.ep-compactopts .setting-item-name { font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.ep-compactopts .setting-item-control { justify-content: flex-start; flex-wrap: wrap; gap: 4px; width: 100%; }
+.ep-compactopts .setting-item-control > * { max-width: 100%; }
+.ep-compactopts .setting-item-control input[type="text"],
+.ep-compactopts .setting-item-control input[type="number"],
+.ep-compactopts .setting-item-control select,
+.ep-compactopts .setting-item-control .dropdown { width: 100%; min-width: 0; }
+.ep-compactopts h3, .ep-compactopts h4 { margin: 6px 0 2px; font-size: var(--font-ui-small); }

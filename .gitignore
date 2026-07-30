@@ -13,3 +13,6 @@ backups/
 # is committed here for manual / BRAT installs. Uncomment to keep it out of
 # source control instead.
 # main.js
+
+# FreeFileSync sync databases (created by the vault/project sync)
+*.ffs_db

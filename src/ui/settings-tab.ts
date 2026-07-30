@@ -657,6 +657,7 @@ export class EPSettingTab extends PluginSettingTab {
         d.addOption("menu", t("settings.interactMenu"));
         d.addOption("settings", t("settings.interactSettings"));
         d.addOption("focus", t("settings.interactFocus"));
+        d.addOption("none", t("settings.interactNone"));
         d.setValue(get() || def);
         d.onChange((v) => {
           set(v);
@@ -665,10 +666,10 @@ export class EPSettingTab extends PluginSettingTab {
       });
     };
     interactionDrop(
-      t("settings.rightClickAction"), t("settings.rightClickActionDesc"),
-      () => plugin.settings.rightClickAction ?? "menu",
-      (v) => (plugin.settings.rightClickAction = v === "menu" ? undefined : v),
-      "menu"
+      t("settings.clickAction"), t("settings.clickActionDesc"),
+      () => plugin.settings.clickAction ?? "none",
+      (v) => (plugin.settings.clickAction = v === "none" ? undefined : v),
+      "none"
     );
     interactionDrop(
       t("settings.holdAction"), t("settings.holdActionDesc"),
@@ -676,6 +677,30 @@ export class EPSettingTab extends PluginSettingTab {
       (v) => (plugin.settings.holdAction = v === "settings" ? undefined : v),
       "settings"
     );
+    interactionDrop(
+      t("settings.rightClickAction"), t("settings.rightClickActionDesc"),
+      () => plugin.settings.rightClickAction ?? "menu",
+      (v) => (plugin.settings.rightClickAction = v === "menu" ? undefined : v),
+      "menu"
+    );
+    interactionDrop(
+      t("settings.rightHoldAction"), t("settings.rightHoldActionDesc"),
+      () => plugin.settings.rightHoldAction ?? "menu",
+      (v) => (plugin.settings.rightHoldAction = v === "menu" ? undefined : v),
+      "menu"
+    );
+    new Setting(c)
+      .setName(t("settings.holdMs"))
+      .setDesc(t("settings.holdMsDesc"))
+      .addSlider((sl) => {
+        sl.setLimits(200, 2000, 50)
+          .setValue(plugin.settings.holdMs ?? 500)
+          .setDynamicTooltip()
+          .onChange((v) => {
+            plugin.settings.holdMs = v === 500 ? undefined : v;
+            save();
+          });
+      });
     new Setting(c)
       .setName(t("settings.propMenu"))
       .setDesc(t("settings.propMenuDesc"))

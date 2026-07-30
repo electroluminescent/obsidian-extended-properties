@@ -19,18 +19,43 @@ import type { Entry, Section } from "../../core/model";
 import { openEntryMenu } from "../menus/entry-menu";
 import { renderEntryOptionsBody } from "../modals/entry-options";
 
-export type EntryInteraction = "menu" | "settings" | "focus";
+export type EntryInteraction = "menu" | "settings" | "focus" | "none";
 
-const HOLD_MS = 1000;
+/** The four mappable gestures on a property. */
+export type GestureKind = "click" | "hold" | "right" | "rightHold";
+
+const DEFAULT_HOLD_MS = 500;
 const MOVE_TOLERANCE = 8;
 
-/** The configured action for an interaction (with sensible defaults). */
-export function interactionFor(
-  settings: { rightClickAction?: string; holdAction?: string },
-  kind: "right" | "hold"
-): EntryInteraction {
-  const v = kind === "right" ? settings.rightClickAction : settings.holdAction;
-  return v === "menu" || v === "settings" || v === "focus" ? v : kind === "right" ? "menu" : "settings";
+interface InteractionSettings {
+  clickAction?: string;
+  holdAction?: string;
+  rightClickAction?: string;
+  rightHoldAction?: string;
+  holdMs?: number;
+}
+
+const DEFAULTS: Record<GestureKind, EntryInteraction> = {
+  click: "none", // clicks belong to the value editors
+  hold: "settings",
+  right: "menu",
+  rightHold: "menu",
+};
+
+/** The configured action for a gesture (with sensible defaults). */
+export function interactionFor(settings: InteractionSettings, kind: GestureKind): EntryInteraction {
+  const v =
+    kind === "click" ? settings.clickAction
+    : kind === "hold" ? settings.holdAction
+    : kind === "right" ? settings.rightClickAction
+    : settings.rightHoldAction;
+  return v === "menu" || v === "settings" || v === "focus" || v === "none" ? v : DEFAULTS[kind];
+}
+
+/** Configured hold duration in ms (default 500). */
+export function holdMsOf(settings: InteractionSettings): number {
+  const n = Number(settings.holdMs);
+  return Number.isFinite(n) && n >= 100 ? Math.min(5000, n) : DEFAULT_HOLD_MS;
 }
 
 // -- focus -------------------------------------------------------------------
@@ -79,7 +104,9 @@ export function openEntrySettingsPopup(
 ): void {
   closeSettingsPopup();
   const doc = activeDocument;
-  const pop = doc.body.createDiv({ cls: "ep-popup ep-entrysettings ep-options" });
+  // ep-compactopts strips descriptions and stacks each row's control under
+  // its name, so everything fits the menu width with no horizontal scroll.
+  const pop = doc.body.createDiv({ cls: "ep-popup ep-entrysettings ep-options ep-compactopts" });
   openPopup = pop;
   const body = pop.createDiv({ cls: "ep-entrysettings-body" });
   const build = (): void => {
@@ -139,7 +166,9 @@ function runInteraction(
   x: number,
   y: number
 ): void {
-  if (action === "focus") {
+  if (action === "none") {
+    return;
+  } else if (action === "focus") {
     focusEntry(wrap);
   } else if (action === "settings") {
     focusEntry(wrap);
@@ -169,18 +198,15 @@ export function wireEntryInteractions(
   section: Section,
   entry: Entry
 ): void {
-  wrap.addEventListener("contextmenu", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    runInteraction(interactionFor(view.settings, "right"), wrap, view, file, section, entry, e.clientX, e.clientY);
-  });
-
   let ring: HTMLElement | null = null;
   let raf = 0;
   let start = 0;
   let sx = 0;
   let sy = 0;
   let holding = false;
+  let heldButton = 0;
+  /** Set when a hold fired, so the following click/contextmenu is swallowed. */
+  let consumed = false;
 
   const stop = (keepFocus: boolean): void => {
     if (!holding) return;
@@ -191,9 +217,39 @@ export function wireEntryInteractions(
     if (!keepFocus) wrap.removeClass("ep-holdfocus");
   };
 
+  // Right-click: the hold variant fires from the timer, so a plain
+  // contextmenu only runs when no right-hold already did.
+  wrap.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (consumed) {
+      consumed = false;
+      return;
+    }
+    runInteraction(interactionFor(view.settings, "right"), wrap, view, file, section, entry, e.clientX, e.clientY);
+  });
+
+  // Plain click on the entry body (never on a control, which owns its click).
+  wrap.addEventListener("click", (e: MouseEvent) => {
+    if (consumed) {
+      consumed = false;
+      return;
+    }
+    if (onControl(e.target)) return;
+    const action = interactionFor(view.settings, "click");
+    if (action === "none") return;
+    e.preventDefault();
+    e.stopPropagation();
+    runInteraction(action, wrap, view, file, section, entry, e.clientX, e.clientY);
+  });
+
   wrap.addEventListener("pointerdown", (e: PointerEvent) => {
-    if (holding || e.button !== 0 || onControl(e.target)) return;
+    if (holding || (e.button !== 0 && e.button !== 2) || onControl(e.target)) return;
+    const kind: GestureKind = e.button === 2 ? "rightHold" : "hold";
+    if (interactionFor(view.settings, kind) === "none") return;
     holding = true;
+    heldButton = e.button;
+    consumed = false;
     start = performance.now();
     sx = e.clientX;
     sy = e.clientY;
@@ -201,14 +257,16 @@ export function wireEntryInteractions(
     ring = activeDocument.body.createDiv({ cls: "ep-holdring" });
     ring.setCssStyles({ left: e.clientX + "px", top: e.clientY + "px" });
     wrap.addClass("ep-holdfocus");
+    const holdMs = holdMsOf(view.settings);
     const tick = (): void => {
       if (!holding) return;
-      const p = Math.min(1, (performance.now() - start) / HOLD_MS);
+      const p = Math.min(1, (performance.now() - start) / holdMs);
       ring?.setCssProps({ "--ep-hold": String(p) });
       if (p >= 1) {
-        const action = interactionFor(view.settings, "hold");
+        const action = interactionFor(view.settings, kind);
         stop(action === "focus" || action === "settings");
         if (action === "focus") focused = wrap; // ring already lit it
+        consumed = true; // the release must not also fire click/contextmenu
         runInteraction(action, wrap, view, file, section, entry, sx, sy);
         return;
       }
@@ -220,7 +278,10 @@ export function wireEntryInteractions(
     if (!holding) return;
     if (Math.hypot(e.clientX - sx, e.clientY - sy) > MOVE_TOLERANCE) stop(false);
   });
-  for (const ev of ["pointerup", "pointercancel", "pointerleave"] as const) {
+  wrap.addEventListener("pointerup", (e: PointerEvent) => {
+    if (holding && e.button === heldButton) stop(false);
+  });
+  for (const ev of ["pointercancel", "pointerleave"] as const) {
     wrap.addEventListener(ev, () => stop(false));
   }
 }

@@ -691,13 +691,20 @@ var en_default = {
   "settings.hideShownDesc": "Override per property in its options.",
   "settings.propMenu": "Right-click hide in Obsidian properties",
   "settings.propMenuDesc": "Adds a hide toggle to the right-click menu in Obsidian's properties panel (replaces the default menu for that click).",
+  "settings.clickAction": "Click on a property",
+  "settings.clickActionDesc": "What a plain click on a property's row does. Values and controls keep their own click behavior.",
   "settings.rightClickAction": "Right click on a property",
   "settings.rightClickActionDesc": "What a right click on a property does.",
   "settings.holdAction": "Hold on a property",
-  "settings.holdActionDesc": "What pressing and holding a property for one second does. A ring around the cursor charges while you hold.",
+  "settings.holdActionDesc": "What pressing and holding a property does. A ring around the cursor charges while you hold.",
   "settings.interactMenu": "Context menu",
   "settings.interactSettings": "Property settings",
   "settings.interactFocus": "Focus the property",
+  "settings.interactNone": "Nothing",
+  "settings.rightHoldAction": "Right click and hold on a property",
+  "settings.rightHoldActionDesc": "What holding the right button on a property does.",
+  "settings.holdMs": "Hold duration (ms)",
+  "settings.holdMsDesc": "How long a press must be held before its action fires.",
   "settings.hiddenHeading": "Always-hidden properties",
   "settings.hiddenDesc": "Hidden from Obsidian's properties panel everywhere, whether or not they're in the sidebar.",
   "settings.unhide": "Unhide",
@@ -1804,8 +1811,11 @@ var HANDLED_KEYS = /* @__PURE__ */ new Set([
   "propTypes",
   "dateProps",
   "typeProp",
+  "clickAction",
+  "holdAction",
   "rightClickAction",
-  "holdAction"
+  "rightHoldAction",
+  "holdMs"
 ]);
 function cleanTypes(raw) {
   return Array.isArray(raw) ? raw.filter((t) => typeof t === "string" && t.trim() !== "") : [];
@@ -1899,8 +1909,10 @@ function normalizeSettings(raw, defaultLayout) {
     if (typeof data.modifierSuffix === "string") s.modifierSuffix = data.modifierSuffix;
     if (typeof data.poolSuffix === "string") s.poolSuffix = data.poolSuffix;
     if (typeof data.typeProp === "string" && data.typeProp.trim()) s.typeProp = data.typeProp.trim();
-    if (typeof data.rightClickAction === "string") s.rightClickAction = data.rightClickAction;
-    if (typeof data.holdAction === "string") s.holdAction = data.holdAction;
+    for (const k of ["clickAction", "holdAction", "rightClickAction", "rightHoldAction"]) {
+      if (typeof data[k] === "string") s[k] = data[k];
+    }
+    if (typeof data.holdMs === "number" && data.holdMs >= 100) s.holdMs = Math.min(5e3, Math.floor(data.holdMs));
     if (data.dnd5ePoolsSeeded === true) s.dnd5ePoolsSeeded = true;
     if (data.poolExtras && typeof data.poolExtras === "object") {
       const cleanPool = {};
@@ -8143,11 +8155,22 @@ var EntryOptionsModal = class extends import_obsidian22.Modal {
 };
 
 // src/ui/components/hold-config.ts
-var HOLD_MS = 1e3;
+var DEFAULT_HOLD_MS = 500;
 var MOVE_TOLERANCE = 8;
+var DEFAULTS = {
+  click: "none",
+  // clicks belong to the value editors
+  hold: "settings",
+  right: "menu",
+  rightHold: "menu"
+};
 function interactionFor(settings, kind) {
-  const v = kind === "right" ? settings.rightClickAction : settings.holdAction;
-  return v === "menu" || v === "settings" || v === "focus" ? v : kind === "right" ? "menu" : "settings";
+  const v = kind === "click" ? settings.clickAction : kind === "hold" ? settings.holdAction : kind === "right" ? settings.rightClickAction : settings.rightHoldAction;
+  return v === "menu" || v === "settings" || v === "focus" || v === "none" ? v : DEFAULTS[kind];
+}
+function holdMsOf(settings) {
+  const n = Number(settings.holdMs);
+  return Number.isFinite(n) && n >= 100 ? Math.min(5e3, n) : DEFAULT_HOLD_MS;
 }
 var focused = null;
 function focusEntry(wrap) {
@@ -8175,7 +8198,7 @@ function closeSettingsPopup() {
 function openEntrySettingsPopup(view, file, section, entry, x, y) {
   closeSettingsPopup();
   const doc = activeDocument;
-  const pop = doc.body.createDiv({ cls: "ep-popup ep-entrysettings ep-options" });
+  const pop = doc.body.createDiv({ cls: "ep-popup ep-entrysettings ep-options ep-compactopts" });
   openPopup = pop;
   const body = pop.createDiv({ cls: "ep-entrysettings-body" });
   const build = () => {
@@ -8220,7 +8243,9 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
   };
 }
 function runInteraction(action, wrap, view, file, section, entry, x, y) {
-  if (action === "focus") {
+  if (action === "none") {
+    return;
+  } else if (action === "focus") {
     focusEntry(wrap);
   } else if (action === "settings") {
     focusEntry(wrap);
@@ -8233,17 +8258,14 @@ function onControl(t) {
   return t instanceof HTMLElement && !!t.closest("input, button, textarea, select, a, .ep-editable, .ep-step-btn, .ep-rating-pip, .ep-slider2-knob, .ep-grip, .ep-menu-btn, .ep-era-chip");
 }
 function wireEntryInteractions(wrap, view, file, section, entry) {
-  wrap.addEventListener("contextmenu", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    runInteraction(interactionFor(view.settings, "right"), wrap, view, file, section, entry, e.clientX, e.clientY);
-  });
   let ring = null;
   let raf = 0;
   let start = 0;
   let sx = 0;
   let sy = 0;
   let holding = false;
+  let heldButton = 0;
+  let consumed = false;
   const stop = (keepFocus) => {
     if (!holding) return;
     holding = false;
@@ -8252,23 +8274,50 @@ function wireEntryInteractions(wrap, view, file, section, entry) {
     ring = null;
     if (!keepFocus) wrap.removeClass("ep-holdfocus");
   };
+  wrap.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (consumed) {
+      consumed = false;
+      return;
+    }
+    runInteraction(interactionFor(view.settings, "right"), wrap, view, file, section, entry, e.clientX, e.clientY);
+  });
+  wrap.addEventListener("click", (e) => {
+    if (consumed) {
+      consumed = false;
+      return;
+    }
+    if (onControl(e.target)) return;
+    const action = interactionFor(view.settings, "click");
+    if (action === "none") return;
+    e.preventDefault();
+    e.stopPropagation();
+    runInteraction(action, wrap, view, file, section, entry, e.clientX, e.clientY);
+  });
   wrap.addEventListener("pointerdown", (e) => {
-    if (holding || e.button !== 0 || onControl(e.target)) return;
+    if (holding || e.button !== 0 && e.button !== 2 || onControl(e.target)) return;
+    const kind = e.button === 2 ? "rightHold" : "hold";
+    if (interactionFor(view.settings, kind) === "none") return;
     holding = true;
+    heldButton = e.button;
+    consumed = false;
     start = performance.now();
     sx = e.clientX;
     sy = e.clientY;
     ring = activeDocument.body.createDiv({ cls: "ep-holdring" });
     ring.setCssStyles({ left: e.clientX + "px", top: e.clientY + "px" });
     wrap.addClass("ep-holdfocus");
+    const holdMs = holdMsOf(view.settings);
     const tick = () => {
       if (!holding) return;
-      const p = Math.min(1, (performance.now() - start) / HOLD_MS);
+      const p = Math.min(1, (performance.now() - start) / holdMs);
       ring == null ? void 0 : ring.setCssProps({ "--ep-hold": String(p) });
       if (p >= 1) {
-        const action = interactionFor(view.settings, "hold");
+        const action = interactionFor(view.settings, kind);
         stop(action === "focus" || action === "settings");
         if (action === "focus") focused = wrap;
+        consumed = true;
         runInteraction(action, wrap, view, file, section, entry, sx, sy);
         return;
       }
@@ -8280,7 +8329,10 @@ function wireEntryInteractions(wrap, view, file, section, entry) {
     if (!holding) return;
     if (Math.hypot(e.clientX - sx, e.clientY - sy) > MOVE_TOLERANCE) stop(false);
   });
-  for (const ev of ["pointerup", "pointercancel", "pointerleave"]) {
+  wrap.addEventListener("pointerup", (e) => {
+    if (holding && e.button === heldButton) stop(false);
+  });
+  for (const ev of ["pointercancel", "pointerleave"]) {
     wrap.addEventListener(ev, () => stop(false));
   }
 }
@@ -13074,6 +13126,7 @@ var EPSettingTab = class extends import_obsidian32.PluginSettingTab {
         d2.addOption("menu", t("settings.interactMenu"));
         d2.addOption("settings", t("settings.interactSettings"));
         d2.addOption("focus", t("settings.interactFocus"));
+        d2.addOption("none", t("settings.interactNone"));
         d2.setValue(get() || def);
         d2.onChange((v) => {
           set(v);
@@ -13082,14 +13135,14 @@ var EPSettingTab = class extends import_obsidian32.PluginSettingTab {
       });
     };
     interactionDrop(
-      t("settings.rightClickAction"),
-      t("settings.rightClickActionDesc"),
+      t("settings.clickAction"),
+      t("settings.clickActionDesc"),
       () => {
         var _a;
-        return (_a = plugin.settings.rightClickAction) != null ? _a : "menu";
+        return (_a = plugin.settings.clickAction) != null ? _a : "none";
       },
-      (v) => plugin.settings.rightClickAction = v === "menu" ? void 0 : v,
-      "menu"
+      (v) => plugin.settings.clickAction = v === "none" ? void 0 : v,
+      "none"
     );
     interactionDrop(
       t("settings.holdAction"),
@@ -13101,6 +13154,33 @@ var EPSettingTab = class extends import_obsidian32.PluginSettingTab {
       (v) => plugin.settings.holdAction = v === "settings" ? void 0 : v,
       "settings"
     );
+    interactionDrop(
+      t("settings.rightClickAction"),
+      t("settings.rightClickActionDesc"),
+      () => {
+        var _a;
+        return (_a = plugin.settings.rightClickAction) != null ? _a : "menu";
+      },
+      (v) => plugin.settings.rightClickAction = v === "menu" ? void 0 : v,
+      "menu"
+    );
+    interactionDrop(
+      t("settings.rightHoldAction"),
+      t("settings.rightHoldActionDesc"),
+      () => {
+        var _a;
+        return (_a = plugin.settings.rightHoldAction) != null ? _a : "menu";
+      },
+      (v) => plugin.settings.rightHoldAction = v === "menu" ? void 0 : v,
+      "menu"
+    );
+    new import_obsidian32.Setting(c).setName(t("settings.holdMs")).setDesc(t("settings.holdMsDesc")).addSlider((sl) => {
+      var _a;
+      sl.setLimits(200, 2e3, 50).setValue((_a = plugin.settings.holdMs) != null ? _a : 500).setDynamicTooltip().onChange((v) => {
+        plugin.settings.holdMs = v === 500 ? void 0 : v;
+        save();
+      });
+    });
     new import_obsidian32.Setting(c).setName(t("settings.propMenu")).setDesc(t("settings.propMenuDesc")).addToggle((tg) => {
       tg.setValue(plugin.settings.propMenu).onChange((v) => {
         plugin.settings.propMenu = v;
