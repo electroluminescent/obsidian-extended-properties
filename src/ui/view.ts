@@ -1187,7 +1187,17 @@ export class SidebarView extends ItemView implements ViewCtx {
     this.headerEl = header;
     const titleRow = header.createDiv({ cls: "ep-titlerow" });
     titleRow.createDiv({ cls: "ep-title", text: file.basename });
-    const badge = titleRow.createSpan({ cls: "ep-type-badge ep-editable", text: match });
+    const badge = titleRow.createSpan({ cls: "ep-type-badge ep-editable" });
+    // The chip shows its icon (if the type has one) plus its name; when the
+    // header runs out of room the name drops and the icon carries it.
+    const typeIcon = this.settings.typeIcons?.[(match as string).toLowerCase()];
+    if (typeIcon) {
+      const ib = badge.createSpan({ cls: "ep-type-ico" });
+      setIcon(ib, typeIcon);
+    } else {
+      badge.addClass("ep-type-noicon");
+    }
+    badge.createSpan({ cls: "ep-type-text", text: match });
     badge.setAttr("title", t("view.typeChipHint"));
     badge.onclick = (ev) => {
       ev.preventDefault();

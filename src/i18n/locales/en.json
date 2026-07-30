@@ -477,6 +477,7 @@
   "settings.typesHeading": "Types",
   "settings.typeProp": "Type property",
   "settings.typePropDesc": "The frontmatter property that selects a note's type (default: Type). Point it at an existing property - e.g. category - and the plugin recognizes those notes retroactively, without renaming anything in your vault.",
+  "settings.typeIcon": "Choose this type's icon (shown on the header chip)",
   "settings.typesDesc": "Each Type has its own layout; a note's Type property selects it.",
   "settings.resetLayout": "Reset layout",
   "settings.resetLayoutConfirm": "Reset the \"{type}\" layout to defaults?",

@@ -5,7 +5,7 @@
  * feature module toggles.
  */
 
-import { App, Notice, PluginSettingTab, Setting } from "obsidian";
+import { App, Notice, PluginSettingTab, Setting, setIcon } from "obsidian";
 import type ExtendedPropertiesPlugin from "../main";
 import { TYPE_FEATURES, UI_FEATURES } from "../core/features";
 import { COLOR_SPACES, ColorSpace } from "../utils/color";
@@ -16,6 +16,7 @@ import { genId } from "../utils/misc";
 import { RefSuggest } from "./components/suggest";
 import { destructive } from "./components/setting-helpers";
 import { ConfirmModal, TextPromptModal } from "./modals/dialogs";
+import { IconPickerModal } from "./modals/icon-picker";
 import { ImportModal } from "./modals/transfer-modal";
 import { packType } from "../core/transfer";
 import { segsToText, textToSegs } from "../features/rolling/macros";
@@ -66,8 +67,28 @@ export class EPSettingTab extends PluginSettingTab {
       });
     c.createEl("p", { cls: "setting-item-description", text: t("settings.typesDesc") });
     for (const type of plugin.settings.types) {
-      new Setting(c)
-        .setName(type)
+      const setting = new Setting(c).setName(type);
+      // Icon preview + picker: this is what the header chip collapses to.
+      const iconPrev = setting.nameEl.createSpan({ cls: "ep-typeicon-prev" });
+      const paintIcon = (): void => {
+        iconPrev.empty();
+        const ic = plugin.settings.typeIcons?.[type.toLowerCase()];
+        if (ic) setIcon(iconPrev, ic);
+      };
+      paintIcon();
+      setting.addExtraButton((b) =>
+        b.setIcon("image").setTooltip(t("settings.typeIcon")).onClick(() =>
+          new IconPickerModal(this.app, i18n, plugin.settings.typeIcons?.[type.toLowerCase()] ?? "", (v) => {
+            const icons = (plugin.settings.typeIcons ??= {});
+            if (v) icons[type.toLowerCase()] = v;
+            else delete icons[type.toLowerCase()];
+            save();
+            paintIcon();
+            plugin.refreshViews();
+          }).open()
+        )
+      );
+      setting
         .addButton((b) =>
           b.setButtonText(t("settings.resetLayout")).onClick(() =>
             new ConfirmModal(this.app, i18n, t("settings.resetLayoutConfirm", { type }), () =>

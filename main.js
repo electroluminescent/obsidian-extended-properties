@@ -566,6 +566,7 @@ var en_default = {
   "settings.typesHeading": "Types",
   "settings.typeProp": "Type property",
   "settings.typePropDesc": "The frontmatter property that selects a note's type (default: Type). Point it at an existing property - e.g. category - and the plugin recognizes those notes retroactively, without renaming anything in your vault.",
+  "settings.typeIcon": "Choose this type's icon (shown on the header chip)",
   "settings.typesDesc": "Each Type has its own layout; a note's Type property selects it.",
   "settings.resetLayout": "Reset layout",
   "settings.resetLayoutConfirm": 'Reset the "{type}" layout to defaults?',
@@ -1816,6 +1817,7 @@ var HANDLED_KEYS = /* @__PURE__ */ new Set([
   "propTypes",
   "dateProps",
   "typeProp",
+  "typeIcons",
   "clickAction",
   "holdAction",
   "rightClickAction",
@@ -1914,6 +1916,8 @@ function normalizeSettings(raw, defaultLayout) {
     if (typeof data.modifierSuffix === "string") s.modifierSuffix = data.modifierSuffix;
     if (typeof data.poolSuffix === "string") s.poolSuffix = data.poolSuffix;
     if (typeof data.typeProp === "string" && data.typeProp.trim()) s.typeProp = data.typeProp.trim();
+    if (data.typeIcons && typeof data.typeIcons === "object")
+      s.typeIcons = data.typeIcons;
     for (const k of ["clickAction", "holdAction", "rightClickAction", "rightHoldAction"]) {
       if (typeof data[k] === "string") s[k] = data[k];
     }
@@ -8178,6 +8182,7 @@ var EntryOptionsModal = class extends import_obsidian22.Modal {
 // src/ui/components/hold-config.ts
 var DEFAULT_HOLD_MS = 500;
 var MOVE_TOLERANCE = 8;
+var RING_DELAY_MS = 140;
 var DEFAULTS = {
   click: "none",
   // clicks belong to the value editors
@@ -8364,12 +8369,15 @@ function wireGestures(el, settings, handlers) {
   let holding = false;
   let heldButton = 0;
   let consumed = false;
+  let detach = null;
   const stop = (keepFocus) => {
     if (!holding) return;
     holding = false;
     window.cancelAnimationFrame(raf);
     ring == null ? void 0 : ring.remove();
     ring = null;
+    detach == null ? void 0 : detach();
+    detach = null;
     if (!keepFocus) el.removeClass("ep-holdfocus");
   };
   el.addEventListener("contextmenu", (e) => {
@@ -8403,13 +8411,24 @@ function wireGestures(el, settings, handlers) {
     start = performance.now();
     sx = e.clientX;
     sy = e.clientY;
-    ring = activeDocument.body.createDiv({ cls: "ep-holdring" });
-    ring.setCssStyles({ left: e.clientX + "px", top: e.clientY + "px" });
-    el.addClass("ep-holdfocus");
     const holdMs = holdMsOf(settings);
+    const doc = el.ownerDocument;
+    const onRelease = () => stop(false);
+    doc.addEventListener("pointerup", onRelease, true);
+    doc.addEventListener("pointercancel", onRelease, true);
+    detach = () => {
+      doc.removeEventListener("pointerup", onRelease, true);
+      doc.removeEventListener("pointercancel", onRelease, true);
+    };
     const tick = () => {
       if (!holding) return;
-      const p = Math.min(1, (performance.now() - start) / holdMs);
+      const elapsed = performance.now() - start;
+      const p = Math.min(1, elapsed / holdMs);
+      if (!ring && elapsed >= RING_DELAY_MS) {
+        ring = activeDocument.body.createDiv({ cls: "ep-holdring" });
+        ring.setCssStyles({ left: sx + "px", top: sy + "px" });
+        el.addClass("ep-holdfocus");
+      }
       ring == null ? void 0 : ring.setCssProps({ "--ep-hold": String(p) });
       if (p >= 1) {
         const action = interactionFor(settings, kind);
@@ -11381,6 +11400,7 @@ var SidebarView = class extends import_obsidian29.ItemView {
     set("--ep-size-list", d.listSize);
   }
   render() {
+    var _a;
     const t = this.i18n.t.bind(this.i18n);
     const container = this.content;
     const prevScroll = container.scrollTop;
@@ -11450,7 +11470,15 @@ var SidebarView = class extends import_obsidian29.ItemView {
     this.headerEl = header;
     const titleRow = header.createDiv({ cls: "ep-titlerow" });
     titleRow.createDiv({ cls: "ep-title", text: file.basename });
-    const badge = titleRow.createSpan({ cls: "ep-type-badge ep-editable", text: match });
+    const badge = titleRow.createSpan({ cls: "ep-type-badge ep-editable" });
+    const typeIcon = (_a = this.settings.typeIcons) == null ? void 0 : _a[match.toLowerCase()];
+    if (typeIcon) {
+      const ib = badge.createSpan({ cls: "ep-type-ico" });
+      (0, import_obsidian29.setIcon)(ib, typeIcon);
+    } else {
+      badge.addClass("ep-type-noicon");
+    }
+    badge.createSpan({ cls: "ep-type-text", text: match });
     badge.setAttr("title", t("view.typeChipHint"));
     badge.onclick = (ev) => {
       ev.preventDefault();
@@ -12887,7 +12915,32 @@ var EPSettingTab = class extends import_obsidian33.PluginSettingTab {
     });
     c.createEl("p", { cls: "setting-item-description", text: t("settings.typesDesc") });
     for (const type of plugin.settings.types) {
-      new import_obsidian33.Setting(c).setName(type).addButton(
+      const setting = new import_obsidian33.Setting(c).setName(type);
+      const iconPrev = setting.nameEl.createSpan({ cls: "ep-typeicon-prev" });
+      const paintIcon = () => {
+        var _a;
+        iconPrev.empty();
+        const ic = (_a = plugin.settings.typeIcons) == null ? void 0 : _a[type.toLowerCase()];
+        if (ic) (0, import_obsidian33.setIcon)(iconPrev, ic);
+      };
+      paintIcon();
+      setting.addExtraButton(
+        (b) => b.setIcon("image").setTooltip(t("settings.typeIcon")).onClick(
+          () => {
+            var _a, _b;
+            return new IconPickerModal(this.app, i18n, (_b = (_a = plugin.settings.typeIcons) == null ? void 0 : _a[type.toLowerCase()]) != null ? _b : "", (v) => {
+              var _a2, _b2;
+              const icons = (_b2 = (_a2 = plugin.settings).typeIcons) != null ? _b2 : _a2.typeIcons = {};
+              if (v) icons[type.toLowerCase()] = v;
+              else delete icons[type.toLowerCase()];
+              save();
+              paintIcon();
+              plugin.refreshViews();
+            }).open();
+          }
+        )
+      );
+      setting.addButton(
         (b) => b.setButtonText(t("settings.resetLayout")).onClick(
           () => new ConfirmModal(
             this.app,

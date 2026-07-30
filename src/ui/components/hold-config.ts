@@ -27,6 +27,8 @@ export type GestureKind = "click" | "hold" | "right" | "rightHold";
 
 const DEFAULT_HOLD_MS = 500;
 const MOVE_TOLERANCE = 8;
+/** A press shorter than this never shows the ring - it is just a click. */
+const RING_DELAY_MS = 140;
 
 interface InteractionSettings {
   clickAction?: string;
@@ -278,6 +280,8 @@ export function wireGestures(
   let holding = false;
   let heldButton = 0;
   let consumed = false;
+  /** Document-level release listeners, so a release anywhere cancels. */
+  let detach: (() => void) | null = null;
 
   const stop = (keepFocus: boolean): void => {
     if (!holding) return;
@@ -285,6 +289,8 @@ export function wireGestures(
     window.cancelAnimationFrame(raf);
     ring?.remove();
     ring = null;
+    detach?.();
+    detach = null;
     if (!keepFocus) el.removeClass("ep-holdfocus");
   };
 
@@ -321,13 +327,29 @@ export function wireGestures(
     start = performance.now();
     sx = e.clientX;
     sy = e.clientY;
-    ring = activeDocument.body.createDiv({ cls: "ep-holdring" });
-    ring.setCssStyles({ left: e.clientX + "px", top: e.clientY + "px" });
-    el.addClass("ep-holdfocus");
     const holdMs = holdMsOf(settings);
+    // A release anywhere (outside the element, over a popup, after the
+    // pointer left) must cancel the hold - not only a release on the
+    // element itself, which is how a quick click could still charge.
+    const doc = el.ownerDocument;
+    const onRelease = (): void => stop(false);
+    doc.addEventListener("pointerup", onRelease, true);
+    doc.addEventListener("pointercancel", onRelease, true);
+    detach = () => {
+      doc.removeEventListener("pointerup", onRelease, true);
+      doc.removeEventListener("pointercancel", onRelease, true);
+    };
     const tick = (): void => {
       if (!holding) return;
-      const p = Math.min(1, (performance.now() - start) / holdMs);
+      const elapsed = performance.now() - start;
+      const p = Math.min(1, elapsed / holdMs);
+      // The ring (and the focus glow) only appear once the press has
+      // outlasted a normal click, so clicking never looks like holding.
+      if (!ring && elapsed >= RING_DELAY_MS) {
+        ring = activeDocument.body.createDiv({ cls: "ep-holdring" });
+        ring.setCssStyles({ left: sx + "px", top: sy + "px" });
+        el.addClass("ep-holdfocus");
+      }
       ring?.setCssProps({ "--ep-hold": String(p) });
       if (p >= 1) {
         const action = interactionFor(settings, kind);

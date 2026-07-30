@@ -415,6 +415,8 @@ export interface EPSettings {
   rightHoldAction?: string;
   /** Hold duration in ms before the mapped action fires (default 500). */
   holdMs?: number;
+  /** Per-type icons (Obsidian icon ids), keyed by lower-cased type name. */
+  typeIcons?: Record<string, string>;
   /** Frontmatter property that selects a note's type (default "Type"). */
   typeProp?: string;
   /** One-time seed guard for the dnd5e preset pools. */

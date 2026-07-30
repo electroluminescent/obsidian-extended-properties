@@ -1037,7 +1037,11 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-edit-toggle .ep-edit-ico svg { width: 14px; height: 14px; }
 .ep-header-tight1 .ep-edit-toggle .ep-edit-ico { display: inline-flex; }
 .ep-header-tight1 .ep-edit-toggle .ep-edit-text { display: none; }
-.ep-header-tight2 .ep-type-badge { display: none; }
+/* Tight: the chip drops its label and keeps just the type icon. A type
+   with no icon configured hides entirely, as before. */
+.ep-header-tight2 .ep-type-badge .ep-type-text { display: none; }
+.ep-header-tight2 .ep-type-badge.ep-type-noicon { display: none; }
+.ep-header-tight2 .ep-type-badge { padding: 0 4px; }
 
 /* Press-and-hold: the charging ring around the cursor + focused entry. */
 .ep-holdring { position: fixed; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; pointer-events: none; z-index: var(--layer-menu, 25);
@@ -1084,3 +1088,10 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-type-input { max-width: 12em; font-size: var(--font-ui-smaller); }
 .ep-typepick { min-width: 140px; max-height: 40vh; }
 .ep-typepick .ep-pop-row.is-active { color: var(--text-accent); }
+
+/* Type chip icon + the settings-row preview. */
+.ep-type-badge { display: inline-flex; align-items: center; gap: 4px; }
+.ep-type-badge .ep-type-ico { display: inline-flex; }
+.ep-type-badge .ep-type-ico svg { width: 13px; height: 13px; }
+.ep-typeicon-prev { display: inline-flex; align-items: center; margin-left: 6px; vertical-align: -2px; color: var(--text-muted); }
+.ep-typeicon-prev svg { width: 15px; height: 15px; }

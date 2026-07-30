@@ -84,7 +84,7 @@ const HANDLED_KEYS: ReadonlySet<string> = new Set([
   "crossNote", "conflictGuard", "tableLayouts", "tableLastType",
   "schemaVersion", "soundUi", "soundDice", "soundCrit", "layoutVault",
   "layoutVaultFolder", "appVersion", "snapshots", "snapshotKeep", "lastSnapshot",
-  "inlineEntries", "propTypes", "dateProps", "typeProp",
+  "inlineEntries", "propTypes", "dateProps", "typeProp", "typeIcons",
   "clickAction", "holdAction", "rightClickAction", "rightHoldAction", "holdMs",
 ]);
 
@@ -216,6 +216,8 @@ export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EP
     if (typeof data.poolSuffix === "string") s.poolSuffix = data.poolSuffix;
     // Autofill-pool extras: keep only string arrays of non-empty strings.
     if (typeof data.typeProp === "string" && data.typeProp.trim()) s.typeProp = data.typeProp.trim();
+    if (data.typeIcons && typeof data.typeIcons === "object")
+      s.typeIcons = data.typeIcons as EPSettings["typeIcons"];
     for (const k of ["clickAction", "holdAction", "rightClickAction", "rightHoldAction"] as const) {
       if (typeof data[k] === "string") s[k] = data[k] as string;
     }
