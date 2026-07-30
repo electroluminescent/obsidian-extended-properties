@@ -10,8 +10,23 @@ import { isShiftHeld } from "../modifiers";
 import { destructive } from "../components/setting-helpers";
 
 /** "Are you sure?" with Cancel / Confirm. */
+export interface ConfirmOptions {
+  /** Called when the user picks the non-confirming button (not on Escape). */
+  onCancel?: () => void;
+  confirmText?: string;
+  cancelText?: string;
+  /** Style the confirm button as destructive (default true). */
+  destructiveConfirm?: boolean;
+}
+
 export class ConfirmModal extends Modal {
-  constructor(app: App, private i18n: I18n, private message: string, private onConfirm: () => void) {
+  constructor(
+    app: App,
+    private i18n: I18n,
+    private message: string,
+    private onConfirm: () => void,
+    private opts: ConfirmOptions = {}
+  ) {
     super(app);
   }
 
@@ -27,13 +42,20 @@ export class ConfirmModal extends Modal {
   onOpen(): void {
     this.contentEl.createEl("p", { text: this.message });
     new Setting(this.contentEl)
-      .addButton((b) => b.setButtonText(this.i18n.t("common.cancel")).onClick(() => this.close()))
       .addButton((b) =>
-        b.setButtonText(this.i18n.t("common.confirm")).then(destructive).onClick(() => {
-          this.onConfirm();
+        b.setButtonText(this.opts.cancelText ?? this.i18n.t("common.cancel")).onClick(() => {
+          this.opts.onCancel?.();
           this.close();
         })
-      );
+      )
+      .addButton((b) => {
+        b.setButtonText(this.opts.confirmText ?? this.i18n.t("common.confirm"));
+        if (this.opts.destructiveConfirm !== false) b.then(destructive);
+        b.onClick(() => {
+          this.onConfirm();
+          this.close();
+        });
+      });
   }
 
   onClose(): void {

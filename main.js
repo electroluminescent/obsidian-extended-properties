@@ -101,6 +101,11 @@ var en_default = {
   "view.setType": "Set Type: {type}",
   "view.noTypesConfigured": "No types are configured yet. Give this note any Type value to create one (it starts empty), or add types in the plugin settings.",
   "view.typeBadgeHint": "This note's Type - selects which saved layout is shown",
+  "view.typeChipHint": "Click to change this note's type, or type a new name to create one",
+  "view.createTypeRow": 'Create type "{name}"',
+  "view.copyLayoutPrompt": 'Start "{to}" with a copy of the "{from}" layout?',
+  "view.copyLayoutYes": "Copy layout",
+  "view.copyLayoutNo": "Start empty",
   "view.edit": "Edit",
   "view.done": "Done",
   "view.editHint": "Edit: rearrange sections & properties, change types, colors, etc.",
@@ -3963,11 +3968,12 @@ function addIconSetting(app, i18n, container, name, get, set) {
 
 // src/ui/modals/dialogs.ts
 var ConfirmModal = class extends import_obsidian9.Modal {
-  constructor(app, i18n, message, onConfirm) {
+  constructor(app, i18n, message, onConfirm, opts = {}) {
     super(app);
     this.i18n = i18n;
     this.message = message;
     this.onConfirm = onConfirm;
+    this.opts = opts;
   }
   /** Shift-click a confirming button to skip the dialog and confirm directly. */
   open() {
@@ -3979,12 +3985,24 @@ var ConfirmModal = class extends import_obsidian9.Modal {
   }
   onOpen() {
     this.contentEl.createEl("p", { text: this.message });
-    new import_obsidian9.Setting(this.contentEl).addButton((b) => b.setButtonText(this.i18n.t("common.cancel")).onClick(() => this.close())).addButton(
-      (b) => b.setButtonText(this.i18n.t("common.confirm")).then(destructive).onClick(() => {
+    new import_obsidian9.Setting(this.contentEl).addButton(
+      (b) => {
+        var _a;
+        return b.setButtonText((_a = this.opts.cancelText) != null ? _a : this.i18n.t("common.cancel")).onClick(() => {
+          var _a2, _b;
+          (_b = (_a2 = this.opts).onCancel) == null ? void 0 : _b.call(_a2);
+          this.close();
+        });
+      }
+    ).addButton((b) => {
+      var _a;
+      b.setButtonText((_a = this.opts.confirmText) != null ? _a : this.i18n.t("common.confirm"));
+      if (this.opts.destructiveConfirm !== false) b.then(destructive);
+      b.onClick(() => {
         this.onConfirm();
         this.close();
-      })
-    );
+      });
+    });
   }
   onClose() {
     this.contentEl.empty();
@@ -11071,6 +11089,99 @@ var SidebarView = class extends import_obsidian29.ItemView {
    * Staged header shrink: when the title row is tight the Edit button
    * collapses to its icon; still tight, the type badge disappears.
    */
+  /**
+   * Turn the type chip into a text field with a dropdown of existing types:
+   * pick one to retype the note, or type a new name to create it. Creating
+   * offers to copy the current type's layout into the new one.
+   */
+  openTypePicker(chip, file, current) {
+    const t = this.i18n.t.bind(this.i18n);
+    const prop2 = typePropOf(this.settings);
+    const input = createEl("input", { cls: "ep-edit-input ep-type-input" });
+    input.type = "text";
+    input.value = current;
+    chip.replaceWith(input);
+    input.focus();
+    input.select();
+    const pop = activeDocument.body.createDiv({ cls: "ep-popup ep-typepick" });
+    const place = () => {
+      const r = input.getBoundingClientRect();
+      pop.setCssStyles({ left: r.left + "px", top: r.bottom + 2 + "px", minWidth: Math.max(140, r.width) + "px" });
+    };
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      pop.remove();
+      if (input.parentElement) input.replaceWith(chip);
+    };
+    const assign = (name) => {
+      finish();
+      this.note.set(file, prop2, name, true);
+    };
+    const create = (name) => {
+      finish();
+      const key = name.toLowerCase();
+      const exists = this.settings.types.some((x) => x.toLowerCase() === key);
+      const add = (copy) => {
+        if (!exists) this.settings.types.push(name);
+        this.settings.layouts[key] = copy ? JSON.parse(JSON.stringify(this.layout)) : this.plugin.defaultLayout();
+        void this.plugin.saveSettings();
+        this.note.set(file, prop2, name, true);
+      };
+      if (exists) {
+        add(false);
+        return;
+      }
+      new ConfirmModal(
+        this.app,
+        this.i18n,
+        t("view.copyLayoutPrompt", { from: current, to: name }),
+        () => add(true),
+        { onCancel: () => add(false), confirmText: t("view.copyLayoutYes"), cancelText: t("view.copyLayoutNo"), destructiveConfirm: false }
+      ).open();
+    };
+    const render3 = () => {
+      pop.empty();
+      const q = input.value.trim().toLowerCase();
+      const hits = this.settings.types.filter((tp) => !q || tp.toLowerCase().includes(q));
+      for (const tp of hits) {
+        const row = pop.createDiv({ cls: "ep-pop-row" + (tp.toLowerCase() === current.toLowerCase() ? " is-active" : "") });
+        row.setText(tp);
+        row.onmousedown = (e) => {
+          e.preventDefault();
+          assign(tp);
+        };
+      }
+      const typed = input.value.trim();
+      if (typed && !this.settings.types.some((tp) => tp.toLowerCase() === typed.toLowerCase())) {
+        const row = pop.createDiv({ cls: "ep-pop-row ep-pop-create" });
+        row.setText(t("view.createTypeRow", { name: typed }));
+        row.onmousedown = (e) => {
+          e.preventDefault();
+          create(typed);
+        };
+      }
+      if (!pop.firstElementChild) pop.createDiv({ cls: "ep-empty-sub", text: t("view.noTypesConfigured") });
+      place();
+    };
+    render3();
+    input.oninput = render3;
+    input.onkeydown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        finish();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        const v = input.value.trim();
+        if (!v) return finish();
+        const known = this.settings.types.find((tp) => tp.toLowerCase() === v.toLowerCase());
+        if (known) assign(known);
+        else create(v);
+      }
+    };
+    input.onblur = () => window.setTimeout(finish, 120);
+  }
   headerFit() {
     const header = this.headerEl;
     if (!header) return;
@@ -11317,8 +11428,13 @@ var SidebarView = class extends import_obsidian29.ItemView {
     this.headerEl = header;
     const titleRow = header.createDiv({ cls: "ep-titlerow" });
     titleRow.createDiv({ cls: "ep-title", text: file.basename });
-    const badge = titleRow.createSpan({ cls: "ep-type-badge", text: match });
-    badge.setAttr("title", t("view.typeBadgeHint"));
+    const badge = titleRow.createSpan({ cls: "ep-type-badge ep-editable", text: match });
+    badge.setAttr("title", t("view.typeChipHint"));
+    badge.onclick = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      this.openTypePicker(badge, file, match);
+    };
     const editBtn = titleRow.createEl("button", { cls: "ep-edit-toggle" });
     const editIcon = editBtn.createSpan({ cls: "ep-edit-ico" });
     (0, import_obsidian29.setIcon)(editIcon, this.editMode ? "check" : "pencil");

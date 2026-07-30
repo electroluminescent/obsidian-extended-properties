@@ -1073,7 +1073,14 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-compactopts .setting-item-control .dropdown { width: 100%; min-width: 0; }
 /* Buttons share a row rather than each taking a full line. */
 .ep-compactopts .setting-item-control button { width: auto; flex: 0 1 auto; }
-.ep-compactopts h3, .ep-compactopts h4 { margin: 5px 0 1px; padding: 0; font-size: var(--font-ui-smaller); text-transform: uppercase; letter-spacing: .04em; color: var(--text-faint); }
-.ep-compactopts h3:first-child, .ep-compactopts h4:first-child { margin-top: 0; }
+/* Group headings match the full property settings: accent colour, small
+   uppercase, with a divider above each group. */
+.ep-compactopts h3, .ep-compactopts h4 { margin: 8px 0 2px; padding: 6px 0 0; font-size: var(--font-ui-smaller); text-transform: uppercase; letter-spacing: .04em; color: var(--text-accent); border-top: 1px solid var(--background-modifier-border); }
+.ep-compactopts h3:first-child, .ep-compactopts h4:first-child { margin-top: 0; padding-top: 0; border-top: none; }
 /* Nested editors (month names, era pools) keep to the card's width. */
 .ep-compactopts .ep-monthnames, .ep-compactopts .ep-erapool { margin: 0; padding: 0; }
+
+/* The type chip's inline editor + its type dropdown. */
+.ep-type-input { max-width: 12em; font-size: var(--font-ui-smaller); }
+.ep-typepick { min-width: 140px; max-height: 40vh; }
+.ep-typepick .ep-pop-row.is-active { color: var(--text-accent); }

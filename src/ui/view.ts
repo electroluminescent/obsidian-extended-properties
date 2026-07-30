@@ -756,6 +756,105 @@ export class SidebarView extends ItemView implements ViewCtx {
    * Staged header shrink: when the title row is tight the Edit button
    * collapses to its icon; still tight, the type badge disappears.
    */
+  /**
+   * Turn the type chip into a text field with a dropdown of existing types:
+   * pick one to retype the note, or type a new name to create it. Creating
+   * offers to copy the current type's layout into the new one.
+   */
+  private openTypePicker(chip: HTMLElement, file: TFile, current: string): void {
+    const t = this.i18n.t.bind(this.i18n);
+    const prop = typePropOf(this.settings);
+    const input = createEl("input", { cls: "ep-edit-input ep-type-input" });
+    input.type = "text";
+    input.value = current;
+    chip.replaceWith(input);
+    input.focus();
+    input.select();
+
+    const pop = activeDocument.body.createDiv({ cls: "ep-popup ep-typepick" });
+    const place = (): void => {
+      const r = input.getBoundingClientRect();
+      pop.setCssStyles({ left: r.left + "px", top: r.bottom + 2 + "px", minWidth: Math.max(140, r.width) + "px" });
+    };
+    let done = false;
+    const finish = (): void => {
+      if (done) return;
+      done = true;
+      pop.remove();
+      if (input.parentElement) input.replaceWith(chip);
+    };
+    const assign = (name: string): void => {
+      finish();
+      this.note.set(file, prop, name, true);
+    };
+    /** Create `name` as a type, optionally copying this type's layout. */
+    const create = (name: string): void => {
+      finish();
+      const key = name.toLowerCase();
+      const exists = this.settings.types.some((x) => x.toLowerCase() === key);
+      const add = (copy: boolean): void => {
+        if (!exists) this.settings.types.push(name);
+        this.settings.layouts[key] = copy
+          ? (JSON.parse(JSON.stringify(this.layout)) as Layout)
+          : this.plugin.defaultLayout();
+        void this.plugin.saveSettings();
+        this.note.set(file, prop, name, true);
+      };
+      if (exists) {
+        add(false);
+        return;
+      }
+      new ConfirmModal(
+        this.app,
+        this.i18n,
+        t("view.copyLayoutPrompt", { from: current, to: name }),
+        () => add(true),
+        { onCancel: () => add(false), confirmText: t("view.copyLayoutYes"), cancelText: t("view.copyLayoutNo"), destructiveConfirm: false }
+      ).open();
+    };
+
+    const render = (): void => {
+      pop.empty();
+      const q = input.value.trim().toLowerCase();
+      const hits = this.settings.types.filter((tp) => !q || tp.toLowerCase().includes(q));
+      for (const tp of hits) {
+        const row = pop.createDiv({ cls: "ep-pop-row" + (tp.toLowerCase() === current.toLowerCase() ? " is-active" : "") });
+        row.setText(tp);
+        row.onmousedown = (e) => {
+          e.preventDefault();
+          assign(tp);
+        };
+      }
+      const typed = input.value.trim();
+      if (typed && !this.settings.types.some((tp) => tp.toLowerCase() === typed.toLowerCase())) {
+        const row = pop.createDiv({ cls: "ep-pop-row ep-pop-create" });
+        row.setText(t("view.createTypeRow", { name: typed }));
+        row.onmousedown = (e) => {
+          e.preventDefault();
+          create(typed);
+        };
+      }
+      if (!pop.firstElementChild) pop.createDiv({ cls: "ep-empty-sub", text: t("view.noTypesConfigured") });
+      place();
+    };
+    render();
+    input.oninput = render;
+    input.onkeydown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        finish();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        const v = input.value.trim();
+        if (!v) return finish();
+        const known = this.settings.types.find((tp) => tp.toLowerCase() === v.toLowerCase());
+        if (known) assign(known);
+        else create(v);
+      }
+    };
+    input.onblur = () => window.setTimeout(finish, 120);
+  }
+
   private headerFit(): void {
     const header = this.headerEl;
     if (!header) return;
@@ -1088,8 +1187,13 @@ export class SidebarView extends ItemView implements ViewCtx {
     this.headerEl = header;
     const titleRow = header.createDiv({ cls: "ep-titlerow" });
     titleRow.createDiv({ cls: "ep-title", text: file.basename });
-    const badge = titleRow.createSpan({ cls: "ep-type-badge", text: match });
-    badge.setAttr("title", t("view.typeBadgeHint"));
+    const badge = titleRow.createSpan({ cls: "ep-type-badge ep-editable", text: match });
+    badge.setAttr("title", t("view.typeChipHint"));
+    badge.onclick = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      this.openTypePicker(badge, file, match as string);
+    };
     const editBtn = titleRow.createEl("button", { cls: "ep-edit-toggle" });
     const editIcon = editBtn.createSpan({ cls: "ep-edit-ico" });
     setIcon(editIcon, this.editMode ? "check" : "pencil");
