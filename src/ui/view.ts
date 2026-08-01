@@ -38,6 +38,7 @@ import { ConfirmModal, ExitEditModal, TextPromptModal } from "./modals/dialogs";
 import { ColorPickerModal } from "./modals/color-picker";
 import { SectionOptionsModal } from "./modals/section-options";
 import { openEntryMenu } from "./menus/entry-menu";
+import { openTypeMenu } from "./menus/type-menu";
 
 export const VIEW_TYPE = "extended-properties-character";
 
@@ -1271,6 +1272,20 @@ export class SidebarView extends ItemView implements ViewCtx {
       ev.preventDefault();
       ev.stopPropagation();
       this.openTypePicker(badge, file, match);
+    };
+    // The chip is where the type is visible, so it is where its own settings
+    // live too: everything the settings tab offers per type.
+    badge.oncontextmenu = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      openTypeMenu(ev, {
+        app: this.app,
+        i18n: this.i18n,
+        plugin: this.plugin,
+        type: match,
+        onPick: () => this.openTypePicker(badge, file, match),
+        onChanged: () => this.render(),
+      });
     };
     const editBtn = titleRow.createEl("button", { cls: "ep-edit-toggle" });
     const editIcon = editBtn.createSpan({ cls: "ep-edit-ico" });

@@ -659,6 +659,21 @@ export default class ExtendedPropertiesPlugin extends Plugin {
   }
 
   /**
+   * Forget a type: its layout and icon go, its vault layout file with them.
+   * The notes are left alone - they keep their value, and simply stop matching
+   * a layout, which is recoverable; deleting their frontmatter would not be.
+   */
+  deleteType(name: string): void {
+    const key = name.trim().toLowerCase();
+    this.settings.types = this.settings.types.filter((x) => x.toLowerCase() !== key);
+    delete this.settings.layouts[key];
+    if (this.settings.typeIcons) delete this.settings.typeIcons[key];
+    if (this.settings.layoutVault === true) void this.layoutStore?.remove(key);
+    void this.saveSettings();
+    this.refreshViews();
+  }
+
+  /**
    * Rename a type and, optionally, the notes that carry its value.
    *
    * The two halves must not be observed separately. Between them the settings

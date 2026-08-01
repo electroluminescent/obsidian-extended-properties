@@ -259,10 +259,7 @@ export class EPSettingTab extends PluginSettingTab {
           b.setButtonText(t("settings.deleteType"))
             .then(destructive)
             .onClick(() => {
-              plugin.settings.types = plugin.settings.types.filter((x) => x !== type);
-              delete plugin.settings.layouts[type.toLowerCase()];
-              if (plugin.settings.layoutVault === true) void plugin.layoutStore?.remove(type);
-              save();
+              plugin.deleteType(type);
               this.render();
             })
         );

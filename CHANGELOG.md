@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.19.1
+
+- **The type chip carries the type's own menu.** Right-click it for everything
+  the settings tab offers per type - retype the note, rename, choose or reset
+  the icon, reset the layout, copy the snippet, delete - next to the note it
+  applies to instead of four clicks away in settings.
+- Deleting a type is one code path now, shared by the chip and the settings
+  tab: the layout, the icon and the vault layout file go, and the notes keep
+  their value (they stop matching a layout, which is undoable; losing the
+  property would not be).
+
 ## 4.19.0
 
 - **Types can be renamed.** Each type row has a rename button; the layout, the
