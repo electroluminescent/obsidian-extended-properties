@@ -40,12 +40,26 @@ export function registerOpener(el: HTMLElement, open: () => void): void {
 }
 
 /**
+ * Whether arriving on a field opens it (settings.tabOpens, default on). Read
+ * through a provider so it is never a stale copy of the setting.
+ */
+let opensOnArrive: () => boolean = () => true;
+
+/** Point the chain at the current setting (called once, on load). */
+export function configureTabChain(opens: () => boolean): void {
+  opensOnArrive = opens;
+}
+
+/**
  * Land on a field: an editable value opens for typing, a control just takes
  * focus (Space toggles a checkbox, Enter opens a list's picker).
+ *
+ * With opening turned off, Tab only moves the focus and Enter or Space opens
+ * what it lands on - the same keys those controls already answer to.
  */
 export function enterField(el: HTMLElement): void {
   el.focus();
-  openers.get(el)?.();
+  if (opensOnArrive()) openers.get(el)?.();
 }
 
 /**

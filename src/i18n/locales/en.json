@@ -666,6 +666,8 @@
   "settings.rightHoldActionMobileDesc": "What a long press on a property does. This is the desktop 'right click and hold' option - on mobile it covers every long press.",
   "settings.rightHoldAction": "Right click and hold on a property",
   "settings.rightHoldActionDesc": "What holding the right button on a property does. Defaults to the same property settings a left hold opens.",
+  "settings.tabOpens": "Tab opens the field",
+  "settings.tabOpensDesc": "Tab (and Shift+Tab) move to the next value, checkbox or list on the note and open it, so you can type straight away. Off = Tab only moves the focus, and Enter or Space opens what it lands on.",
   "settings.holdMs": "Hold duration (ms)",
   "settings.holdMsDesc": "How long a press must be held before its action fires.",
   "settings.activationHeading": "Editing outside edit mode",

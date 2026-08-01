@@ -86,6 +86,7 @@ const HANDLED_KEYS: ReadonlySet<string> = new Set([
   "layoutVaultFolder", "appVersion", "snapshots", "snapshotKeep", "lastSnapshot",
   "inlineEntries", "propTypes", "dateProps", "typeProp", "typeIcons", "defaultTypeIcon",
   "clickAction", "dblClickAction", "holdAction", "rightClickAction", "rightHoldAction", "holdMs",
+  "tabOpens",
   "activation",
 ]);
 
@@ -225,6 +226,7 @@ export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EP
       if (typeof data[k] === "string") s[k] = data[k];
     }
     if (typeof data.holdMs === "number" && data.holdMs >= 100) s.holdMs = Math.min(5000, Math.floor(data.holdMs));
+    if (data.tabOpens === false) s.tabOpens = false; // on unless turned off
     // Activation: only "single" is stored; anything else means the default.
     if (data.activation && typeof data.activation === "object") {
       const act: Record<string, string> = {};

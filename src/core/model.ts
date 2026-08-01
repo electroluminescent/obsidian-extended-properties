@@ -433,6 +433,8 @@ export interface EPSettings {
   rightHoldAction?: string;
   /** Hold duration in ms before the mapped action fires (default 500). */
   holdMs?: number;
+  /** Tab opens the field it lands on (default true; false = focus only). */
+  tabOpens?: boolean;
   /**
    * How each surface opens a value outside edit mode, keyed by surface id
    * ("values", "checkboxes", ...): "single" or absent for the double-click

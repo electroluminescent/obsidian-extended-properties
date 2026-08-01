@@ -4,8 +4,8 @@
  * is set to - and run out at both ends, so focus can leave the sidebar.
  */
 
-import { beforeAll, describe, expect, it, vi } from "vitest";
-import { enterField, registerOpener, stepField } from "../src/ui/components/tab-chain";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { configureTabChain, enterField, registerOpener, stepField } from "../src/ui/components/tab-chain";
 
 /** The three members the chain uses; the test env has no DOM. */
 class FakeEl {
@@ -96,4 +96,16 @@ describe("enterField", () => {
     enterField(as(el));
     expect(el.focused).toBe(true);
   });
+
+  it("only moves the focus when opening is turned off", () => {
+    const el = new FakeEl("ep-editable");
+    const open = vi.fn();
+    registerOpener(as(el), open);
+    configureTabChain(() => false);
+    enterField(as(el));
+    expect(el.focused).toBe(true);
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  afterEach(() => configureTabChain(() => true));
 });

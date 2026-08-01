@@ -40,6 +40,7 @@ import { RollService } from "./features/rolling/roll-service";
 import { runMacro } from "./features/rolling/macros";
 import { inlineModule, registerInline } from "./features/inline/index";
 import { configureSound } from "./utils/sound";
+import { configureTabChain } from "./ui/components/tab-chain";
 import { NoteFacade } from "./core/note-model";
 
 /**
@@ -129,6 +130,8 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       dice: this.settings.soundDice !== false,
       crit: this.settings.soundCrit !== false,
     });
+    // Read through, not copied: the setting can change without a reload.
+    configureTabChain(() => this.settings.tabOpens !== false);
     this.i18n.setLocale(this.settings.language);
     this.i18n.setOverrides(this.settings.stringOverrides);
     // The roll summary's expandable settings panel edits live settings.

@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.27.1
+
+- Opening on arrival is now a setting - *Tab opens the field*, with the other
+  interaction settings, on by default. Off, Tab only moves the focus and Enter
+  or Space opens what it lands on.
+
 ## 4.27.0
 
 - **Tab fills in a note.** Tab moves to the next value and opens it, so you can

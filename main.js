@@ -768,6 +768,8 @@ var en_default = {
   "settings.rightHoldActionMobileDesc": "What a long press on a property does. This is the desktop 'right click and hold' option - on mobile it covers every long press.",
   "settings.rightHoldAction": "Right click and hold on a property",
   "settings.rightHoldActionDesc": "What holding the right button on a property does. Defaults to the same property settings a left hold opens.",
+  "settings.tabOpens": "Tab opens the field",
+  "settings.tabOpensDesc": "Tab (and Shift+Tab) move to the next value, checkbox or list on the note and open it, so you can type straight away. Off = Tab only moves the focus, and Enter or Space opens what it lands on.",
   "settings.holdMs": "Hold duration (ms)",
   "settings.holdMsDesc": "How long a press must be held before its action fires.",
   "settings.activationHeading": "Editing outside edit mode",
@@ -1904,6 +1906,7 @@ var HANDLED_KEYS = /* @__PURE__ */ new Set([
   "rightClickAction",
   "rightHoldAction",
   "holdMs",
+  "tabOpens",
   "activation"
 ]);
 function cleanTypes(raw) {
@@ -2006,6 +2009,7 @@ function normalizeSettings(raw, defaultLayout) {
       if (typeof data[k] === "string") s[k] = data[k];
     }
     if (typeof data.holdMs === "number" && data.holdMs >= 100) s.holdMs = Math.min(5e3, Math.floor(data.holdMs));
+    if (data.tabOpens === false) s.tabOpens = false;
     if (data.activation && typeof data.activation === "object") {
       const act = {};
       for (const [k, v] of Object.entries(data.activation))
@@ -3149,10 +3153,14 @@ var openers = /* @__PURE__ */ new WeakMap();
 function registerOpener(el, open) {
   openers.set(el, open);
 }
+var opensOnArrive = () => true;
+function configureTabChain(opens) {
+  opensOnArrive = opens;
+}
 function enterField(el) {
   var _a;
   el.focus();
-  (_a = openers.get(el)) == null ? void 0 : _a();
+  if (opensOnArrive()) (_a = openers.get(el)) == null ? void 0 : _a();
 }
 function stepField(scope, from, backwards) {
   const all = fieldsIn(scope);
@@ -14500,6 +14508,12 @@ var EPSettingTab = class extends import_obsidian35.PluginSettingTab {
       (v) => plugin.settings.rightHoldAction = v === "settings" ? void 0 : v,
       "settings"
     );
+    new import_obsidian35.Setting(c).setName(t("settings.tabOpens")).setDesc(t("settings.tabOpensDesc")).addToggle((tg) => {
+      tg.setValue(plugin.settings.tabOpens !== false).onChange((v) => {
+        plugin.settings.tabOpens = v ? void 0 : false;
+        save();
+      });
+    });
     new import_obsidian35.Setting(c).setName(t("settings.holdMs")).setDesc(t("settings.holdMsDesc")).addSlider((sl) => {
       var _a;
       sl.setLimits(200, 2e3, 50).setValue((_a = plugin.settings.holdMs) != null ? _a : 500).setDynamicTooltip().onChange((v) => {
@@ -18130,6 +18144,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian47.Plugin {
       dice: this.settings.soundDice !== false,
       crit: this.settings.soundCrit !== false
     });
+    configureTabChain(() => this.settings.tabOpens !== false);
     this.i18n.setLocale(this.settings.language);
     this.i18n.setOverrides(this.settings.stringOverrides);
     configureRollUi(this.settings, () => void this.saveSettings());

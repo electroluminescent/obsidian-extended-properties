@@ -1092,6 +1092,15 @@ export class EPSettingTab extends PluginSettingTab {
       "settings"
     );
     new Setting(c)
+      .setName(t("settings.tabOpens"))
+      .setDesc(t("settings.tabOpensDesc"))
+      .addToggle((tg) => {
+        tg.setValue(plugin.settings.tabOpens !== false).onChange((v) => {
+          plugin.settings.tabOpens = v ? undefined : false;
+          save();
+        });
+      });
+    new Setting(c)
       .setName(t("settings.holdMs"))
       .setDesc(t("settings.holdMsDesc"))
       .addSlider((sl) => {
