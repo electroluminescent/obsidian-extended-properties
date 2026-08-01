@@ -1,5 +1,22 @@
 # Changelog
 
+## 4.30.3
+
+- **Escape returns to the row, not the note.** Obsidian answers an element
+  holding focus being removed by putting focus back in the active editor, and
+  that landed before the check for whether focus was going spare - so the note
+  looked like somewhere the user had chosen to be, and was left alone. Whether
+  focus is ours to give back is now decided the moment the overlay lets it go,
+  and the row takes it back over the frames that follow, unless focus has since
+  gone somewhere in the sidebar deliberately.
+- **The popup holds on to the keyboard.** Same cause: the editor took focus
+  straight back off it. The popup takes it back in turn for its first moment on
+  screen - never from a layer it opened itself, and not for long enough to
+  fight a real attempt to leave.
+- The focused toolbar button is now ringed in the accent colour, which reads
+  against the button's own background; the border colour it used before did
+  not.
+
 ## 4.30.2
 
 - **The popup shows where the keyboard landed.** It had been taking focus on

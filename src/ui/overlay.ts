@@ -22,10 +22,22 @@ interface Overlay {
 
 let current: Overlay | null = null;
 
-/** Whether focus is nowhere in particular, i.e. ours to give back. */
+/**
+ * How long to keep the restored focus. Obsidian answers an element holding
+ * focus being removed by putting focus back in the active editor, which lands
+ * after ours does; taking it back once more settles it.
+ */
+const RECLAIM_MS = 80;
+
+/**
+ * Whether focus is ours to give back: nowhere in particular, on an element
+ * that has just been removed, or still inside the overlay that is closing.
+ */
 function adrift(doc: Document): boolean {
   const el = doc.activeElement;
-  return !el || el === doc.body || el === doc.documentElement;
+  if (!el || el === doc.body || el === doc.documentElement) return true;
+  if (!el.isConnected) return true;
+  return !!el.closest(".menu, .ep-popup");
 }
 
 /**
@@ -68,10 +80,19 @@ export function overlayClosed(close: () => void): void {
   if (current?.close !== close) return;
   const overlay = current;
   current = null;
-  if (!overlay.opener) return;
-  // After the overlay's own teardown, which may move focus itself.
-  window.setTimeout(() => {
+  const opener = overlay.opener;
+  if (!opener) return;
+  // Decided now, while the overlay has only just let focus go. Waiting until
+  // the timeout to decide loses the view: by then the editor has been handed
+  // focus, which reads as somewhere the user chose to be.
+  if (!adrift(opener.ownerDocument)) return;
+  const give = (): void => {
     const el = target(overlay);
-    if (el && adrift(el.ownerDocument)) el.focus();
-  }, 0);
+    // Unless the user has since put focus somewhere in the view themselves.
+    if (!el || el.ownerDocument.activeElement?.closest(".ep-content")) return;
+    el.focus();
+  };
+  // After the overlay's own teardown, which may move focus itself, and then
+  // twice more: Obsidian's own restore lands at no fixed moment.
+  for (const ms of [0, RECLAIM_MS, RECLAIM_MS * 3]) window.setTimeout(give, ms);
 }

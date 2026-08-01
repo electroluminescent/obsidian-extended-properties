@@ -41,6 +41,8 @@ const RING_DELAY_MS = 140;
 const DBL_WINDOW_MS = 250;
 /** By when an opening popup has settled and can be sure of the keyboard. */
 const GRAB_SETTLE_MS = 60;
+/** How long the popup insists on the keyboard after it opens. */
+const FOCUS_GUARD_MS = 1200;
 
 interface InteractionSettings {
   clickAction?: string;
@@ -369,17 +371,28 @@ export function openEntrySettingsPopup(
   // and safe to focus - the first field would spring its autocomplete open.
   // The popup itself only stands in if the toolbar is empty.
   const first = (): HTMLElement => bar.querySelector<HTMLElement>(".ep-entrysettings-tool") ?? pop;
-  // Re-asserted across the next few frames: the tail of the press that opened
-  // it, and controls that focus themselves as they settle, can take it back.
   const grab = (): void => {
-    if (!openPopup) return;
+    if (openPopup !== pop) return;
     const act = doc.activeElement;
-    if (act?.instanceOf(HTMLElement) && pop.contains(act)) return;
+    if (act && pop.contains(act)) return;
     first().focus();
   };
   grab();
   window.requestAnimationFrame(grab);
   window.setTimeout(grab, GRAB_SETTLE_MS);
+  // Obsidian keeps focus in the active editor: anything outside a leaf taking
+  // it tends to have it taken straight back. So the popup takes it back in
+  // turn - but only from the editor, never from a layer it opened itself
+  // (a suggestion list, a menu, a modal), and not for ever, or a genuine
+  // attempt to leave would be a fight.
+  const guardUntil = performance.now() + FOCUS_GUARD_MS;
+  pop.addEventListener("focusout", (ev: FocusEvent) => {
+    if (performance.now() > guardUntil) return;
+    const to = ev.relatedTarget;
+    if (to instanceof Node && to.instanceOf(HTMLElement) &&
+      (pop.contains(to) || to.closest(OUTSIDE_LAYERS))) return;
+    window.setTimeout(grab, 0);
+  });
   const onDown = (ev: PointerEvent): void => {
     if (!outsidePopup(pop, ev.target, doc)) return;
     closeSettingsPopup();

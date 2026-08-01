@@ -1103,7 +1103,7 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
   background: var(--background-modifier-hover);
   color: var(--text-normal);
   outline: none;
-  box-shadow: 0 0 0 2px var(--background-modifier-border-focus, var(--interactive-accent));
+  box-shadow: 0 0 0 2px var(--interactive-accent);
 }
 .ep-entrysettings-tool svg { width: 15px; height: 15px; }
 .ep-entrysettings .ep-entrysettings-body { max-height: min(80vh, 640px); overflow-y: auto; overflow-x: hidden; padding: 4px 8px; }

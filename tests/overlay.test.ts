@@ -21,9 +21,12 @@ class FakeEl {
   isConnected = true;
   ownerDocument: FakeDoc;
   id: string | null;
-  constructor(doc: FakeDoc, id: string | null = null) {
+  /** What this element sits inside: ".ep-content" for a row in the view. */
+  within: string[];
+  constructor(doc: FakeDoc, id: string | null = null, within: string[] = []) {
     this.ownerDocument = doc;
     this.id = id;
+    this.within = id === null ? within : [...within, ".ep-entry", ".ep-content"];
   }
   focus(): void {
     this.focused = true;
@@ -31,9 +34,8 @@ class FakeEl {
   instanceOf(): boolean {
     return true;
   }
-  /** Every fake element stands for a row, so it is its own nearest one. */
-  closest(): FakeEl | null {
-    return this.id === null ? null : this;
+  closest(sel: string): FakeEl | null {
+    return this.within.some((w) => sel.includes(w)) ? this : null;
   }
   getAttribute(): string | null {
     return this.id;
@@ -42,7 +44,7 @@ class FakeEl {
 
 /** A document whose focus we can move around. */
 function docWith(): FakeDoc {
-  const body = { instanceOf: () => false };
+  const body = { instanceOf: () => false, closest: () => null, isConnected: true };
   const doc: FakeDoc = {
     activeElement: body,
     body,
@@ -110,6 +112,30 @@ describe("focus", () => {
     openOverlay(close);
     doc.activeElement = new FakeEl(doc); // clicked something else
     overlayClosed(close);
+    vi.runAllTimers();
+    expect(opener.focused).toBe(false);
+  });
+
+  it("takes focus back from the editor Obsidian hands it to", () => {
+    const opener = new FakeEl(doc, "e:1");
+    doc.activeElement = opener;
+    const close = vi.fn();
+    openOverlay(close);
+    doc.activeElement = doc.body; // the popup let focus go on the way out
+    overlayClosed(close);
+    doc.activeElement = new FakeEl(doc); // ... and Obsidian put it in the editor
+    vi.runAllTimers();
+    expect(opener.focused).toBe(true);
+  });
+
+  it("leaves focus where the user put it in the view themselves", () => {
+    const opener = new FakeEl(doc, "e:1");
+    doc.activeElement = opener;
+    const close = vi.fn();
+    openOverlay(close);
+    doc.activeElement = doc.body;
+    overlayClosed(close);
+    doc.activeElement = new FakeEl(doc, null, [".ep-content"]); // tabbed onward
     vi.runAllTimers();
     expect(opener.focused).toBe(false);
   });

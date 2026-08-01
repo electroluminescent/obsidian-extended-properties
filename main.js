@@ -6870,9 +6870,12 @@ function parseDateFlexible(text, cfg) {
 
 // src/ui/overlay.ts
 var current = null;
+var RECLAIM_MS = 80;
 function adrift(doc) {
   const el = doc.activeElement;
-  return !el || el === doc.body || el === doc.documentElement;
+  if (!el || el === doc.body || el === doc.documentElement) return true;
+  if (!el.isConnected) return true;
+  return !!el.closest(".menu, .ep-popup");
 }
 function target(o) {
   const opener = o.opener;
@@ -6895,11 +6898,16 @@ function overlayClosed(close) {
   if ((current == null ? void 0 : current.close) !== close) return;
   const overlay = current;
   current = null;
-  if (!overlay.opener) return;
-  window.setTimeout(() => {
+  const opener = overlay.opener;
+  if (!opener) return;
+  if (!adrift(opener.ownerDocument)) return;
+  const give = () => {
+    var _a;
     const el = target(overlay);
-    if (el && adrift(el.ownerDocument)) el.focus();
-  }, 0);
+    if (!el || ((_a = el.ownerDocument.activeElement) == null ? void 0 : _a.closest(".ep-content"))) return;
+    el.focus();
+  };
+  for (const ms of [0, RECLAIM_MS, RECLAIM_MS * 3]) window.setTimeout(give, ms);
 }
 
 // src/ui/menus/show.ts
@@ -8629,6 +8637,7 @@ var MOVE_TOLERANCE = 8;
 var RING_DELAY_MS = 140;
 var DBL_WINDOW_MS = 250;
 var GRAB_SETTLE_MS = 60;
+var FOCUS_GUARD_MS = 1200;
 var DEFAULTS = {
   click: "none",
   // clicks belong to the value editors
@@ -8848,14 +8857,21 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
     return (_a = bar.querySelector(".ep-entrysettings-tool")) != null ? _a : pop;
   };
   const grab = () => {
-    if (!openPopup) return;
+    if (openPopup !== pop) return;
     const act = doc.activeElement;
-    if ((act == null ? void 0 : act.instanceOf(HTMLElement)) && pop.contains(act)) return;
+    if (act && pop.contains(act)) return;
     first().focus();
   };
   grab();
   window.requestAnimationFrame(grab);
   window.setTimeout(grab, GRAB_SETTLE_MS);
+  const guardUntil = performance.now() + FOCUS_GUARD_MS;
+  pop.addEventListener("focusout", (ev) => {
+    if (performance.now() > guardUntil) return;
+    const to = ev.relatedTarget;
+    if (to instanceof Node && to.instanceOf(HTMLElement) && (pop.contains(to) || to.closest(OUTSIDE_LAYERS))) return;
+    window.setTimeout(grab, 0);
+  });
   const onDown = (ev) => {
     if (!outsidePopup(pop, ev.target, doc)) return;
     closeSettingsPopup();
