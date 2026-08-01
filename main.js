@@ -8836,6 +8836,7 @@ function renderEntry(grid, view, file, section, entry, flags, drag) {
     menuBtn.onkeydown = (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
+        e.stopPropagation();
         const r = menuBtn.getBoundingClientRect();
         openEntryMenu(new MouseEvent("contextmenu", { clientX: r.left, clientY: r.bottom }), view, file, section, entry);
       }
@@ -10929,6 +10930,25 @@ function activationHint(i18n, mode, toggle = false) {
   return i18n.t(mode === "single" ? "hint.clickEdit" : "hint.dblEdit");
 }
 
+// src/ui/components/entry-keys.ts
+function entryKeyAction(key, onRowItself) {
+  switch (key) {
+    case "ArrowDown":
+      return "next";
+    case "ArrowUp":
+      return "prev";
+    case "Home":
+      return "first";
+    case "End":
+      return "last";
+    case "Enter":
+    case " ":
+      return onRowItself ? "menu" : null;
+    default:
+      return null;
+  }
+}
+
 // src/ui/view.ts
 var VIEW_TYPE = "extended-properties-character";
 function markRowEnds(grid, cells, cols) {
@@ -11058,26 +11078,23 @@ var SidebarView = class extends import_obsidian31.ItemView {
       n.tabIndex = 0;
       n.focus();
     };
-    switch (e.key) {
-      case "ArrowDown":
-        e.preventDefault();
+    const action = entryKeyAction(e.key, target === entry);
+    if (!action) return;
+    e.preventDefault();
+    switch (action) {
+      case "next":
         focusAt(i + 1);
         break;
-      case "ArrowUp":
-        e.preventDefault();
+      case "prev":
         focusAt(i - 1);
         break;
-      case "Home":
-        e.preventDefault();
+      case "first":
         focusAt(0);
         break;
-      case "End":
-        e.preventDefault();
+      case "last":
         focusAt(entries.length - 1);
         break;
-      case "Enter":
-      case " ":
-        e.preventDefault();
+      case "menu":
         this.openEntryMenuForElement(entry);
         break;
     }
@@ -16861,6 +16878,7 @@ function makeValsEl(ctx2, file, body, onEditSource) {
       mb.onkeydown = (e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
+          e.stopPropagation();
           const r = mb.getBoundingClientRect();
           openCardMenu(r.left, r.bottom);
         }

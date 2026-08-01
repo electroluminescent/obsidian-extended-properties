@@ -40,6 +40,7 @@ import { SectionOptionsModal } from "./modals/section-options";
 import { openEntryMenu } from "./menus/entry-menu";
 import { openTypeMenu } from "./menus/type-menu";
 import { activationHint, bindActivation } from "./components/activate";
+import { entryKeyAction } from "./components/entry-keys";
 
 export const VIEW_TYPE = "extended-properties-character";
 
@@ -167,16 +168,15 @@ export class SidebarView extends ItemView implements ViewCtx {
       n.tabIndex = 0;
       n.focus();
     };
-    switch (e.key) {
-      case "ArrowDown": e.preventDefault(); focusAt(i + 1); break;
-      case "ArrowUp": e.preventDefault(); focusAt(i - 1); break;
-      case "Home": e.preventDefault(); focusAt(0); break;
-      case "End": e.preventDefault(); focusAt(entries.length - 1); break;
-      case "Enter":
-      case " ":
-        e.preventDefault();
-        this.openEntryMenuForElement(entry);
-        break;
+    const action = entryKeyAction(e.key, target === entry);
+    if (!action) return;
+    e.preventDefault();
+    switch (action) {
+      case "next": focusAt(i + 1); break;
+      case "prev": focusAt(i - 1); break;
+      case "first": focusAt(0); break;
+      case "last": focusAt(entries.length - 1); break;
+      case "menu": this.openEntryMenuForElement(entry); break;
     }
   }
 

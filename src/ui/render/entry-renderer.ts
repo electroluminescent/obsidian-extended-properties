@@ -119,6 +119,8 @@ export function renderEntry(
     menuBtn.onkeydown = (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
+        // The row listens for the same keys; this press belongs to the button.
+        e.stopPropagation();
         const r = menuBtn.getBoundingClientRect();
         openEntryMenu(new MouseEvent("contextmenu", { clientX: r.left, clientY: r.bottom }), view, file, section, entry);
       }

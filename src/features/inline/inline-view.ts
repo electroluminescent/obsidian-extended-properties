@@ -394,6 +394,7 @@ export function makeValsEl(ctx: InlineCtx, file: TFile, body: string, onEditSour
       mb.onkeydown = (e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
+          e.stopPropagation();
           const r = mb.getBoundingClientRect();
           openCardMenu(r.left, r.bottom);
         }

@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.21.1
+
+- **Space on the menu button opened two menus.** The row is a focusable group
+  whose own Enter/Space opens its menu, and that listener is delegated - so a
+  key pressed on a control inside the row reached it as well, and both acted.
+  The row's activation now applies only when the row itself has focus; a
+  control keeps its own. Arrows still navigate from anywhere inside, so focus
+  is never trapped. This also affected pressing Space on a value, which opened
+  its editor and the context menu at once.
+
 ## 4.21.0
 
 - **A per-property menu button.** *Appearance -> Menu button* puts a vertical
