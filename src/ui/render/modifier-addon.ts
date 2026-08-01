@@ -18,6 +18,7 @@ import type { EntryRef, EntryRenderCtx, OptionsCtx } from "../../core/context";
 import type { ClusterAddon, ClusterNeeds, ClusterSlot } from "../../core/registry";
 import type { Entry } from "../../core/model";
 import { ext } from "../../core/model";
+import { activationFor } from "../../core/activation";
 import {
   abbrFor, applyDerivation, assignShortForm, defaultAbbr, denotationText, ensureShortForm, hasNoteOverride,
   Influence, influenceActive, influenceDisabled, influenceTerm, ModExt, modifierInfo, modifierTotal,
@@ -185,8 +186,10 @@ export const modifierAddon: ClusterAddon = {
           const sync = () => (cb.checked = influenceActive(view, ctx.entry, inf));
           sync();
           const flip = () => setInfluenceActive(view, ctx.file, ctx.entry, inf, !influenceActive(view, ctx.entry, inf));
-          if (view.editMode) {
-            cb.setAttr("title", inf.toggle ?? "");
+          const single = activationFor(view.settings, "modifiers") === "single";
+          if (view.editMode || single) {
+            const hint = view.editMode ? "" : ` - ${view.i18n.t("hint.clickToggle")}`;
+            cb.setAttr("title", (inf.toggle ?? "") + hint);
             cb.onchange = flip;
           } else {
             cb.setAttr("title", `${inf.toggle ?? ""} - ${view.i18n.t("hint.dblToggle")}`);

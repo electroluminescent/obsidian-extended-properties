@@ -9,6 +9,7 @@
 import { Setting } from "obsidian";
 import type { EntryRenderCtx } from "../../../core/context";
 import type { ValueTypeDef } from "../../../core/registry";
+import { activationFor } from "../../../core/activation";
 import { hexToRgb } from "../../../utils/color";
 import { sfx } from "../../../utils/sound";
 import { applyValidity } from "../validity";
@@ -36,18 +37,27 @@ export const checkboxType: ValueTypeDef = {
     cb.addClass("ep-prof");
     cb.checked = isChecked(ctx, key);
     cb.setAttr("aria-label", view.defaultLabelFor(entry)); // native checkbox needs a name
+    const flip = (): void => {
+      sfx.toggle();
+      view.note.set(file, key, !isChecked(ctx, key));
+    };
     if (view.editMode) {
+      cb.onchange = () => { sfx.toggle(); view.note.set(file, key, cb.checked); };
+    } else if (activationFor(view.settings, "checkboxes") === "single") {
+      // The box's own click already toggles it; let it, and write that through.
+      cb.setAttr("title", view.i18n.t("hint.clickToggle"));
       cb.onchange = () => { sfx.toggle(); view.note.set(file, key, cb.checked); };
     } else {
       cb.setAttr("title", view.i18n.t("hint.dblToggle"));
       cb.onclick = (e) => e.preventDefault();
-      cb.ondblclick = () => { sfx.toggle(); view.note.set(file, key, !isChecked(ctx, key)); };
-      // Keyboard parity in locked mode (click is prevented to stop stray toggles).
+      cb.ondblclick = flip;
+    }
+    if (!view.editMode) {
+      // Keyboard parity: Enter/Space toggles whichever gesture is bound.
       cb.onkeydown = (e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          sfx.toggle();
-          view.note.set(file, key, !isChecked(ctx, key));
+          flip();
         }
       };
     }

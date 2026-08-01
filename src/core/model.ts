@@ -424,6 +424,12 @@ export interface EPSettings {
   rightHoldAction?: string;
   /** Hold duration in ms before the mapped action fires (default 500). */
   holdMs?: number;
+  /**
+   * How each surface opens a value outside edit mode, keyed by surface id
+   * ("values", "checkboxes", ...): "single" or absent for the double-click
+   * default. See `core/activation`.
+   */
+  activation?: Record<string, string>;
   /** Per-type icons (Obsidian icon ids), keyed by lower-cased type name. */
   typeIcons?: Record<string, string>;
   /** Icon used by types that define none (default "tag"). */

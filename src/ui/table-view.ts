@@ -26,6 +26,7 @@ import { typedText } from "./components/type-label";
 import { getCI, parseNumeric } from "../utils/misc";
 import { parseDiceOrDefault } from "../utils/dice";
 import { TextLinkSuggest } from "./components/suggest";
+import { bindActivation } from "./components/activate";
 
 export const VIEW_TYPE_TABLE = "extended-properties-table";
 
@@ -464,7 +465,7 @@ export class TableView extends ItemView {
         }
       };
     };
-    td.ondblclick = start;
+    bindActivation(td, this.plugin.settings, "table", start);
   }
 
   /**

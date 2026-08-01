@@ -21,6 +21,7 @@ import { IconPickerModal } from "./modals/icon-picker";
 import { setTypedText, tintTypeNames, typedText, typeName } from "./components/type-label";
 import { RenameTypeModal } from "./modals/rename-type";
 import { mobileGestures } from "./components/hold-config";
+import { ACTIVATION_SURFACES, activationFor, setActivation } from "../core/activation";
 import { ImportModal } from "./modals/transfer-modal";
 import { packType } from "../core/transfer";
 import { segsToText, textToSegs } from "../features/rolling/macros";
@@ -34,7 +35,8 @@ const SEARCH_SECTIONS = [
   "settings.typesHeading", "settings.defaultsHeading", "settings.newSectionHeading",
   "settings.derivationsHeading", "settings.abbrHeading", "settings.diceHeading",
   "settings.rollsHeading", "settings.macrosHeading", "settings.typographyHeading",
-  "settings.languageHeading", "settings.obsidianHeading", "settings.hiddenHeading",
+  "settings.languageHeading", "settings.activationHeading", "settings.obsidianHeading",
+  "settings.hiddenHeading",
   "settings.featuresHeading", "settings.featuresTypes", "settings.featuresUi",
   "settings.resetHeading",
 ];
@@ -822,6 +824,24 @@ export class EPSettingTab extends PluginSettingTab {
           save();
         });
       });
+    // -- activation outside edit mode -----------------------------------------
+    new Setting(c).setName(t("settings.activationHeading")).setHeading();
+    c.createEl("p", { cls: "setting-item-description", text: t("settings.activationDesc") });
+    for (const surface of ACTIVATION_SURFACES) {
+      new Setting(c)
+        .setName(t("settings.activation." + surface))
+        .setDesc(t("settings.activation." + surface + "Desc"))
+        .addDropdown((d) => {
+          d.addOption("double", t("settings.activationDouble"));
+          d.addOption("single", t("settings.activationSingle"));
+          d.setValue(activationFor(plugin.settings, surface));
+          d.onChange((v) => {
+            setActivation(plugin.settings, surface, v === "single" ? "single" : "double");
+            save();
+          });
+        });
+    }
+
     const interactionDrop = (name: string, desc: string, get: () => string, set: (v: string) => void, def: string): void => {
       new Setting(c).setName(name).setDesc(desc).addDropdown((d) => {
         d.addOption("menu", t("settings.interactMenu"));

@@ -39,6 +39,7 @@ import { ColorPickerModal } from "./modals/color-picker";
 import { SectionOptionsModal } from "./modals/section-options";
 import { openEntryMenu } from "./menus/entry-menu";
 import { openTypeMenu } from "./menus/type-menu";
+import { activationHint, bindActivation } from "./components/activate";
 
 export const VIEW_TYPE = "extended-properties-character";
 
@@ -354,8 +355,9 @@ export class SidebarView extends ItemView implements ViewCtx {
         open();
       };
     } else {
-      el.setAttr("title", this.i18n.t("hint.dblEdit"));
-      el.ondblclick = () => open();
+      // Outside edit mode the gesture is the user's choice (see core/activation).
+      const mode = bindActivation(el, this.settings, "values", () => open());
+      el.setAttr("title", activationHint(this.i18n, mode));
     }
   }
 

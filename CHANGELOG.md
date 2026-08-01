@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.20.0
+
+- **Single click can open a value outside edit mode.** A new *Editing outside
+  edit mode* section sets the gesture per surface - property values, checkboxes,
+  proficiency checkboxes, values in notes, table cells - so the sidebar can be a
+  data-entry surface rather than a display that guards its values. Every surface
+  defaults to double click, exactly as before; nothing changes until you say so.
+  Edit mode still opens on a single click, since that mode is for arranging.
+- Checkboxes set to single click toggle on their own click, so they take one
+  hit rather than two quick ones. Enter and Space keep working either way.
+- A click on a link inside a value follows the link instead of opening the
+  editor, and the second click of a fast double click no longer reopens what
+  the first click just opened.
+
 ## 4.19.1
 
 - **The type chip carries the type's own menu.** Right-click it for everything

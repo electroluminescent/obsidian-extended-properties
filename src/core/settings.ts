@@ -85,7 +85,7 @@ const HANDLED_KEYS: ReadonlySet<string> = new Set([
   "schemaVersion", "soundUi", "soundDice", "soundCrit", "layoutVault",
   "layoutVaultFolder", "appVersion", "snapshots", "snapshotKeep", "lastSnapshot",
   "inlineEntries", "propTypes", "dateProps", "typeProp", "typeIcons", "defaultTypeIcon",
-  "clickAction", "holdAction", "rightClickAction", "rightHoldAction", "holdMs",
+  "clickAction", "holdAction", "rightClickAction", "rightHoldAction", "holdMs", "activation",
 ]);
 
 /** Coerce a persisted `types` value to a clean list of non-empty strings. */
@@ -224,6 +224,13 @@ export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EP
       if (typeof data[k] === "string") s[k] = data[k];
     }
     if (typeof data.holdMs === "number" && data.holdMs >= 100) s.holdMs = Math.min(5000, Math.floor(data.holdMs));
+    // Activation: only "single" is stored; anything else means the default.
+    if (data.activation && typeof data.activation === "object") {
+      const act: Record<string, string> = {};
+      for (const [k, v] of Object.entries(data.activation as Record<string, unknown>))
+        if (v === "single") act[k] = "single";
+      if (Object.keys(act).length) s.activation = act;
+    }
     if (data.dnd5ePoolsSeeded === true) s.dnd5ePoolsSeeded = true;
     if (data.poolExtras && typeof data.poolExtras === "object") {
       const cleanPool: Record<string, string[]> = {};

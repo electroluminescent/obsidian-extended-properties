@@ -141,6 +141,7 @@ var en_default = {
   "hint.clickEdit": "Click to edit",
   "hint.dblEdit": "Double-click to edit",
   "hint.dblToggle": "Double-click to toggle",
+  "hint.clickToggle": "Click to toggle",
   "a11y.editValue": "Edit value",
   "a11y.rating": "{name} rating",
   "a11y.ratingValue": "{value} of {max}",
@@ -754,6 +755,20 @@ var en_default = {
   "settings.rightHoldActionDesc": "What holding the right button on a property does. Defaults to the same property settings a left hold opens.",
   "settings.holdMs": "Hold duration (ms)",
   "settings.holdMsDesc": "How long a press must be held before its action fires.",
+  "settings.activationHeading": "Editing outside edit mode",
+  "settings.activationDesc": "Which gesture opens a value when you are entering data rather than arranging the layout. Double click is the long-standing behaviour and guards against a stray click; single click makes these surfaces quicker to fill in. Edit mode always opens on a single click.",
+  "settings.activationSingle": "Single click",
+  "settings.activationDouble": "Double click",
+  "settings.activation.values": "Property values",
+  "settings.activation.valuesDesc": "Text, numbers, dates, colors and every other editable value in the sidebar.",
+  "settings.activation.checkboxes": "Checkboxes",
+  "settings.activation.checkboxesDesc": "Checkbox properties in the sidebar.",
+  "settings.activation.modifiers": "Proficiency checkboxes",
+  "settings.activation.modifiersDesc": "The togglable influences beside a derived value (proficiency and friends).",
+  "settings.activation.inline": "Values in notes",
+  "settings.activation.inlineDesc": "Inline properties and sheet blocks rendered in the note body.",
+  "settings.activation.table": "Table cells",
+  "settings.activation.tableDesc": "Cells in the table view.",
   "settings.hiddenHeading": "Always-hidden properties",
   "settings.hiddenDesc": "Hidden from Obsidian's properties panel everywhere, whether or not they're in the sidebar.",
   "settings.unhide": "Unhide",
@@ -1872,7 +1887,8 @@ var HANDLED_KEYS = /* @__PURE__ */ new Set([
   "holdAction",
   "rightClickAction",
   "rightHoldAction",
-  "holdMs"
+  "holdMs",
+  "activation"
 ]);
 function cleanTypes(raw) {
   return Array.isArray(raw) ? raw.filter((t) => typeof t === "string" && t.trim() !== "") : [];
@@ -1974,6 +1990,12 @@ function normalizeSettings(raw, defaultLayout) {
       if (typeof data[k] === "string") s[k] = data[k];
     }
     if (typeof data.holdMs === "number" && data.holdMs >= 100) s.holdMs = Math.min(5e3, Math.floor(data.holdMs));
+    if (data.activation && typeof data.activation === "object") {
+      const act = {};
+      for (const [k, v] of Object.entries(data.activation))
+        if (v === "single") act[k] = "single";
+      if (Object.keys(act).length) s.activation = act;
+    }
     if (data.dnd5ePoolsSeeded === true) s.dnd5ePoolsSeeded = true;
     if (data.poolExtras && typeof data.poolExtras === "object") {
       const cleanPool = {};
@@ -4938,6 +4960,24 @@ var formulaType = makeNumericType("formula", "type.formula");
 // src/ui/render/modifier-addon.ts
 var import_obsidian13 = require("obsidian");
 
+// src/core/activation.ts
+var ACTIVATION_SURFACES = [
+  "values",
+  "checkboxes",
+  "modifiers",
+  "inline",
+  "table"
+];
+function activationFor(settings, surface) {
+  var _a;
+  return ((_a = settings.activation) == null ? void 0 : _a[surface]) === "single" ? "single" : "double";
+}
+function setActivation(settings, surface, mode) {
+  var _a;
+  if (mode === "single") ((_a = settings.activation) != null ? _a : settings.activation = {})[surface] = "single";
+  else if (settings.activation) delete settings.activation[surface];
+}
+
 // src/utils/dice.ts
 var DICE_PRESETS = [2, 4, 6, 8, 10, 12, 20, 100];
 var DEFAULT_DICE = { count: 1, sides: 20 };
@@ -5109,8 +5149,10 @@ var modifierAddon = {
           const sync = () => cb.checked = influenceActive(view, ctx2.entry, inf);
           sync();
           const flip = () => setInfluenceActive(view, ctx2.file, ctx2.entry, inf, !influenceActive(view, ctx2.entry, inf));
-          if (view.editMode) {
-            cb.setAttr("title", (_a = inf.toggle) != null ? _a : "");
+          const single = activationFor(view.settings, "modifiers") === "single";
+          if (view.editMode || single) {
+            const hint = view.editMode ? "" : ` - ${view.i18n.t("hint.clickToggle")}`;
+            cb.setAttr("title", ((_a = inf.toggle) != null ? _a : "") + hint);
             cb.onchange = flip;
           } else {
             cb.setAttr("title", `${(_b = inf.toggle) != null ? _b : ""} - ${view.i18n.t("hint.dblToggle")}`);
@@ -5481,7 +5523,17 @@ var checkboxType = {
     cb.addClass("ep-prof");
     cb.checked = isChecked(ctx2, key);
     cb.setAttr("aria-label", view.defaultLabelFor(entry));
+    const flip = () => {
+      sfx.toggle();
+      view.note.set(file, key, !isChecked(ctx2, key));
+    };
     if (view.editMode) {
+      cb.onchange = () => {
+        sfx.toggle();
+        view.note.set(file, key, cb.checked);
+      };
+    } else if (activationFor(view.settings, "checkboxes") === "single") {
+      cb.setAttr("title", view.i18n.t("hint.clickToggle"));
       cb.onchange = () => {
         sfx.toggle();
         view.note.set(file, key, cb.checked);
@@ -5489,15 +5541,13 @@ var checkboxType = {
     } else {
       cb.setAttr("title", view.i18n.t("hint.dblToggle"));
       cb.onclick = (e) => e.preventDefault();
-      cb.ondblclick = () => {
-        sfx.toggle();
-        view.note.set(file, key, !isChecked(ctx2, key));
-      };
+      cb.ondblclick = flip;
+    }
+    if (!view.editMode) {
       cb.onkeydown = (e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          sfx.toggle();
-          view.note.set(file, key, !isChecked(ctx2, key));
+          flip();
         }
       };
     }
@@ -10849,6 +10899,26 @@ function openTypeMenu(ev, c) {
   menu.showAtMouseEvent(ev);
 }
 
+// src/ui/components/activate.ts
+function bindActivation(el, settings, surface, run) {
+  const mode = activationFor(settings, surface);
+  if (mode === "single") {
+    el.onclick = (ev) => {
+      if (ev.target instanceof Node && ev.target.instanceOf(HTMLElement) && ev.target.closest("a")) return;
+      ev.preventDefault();
+      run(ev);
+    };
+    el.ondblclick = (ev) => ev.preventDefault();
+  } else {
+    el.ondblclick = (ev) => run(ev);
+  }
+  return mode;
+}
+function activationHint(i18n, mode, toggle = false) {
+  if (toggle) return i18n.t(mode === "single" ? "hint.clickToggle" : "hint.dblToggle");
+  return i18n.t(mode === "single" ? "hint.clickEdit" : "hint.dblEdit");
+}
+
 // src/ui/view.ts
 var VIEW_TYPE = "extended-properties-character";
 function markRowEnds(grid, cells, cols) {
@@ -11162,8 +11232,8 @@ var SidebarView = class extends import_obsidian31.ItemView {
         open();
       };
     } else {
-      el.setAttr("title", this.i18n.t("hint.dblEdit"));
-      el.ondblclick = () => open();
+      const mode = bindActivation(el, this.settings, "values", () => open());
+      el.setAttr("title", activationHint(this.i18n, mode));
     }
   }
   renderLinks(el, text) {
@@ -12447,7 +12517,7 @@ var TableView = class extends import_obsidian32.ItemView {
         }
       };
     };
-    td.ondblclick = start;
+    bindActivation(td, this.plugin.settings, "table", start);
   }
   /**
    * Write a cell edit through the plugin's shared {@link NoteFacade} - the
@@ -13348,6 +13418,7 @@ var SEARCH_SECTIONS = [
   "settings.macrosHeading",
   "settings.typographyHeading",
   "settings.languageHeading",
+  "settings.activationHeading",
   "settings.obsidianHeading",
   "settings.hiddenHeading",
   "settings.featuresHeading",
@@ -13993,6 +14064,19 @@ var EPSettingTab = class extends import_obsidian35.PluginSettingTab {
         save();
       });
     });
+    new import_obsidian35.Setting(c).setName(t("settings.activationHeading")).setHeading();
+    c.createEl("p", { cls: "setting-item-description", text: t("settings.activationDesc") });
+    for (const surface of ACTIVATION_SURFACES) {
+      new import_obsidian35.Setting(c).setName(t("settings.activation." + surface)).setDesc(t("settings.activation." + surface + "Desc")).addDropdown((d2) => {
+        d2.addOption("double", t("settings.activationDouble"));
+        d2.addOption("single", t("settings.activationSingle"));
+        d2.setValue(activationFor(plugin.settings, surface));
+        d2.onChange((v) => {
+          setActivation(plugin.settings, surface, v === "single" ? "single" : "double");
+          save();
+        });
+      });
+    }
     const interactionDrop = (name, desc, get, set, def) => {
       new import_obsidian35.Setting(c).setName(name).setDesc(desc).addDropdown((d2) => {
         d2.addOption("menu", t("settings.interactMenu"));
@@ -16574,11 +16658,11 @@ var InlineViewCtx = class {
   }
   bindOpen(el, open, markEditable = true) {
     if (markEditable) el.addClass("ep-editable");
-    el.setAttr("title", this.i18n.t("hint.dblEdit"));
     el.tabIndex = 0;
     el.setAttr("role", "button");
     el.setAttr("aria-label", this.i18n.t("a11y.editValue"));
-    el.ondblclick = () => open();
+    const mode = bindActivation(el, this.settings, "inline", () => open());
+    el.setAttr("title", activationHint(this.i18n, mode));
     el.onkeydown = (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();

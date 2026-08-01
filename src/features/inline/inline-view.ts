@@ -27,6 +27,7 @@ import { buildCluster, emptyFlags, mergeNeeds } from "../../ui/render/cluster";
 import { renderLinkedText } from "../../ui/components/links";
 import { guardScrollTaps } from "../../ui/components/long-press";
 import { openEntrySettingsPopup, wireGestures } from "../../ui/components/hold-config";
+import { activationHint, bindActivation } from "../../ui/components/activate";
 import { ColorPickerModal } from "../../ui/modals/color-picker";
 import { EntryOptionsModal } from "../../ui/modals/entry-options";
 import { keyForShortForm, VaultAccess } from "../../core/influences";
@@ -160,12 +161,12 @@ class InlineViewCtx implements ViewCtx {
   }
   bindOpen(el: HTMLElement, open: () => void, markEditable = true): void {
     if (markEditable) el.addClass("ep-editable");
-    el.setAttr("title", this.i18n.t("hint.dblEdit"));
     // Keyboard a11y (M1): inline editable values are operable, not just clickable.
     el.tabIndex = 0;
     el.setAttr("role", "button");
     el.setAttr("aria-label", this.i18n.t("a11y.editValue"));
-    el.ondblclick = () => open();
+    const mode = bindActivation(el, this.settings, "inline", () => open());
+    el.setAttr("title", activationHint(this.i18n, mode));
     el.onkeydown = (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
