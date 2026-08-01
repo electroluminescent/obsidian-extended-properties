@@ -18,6 +18,7 @@ import { SecretStore } from "./core/secure";
 import { materializeShortForms, registerDerivations } from "./core/influences";
 import { FeatureModule, Registries } from "./core/registry";
 import { PropertyIndex } from "./core/property-index";
+import { renameType, type MergeChoice, type RenameOutcome } from "./core/type-ops";
 import { HideService } from "./core/hide-service";
 import { registerCore } from "./ui/render/value-types/index";
 import { featureOn } from "./core/features";
@@ -49,6 +50,9 @@ import { NoteFacade } from "./core/note-model";
  */
 const FEATURE_MODULES: FeatureModule[] = [rollingModule, dnd5eModule, inlineModule];
 
+/** How long after a rename the metadata cache is still catching up (ms). */
+const ADOPTION_SETTLE_MS = 1500;
+
 export default class ExtendedPropertiesPlugin extends Plugin {
   settings!: EPSettings;
   readonly i18n = new I18n();
@@ -68,6 +72,11 @@ export default class ExtendedPropertiesPlugin extends Plugin {
   readonly secrets = new SecretStore();
   props!: PropertyIndex;
   hide!: HideService;
+  /**
+   * While true, a view that meets an unregistered type must leave it alone.
+   * Set during a rename, when the notes and the settings disagree by design.
+   */
+  suspendAdoption = false;
   /**
    * Shared safe write path for view-less frontmatter writes (inline chips,
    * table cells): batched, conflict-guarded, merge-aware. Flushed on unload
@@ -647,6 +656,89 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     this.settings.layouts[typeKey] = this.defaultLayout();
     void this.saveSettings();
     this.refreshViews();
+  }
+
+  /**
+   * Rename a type and, optionally, the notes that carry its value.
+   *
+   * The two halves must not be observed separately. Between them the settings
+   * say one thing and the notes still say another, and the sidebar adopts any
+   * type it does not recognize - which would silently recreate the type just
+   * renamed away. Adoption is therefore suspended across the whole operation,
+   * and a moment longer: the metadata cache catches up after the writes
+   * resolve, and its events re-render the view.
+   */
+  async renameTypeEverywhere(
+    from: string,
+    to: string,
+    opts: { merge?: MergeChoice; retype?: boolean } = {}
+  ): Promise<{ outcome: RenameOutcome; notes: number }> {
+    this.suspendAdoption = true;
+    try {
+      const outcome = await this.renameType(from, to, opts.merge ?? "replace");
+      if (outcome === "invalid") return { outcome, notes: 0 };
+      const notes = opts.retype ? await this.retypeNotes(from, to) : 0;
+      return { outcome, notes };
+    } finally {
+      window.setTimeout(() => {
+        this.suspendAdoption = false;
+        this.refreshViews();
+      }, ADOPTION_SETTLE_MS);
+      this.refreshViews();
+    }
+  }
+
+  /**
+   * Rename a type, carrying its layout, icon and scoped macros (see
+   * `core/type-ops`). Vault-file layouts are moved too: the old file is
+   * removed and the new key written on the next save. Callers that also
+   * rewrite notes should use {@link renameTypeEverywhere}.
+   */
+  async renameType(from: string, to: string, merge: MergeChoice = "replace"): Promise<RenameOutcome> {
+    const fromKey = from.trim().toLowerCase();
+    const outcome = renameType(this.settings, from, to, merge);
+    if (outcome === "invalid") return outcome;
+    if (this.settings.layoutVault === true && this.layoutStore && fromKey !== to.trim().toLowerCase())
+      await this.layoutStore.remove(fromKey);
+    await this.saveSettings();
+    this.refreshViews();
+    return outcome;
+  }
+
+  /**
+   * Rewrite the type property in every note that currently reads `from`,
+   * so notes follow a renamed type. Lists keep their other values; only the
+   * matching entry changes. Returns how many notes were touched.
+   */
+  async retypeNotes(from: string, to: string): Promise<number> {
+    const prop = (this.settings.typeProp ?? "Type").trim() || "Type";
+    // Case-insensitively, because that is how a value is matched to a layout.
+    const files = this.props.filesWithValue(prop, from, true);
+    const isFrom = (x: unknown): boolean => String(x).toLowerCase() === from.trim().toLowerCase();
+    let n = 0;
+    for (const f of files) {
+      try {
+        await this.app.fileManager.processFrontMatter(f, (fm: Record<string, unknown>) => {
+          const realKey = Object.keys(fm).find((k) => k.toLowerCase() === prop.toLowerCase());
+          if (!realKey) return;
+          const cur = fm[realKey];
+          if (Array.isArray(cur)) {
+            const next = cur.map((x) => (isFrom(x) ? to : x));
+            // Renaming onto a value the list already holds must not duplicate it.
+            fm[realKey] = next.filter((x, i) => next.findIndex((y) => String(y) === String(x)) === i);
+            n++;
+          } else if (isFrom(cur)) {
+            fm[realKey] = to;
+            n++;
+          }
+        });
+      } catch (err) {
+        console.error("Extended Properties: retyping failed for", f.path, err);
+      }
+    }
+    this.props.invalidateAll();
+    this.refreshViews();
+    return n;
   }
 
   /** Reset the plugin completely: all settings, types and layouts back to their

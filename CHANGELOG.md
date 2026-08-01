@@ -1,5 +1,23 @@
 # Changelog
 
+## 4.19.0
+
+- **Types can be renamed.** Each type row has a rename button; the layout, the
+  icon and any rolls scoped to that type move with it. This is what lets a vault
+  adopt a property it already uses - point the type property at `category`,
+  rename `sims` to `sim`, and those notes are recognized straight away, with no
+  layout rebuilt and nothing renamed in the notes.
+- **Optionally rewrite the notes too.** The dialog counts the notes carrying the
+  old value up front ("Also update 214 notes") and, when left on, changes the
+  value in each of them - list values keep their other entries, and renaming
+  onto a value a list already holds does not duplicate it.
+- **Renaming onto an existing type merges the two**, with a choice of which
+  layout survives. The dialog says so before you commit, and its button reads
+  Merge rather than Rename.
+- A rename no longer resurrects the old type. Between changing the settings and
+  rewriting the notes the two disagree by design, and the sidebar - which adopts
+  any type it does not recognize - would recreate the one just renamed away.
+
 ## 4.18.4
 
 - Review compliance: the popup's dismissal and control checks use Obsidian's

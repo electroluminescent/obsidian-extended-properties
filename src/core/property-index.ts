@@ -292,13 +292,20 @@ export class PropertyIndex {
     return [...seen.values()];
   }
 
-  filesWithValue(key: string, value: string): TFile[] {
+  /**
+   * Files whose `key` holds `value` (or lists it).
+   *
+   * `ci` matches without regard to case, which is how type values are matched
+   * everywhere else - a layout is looked up by the lower-cased value, so a note
+   * saying "Sims" and one saying "sims" are the same type.
+   */
+  filesWithValue(key: string, value: string, ci = false): TFile[] {
     const out: TFile[] = [];
+    const want = ci ? value.toLowerCase() : value;
+    const same = (x: unknown): boolean => (ci ? String(x).toLowerCase() : String(x)) === want;
     for (const { file, fm } of this.snapshots()) {
       const v = fm ? getCI(fm, key) : undefined;
-      const has = Array.isArray(v)
-        ? v.some((x) => String(x) === value)
-        : v !== undefined && v !== null && String(v) === value;
+      const has = Array.isArray(v) ? v.some(same) : v !== undefined && v !== null && same(v);
       if (has) out.push(file);
     }
     return out;

@@ -1210,7 +1210,9 @@ export class SidebarView extends ItemView implements ViewCtx {
     // Match the note's Type against configured types; adopt unknown types.
     const types = this.note.noteTypes(typePropOf(this.settings));
     let match = this.settings.types.find((tp) => types.some((x) => x.toLowerCase() === tp.toLowerCase()));
-    if (!match && types.length) {
+    // Mid-rename the notes and the settings disagree on purpose; adopting then
+    // would recreate the type that was just renamed away.
+    if (!match && types.length && !this.plugin.suspendAdoption) {
       match = types[0];
       if (!this.settings.types.some((tp) => tp.toLowerCase() === match!.toLowerCase())) this.settings.types.push(match);
       this.plugin.ensureLayout(match.toLowerCase());

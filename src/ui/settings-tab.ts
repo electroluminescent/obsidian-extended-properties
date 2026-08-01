@@ -18,7 +18,8 @@ import { RefSuggest } from "./components/suggest";
 import { destructive } from "./components/setting-helpers";
 import { ConfirmModal, TextPromptModal } from "./modals/dialogs";
 import { IconPickerModal } from "./modals/icon-picker";
-import { setTypedText, tintTypeNames } from "./components/type-label";
+import { setTypedText, tintTypeNames, typedText, typeName } from "./components/type-label";
+import { RenameTypeModal } from "./modals/rename-type";
 import { mobileGestures } from "./components/hold-config";
 import { ImportModal } from "./modals/transfer-modal";
 import { packType } from "../core/transfer";
@@ -200,6 +201,30 @@ export class EPSettingTab extends PluginSettingTab {
         paintIcon();
         plugin.refreshViews();
       };
+      // Rename: the layout, icon and scoped macros move with the type, which is
+      // what lets a vault adopt a property whose values it already uses.
+      setting.addExtraButton((b) =>
+        b.setIcon("pencil").setTooltip(typedText(i18n, plugin.settings, "settings.renameType")).onClick(() => {
+          const prop = typeName(plugin.settings);
+          new RenameTypeModal(this.app, i18n, {
+            current: type,
+            clashes: (name) =>
+              plugin.settings.types.some(
+                (x) => x.toLowerCase() === name.toLowerCase() && x.toLowerCase() !== type.toLowerCase()
+              ),
+            noteCount: plugin.props.filesWithValue(prop, type, true).length,
+            onSubmit: (next, o) => {
+              void (async () => {
+                const { outcome, notes } = await plugin.renameTypeEverywhere(type, next, o);
+                if (outcome === "invalid") return;
+                new Notice(t(outcome === "merged" ? "settings.renameTypeMerged" : "settings.renameTypeDone", { name: next }));
+                if (o.retype) new Notice(t("settings.renameTypeNotesDone", { n: String(notes) }));
+                this.render();
+              })();
+            },
+          }).open();
+        })
+      );
       setting.addExtraButton((b) =>
         b.setIcon("image").setTooltip(t("settings.typeIcon")).onClick(() =>
           new IconPickerModal(this.app, i18n, plugin.settings.typeIcons?.[type.toLowerCase()] ?? "", setTypeIcon).open()
