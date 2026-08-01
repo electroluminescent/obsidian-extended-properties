@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.27.0
+
+- **Tab fills in a note.** Tab moves to the next value and opens it, so you can
+  type straight away; Shift+Tab goes back. The chain now covers checkboxes and a
+  list's add button as well as text and number fields, in the order they appear
+  on screen, and skips anything inside a collapsed section.
+- It works whether or not a field is already open - Tab from a value you clicked
+  into, or from one you reached with the keyboard - and a field opens on arrival
+  whatever gesture the mouse is set to, single or double click.
+- Running out of fields hands the key back to the browser, so focus leaves the
+  sidebar normally rather than being trapped in it.
+
 ## 4.26.0
 
 - **An empty value is a strip to click, not a dash to hit.** The value cell now

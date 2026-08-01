@@ -28,6 +28,7 @@ import { renderLinkedText } from "../../ui/components/links";
 import { guardScrollTaps } from "../../ui/components/long-press";
 import { openEntrySettingsPopup, wireGestures } from "../../ui/components/hold-config";
 import { activationHint, bindActivation } from "../../ui/components/activate";
+import { registerOpener } from "../../ui/components/tab-chain";
 import { ColorPickerModal } from "../../ui/modals/color-picker";
 import { EntryOptionsModal } from "../../ui/modals/entry-options";
 import { keyForShortForm, VaultAccess } from "../../core/influences";
@@ -162,6 +163,7 @@ class InlineViewCtx implements ViewCtx {
   }
   bindOpen(el: HTMLElement, open: () => void, markEditable = true): void {
     if (markEditable) el.addClass("ep-editable");
+    registerOpener(el, open);
     // Keyboard a11y (M1): inline editable values are operable, not just clickable.
     el.tabIndex = 0;
     el.setAttr("role", "button");

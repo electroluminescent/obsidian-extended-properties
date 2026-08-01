@@ -6,6 +6,7 @@
 import { App } from "obsidian";
 import { fmtNum, clamp } from "../../utils/misc";
 import { TextLinkSuggest } from "./suggest";
+import { stepField } from "./tab-chain";
 import { sfx } from "../../utils/sound";
 
 export interface NumberInputOptions {
@@ -18,16 +19,13 @@ export interface NumberInputOptions {
 }
 
 /**
- * After a Tab commit, open the neighboring editable value in the same view,
- * so the sidebar works as a primary data-entry surface: click once, then
- * Tab (Shift+Tab) through every field.
+ * After a Tab commit, move to the neighbouring field (see `tab-chain`), so the
+ * sidebar works as a primary data-entry surface: click once, then Tab
+ * (Shift+Tab) through every value, checkbox and list on the note.
  */
 function focusEditableFrom(span: HTMLElement, backwards: boolean): void {
   const scope = span.closest(".view-content") ?? span.ownerDocument.body;
-  const all = Array.from(scope.querySelectorAll<HTMLElement>(".ep-editable"));
-  const i = all.indexOf(span);
-  const next = i >= 0 ? all[i + (backwards ? -1 : 1)] : undefined;
-  if (next) window.setTimeout(() => next.click(), 0);
+  stepField(scope, span, backwards);
 }
 
 /** Swap `span` for a number input; commit the parsed (and clamped) value. */

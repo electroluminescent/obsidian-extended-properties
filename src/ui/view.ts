@@ -41,6 +41,7 @@ import { openEntryMenu } from "./menus/entry-menu";
 import { openTypeMenu } from "./menus/type-menu";
 import { activationHint, bindActivation } from "./components/activate";
 import { entryKeyAction } from "./components/entry-keys";
+import { registerOpener, stepField } from "./components/tab-chain";
 import { showMenuAt } from "./menus/show";
 
 export const VIEW_TYPE = "extended-properties-character";
@@ -156,7 +157,16 @@ export class SidebarView extends ItemView implements ViewCtx {
   /** Arrow/Home/End move focus between entries; Enter/Space opens the entry menu. */
   private onSidebarKey(e: KeyboardEvent): void {
     const target = e.target as HTMLElement | null;
-    if (!target || target.matches("input, textarea, select, [contenteditable='true']")) return;
+    if (!target) return;
+    // Tab walks the fields (see `tab-chain`), whether or not one is open: an
+    // open editor handles its own Tab first, and at either end of the chain the
+    // key falls through to the browser so focus is never trapped here.
+    if (e.key === "Tab" && !e.defaultPrevented && this.content.contains(target)) {
+      const from = target.closest<HTMLElement>(".ep-editable, input, .ep-list-addbtn");
+      if (from && stepField(this.content, from, e.shiftKey)) e.preventDefault();
+      return;
+    }
+    if (target.matches("input, textarea, select, [contenteditable='true']")) return;
     const entry = target.closest<HTMLElement>(".ep-entry");
     if (!entry || !this.content.contains(entry)) return;
     const entries = Array.from(this.content.querySelectorAll<HTMLElement>(".ep-entry"));
@@ -337,6 +347,7 @@ export class SidebarView extends ItemView implements ViewCtx {
 
   bindOpen(el: HTMLElement, open: () => void, markEditable = true): void {
     if (markEditable) el.addClass("ep-editable");
+    registerOpener(el, open); // so Tab can open it, whatever the mouse gesture is
     // Keyboard a11y (M1): editable value cells are operable, not just clickable
     // - focusable, announced as a button, and opened with Enter/Space. This
     // matches the slider knob's existing focusable-control pattern.

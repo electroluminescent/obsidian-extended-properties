@@ -3137,6 +3137,33 @@ var _TextLinkSuggest = class _TextLinkSuggest extends import_obsidian4.AbstractI
 _TextLinkSuggest.OPEN = /\[\[([^[\]]*)$/;
 var TextLinkSuggest = _TextLinkSuggest;
 
+// src/ui/components/tab-chain.ts
+var FIELDS = ".ep-editable, .ep-entry input[type='checkbox'], .ep-list-addbtn";
+function visible(el) {
+  return el.offsetParent !== null || el.getClientRects().length > 0;
+}
+function fieldsIn(scope) {
+  return Array.from(scope.querySelectorAll(FIELDS)).filter(visible);
+}
+var openers = /* @__PURE__ */ new WeakMap();
+function registerOpener(el, open) {
+  openers.set(el, open);
+}
+function enterField(el) {
+  var _a;
+  el.focus();
+  (_a = openers.get(el)) == null ? void 0 : _a();
+}
+function stepField(scope, from, backwards) {
+  const all = fieldsIn(scope);
+  if (!all.length) return false;
+  const here = from ? all.indexOf(from) : -1;
+  const next = all[here + (backwards ? -1 : 1)];
+  if (here < 0 || !next) return false;
+  window.setTimeout(() => enterField(next), 0);
+  return true;
+}
+
 // src/utils/sound.ts
 var ctx = null;
 var enabled = false;
@@ -3218,10 +3245,7 @@ var sfx = {
 function focusEditableFrom(span, backwards) {
   var _a;
   const scope = (_a = span.closest(".view-content")) != null ? _a : span.ownerDocument.body;
-  const all = Array.from(scope.querySelectorAll(".ep-editable"));
-  const i = all.indexOf(span);
-  const next = i >= 0 ? all[i + (backwards ? -1 : 1)] : void 0;
-  if (next) window.setTimeout(() => next.click(), 0);
+  stepField(scope, span, backwards);
 }
 function openNumberInput(span, value, commit2, o) {
   const input = createEl("input", { cls: "ep-edit-input" });
@@ -9194,21 +9218,21 @@ var SectionOptionsModal = class extends import_obsidian25.Modal {
     const mode = sectionMode(this.section);
     const all = this.section.entries;
     const ncol = Math.max(1, this.section.columns || 1);
-    const visible = (es) => es.filter((e) => e.kind !== "blank");
+    const visible2 = (es) => es.filter((e) => e.kind !== "blank");
     const out = [];
     if (groupMode === "column") {
       if (mode === "grid") {
         for (let cc = 0; cc < ncol; cc++)
           out.push({
             label: t("sectionOptions.columnN", { n: cc + 1 }),
-            ents: visible(all.filter((_, i) => i % ncol === cc))
+            ents: visible2(all.filter((_, i) => i % ncol === cc))
           });
       } else {
         const per = Math.max(1, Math.ceil(all.length / ncol));
         for (let cc = 0; cc < ncol; cc++)
           out.push({
             label: t("sectionOptions.columnN", { n: cc + 1 }),
-            ents: visible(all.slice(cc * per, (cc + 1) * per))
+            ents: visible2(all.slice(cc * per, (cc + 1) * per))
           });
       }
     } else if (groupMode === "row") {
@@ -9220,19 +9244,19 @@ var SectionOptionsModal = class extends import_obsidian25.Modal {
             const e = all[cc * per + r];
             if (e) row.push(e);
           }
-          out.push({ label: t("sectionOptions.rowN", { n: r + 1 }), ents: visible(row) });
+          out.push({ label: t("sectionOptions.rowN", { n: r + 1 }), ents: visible2(row) });
         }
       } else {
         const width = mode === "grid" ? ncol : 1;
         for (let i = 0; i < all.length; i += width)
           out.push({
             label: t("sectionOptions.rowN", { n: Math.floor(i / width) + 1 }),
-            ents: visible(all.slice(i, i + width))
+            ents: visible2(all.slice(i, i + width))
           });
       }
     } else {
       const byType = /* @__PURE__ */ new Map();
-      for (const e of visible(all)) {
+      for (const e of visible2(all)) {
         const label = e.kind === "prop" ? (_b = (_a = this.view.registries.valueTypes.get(this.view.resolveType(e))) == null ? void 0 : _a.name(this.view.i18n)) != null ? _b : this.view.resolveType(e) : this.view.defaultLabelFor(e);
         if (!byType.has(label)) byType.set(label, []);
         byType.get(label).push(e);
@@ -11176,7 +11200,13 @@ var SidebarView = class extends import_obsidian31.ItemView {
   /** Arrow/Home/End move focus between entries; Enter/Space opens the entry menu. */
   onSidebarKey(e) {
     const target = e.target;
-    if (!target || target.matches("input, textarea, select, [contenteditable='true']")) return;
+    if (!target) return;
+    if (e.key === "Tab" && !e.defaultPrevented && this.content.contains(target)) {
+      const from = target.closest(".ep-editable, input, .ep-list-addbtn");
+      if (from && stepField(this.content, from, e.shiftKey)) e.preventDefault();
+      return;
+    }
+    if (target.matches("input, textarea, select, [contenteditable='true']")) return;
     const entry = target.closest(".ep-entry");
     if (!entry || !this.content.contains(entry)) return;
     const entries = Array.from(this.content.querySelectorAll(".ep-entry"));
@@ -11354,6 +11384,7 @@ var SidebarView = class extends import_obsidian31.ItemView {
   }
   bindOpen(el, open, markEditable = true) {
     if (markEditable) el.addClass("ep-editable");
+    registerOpener(el, open);
     el.tabIndex = 0;
     el.setAttr("role", "button");
     el.setAttr("aria-label", this.i18n.t("a11y.editValue"));
@@ -16990,6 +17021,7 @@ var InlineViewCtx = class {
   }
   bindOpen(el, open, markEditable = true) {
     if (markEditable) el.addClass("ep-editable");
+    registerOpener(el, open);
     el.tabIndex = 0;
     el.setAttr("role", "button");
     el.setAttr("aria-label", this.i18n.t("a11y.editValue"));
