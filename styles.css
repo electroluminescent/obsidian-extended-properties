@@ -357,6 +357,15 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
 .ep-side-foot { position: sticky; bottom: 0; background: var(--background-secondary); padding: 4px; }
 .ep-side-foot button { width: 100%; }
 .ep-list-addbtn { width: auto; }
+/* Outside edit mode the add button is an affordance, not a control to notice:
+   quiet until the row is hovered or it takes focus. */
+.ep-list-addbtn-quiet { opacity: .45; transition: opacity .15s ease; }
+.ep-entry:hover .ep-list-addbtn-quiet,
+.ep-list-addbtn-quiet:focus-visible { opacity: 1; }
+/* A long-form text value keeps its line breaks and wraps instead of clipping. */
+.ep-val-multiline { white-space: pre-wrap; text-align: left; }
+/* The growing editor: full width, no manual resize handle fighting the auto-fit. */
+.ep-edit-area { width: 100%; resize: none; overflow-y: auto; line-height: 1.4; }
 
 /* round 16 additions */
 .ep-sidebar { --ep-radius: 6px; }

@@ -102,6 +102,53 @@ export function openTextInput(
   };
 }
 
+/** Rows a growing text box may reach before it scrolls instead. */
+const AREA_MAX_ROWS = 12;
+
+/**
+ * Swap `span` for a text area that grows with its content - the editor for a
+ * paragraph-length value, where a one-line field shows a sentence at a time.
+ *
+ * Enter makes a new line here (that is the point of it), so committing is
+ * Ctrl/Cmd+Enter, Tab, or clicking away; Escape still cancels. There is no
+ * value autocomplete: Obsidian's suggester attaches to inputs, and a long-form
+ * field is prose rather than one of a known set of values.
+ */
+export function openTextArea(span: HTMLElement, value: string, commit: (v: string) => void): void {
+  const area = createEl("textarea", { cls: "ep-edit-input ep-edit-area" });
+  area.value = value;
+  area.rows = 1;
+  span.replaceWith(area);
+
+  /** Height follows the content, up to a cap - then it scrolls. */
+  const grow = (): void => {
+    area.setCssStyles({ height: "auto" });
+    const line = parseFloat(getComputedStyle(area).lineHeight) || 18;
+    area.setCssStyles({ height: Math.min(area.scrollHeight, line * AREA_MAX_ROWS) + "px" });
+  };
+  grow();
+  area.focus();
+  area.select();
+  area.addEventListener("input", grow);
+
+  let done = false;
+  const finish = (save: boolean): void => {
+    if (done) return;
+    done = true;
+    if (area.parentElement) area.replaceWith(span);
+    if (save) {
+      sfx.tick();
+      commit(area.value.trim());
+    }
+  };
+  area.onblur = () => finish(true);
+  area.onkeydown = (e: KeyboardEvent) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); finish(true); }
+    else if (e.key === "Escape") { e.preventDefault(); finish(false); }
+    else if (e.key === "Tab") { e.preventDefault(); finish(true); focusEditableFrom(span, e.shiftKey); }
+  };
+}
+
 /**
  * Make `span` a click-to-rename title (used for section titles and labels in
  * edit mode). Shows `current` or the `placeholder` default.

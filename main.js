@@ -175,6 +175,9 @@ var en_default = {
   "pool.editRow": 'Edit autofill pool for "{key}"...',
   "options.unit": "Unit",
   "options.unitDesc": "Optional suffix shown after the value (e.g. kg, ft, %).",
+  "options.textHeading": "Text",
+  "options.multiline": "Expanding text box",
+  "options.multilineDesc": "Edit this value in a box that grows with what you type, for paragraph-length text. Enter adds a line; Ctrl/Cmd+Enter, Tab or clicking away saves, Escape cancels. The value wraps and keeps its line breaks when shown. Off = a single-line field with value suggestions.",
   "options.listHeading": "List",
   "options.listAlign": "Alignment",
   "options.listAlignDesc": "How the list items are arranged across the row.",
@@ -3289,6 +3292,46 @@ function openTextInput(app, span, key, value, valuesFor, commit2) {
     }
   };
 }
+var AREA_MAX_ROWS = 12;
+function openTextArea(span, value, commit2) {
+  const area = createEl("textarea", { cls: "ep-edit-input ep-edit-area" });
+  area.value = value;
+  area.rows = 1;
+  span.replaceWith(area);
+  const grow = () => {
+    area.setCssStyles({ height: "auto" });
+    const line = parseFloat(getComputedStyle(area).lineHeight) || 18;
+    area.setCssStyles({ height: Math.min(area.scrollHeight, line * AREA_MAX_ROWS) + "px" });
+  };
+  grow();
+  area.focus();
+  area.select();
+  area.addEventListener("input", grow);
+  let done = false;
+  const finish = (save) => {
+    if (done) return;
+    done = true;
+    if (area.parentElement) area.replaceWith(span);
+    if (save) {
+      sfx.tick();
+      commit2(area.value.trim());
+    }
+  };
+  area.onblur = () => finish(true);
+  area.onkeydown = (e) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      finish(true);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      finish(false);
+    } else if (e.key === "Tab") {
+      e.preventDefault();
+      finish(true);
+      focusEditableFrom(span, e.shiftKey);
+    }
+  };
+}
 function bindRename(span, current2, placeholder, tooltip, commit2) {
   span.setText(current2 || placeholder);
   span.addClass("ep-editable");
@@ -4367,6 +4410,7 @@ var textType = {
     const { view, file, entry } = ctx2;
     const key = entry.key;
     const v = ctx2.head.createDiv({ cls: "ep-val-right" });
+    if (entry.multiline === true) v.addClass("ep-val-multiline");
     if (entry.valueSize) v.setCssStyles({ fontSize: entry.valueSize + "px" });
     if (entry.valueColor) v.setCssStyles({ color: entry.valueColor });
     const s = v.createSpan();
@@ -4403,16 +4447,23 @@ var textType = {
         new import_obsidian10.Notice(view.i18n.t("secure.editLocked"));
         return;
       }
-      openTextInput(
-        view.app,
-        s,
-        key,
-        view.note.str(key),
-        (k) => poolFor(view.settings, view.props.valuesFor(k), k),
-        (nv) => view.note.set(file, key, nv === "" ? void 0 : nv)
-      );
+      const write = (nv) => view.note.set(file, key, nv === "" ? void 0 : nv);
+      if (entry.multiline === true) openTextArea(s, view.note.str(key), write);
+      else
+        openTextInput(view.app, s, key, view.note.str(key), (k) => poolFor(view.settings, view.props.valuesFor(k), k), write);
     });
     view.registerUpdater(draw);
+  },
+  renderOptions(octx) {
+    const { view, entry, container: c, changed } = octx;
+    const t = view.i18n.t.bind(view.i18n);
+    c.createEl("h4", { text: t("options.textHeading") });
+    new import_obsidian10.Setting(c).setName(t("options.multiline")).setDesc(t("options.multilineDesc")).addToggle((tg) => {
+      tg.setValue(entry.multiline === true).onChange((v) => {
+        entry.multiline = v ? true : void 0;
+        changed();
+      });
+    });
   },
   menuItems(menu, ref) {
     const { view, file, entry } = ref;
@@ -5570,7 +5621,7 @@ var checkboxType = {
     );
   }
 };
-function buildList(ctx2, holder, showAdd) {
+function buildList(ctx2, holder) {
   const { view, file, entry } = ctx2;
   const key = entry.key;
   const current2 = view.note.list(key);
@@ -5592,13 +5643,13 @@ function buildList(ctx2, holder, showAdd) {
       }
     };
   }
-  if (showAdd) {
-    const addb = list.createEl("button", { cls: "ep-mini-btn ep-list-addbtn", text: view.i18n.t("list.add") });
-    addb.onclick = () => {
-      const r = addb.getBoundingClientRect();
-      view.openListValuePicker(r.left, r.bottom + 2, key);
-    };
-  }
+  const addb = list.createEl("button", { cls: "ep-mini-btn ep-list-addbtn", text: view.i18n.t("list.add") });
+  if (!view.editMode) addb.addClass("ep-list-addbtn-quiet");
+  addb.setAttr("aria-label", view.i18n.t("list.addTo", { key }));
+  addb.onclick = () => {
+    const r = addb.getBoundingClientRect();
+    view.openListValuePicker(r.left, r.bottom + 2, key);
+  };
 }
 var listType = {
   id: "list",
@@ -5612,11 +5663,11 @@ var listType = {
     if (entry.valueColor) holder.setCssStyles({ color: entry.valueColor });
     const key = entry.key;
     const checkValid = () => applyValidity(holder, entry, "list", view.note.raw[key], view.i18n);
-    buildList(ctx2, holder, view.editMode);
+    buildList(ctx2, holder);
     checkValid();
     view.registerUpdater(() => {
       holder.empty();
-      buildList(ctx2, holder, view.editMode);
+      buildList(ctx2, holder);
       checkValid();
     });
   },

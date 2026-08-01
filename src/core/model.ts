@@ -93,6 +93,8 @@ export interface EntryBase {
   showValue?: boolean;
 
   // -- other value-type options --------------------------------------------
+  /** Text type: edit in a box that grows with the content (long-form values). */
+  multiline?: boolean;
   /** List chips alignment: "center" | "right" (unset = left). */
   listAlign?: string;
   /** Image value type: height preset. */

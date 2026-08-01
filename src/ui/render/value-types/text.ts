@@ -8,9 +8,9 @@
  * the row menu offers Encrypt / Decrypt.
  */
 
-import { Notice } from "obsidian";
+import { Notice, Setting } from "obsidian";
 import type { ValueTypeDef } from "../../../core/registry";
-import { openTextInput } from "../../components/inline-edit";
+import { openTextArea, openTextInput } from "../../components/inline-edit";
 import { TextPromptModal } from "../../modals/dialogs";
 import { applyValidity } from "../validity";
 import { poolFor } from "../../../core/pool";
@@ -24,6 +24,9 @@ export const textType: ValueTypeDef = {
     const { view, file, entry } = ctx;
     const key = entry.key as string;
     const v = ctx.head.createDiv({ cls: "ep-val-right" });
+    // A long-form value keeps its line breaks and wraps, rather than being cut
+    // to one line - the display half of the expanding editor.
+    if (entry.multiline === true) v.addClass("ep-val-multiline");
     if (entry.valueSize) v.setCssStyles({ fontSize: entry.valueSize + "px" });
     if (entry.valueColor) v.setCssStyles({ color: entry.valueColor });
     const s = v.createSpan();
@@ -61,11 +64,27 @@ export const textType: ValueTypeDef = {
         new Notice(view.i18n.t("secure.editLocked"));
         return;
       }
-      openTextInput(view.app, s, key, view.note.str(key), (k) => poolFor(view.settings, view.props.valuesFor(k), k), (nv) =>
-        view.note.set(file, key, nv === "" ? undefined : nv)
-      );
+      const write = (nv: string): void => view.note.set(file, key, nv === "" ? undefined : nv);
+      if (entry.multiline === true) openTextArea(s, view.note.str(key), write);
+      else
+        openTextInput(view.app, s, key, view.note.str(key), (k) => poolFor(view.settings, view.props.valuesFor(k), k), write);
     });
     view.registerUpdater(draw);
+  },
+
+  renderOptions(octx) {
+    const { view, entry, container: c, changed } = octx;
+    const t = view.i18n.t.bind(view.i18n);
+    c.createEl("h4", { text: t("options.textHeading") });
+    new Setting(c)
+      .setName(t("options.multiline"))
+      .setDesc(t("options.multilineDesc"))
+      .addToggle((tg) => {
+        tg.setValue(entry.multiline === true).onChange((v) => {
+          entry.multiline = v ? true : undefined;
+          changed();
+        });
+      });
   },
 
   menuItems(menu, ref) {

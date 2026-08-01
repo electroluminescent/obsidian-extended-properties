@@ -82,7 +82,16 @@ export const checkboxType: ValueTypeDef = {
 // ---------------------------------------------------------------------------
 
 /** Build the chip list; shared between render and live updates. */
-function buildList(ctx: EntryRenderCtx, holder: HTMLElement, showAdd: boolean): void {
+/**
+ * The chips, plus the add affordance.
+ *
+ * Adding used to be edit-mode only, which left the right-click menu as the one
+ * way to fill a list while entering data - the mode meant for arranging a
+ * layout is not the mode you add values in. The button is always here now; the
+ * picker it opens adds known values on click and keeps itself open for the
+ * next one.
+ */
+function buildList(ctx: EntryRenderCtx, holder: HTMLElement): void {
   const { view, file, entry } = ctx;
   const key = entry.key as string;
   const current = view.note.list(key);
@@ -101,13 +110,13 @@ function buildList(ctx: EntryRenderCtx, holder: HTMLElement, showAdd: boolean): 
       if (e.key === "Enter" || e.key === " ") { e.preventDefault(); removeItem(); }
     };
   }
-  if (showAdd) {
-    const addb = list.createEl("button", { cls: "ep-mini-btn ep-list-addbtn", text: view.i18n.t("list.add") });
-    addb.onclick = () => {
-      const r = addb.getBoundingClientRect();
-      view.openListValuePicker(r.left, r.bottom + 2, key);
-    };
-  }
+  const addb = list.createEl("button", { cls: "ep-mini-btn ep-list-addbtn", text: view.i18n.t("list.add") });
+  if (!view.editMode) addb.addClass("ep-list-addbtn-quiet");
+  addb.setAttr("aria-label", view.i18n.t("list.addTo", { key }));
+  addb.onclick = () => {
+    const r = addb.getBoundingClientRect();
+    view.openListValuePicker(r.left, r.bottom + 2, key);
+  };
 }
 
 export const listType: ValueTypeDef = {
@@ -123,11 +132,11 @@ export const listType: ValueTypeDef = {
     if (entry.valueColor) holder.setCssStyles({ color: entry.valueColor });
     const key = entry.key as string;
     const checkValid = () => applyValidity(holder, entry, "list", view.note.raw[key], view.i18n);
-    buildList(ctx, holder, view.editMode);
+    buildList(ctx, holder);
     checkValid();
     view.registerUpdater(() => {
       holder.empty();
-      buildList(ctx, holder, view.editMode);
+      buildList(ctx, holder);
       checkValid();
     });
   },

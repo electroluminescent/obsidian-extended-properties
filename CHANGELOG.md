@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.23.0
+
+- **A text property can edit in a box that grows.** *Options -> Text ->
+  Expanding text box* swaps the one-line field for a text area that follows its
+  content up to twelve rows and then scrolls, for paragraph-length values like
+  a description. Enter adds a line; Ctrl/Cmd+Enter, Tab or clicking away saves,
+  Escape cancels. The value keeps its line breaks and wraps when shown, instead
+  of being cut to a single line. Off by default, and off means the single-line
+  field with value suggestions, unchanged.
+- **Lists can be added to without entering edit mode.** The add button used to
+  appear only while arranging a layout, which left the right-click menu as the
+  only way to fill a list while entering data. It is always there now - quiet
+  until the row is hovered - and the picker it opens still adds a known value on
+  click and stays open for the next one.
+
 ## 4.22.0
 
 - **A double click is now a mappable gesture too.** *Double click on a
