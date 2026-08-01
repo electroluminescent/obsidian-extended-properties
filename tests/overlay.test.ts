@@ -7,25 +7,53 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeOverlay, openOverlay, overlayClosed } from "../src/ui/overlay";
 
+interface FakeDoc {
+  activeElement: unknown;
+  body: unknown;
+  documentElement: unknown;
+  /** Stands in for the row a re-render put back, found by entry id. */
+  replacement: FakeEl | null;
+  querySelector: (sel: string) => FakeEl | null;
+}
+
 class FakeEl {
   focused = false;
   isConnected = true;
-  ownerDocument: { activeElement: unknown; body: unknown; documentElement: unknown };
-  constructor(doc: { activeElement: unknown; body: unknown; documentElement: unknown }) {
+  ownerDocument: FakeDoc;
+  id: string | null;
+  constructor(doc: FakeDoc, id: string | null = null) {
     this.ownerDocument = doc;
+    this.id = id;
   }
   focus(): void {
     this.focused = true;
   }
+  instanceOf(): boolean {
+    return true;
+  }
+  /** Every fake element stands for a row, so it is its own nearest one. */
+  closest(): FakeEl | null {
+    return this.id === null ? null : this;
+  }
+  getAttribute(): string | null {
+    return this.id;
+  }
 }
 
 /** A document whose focus we can move around. */
-function docWith(): { activeElement: unknown; body: unknown; documentElement: unknown } {
-  const body = {};
-  return { activeElement: body, body, documentElement: {} };
+function docWith(): FakeDoc {
+  const body = { instanceOf: () => false };
+  const doc: FakeDoc = {
+    activeElement: body,
+    body,
+    documentElement: {},
+    replacement: null,
+    querySelector: () => doc.replacement,
+  };
+  return doc;
 }
 
-let doc: ReturnType<typeof docWith>;
+let doc: FakeDoc;
 
 beforeAll(() => {
   vi.useFakeTimers();
@@ -84,6 +112,20 @@ describe("focus", () => {
     overlayClosed(close);
     vi.runAllTimers();
     expect(opener.focused).toBe(false);
+  });
+
+  it("finds the row again when the view re-rendered underneath", () => {
+    const opener = new FakeEl(doc, "e:1");
+    doc.activeElement = opener;
+    const close = vi.fn();
+    openOverlay(close);
+    opener.isConnected = false; // the row was rebuilt while the overlay was up
+    const rebuilt = new FakeEl(doc, "e:1");
+    doc.replacement = rebuilt;
+    doc.activeElement = doc.body;
+    overlayClosed(close);
+    vi.runAllTimers();
+    expect(rebuilt.focused).toBe(true);
   });
 
   it("ignores a report from an overlay that was already replaced", () => {

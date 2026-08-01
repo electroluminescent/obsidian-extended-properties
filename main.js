@@ -2,9 +2,9 @@ var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __export = (target, all) => {
+var __export = (target2, all) => {
   for (var name in all)
-    __defProp(target, name, { get: all[name], enumerable: true });
+    __defProp(target2, name, { get: all[name], enumerable: true });
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
@@ -1261,14 +1261,14 @@ function compileFormula(expr) {
   if (typeof probe !== "number" || !Number.isFinite(probe)) return null;
   return fn;
 }
-function invertFormula(f, target, min, max) {
+function invertFormula(f, target2, min, max) {
   const N = 400;
   let bestX = min, bestD = Infinity;
   for (let k = 0; k <= N; k++) {
     const x = min + (max - min) * k / N;
     const y = f(x);
     if (Number.isFinite(y)) {
-      const d = Math.abs(y - target);
+      const d = Math.abs(y - target2);
       if (d < bestD) {
         bestD = d;
         bestX = x;
@@ -1326,7 +1326,7 @@ function getList(raw, key) {
   if (v === void 0 || v === null || v === "") return [];
   return [String(v)];
 }
-function restoreFromSnapshot(target, snapshot) {
+function restoreFromSnapshot(target2, snapshot) {
   let value;
   try {
     value = JSON.parse(snapshot);
@@ -1334,8 +1334,8 @@ function restoreFromSnapshot(target, snapshot) {
     return;
   }
   if (!value || typeof value !== "object") return;
-  for (const k of Object.keys(target)) delete target[k];
-  Object.assign(target, value);
+  for (const k of Object.keys(target2)) delete target2[k];
+  Object.assign(target2, value);
 }
 
 // src/core/influences.ts
@@ -2698,9 +2698,9 @@ var PropertyIndex = class {
     if (!sfm) return void 0;
     const raw = getCI(sfm, linkProp);
     if (raw === void 0 || raw === null || raw === "") return void 0;
-    const target = linkTarget(String(Array.isArray(raw) ? raw[0] : raw));
-    if (!target) return void 0;
-    const dest = this.app.metadataCache.getFirstLinkpathDest(target, sourcePath);
+    const target2 = linkTarget(String(Array.isArray(raw) ? raw[0] : raw));
+    if (!target2) return void 0;
+    const dest = this.app.metadataCache.getFirstLinkpathDest(target2, sourcePath);
     if (!dest) return void 0;
     const dfm = (_b = this.app.metadataCache.getFileCache(dest)) == null ? void 0 : _b.frontmatter;
     return dfm ? (_c = parseNumeric(getCI(dfm, key))) != null ? _c : void 0 : void 0;
@@ -4555,8 +4555,8 @@ function addonsFor(ref) {
 function mergeNeeds(into, needs) {
   if (!needs) return;
   if (needs.steppers) into.steppers = true;
-  const add = (target, slots) => {
-    for (const s of slots != null ? slots : []) if (!target.some((x) => x.id === s.id)) target.push(s);
+  const add = (target2, slots) => {
+    for (const s of slots != null ? slots : []) if (!target2.some((x) => x.id === s.id)) target2.push(s);
   };
   add(into.before, needs.before);
   add(into.after, needs.after);
@@ -6874,20 +6874,31 @@ function adrift(doc) {
   const el = doc.activeElement;
   return !el || el === doc.body || el === doc.documentElement;
 }
+function target(o) {
+  const opener = o.opener;
+  if (!opener) return null;
+  if (opener.isConnected) return opener;
+  if (!o.id) return null;
+  return opener.ownerDocument.querySelector(`.ep-entry[data-ep-id="${o.id}"]`);
+}
 function openOverlay(close) {
+  var _a, _b;
   const prev = current;
   current = null;
   prev == null ? void 0 : prev.close();
   const active = activeDocument.activeElement;
-  current = { close, opener: active instanceof HTMLElement ? active : null };
+  const opener = (active == null ? void 0 : active.instanceOf(HTMLElement)) ? active : null;
+  const row = (_a = opener == null ? void 0 : opener.closest(".ep-entry")) != null ? _a : null;
+  current = { close, opener, id: (_b = row == null ? void 0 : row.getAttribute("data-ep-id")) != null ? _b : null };
 }
 function overlayClosed(close) {
   if ((current == null ? void 0 : current.close) !== close) return;
-  const opener = current.opener;
+  const overlay = current;
   current = null;
-  if (!opener) return;
+  if (!overlay.opener) return;
   window.setTimeout(() => {
-    if (opener.isConnected && adrift(opener.ownerDocument)) opener.focus();
+    const el = target(overlay);
+    if (el && adrift(el.ownerDocument)) el.focus();
   }, 0);
 }
 
@@ -8649,10 +8660,17 @@ function holdMsOf(settings) {
 }
 var focused = null;
 function focusEntry(wrap) {
+  var _a;
   if (focused && focused !== wrap) focused.removeClass("ep-holdfocus");
   focused = wrap;
   wrap.addClass("ep-holdfocus");
   wrap.scrollIntoView({ block: "nearest" });
+  if (wrap.hasClass("ep-entry")) {
+    const view = (_a = wrap.closest(".ep-content")) != null ? _a : wrap.ownerDocument.body;
+    for (const row of Array.from(view.querySelectorAll(".ep-entry"))) row.tabIndex = -1;
+    wrap.tabIndex = 0;
+  }
+  wrap.focus({ preventScroll: true });
   const doc = wrap.ownerDocument;
   const clear = (ev) => {
     if (ev.target instanceof Node && wrap.contains(ev.target)) return;
@@ -8669,6 +8687,8 @@ function closeSettingsPopup() {
   popupCleanup = null;
   const pop = openPopup;
   openPopup = null;
+  const held = pop == null ? void 0 : pop.ownerDocument.activeElement;
+  if ((held == null ? void 0 : held.instanceOf(HTMLElement)) && (pop == null ? void 0 : pop.contains(held))) held.blur();
   overlayClosed(closeSettingsPopup);
   if (!pop) return;
   pop.addClass("ep-closing");
@@ -8693,13 +8713,13 @@ function displayed(doc, sel) {
   }
   return false;
 }
-function outsidePopup(pop, target, doc) {
-  if (!(target instanceof Node)) return false;
-  if (pop.contains(target)) return false;
-  if (target.instanceOf(HTMLElement) && target.closest(OUTSIDE_LAYERS)) return false;
+function outsidePopup(pop, target2, doc) {
+  if (!(target2 instanceof Node)) return false;
+  if (pop.contains(target2)) return false;
+  if (target2.instanceOf(HTMLElement) && target2.closest(OUTSIDE_LAYERS)) return false;
   const active = doc.activeElement;
   const onSelect = !!(active == null ? void 0 : active.instanceOf(HTMLSelectElement)) && pop.contains(active);
-  if (onSelect && (target === doc.body || target === doc.documentElement)) return false;
+  if (onSelect && (target2 === doc.body || target2 === doc.documentElement)) return false;
   return true;
 }
 function openEntrySettingsPopup(view, file, section, entry, x, y) {
@@ -9881,26 +9901,26 @@ var DragController = class {
     ev.stopPropagation();
     const view = this.view;
     det.addClass("ep-drag-placeholder");
-    let target = null;
+    let target2 = null;
     let after = false;
     const onMove = (e) => {
       var _a;
       const under = activeDocument.elementFromPoint(e.clientX, e.clientY);
       const sec = (_a = under == null ? void 0 : under.closest(".ep-section")) != null ? _a : null;
       this.clearMarks();
-      target = null;
+      target2 = null;
       if (!sec || sec === det) return;
       const r = sec.getBoundingClientRect();
       after = e.clientY - r.top > r.height / 2;
       this.mark(sec, after);
-      target = sec;
+      target2 = sec;
     };
     const onUp = () => {
       activeDocument.removeEventListener("pointermove", onMove);
       activeDocument.removeEventListener("pointerup", onUp);
       activeDocument.removeEventListener("pointercancel", onUp);
       det.removeClass("ep-drag-placeholder");
-      const t = target;
+      const t = target2;
       const a = after;
       this.clearMarks();
       if (!t) return;
@@ -10430,9 +10450,9 @@ function toggleSection(view, section, det, wrap, host) {
     });
   } else {
     wrap.setCssStyles({ height: "0px" });
-    const target = wrap.scrollHeight;
+    const target2 = wrap.scrollHeight;
     window.requestAnimationFrame(() => {
-      wrap.setCssStyles({ height: target + "px" });
+      wrap.setCssStyles({ height: target2 + "px" });
     });
     const done = () => {
       wrap.setCssStyles({ height: "auto" });
@@ -10627,7 +10647,7 @@ var PopupManager = class {
     return [.../* @__PURE__ */ new Set([...Object.keys(this.view.note.raw), ...this.view.props.knownProps()])];
   }
   /** Create the entry (and optionally a value) and refresh. */
-  addEntryWithValue(file, section, key, value, target) {
+  addEntryWithValue(file, section, key, value, target2) {
     var _a;
     const view = this.view;
     key = (key || "").trim();
@@ -10635,9 +10655,9 @@ var PopupManager = class {
     const existing = view.note.raw[key];
     const isList = Array.isArray(value) || Array.isArray(existing);
     const entry = { id: genId(), kind: "prop", key, dataType: isList ? "list" : view.deriveType(key), hideIfEmpty: false };
-    let idx = (_a = target == null ? void 0 : target.index) != null ? _a : section.entries.length;
-    if (target == null ? void 0 : target.replaceId) {
-      const ri = section.entries.findIndex((e) => e.id === target.replaceId);
+    let idx = (_a = target2 == null ? void 0 : target2.index) != null ? _a : section.entries.length;
+    if (target2 == null ? void 0 : target2.replaceId) {
+      const ri = section.entries.findIndex((e) => e.id === target2.replaceId);
       if (ri >= 0) {
         section.entries.splice(ri, 1);
         idx = ri;
@@ -10658,7 +10678,7 @@ var PopupManager = class {
     }
   }
   /** Open the add-property popup anchored below `anchor`. */
-  openAddMenu(anchor, file, section, target) {
+  openAddMenu(anchor, file, section, target2) {
     const view = this.view;
     const t = view.i18n.t.bind(view.i18n);
     this.closeAll();
@@ -10693,14 +10713,14 @@ var PopupManager = class {
         const isList = view.props.obsidianType(c.key) === "list" || Array.isArray(view.note.raw[c.key]);
         let timer = 0;
         row.onmouseenter = () => {
-          timer = window.setTimeout(() => this.openValueSidePanel(row, file, section, c.key, isList, target), 450);
+          timer = window.setTimeout(() => this.openValueSidePanel(row, file, section, c.key, isList, target2), 450);
         };
         row.onmouseleave = () => window.clearTimeout(timer);
         row.onclick = () => {
           if (isList && view.note.raw[c.key] === void 0) {
-            this.openValueSidePanel(row, file, section, c.key, true, target);
+            this.openValueSidePanel(row, file, section, c.key, true, target2);
           } else {
-            this.addEntryWithValue(file, section, c.key, void 0, target);
+            this.addEntryWithValue(file, section, c.key, void 0, target2);
             this.closeAll();
           }
         };
@@ -10730,7 +10750,7 @@ var PopupManager = class {
         const row = listEl.createDiv({ cls: "ep-pop-row ep-pop-create" });
         row.setText(t("add.create", { key: search.value.trim() }));
         row.onclick = () => {
-          this.addEntryWithValue(file, section, search.value.trim(), void 0, target);
+          this.addEntryWithValue(file, section, search.value.trim(), void 0, target2);
           this.closeAll();
         };
       }
@@ -10751,7 +10771,7 @@ var PopupManager = class {
           const r2 = search.getBoundingClientRect();
           this.openPoolEditor(r2.left, r2.bottom + 2, base);
         } else if (v) {
-          this.addEntryWithValue(file, section, v, void 0, target);
+          this.addEntryWithValue(file, section, v, void 0, target2);
           this.closeAll();
         }
       } else if (e.key === "Escape") {
@@ -10767,7 +10787,7 @@ var PopupManager = class {
     this.dismissOnOutsideClick(anchor);
   }
   /** Side panel listing existing values for `key` (multi-select for lists). */
-  openValueSidePanel(row, file, section, key, multi, target) {
+  openValueSidePanel(row, file, section, key, multi, target2) {
     var _a;
     const view = this.view;
     const t = view.i18n.t.bind(view.i18n);
@@ -10790,7 +10810,7 @@ var PopupManager = class {
     const instantAdd = (v, it) => {
       if (appended) view.note.set(file, key, [...view.note.list(key), v]);
       else {
-        this.addEntryWithValue(file, section, key, [v], target);
+        this.addEntryWithValue(file, section, key, [v], target2);
         appended = true;
       }
       it.remove();
@@ -10801,13 +10821,13 @@ var PopupManager = class {
         const v = custom.value.trim();
         if (v) {
           if (appended) view.note.set(file, key, [...view.note.list(key), v]);
-          else this.addEntryWithValue(file, section, key, [v], target);
+          else this.addEntryWithValue(file, section, key, [v], target2);
         } else if (!appended) {
-          this.addEntryWithValue(file, section, key, [], target);
+          this.addEntryWithValue(file, section, key, [], target2);
         }
       } else {
         const v = single != null ? single : custom.value.trim();
-        this.addEntryWithValue(file, section, key, v === "" ? void 0 : v, target);
+        this.addEntryWithValue(file, section, key, v === "" ? void 0 : v, target2);
       }
       this.closeAll();
     };
@@ -10835,7 +10855,7 @@ var PopupManager = class {
     } else {
       const ab = foot.createEl("button", { cls: "ep-mini-btn", text: t("add.addEmpty") });
       ab.onclick = () => {
-        this.addEntryWithValue(file, section, key, void 0, target);
+        this.addEntryWithValue(file, section, key, void 0, target2);
         this.closeAll();
       };
     }
@@ -11024,7 +11044,7 @@ function renderLinkedText(app, el, text, sourcePath) {
     if (m.index > last) el.appendText(text.slice(last, m.index));
     if (m[2] !== void 0) {
       const parts = m[2].split("|");
-      const target = parts[0].trim();
+      const target2 = parts[0].trim();
       const label = ((_a = parts[1]) != null ? _a : parts[0]).trim();
       if (m[1] === "!") {
         el.appendText(m[0]);
@@ -11033,7 +11053,7 @@ function renderLinkedText(app, el, text, sourcePath) {
         a.onclick = (ev) => {
           ev.preventDefault();
           ev.stopPropagation();
-          void app.workspace.openLinkText(target, sourcePath, ev.ctrlKey || ev.metaKey);
+          void app.workspace.openLinkText(target2, sourcePath, ev.ctrlKey || ev.metaKey);
         };
       }
     } else {
@@ -11368,14 +11388,14 @@ var SidebarView = class extends import_obsidian31.ItemView {
   }
   /** Arrow/Home/End move focus between entries; Enter/Space opens the entry menu. */
   onSidebarKey(e) {
-    const target = e.target;
-    if (!target) return;
-    if (e.key === "Tab" && !e.defaultPrevented && this.content.contains(target)) {
-      if (stepField(this.content, target, e.shiftKey)) e.preventDefault();
+    const target2 = e.target;
+    if (!target2) return;
+    if (e.key === "Tab" && !e.defaultPrevented && this.content.contains(target2)) {
+      if (stepField(this.content, target2, e.shiftKey)) e.preventDefault();
       return;
     }
-    if (target.matches("input, textarea, select, [contenteditable='true']")) return;
-    const entry = target.closest(".ep-entry");
+    if (target2.matches("input, textarea, select, [contenteditable='true']")) return;
+    const entry = target2.closest(".ep-entry");
     if (!entry || !this.content.contains(entry)) return;
     const entries = Array.from(this.content.querySelectorAll(".ep-entry"));
     const i = entries.indexOf(entry);
@@ -11387,7 +11407,7 @@ var SidebarView = class extends import_obsidian31.ItemView {
       n.tabIndex = 0;
       n.focus();
     };
-    const action = entryKeyAction(e.key, target === entry);
+    const action = entryKeyAction(e.key, target2 === entry);
     if (!action) return;
     e.preventDefault();
     switch (action) {
@@ -12788,11 +12808,11 @@ var TableView = class extends import_obsidian32.ItemView {
     }
     if (type === "link") {
       const s = fmtCell(raw);
-      const target = linkTarget3(s);
-      const a = td.createEl("a", { cls: "ep-table-link", text: target || s });
+      const target2 = linkTarget3(s);
+      const a = td.createEl("a", { cls: "ep-table-link", text: target2 || s });
       a.onclick = (e) => {
         e.preventDefault();
-        if (target) void this.app.workspace.openLinkText(target, file.path, false);
+        if (target2) void this.app.workspace.openLinkText(target2, file.path, false);
       };
       return;
     }
@@ -17104,9 +17124,9 @@ function findPropEntry(layout, key) {
   return null;
 }
 var InlineViewCtx = class {
-  constructor(ctx2, target, layout, mount, redraw, srcFile = null, srcBody = "") {
+  constructor(ctx2, target2, layout, mount, redraw, srcFile = null, srcBody = "") {
     this.ctx = ctx2;
-    this.target = target;
+    this.target = target2;
     this.redraw = redraw;
     this.srcFile = srcFile;
     this.srcBody = srcBody;
@@ -17130,7 +17150,7 @@ var InlineViewCtx = class {
       captureUndo: () => false,
       conflictGuard: () => this.settings.conflictGuard !== false
     });
-    this.note.load(target);
+    this.note.load(target2);
   }
   // -- refresh -----------------------------------------------------------------
   refreshValues() {
@@ -17295,21 +17315,21 @@ function makeValsEl(ctx2, file, body, onEditSource) {
     var _a, _b, _c, _d, _e, _f;
     wrap.empty();
     let view;
-    let target;
+    let target2;
     let entry;
     let section;
     try {
       const noteRef = parseNoteRef(body);
-      target = file;
+      target2 = file;
       let ref = body;
       if (noteRef && noteRef.accessor) {
         const lf = ctx2.app.metadataCache.getFirstLinkpathDest(noteRef.link, file.path);
         if (!lf) throw new Error("unresolved note link");
-        target = lf;
+        target2 = lf;
         ref = noteRef.accessor;
       }
-      const layout = layoutForFile(ctx2, target);
-      view = new InlineViewCtx(ctx2, target, layout, wrap, draw, file, body);
+      const layout = layoutForFile(ctx2, target2);
+      view = new InlineViewCtx(ctx2, target2, layout, wrap, draw, file, body);
       const key = (_a = keyForShortForm(ctx2.settings, ref, Object.keys(view.note.raw))) != null ? _a : ref;
       const inLayout = layout ? findPropEntry(layout, key) : null;
       if (inLayout) {
@@ -17338,14 +17358,14 @@ function makeValsEl(ctx2, file, body, onEditSource) {
     }
     const extra = wrap.createDiv({ cls: "ep-entry-extra" });
     const flags = emptyFlags();
-    mergeNeeds(flags, (_f = def == null ? void 0 : def.clusterNeeds) == null ? void 0 : _f.call(def, { view, file: target, section, entry }));
-    const ectx = { view, file: target, section, entry, head, extra, flags, wrap };
+    mergeNeeds(flags, (_f = def == null ? void 0 : def.clusterNeeds) == null ? void 0 : _f.call(def, { view, file: target2, section, entry }));
+    const ectx = { view, file: target2, section, entry, head, extra, flags, wrap };
     view.renderLabel(head, ectx);
     try {
       def == null ? void 0 : def.render(ectx);
     } catch (e) {
       console.error("extended-properties: vals value render failed", e);
-      const v = ctx2.facade.get(target, entry.key);
+      const v = ctx2.facade.get(target2, entry.key);
       head.createDiv({ cls: "ep-val-right" }).setText(v === void 0 || v === null || v === "" ? "-" : Array.isArray(v) ? v.join(", ") : String(v));
     }
     const openCardMenu = (x, y) => {
@@ -17363,10 +17383,10 @@ function makeValsEl(ctx2, file, body, onEditSource) {
         menu.addSeparator();
         menu.addItem(
           (i) => i.setTitle(t("entry.menu.clearValue", { key: key2 })).setIcon("eraser").onClick(
-            () => view.note.set(target, key2, void 0)
+            () => view.note.set(target2, key2, void 0)
           )
         );
-        (_b2 = (_a2 = view.registries.valueTypes.get(view.resolveType(entry))) == null ? void 0 : _a2.menuItems) == null ? void 0 : _b2.call(_a2, menu, { view, file: target, section, entry }, { x: ev.clientX, y: ev.clientY });
+        (_b2 = (_a2 = view.registries.valueTypes.get(view.resolveType(entry))) == null ? void 0 : _a2.menuItems) == null ? void 0 : _b2.call(_a2, menu, { view, file: target2, section, entry }, { x: ev.clientX, y: ev.clientY });
       }
       if (onEditSource) {
         menu.addSeparator();
@@ -17391,14 +17411,14 @@ function makeValsEl(ctx2, file, body, onEditSource) {
         ctx2.settings,
         {
           menu: openCardMenu,
-          settings: (x, y) => openEntrySettingsPopup(view, target, section, entry, x, y)
+          settings: (x, y) => openEntrySettingsPopup(view, target2, section, entry, x, y)
         },
         openCardMenu
       );
     }
     wireGestures(wrap, ctx2.settings, {
       menu: openCardMenu,
-      settings: (x, y) => openEntrySettingsPopup(view, target, section, entry, x, y)
+      settings: (x, y) => openEntrySettingsPopup(view, target2, section, entry, x, y)
     });
     guardScrollTaps(wrap);
   };
@@ -18485,8 +18505,8 @@ var ExtendedPropertiesPlugin = class extends import_obsidian47.Plugin {
       (e) => {
         var _a2;
         if (!this.settings.propMenu) return;
-        const target = e.target;
-        const el = (_a2 = target == null ? void 0 : target.closest) == null ? void 0 : _a2.call(target, ".metadata-property");
+        const target2 = e.target;
+        const el = (_a2 = target2 == null ? void 0 : target2.closest) == null ? void 0 : _a2.call(target2, ".metadata-property");
         if (!el) return;
         const key = el.getAttribute("data-property-key");
         if (!key) return;
@@ -18499,8 +18519,8 @@ var ExtendedPropertiesPlugin = class extends import_obsidian47.Plugin {
     this.registerDomEvent(activeDocument, "contextmenu", (e) => {
       var _a2;
       if (!this.settings.propMenu) return;
-      const target = e.target;
-      if (!((_a2 = target == null ? void 0 : target.closest) == null ? void 0 : _a2.call(target, ".metadata-properties-heading"))) return;
+      const target2 = e.target;
+      if (!((_a2 = target2 == null ? void 0 : target2.closest) == null ? void 0 : _a2.call(target2, ".metadata-properties-heading"))) return;
       window.setTimeout(() => augmentPropsMenu(host), 0);
     });
     this.exposeApi();

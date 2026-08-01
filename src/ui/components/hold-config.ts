@@ -106,6 +106,16 @@ export function focusEntry(wrap: HTMLElement): void {
   focused = wrap;
   wrap.addClass("ep-holdfocus");
   wrap.scrollIntoView({ block: "nearest" });
+  // Real focus, not just the glow: the arrows carry on from this row, and
+  // anything that hands focus back later - a menu or the settings popup
+  // closing - has an element to hand it back to.
+  if (wrap.hasClass("ep-entry")) {
+    const view = wrap.closest<HTMLElement>(".ep-content") ?? wrap.ownerDocument.body;
+    // The roving tab stop moves with it (see `view.initRovingFocus`).
+    for (const row of Array.from(view.querySelectorAll<HTMLElement>(".ep-entry"))) row.tabIndex = -1;
+    wrap.tabIndex = 0;
+  }
+  wrap.focus({ preventScroll: true });
   const doc = wrap.ownerDocument;
   const clear = (ev: PointerEvent): void => {
     if (ev.target instanceof Node && wrap.contains(ev.target)) return;
@@ -126,6 +136,11 @@ function closeSettingsPopup(): void {
   popupCleanup = null;
   const pop = openPopup;
   openPopup = null;
+  // The popup holds the keyboard, and it lingers for its closing animation, so
+  // let focus go first: the slot only hands focus back when it is adrift, and
+  // focus still sitting in the popup reads as somewhere the user chose.
+  const held = pop?.ownerDocument.activeElement;
+  if (held?.instanceOf(HTMLElement) && pop?.contains(held)) held.blur();
   // Hands focus back to whatever opened the popup (see `ui/overlay`).
   overlayClosed(closeSettingsPopup);
   if (!pop) return;

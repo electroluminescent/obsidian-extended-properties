@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.30.1
+
+- **Focus comes back to the row after the popup closes.** Two things stopped it:
+  the popup was still holding focus when it reported itself gone - which reads
+  as focus the user chose, and is left alone - and the row it was opened from
+  had never truly held focus, only the glow that stands for it. The row now
+  takes the focus and the tab stop, the popup lets focus go before reporting,
+  and a row rebuilt by a re-render in the meantime is found again by its id.
+- **Opening the popup puts the keyboard in it**, rather than leaving it on the
+  sidebar behind. This needs 4.30.0 or later installed.
+
 ## 4.30.0
 
 - **The settings popup takes the keyboard when it opens.** It had been opening

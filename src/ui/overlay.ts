@@ -16,6 +16,8 @@
 interface Overlay {
   close: () => void;
   opener: HTMLElement | null;
+  /** The opener's entry id, if it is a row: it survives a re-render. */
+  id: string | null;
 }
 
 let current: Overlay | null = null;
@@ -26,13 +28,28 @@ function adrift(doc: Document): boolean {
   return !el || el === doc.body || el === doc.documentElement;
 }
 
+/**
+ * The element to give focus back to. Usually the one that had it, but a view
+ * that re-rendered while the overlay was open - which closing it often causes -
+ * leaves that node detached, with an identical row in its place.
+ */
+function target(o: Overlay): HTMLElement | null {
+  const opener = o.opener;
+  if (!opener) return null;
+  if (opener.isConnected) return opener;
+  if (!o.id) return null;
+  return opener.ownerDocument.querySelector<HTMLElement>(`.ep-entry[data-ep-id="${o.id}"]`);
+}
+
 /** Open an overlay, closing any other. `close` identifies it later. */
 export function openOverlay(close: () => void): void {
   const prev = current;
   current = null; // cleared first: closing prev must not re-enter this slot
   prev?.close();
   const active = activeDocument.activeElement;
-  current = { close, opener: active instanceof HTMLElement ? active : null };
+  const opener = active?.instanceOf(HTMLElement) ? active : null;
+  const row = opener?.closest<HTMLElement>(".ep-entry") ?? null;
+  current = { close, opener, id: row?.getAttribute("data-ep-id") ?? null };
 }
 
 /** Close the open overlay, if any. */
@@ -49,11 +66,12 @@ export function closeOverlay(): void {
  */
 export function overlayClosed(close: () => void): void {
   if (current?.close !== close) return;
-  const opener = current.opener;
+  const overlay = current;
   current = null;
-  if (!opener) return;
+  if (!overlay.opener) return;
   // After the overlay's own teardown, which may move focus itself.
   window.setTimeout(() => {
-    if (opener.isConnected && adrift(opener.ownerDocument)) opener.focus();
+    const el = target(overlay);
+    if (el && adrift(el.ownerDocument)) el.focus();
   }, 0);
 }
