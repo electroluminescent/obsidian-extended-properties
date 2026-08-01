@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.29.0
+
+- **One overlay at a time.** A context menu and the property-settings popup are
+  opened by different gestures on the same row, and each only knew how to close
+  its own kind - so a hold after a right click left two of them stacked. They
+  share one slot now: opening either closes whatever was open, whichever gesture
+  or surface it came from.
+- **Closing one hands focus back to the control that opened it**, so Tab carries
+  on from there instead of restarting at the top of the view. Focus is only
+  restored when it was left dangling: if you have already clicked or tabbed
+  somewhere deliberate, that wins.
+- Escape now closes the settings popup through Obsidian's keymap rather than a
+  listener of our own, which its own scope claimed first. A suggestion list,
+  menu or modal opened from inside the popup still answers Escape before the
+  popup does, because it pushes its scope above it.
+
 ## 4.28.0
 
 - **The menu button answers to held and double keys.** Holding Enter or Space

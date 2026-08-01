@@ -19,13 +19,14 @@
  * see {@link mobileGestures} and the settings tab's disclaimer.
  */
 
-import { Menu, Platform, setIcon, TFile } from "obsidian";
+import { Menu, Platform, Scope, setIcon, TFile } from "obsidian";
 import type { ViewCtx, OptionsCtx } from "../../core/context";
 import { Entry, Section, sectionMode } from "../../core/model";
 import * as ops from "../../core/layout-ops";
 import { openEntryMenu } from "../menus/entry-menu";
 import { renderEntryOptionsBody } from "../modals/entry-options";
 import { showMenuAt } from "../menus/show";
+import { openOverlay, overlayClosed } from "../overlay";
 
 export type EntryInteraction = "menu" | "settings" | "focus" | "none";
 
@@ -125,6 +126,8 @@ function closeSettingsPopup(): void {
   popupCleanup = null;
   const pop = openPopup;
   openPopup = null;
+  // Hands focus back to whatever opened the popup (see `ui/overlay`).
+  overlayClosed(closeSettingsPopup);
   if (!pop) return;
   // Mirror the open animation on the way out (shared .ep-closing keyframes);
   // the element is detached once it finishes, or immediately when animations
@@ -149,9 +152,6 @@ function closeSettingsPopup(): void {
 const OUTSIDE_LAYERS =
   ".ep-popup, .suggestion-container, .menu, .modal-container, .prompt, .notice, .notice-container";
 
-/** Layers that consume Escape themselves before the popup should see it. */
-const OWN_ESCAPE =
-  ".modal-container, .suggestion-container, .menu, .ep-popup:not(.ep-entrysettings)";
 
 /**
  * Whether a press or key really landed away from the popup.
@@ -185,7 +185,9 @@ export function openEntrySettingsPopup(
   x: number,
   y: number
 ): void {
-  closeSettingsPopup();
+  // Takes the overlay slot: any menu (or an older popup) closes, and focus
+  // returns to whatever opened this one when it goes.
+  openOverlay(closeSettingsPopup);
   const doc = activeDocument;
   // ep-compactopts strips descriptions and stacks each row's control under
   // its name, so everything fits the menu width with no horizontal scroll.
@@ -310,19 +312,20 @@ export function openEntrySettingsPopup(
     if (!outsidePopup(pop, ev.target, doc)) return;
     closeSettingsPopup();
   };
-  const onKey = (ev: KeyboardEvent): void => {
-    if (ev.key !== "Escape") return;
-    // A modal, suggestion list or menu opened from a row owns Escape first -
-    // it closes, and the popup it was opened from stays put.
-    if (!outsidePopup(pop, ev.target, doc)) return;
-    if (doc.querySelector(OWN_ESCAPE)) return;
-    closeSettingsPopup();
-  };
   doc.addEventListener("pointerdown", onDown, true);
-  doc.addEventListener("keydown", onKey, true);
+  // Escape goes through Obsidian's keymap rather than a listener of ours: its
+  // own scope claims the key first, so a document listener never sees it.
+  // Nothing else has to be checked for here - a suggestion list, menu or modal
+  // opened afterwards pushes its scope above this one and answers first.
+  const scope = new Scope(view.app.scope);
+  scope.register([], "Escape", () => {
+    closeSettingsPopup();
+    return false;
+  });
+  view.app.keymap.pushScope(scope);
   popupCleanup = () => {
     doc.removeEventListener("pointerdown", onDown, true);
-    doc.removeEventListener("keydown", onKey, true);
+    view.app.keymap.popScope(scope);
   };
 }
 

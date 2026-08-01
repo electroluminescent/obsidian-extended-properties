@@ -12,23 +12,23 @@
  */
 
 import type { Menu, MenuPositionDef } from "obsidian";
+import { closeOverlay, openOverlay, overlayClosed } from "../overlay";
 
-let current: Menu | null = null;
-
-/** Close the plugin menu that is currently open, if any. */
+/** Close the plugin menu (or popup) that is currently open, if any. */
 export function closeOpenMenu(): void {
-  const prev = current;
-  current = null;
-  prev?.hide();
+  closeOverlay();
 }
 
-/** Remember `menu` as the open one until it hides. */
+/**
+ * Take the overlay slot for `menu` - closing whatever was open, menu or
+ * popup - and give focus back to its opener when it hides.
+ */
 function adopt(menu: Menu): void {
-  closeOpenMenu();
-  current = menu;
-  menu.onHide(() => {
-    if (current === menu) current = null;
-  });
+  const close = (): void => {
+    menu.hide();
+  };
+  openOverlay(close);
+  menu.onHide(() => overlayClosed(close));
 }
 
 /** Show `menu` at the event's position, replacing any menu already open. */

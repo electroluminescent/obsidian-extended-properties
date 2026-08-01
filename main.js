@@ -6867,19 +6867,36 @@ function parseDateFlexible(text, cfg) {
   return null;
 }
 
-// src/ui/menus/show.ts
+// src/ui/overlay.ts
 var current = null;
-function closeOpenMenu() {
+function adrift(doc) {
+  const el = doc.activeElement;
+  return !el || el === doc.body || el === doc.documentElement;
+}
+function openOverlay(close) {
   const prev = current;
   current = null;
-  prev == null ? void 0 : prev.hide();
+  prev == null ? void 0 : prev.close();
+  const active = activeDocument.activeElement;
+  current = { close, opener: active instanceof HTMLElement ? active : null };
 }
+function overlayClosed(close) {
+  if ((current == null ? void 0 : current.close) !== close) return;
+  const opener = current.opener;
+  current = null;
+  if (!opener) return;
+  window.setTimeout(() => {
+    if (opener.isConnected && adrift(opener.ownerDocument)) opener.focus();
+  }, 0);
+}
+
+// src/ui/menus/show.ts
 function adopt(menu) {
-  closeOpenMenu();
-  current = menu;
-  menu.onHide(() => {
-    if (current === menu) current = null;
-  });
+  const close = () => {
+    menu.hide();
+  };
+  openOverlay(close);
+  menu.onHide(() => overlayClosed(close));
 }
 function showMenu(menu, ev) {
   adopt(menu);
@@ -8625,6 +8642,7 @@ function closeSettingsPopup() {
   popupCleanup = null;
   const pop = openPopup;
   openPopup = null;
+  overlayClosed(closeSettingsPopup);
   if (!pop) return;
   pop.addClass("ep-closing");
   let removed = false;
@@ -8637,7 +8655,6 @@ function closeSettingsPopup() {
   window.setTimeout(drop, 200);
 }
 var OUTSIDE_LAYERS = ".ep-popup, .suggestion-container, .menu, .modal-container, .prompt, .notice, .notice-container";
-var OWN_ESCAPE = ".modal-container, .suggestion-container, .menu, .ep-popup:not(.ep-entrysettings)";
 function outsidePopup(pop, target, doc) {
   if (!(target instanceof Node)) return false;
   if (pop.contains(target)) return false;
@@ -8648,7 +8665,7 @@ function outsidePopup(pop, target, doc) {
   return true;
 }
 function openEntrySettingsPopup(view, file, section, entry, x, y) {
-  closeSettingsPopup();
+  openOverlay(closeSettingsPopup);
   const doc = activeDocument;
   const pop = doc.body.createDiv({ cls: "ep-popup ep-entrysettings ep-options ep-compactopts" });
   const sheet = mobileGestures();
@@ -8762,17 +8779,16 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
     if (!outsidePopup(pop, ev.target, doc)) return;
     closeSettingsPopup();
   };
-  const onKey = (ev) => {
-    if (ev.key !== "Escape") return;
-    if (!outsidePopup(pop, ev.target, doc)) return;
-    if (doc.querySelector(OWN_ESCAPE)) return;
-    closeSettingsPopup();
-  };
   doc.addEventListener("pointerdown", onDown, true);
-  doc.addEventListener("keydown", onKey, true);
+  const scope = new import_obsidian23.Scope(view.app.scope);
+  scope.register([], "Escape", () => {
+    closeSettingsPopup();
+    return false;
+  });
+  view.app.keymap.pushScope(scope);
   popupCleanup = () => {
     doc.removeEventListener("pointerdown", onDown, true);
-    doc.removeEventListener("keydown", onKey, true);
+    view.app.keymap.popScope(scope);
   };
 }
 function runInteraction(el, handlers, action, x, y) {
