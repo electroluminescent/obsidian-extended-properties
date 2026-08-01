@@ -1228,9 +1228,18 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-settings-host > h3,
 .ep-settings-host > h4,
 .ep-settings-host > .setting-item-description,
-.ep-settings-host > div > .setting-item-description {
+.ep-settings-host > div > .setting-item-description,
+/* Since the body became tabs, that loose copy sits one level deeper - inside
+   the section's panel - so the same alignment has to reach it there. */
+.ep-settings-panel > p,
+.ep-settings-panel > input,
+.ep-settings-panel > h3,
+.ep-settings-panel > h4,
+.ep-settings-panel > .setting-item-description,
+.ep-settings-panel > div > .setting-item-description {
   padding-left: var(--ep-row-pad-l, var(--size-4-3, 12px));
   padding-right: var(--ep-row-pad-r, var(--size-4-3, 12px));
 }
 /* The override search field spans the row, minus that padding. */
-.ep-settings-host > input { box-sizing: border-box; }
+.ep-settings-host > input,
+.ep-settings-panel > input { box-sizing: border-box; }

@@ -263,13 +263,6 @@ export class EPSettingTab extends PluginSettingTab {
     c.empty();
     c.addClass("ep-settings");
 
-    setTypedText(
-      c.createEl("p", { cls: "setting-item-description" }),
-      i18n,
-      plugin.settings,
-      "settings.intro"
-    );
-
     // -- types ---------------------------------------------------------------
     new Setting(c).setName(t("settings.typesHeading")).setHeading();
     new Setting(c)

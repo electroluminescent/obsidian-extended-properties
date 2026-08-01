@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.24.1
+
+- The intro paragraph above the settings is gone; the tabs and the search box
+  start the tab.
+- Section descriptions line up with their rows again. They moved one level
+  deeper when the body became tabs - inside the section's panel - and the rule
+  that aligns loose copy only reached the level above.
+
 ## 4.24.0
 
 - **The settings are tabs now**, one section at a time instead of one long

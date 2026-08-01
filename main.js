@@ -13756,12 +13756,6 @@ var EPSettingTab = class extends import_obsidian35.PluginSettingTab {
     };
     c.empty();
     c.addClass("ep-settings");
-    setTypedText(
-      c.createEl("p", { cls: "setting-item-description" }),
-      i18n,
-      plugin.settings,
-      "settings.intro"
-    );
     new import_obsidian35.Setting(c).setName(t("settings.typesHeading")).setHeading();
     new import_obsidian35.Setting(c).setName(t("settings.typeProp")).setDesc(t("settings.typePropDesc")).addText((tx) => {
       var _a;
