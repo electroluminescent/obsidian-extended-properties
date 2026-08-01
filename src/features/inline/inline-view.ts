@@ -35,6 +35,7 @@ import { makeVaultAccess, parseNoteRef } from "../../core/note-ref";
 import { PopupManager } from "../../ui/components/popups";
 import type { InlineCtx } from "./inline-render";
 import { makeValEl } from "./inline-render";
+import { showMenu } from "../../ui/menus/show";
 
 /** The note-type layout for a file (or null when no configured type matches). */
 function layoutForFile(ctx: InlineCtx, file: TFile): Layout | null {
@@ -373,7 +374,7 @@ export function makeValsEl(ctx: InlineCtx, file: TFile, body: string, onEditSour
         menu.addSeparator();
         menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
       }
-      menu.showAtMouseEvent(ev);
+      showMenu(menu, ev);
     };
     // Same four mappable gestures as the sidebar: right click, hold, right
     // hold and click, with the property-settings popup available too.

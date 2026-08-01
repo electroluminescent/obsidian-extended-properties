@@ -13,6 +13,7 @@ import { App, Menu, setIcon } from "obsidian";
 import type { I18n } from "../../i18n/i18n";
 import type { EPSettings } from "../../core/model";
 import type { HideService } from "../../core/hide-service";
+import { showMenu } from "./show";
 
 export interface PropPanelHost {
   app: App;
@@ -92,7 +93,7 @@ export function showPropMenu(host: PropPanelHost, e: MouseEvent, key: string): v
       addGroup(t("propPanel.groupOther"), others);
     });
   }
-  menu.showAtMouseEvent(e);
+  showMenu(menu, e);
 }
 
 /** Inject "Hidden properties" rows into the properties heading's menu. */

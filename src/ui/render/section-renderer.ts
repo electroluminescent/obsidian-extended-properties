@@ -19,6 +19,7 @@ import { openSectionMenu } from "../menus/section-menu";
 import { bindRename } from "../components/inline-edit";
 import type { DragController } from "../drag";
 import type { LayoutMode, SectionPin } from "../../core/model";
+import { showMenu } from "../menus/show";
 
 /** Row-height presets -> max rows shown before the section scrolls. */
 const SIZE_ROWS: Record<string, number> = { s: 4, m: 8, l: 12 };
@@ -330,7 +331,7 @@ export function renderSection(
               view.openAddMenu(cell, section, { index: section.entries.length })
             )
           );
-          m.showAtMouseEvent(ce);
+          showMenu(m, ce);
         });
       }
       const add = body.createDiv({ cls: "ep-add" });

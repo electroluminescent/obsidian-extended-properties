@@ -25,6 +25,7 @@ import { Entry, Section, sectionMode } from "../../core/model";
 import * as ops from "../../core/layout-ops";
 import { openEntryMenu } from "../menus/entry-menu";
 import { renderEntryOptionsBody } from "../modals/entry-options";
+import { showMenuAt } from "../menus/show";
 
 export type EntryInteraction = "menu" | "settings" | "focus" | "none";
 
@@ -228,7 +229,7 @@ export function openEntrySettingsPopup(
         const menu = new Menu();
         contribute(menu, { view, file, section, entry }, { x, y });
         closeSettingsPopup();
-        menu.showAtPosition({ x, y }, doc);
+        showMenuAt(menu, { x, y }, doc);
       });
     }
   }

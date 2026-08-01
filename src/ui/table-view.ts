@@ -27,6 +27,7 @@ import { getCI, parseNumeric } from "../utils/misc";
 import { parseDiceOrDefault } from "../utils/dice";
 import { TextLinkSuggest } from "./components/suggest";
 import { bindActivation } from "./components/activate";
+import { showMenu } from "./menus/show";
 
 export const VIEW_TYPE_TABLE = "extended-properties-table";
 
@@ -535,7 +536,7 @@ export class TableView extends ItemView {
             this.render();
           })
         );
-        menu.showAtMouseEvent(e);
+        showMenu(menu, e);
       };
     if (meta) this.attachResize(th, key, layout);
   }
@@ -618,7 +619,7 @@ export class TableView extends ItemView {
           })
       );
     }
-    menu.showAtMouseEvent(e);
+    showMenu(menu, e);
   }
 
   async onClose(): Promise<void> {

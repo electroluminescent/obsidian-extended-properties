@@ -3286,8 +3286,8 @@ function openTextInput(app, span, key, value, valuesFor, commit2) {
     }
   };
 }
-function bindRename(span, current, placeholder, tooltip, commit2) {
-  span.setText(current || placeholder);
+function bindRename(span, current2, placeholder, tooltip, commit2) {
+  span.setText(current2 || placeholder);
   span.addClass("ep-editable");
   span.setAttr("title", tooltip);
   span.onclick = (ev) => {
@@ -3295,7 +3295,7 @@ function bindRename(span, current, placeholder, tooltip, commit2) {
     ev.stopPropagation();
     const input = createEl("input", { cls: "ep-edit-input ep-edit-label" });
     input.type = "text";
-    input.value = current;
+    input.value = current2;
     input.placeholder = placeholder;
     span.replaceWith(input);
     input.focus();
@@ -3984,10 +3984,10 @@ var ColorPickerModal = class extends import_obsidian6.Modal {
 // src/ui/modals/icon-picker.ts
 var import_obsidian7 = require("obsidian");
 var IconPickerModal = class extends import_obsidian7.Modal {
-  constructor(app, i18n, current, onPick) {
+  constructor(app, i18n, current2, onPick) {
     super(app);
     this.i18n = i18n;
-    this.current = current;
+    this.current = current2;
     this.onPick = onPick;
   }
   onOpen() {
@@ -5570,9 +5570,9 @@ var checkboxType = {
 function buildList(ctx2, holder, showAdd) {
   const { view, file, entry } = ctx2;
   const key = entry.key;
-  const current = view.note.list(key);
+  const current2 = view.note.list(key);
   const list = holder.createDiv({ cls: "ep-list" });
-  for (const item of current) {
+  for (const item of current2) {
     const chip = list.createSpan({ cls: "ep-chip" });
     const cv = chip.createSpan();
     view.renderLinks(cv, item);
@@ -5580,7 +5580,7 @@ function buildList(ctx2, holder, showAdd) {
     x.setAttr("role", "button");
     x.tabIndex = 0;
     x.setAttr("aria-label", view.i18n.t("a11y.removeItem", { item }));
-    const removeItem = () => view.note.set(file, key, current.filter((i) => i !== item));
+    const removeItem = () => view.note.set(file, key, current2.filter((i) => i !== item));
     x.onclick = removeItem;
     x.onkeydown = (e) => {
       if (e.key === "Enter" || e.key === " ") {
@@ -6767,6 +6767,29 @@ function parseDateFlexible(text, cfg) {
   return null;
 }
 
+// src/ui/menus/show.ts
+var current = null;
+function closeOpenMenu() {
+  const prev = current;
+  current = null;
+  prev == null ? void 0 : prev.hide();
+}
+function adopt(menu) {
+  closeOpenMenu();
+  current = menu;
+  menu.onHide(() => {
+    if (current === menu) current = null;
+  });
+}
+function showMenu(menu, ev) {
+  adopt(menu);
+  menu.showAtMouseEvent(ev);
+}
+function showMenuAt(menu, pos, doc) {
+  adopt(menu);
+  menu.showAtPosition(pos, doc);
+}
+
 // src/ui/render/value-types/date.ts
 function cfgFor(view, key) {
   var _a, _b, _c, _d;
@@ -6899,7 +6922,7 @@ function render2(ctx2) {
         }).open();
       })
     );
-    menu.showAtMouseEvent(ev);
+    showMenu(menu, ev);
   };
   txt.onclick = () => {
     var _a;
@@ -7415,7 +7438,7 @@ var blankKind = {
           })
         );
       }
-      m.showAtMouseEvent(ce);
+      showMenu(m, ce);
     };
     const mb = wrap.createSpan({ cls: "ep-menu-btn", text: "..." });
     mb.onclick = openMenu;
@@ -8156,7 +8179,7 @@ function openEntryMenu(e, view, file, section, entry) {
   menu.addItem(
     (i) => i.setTitle(t("entry.menu.remove")).setIcon("trash").onClick(() => view.removeEntry(section, entry))
   );
-  menu.showAtMouseEvent(e);
+  showMenu(menu, e);
 }
 
 // src/ui/components/hold-config.ts
@@ -8551,7 +8574,7 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
         const menu = new import_obsidian23.Menu();
         contribute(menu, { view, file, section, entry }, { x, y });
         closeSettingsPopup();
-        menu.showAtPosition({ x, y }, doc);
+        showMenuAt(menu, { x, y }, doc);
       });
     }
   }
@@ -9806,7 +9829,7 @@ function openSectionMenu(e, view, section) {
             })
           );
         }
-        m2.showAtMouseEvent(e);
+        showMenu(m2, e);
       })
     );
   }
@@ -9847,7 +9870,7 @@ function openSectionMenu(e, view, section) {
       view.rerender();
     })
   );
-  menu.showAtMouseEvent(e);
+  showMenu(menu, e);
 }
 
 // src/ui/render/section-renderer.ts
@@ -10082,7 +10105,7 @@ function renderSection(parent, view, file, section, drag, host) {
               () => view.openAddMenu(cell, section, { index: section.entries.length })
             )
           );
-          m.showAtMouseEvent(ce);
+          showMenu(m, ce);
         });
       }
       const add = body.createDiv({ cls: "ep-add" });
@@ -10907,7 +10930,7 @@ function openTypeMenu(ev, c) {
       }).open()
     )
   );
-  menu.showAtMouseEvent(ev);
+  showMenu(menu, ev);
 }
 
 // src/ui/components/activate.ts
@@ -11618,7 +11641,7 @@ var SidebarView = class extends import_obsidian31.ItemView {
               })
             );
           }
-          menu.showAtPosition({ x, y });
+          showMenuAt(menu, { x, y });
         };
         hint.onclick = (e) => {
           e.preventDefault();
@@ -11651,12 +11674,12 @@ var SidebarView = class extends import_obsidian31.ItemView {
    * pick one to retype the note, or type a new name to create it. Creating
    * offers to copy the current type's layout into the new one.
    */
-  openTypePicker(chip, file, current) {
+  openTypePicker(chip, file, current2) {
     const t = this.i18n.t.bind(this.i18n);
     const prop2 = typePropOf(this.settings);
     const input = createEl("input", { cls: "ep-edit-input ep-type-input" });
     input.type = "text";
-    input.value = current;
+    input.value = current2;
     chip.replaceWith(input);
     input.focus();
     input.select();
@@ -11693,7 +11716,7 @@ var SidebarView = class extends import_obsidian31.ItemView {
       new ConfirmModal(
         this.app,
         this.i18n,
-        t("view.copyLayoutPrompt", { from: current, to: name }),
+        t("view.copyLayoutPrompt", { from: current2, to: name }),
         () => add(true),
         { onCancel: () => add(false), confirmText: t("view.copyLayoutYes"), cancelText: t("view.copyLayoutNo"), destructiveConfirm: false }
       ).open();
@@ -11703,7 +11726,7 @@ var SidebarView = class extends import_obsidian31.ItemView {
       const q = input.value.trim().toLowerCase();
       const hits = this.settings.types.filter((tp) => !q || tp.toLowerCase().includes(q));
       for (const tp of hits) {
-        const row = pop.createDiv({ cls: "ep-pop-row" + (tp.toLowerCase() === current.toLowerCase() ? " is-active" : "") });
+        const row = pop.createDiv({ cls: "ep-pop-row" + (tp.toLowerCase() === current2.toLowerCase() ? " is-active" : "") });
         row.setText(tp);
         row.onmousedown = (e) => {
           e.preventDefault();
@@ -12610,7 +12633,7 @@ var TableView = class extends import_obsidian32.ItemView {
             this.render();
           })
         );
-        menu.showAtMouseEvent(e);
+        showMenu(menu, e);
       };
     if (meta) this.attachResize(th, key, layout);
   }
@@ -12684,7 +12707,7 @@ var TableView = class extends import_obsidian32.ItemView {
         })
       );
     }
-    menu.showAtMouseEvent(e);
+    showMenu(menu, e);
   }
   async onClose() {
     this.detachScroll();
@@ -14388,7 +14411,7 @@ function showPropMenu(host, e, key) {
       addGroup(t("propPanel.groupOther"), others);
     });
   }
-  menu.showAtMouseEvent(e);
+  showMenu(menu, e);
 }
 function augmentPropsMenu(host) {
   const { i18n, hide } = host;
@@ -14920,7 +14943,7 @@ function playRollAnimation(job, i18n, done) {
     }
     menu.addItem((mi) => mi.setTitle(i18n.t("roll.card.dismiss")).setIcon("x").onClick(close));
     menu.addItem((mi) => mi.setTitle(i18n.t("roll.closeAll")).setIcon("x-circle").onClick(closeAllRolls));
-    menu.showAtMouseEvent(ev);
+    showMenu(menu, ev);
   };
   let sizeTimer = 0;
   const addCell = (op, valueText, labelText, cls = "") => {
@@ -15205,7 +15228,7 @@ function openDiceMenu(e, app, i18n, binding) {
     )
   );
   menu.addItem((i) => i.setTitle(i18n.t("dice.reset")).onClick(() => binding.set(void 0)));
-  menu.showAtMouseEvent(e);
+  showMenu(menu, e);
 }
 function addDiceSettings(container, i18n, binding) {
   const cur = () => parseDiceOrDefault(binding.get());
@@ -15248,11 +15271,11 @@ function addDiceSettings(container, i18n, binding) {
     });
   });
 }
-function openRollMenu(ev, i18n, current, run, opts) {
+function openRollMenu(ev, i18n, current2, run, opts) {
   const pop = activeDocument.body.createDiv({ cls: "ep-popup ep-rollmenu" });
   pop.setCssStyles({ left: ev.clientX + "px" });
   pop.setCssStyles({ top: ev.clientY + 2 + "px" });
-  let mode = current;
+  let mode = current2;
   const row = pop.createDiv({ cls: "ep-mode" });
   const btns = /* @__PURE__ */ new Map();
   const modes = [
@@ -15587,7 +15610,7 @@ var rollerKind = {
                 drawMacros();
               })
             );
-            menu.showAtMouseEvent(ev);
+            showMenu(menu, ev);
           };
         }
       }
@@ -16861,7 +16884,7 @@ function makeValsEl(ctx2, file, body, onEditSource) {
         menu.addSeparator();
         menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
       }
-      menu.showAtMouseEvent(ev);
+      showMenu(menu, ev);
     };
     if (entry.menuBtn === true) {
       const mb = head.createSpan({ cls: "ep-menu-btn" });
@@ -17265,7 +17288,7 @@ function makeValEl(ctx2, file, body, onEditSource) {
       if (editValue && directKey)
         menu.addItem((i) => i.setTitle(t("inline.editValue", { prop: directKey })).setIcon("pencil").onClick(editValue));
       if (onEditSource) menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
-      menu.showAtMouseEvent(new MouseEvent("contextmenu", { clientX: x, clientY: y, bubbles: true }));
+      showMenu(menu, new MouseEvent("contextmenu", { clientX: x, clientY: y, bubbles: true }));
     };
     wireGestures(chip, ctx2.settings, { menu: openChipMenu });
   }
@@ -17611,7 +17634,7 @@ var InlineWidget = class extends import_view.WidgetType {
           ev.stopPropagation();
           const menu = new import_obsidian46.Menu();
           menu.addItem((i) => i.setTitle(this.ctx.i18n.t("inline.editSource")).setIcon("pencil").onClick(reveal));
-          menu.showAtMouseEvent(ev);
+          showMenu(menu, ev);
         };
         dom = wrap;
       }

@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.21.2
+
+- **Repeating an action no longer stacks context menus.** Obsidian dismisses a
+  menu when a press lands outside it, but the controls that open ours stop that
+  press from travelling (otherwise the row's gestures fire too), and a keyboard
+  activation dismisses nothing - so pressing the same button twice left two
+  menus on screen, slightly offset. Every menu the plugin opens now goes through
+  one place, and opening one closes whichever was open before it. That covers
+  the row menu, the type chip, sections, inline cards, the table, dice and date
+  menus alike.
+
 ## 4.21.1
 
 - **Space on the menu button opened two menus.** The row is a focusable group

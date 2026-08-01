@@ -39,6 +39,7 @@ import { renderLinkedText } from "../../ui/components/links";
 import { renderBars, renderProgress, renderRadar, renderSparkline } from "../../ui/render/charts";
 import { openRollMenu } from "../rolling/dice-ui";
 import type { RollMode, RollService } from "../rolling/roll-service";
+import { showMenu } from "../../ui/menus/show";
 
 /** Everything the inline renderers need from the plugin. */
 export interface InlineCtx {
@@ -375,7 +376,7 @@ export function makeValEl(ctx: InlineCtx, file: TFile, body: string, onEditSourc
       if (editValue && directKey)
         menu.addItem((i) => i.setTitle(t("inline.editValue", { prop: directKey })).setIcon("pencil").onClick(editValue));
       if (onEditSource) menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
-      menu.showAtMouseEvent(new MouseEvent("contextmenu", { clientX: x, clientY: y, bubbles: true }));
+      showMenu(menu, new MouseEvent("contextmenu", { clientX: x, clientY: y, bubbles: true }));
     };
     wireGestures(chip, ctx.settings, { menu: openChipMenu });
   }

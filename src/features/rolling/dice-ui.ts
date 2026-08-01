@@ -17,6 +17,7 @@ import { clamp } from "../../utils/misc";
 import { diceIconId } from "../../ui/render/dice-icons";
 import { TextPromptModal } from "../../ui/modals/dialogs";
 import type { RollMode } from "./roll-service";
+import { showMenu } from "../../ui/menus/show";
 
 /** Get/set the persisted dice notation (undefined = default d20). */
 export interface DiceBinding {
@@ -59,7 +60,7 @@ export function openDiceMenu(e: MouseEvent, app: App, i18n: I18n, binding: DiceB
     )
   );
   menu.addItem((i) => i.setTitle(i18n.t("dice.reset")).onClick(() => binding.set(undefined)));
-  menu.showAtMouseEvent(e);
+  showMenu(menu, e);
 }
 
 /** `Setting` rows for options modals: preset dropdown, count, custom size. */

@@ -41,6 +41,7 @@ import { openEntryMenu } from "./menus/entry-menu";
 import { openTypeMenu } from "./menus/type-menu";
 import { activationHint, bindActivation } from "./components/activate";
 import { entryKeyAction } from "./components/entry-keys";
+import { showMenuAt } from "./menus/show";
 
 export const VIEW_TYPE = "extended-properties-character";
 
@@ -761,7 +762,7 @@ export class SidebarView extends ItemView implements ViewCtx {
               })
             );
           }
-          menu.showAtPosition({ x, y });
+          showMenuAt(menu, { x, y });
         };
         hint.onclick = (e) => {
           e.preventDefault();

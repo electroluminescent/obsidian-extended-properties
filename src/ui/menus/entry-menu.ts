@@ -8,6 +8,7 @@ import { Menu, TFile } from "obsidian";
 import type { ViewCtx } from "../../core/context";
 import { Entry, Section, sectionMode } from "../../core/model";
 import * as ops from "../../core/layout-ops";
+import { showMenu } from "./show";
 
 export function openEntryMenu(
   e: MouseEvent,
@@ -81,5 +82,5 @@ export function openEntryMenu(
   menu.addItem((i) =>
     i.setTitle(t("entry.menu.remove")).setIcon("trash").onClick(() => view.removeEntry(section, entry))
   );
-  menu.showAtMouseEvent(e);
+  showMenu(menu, e);
 }

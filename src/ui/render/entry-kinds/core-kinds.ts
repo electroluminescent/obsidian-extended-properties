@@ -12,6 +12,7 @@ import type { EntryKindDef } from "../../../core/registry";
 import type { EntryRenderCtx } from "../../../core/context";
 import { sectionMode } from "../../../core/model";
 import * as ops from "../../../core/layout-ops";
+import { showMenu } from "../../menus/show";
 
 // ---------------------------------------------------------------------------
 // prop
@@ -81,7 +82,7 @@ export const blankKind: EntryKindDef = {
           })
         );
       }
-      m.showAtMouseEvent(ce);
+      showMenu(m, ce);
     };
     const mb = wrap.createSpan({ cls: "ep-menu-btn", text: "..." });
     mb.onclick = openMenu;

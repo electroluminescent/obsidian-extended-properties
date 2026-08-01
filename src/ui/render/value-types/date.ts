@@ -33,6 +33,7 @@ import {
   parseDateFlexible, systemOf, translateSerial,
 } from "../../../core/calendar";
 import { TextPromptModal } from "../../modals/dialogs";
+import { showMenu } from "../../menus/show";
 
 /** Entry-level fields (per sidebar entry, not shared). */
 interface DateExt {
@@ -213,7 +214,7 @@ function render(ctx: EntryRenderCtx): void {
         }).open();
       })
     );
-    menu.showAtMouseEvent(ev);
+    showMenu(menu, ev);
   };
 
   // Click-to-edit: free text against the format. What the user types is

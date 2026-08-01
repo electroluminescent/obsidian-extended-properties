@@ -30,6 +30,7 @@ import { openDiceMenu } from "./dice-ui";
 import { applicableMacros, runMacro, runRoll, segsToText, textToSegs } from "./macros";
 import { RefSuggest } from "../../ui/components/suggest";
 import { TextPromptModal } from "../../ui/modals/dialogs";
+import { showMenu } from "../../ui/menus/show";
 
 /** One link of the user-assembled chain. */
 export type RollerSeg = RollSeg;
@@ -327,7 +328,7 @@ export const rollerKind: EntryKindDef = {
                 drawMacros();
               })
             );
-            menu.showAtMouseEvent(ev);
+            showMenu(menu, ev);
           };
         }
       }

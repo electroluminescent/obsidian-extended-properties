@@ -15,6 +15,7 @@ import { ConfirmModal } from "../modals/dialogs";
 import { IconPickerModal } from "../modals/icon-picker";
 import { RenameTypeModal } from "../modals/rename-type";
 import { typeName } from "../components/type-label";
+import { showMenu } from "./show";
 
 export interface TypeMenuCtx {
   app: App;
@@ -110,5 +111,5 @@ export function openTypeMenu(ev: MouseEvent, c: TypeMenuCtx): void {
       )
   );
 
-  menu.showAtMouseEvent(ev);
+  showMenu(menu, ev);
 }

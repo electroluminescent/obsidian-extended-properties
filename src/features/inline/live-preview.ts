@@ -19,6 +19,7 @@ import { editorInfoField, editorLivePreviewField, Menu, TFile } from "obsidian";
 import { InlineCtx, makeChartEl, makeRollChip, makeValEl, renderPropValue } from "./inline-render";
 import { makeValsEl } from "./inline-view";
 import type { EventRef } from "obsidian";
+import { showMenu } from "../../ui/menus/show";
 
 const PREFIX = /^(roll|prop|vals|val|spark|bar|radar|progress)(?:\(([^)]*)\))?:\s*(.+)$/i;
 
@@ -100,7 +101,7 @@ class InlineWidget extends WidgetType {
           ev.stopPropagation();
           const menu = new Menu();
           menu.addItem((i) => i.setTitle(this.ctx.i18n.t("inline.editSource")).setIcon("pencil").onClick(reveal));
-          menu.showAtMouseEvent(ev);
+          showMenu(menu, ev);
         };
         dom = wrap;
       }

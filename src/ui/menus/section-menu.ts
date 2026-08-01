@@ -11,6 +11,7 @@ import { packSection } from "../../core/transfer";
 import * as ops from "../../core/layout-ops";
 import { SectionOptionsModal } from "../modals/section-options";
 import { flipMove } from "../drag";
+import { showMenu } from "./show";
 
 export function openSectionMenu(e: MouseEvent, view: ViewCtx, section: Section): void {
   const t = view.i18n.t.bind(view.i18n);
@@ -60,7 +61,7 @@ export function openSectionMenu(e: MouseEvent, view: ViewCtx, section: Section):
             })
           );
         }
-        m2.showAtMouseEvent(e);
+        showMenu(m2, e);
       })
     );
   }
@@ -101,5 +102,5 @@ export function openSectionMenu(e: MouseEvent, view: ViewCtx, section: Section):
       view.rerender();
     })
   );
-  menu.showAtMouseEvent(e);
+  showMenu(menu, e);
 }

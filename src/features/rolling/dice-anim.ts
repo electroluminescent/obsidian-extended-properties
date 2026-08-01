@@ -31,6 +31,7 @@ import { diceIconId } from "../../ui/render/dice-icons";
 import { fmtMod } from "../../utils/misc";
 import { sfx } from "../../utils/sound";
 import { DICE_STYLES, DieView, pickDiceStyle } from "./dice-styles";
+import { showMenu } from "../../ui/menus/show";
 
 /**
  * Live plugin settings + persist callback for the summary's expandable
@@ -529,7 +530,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     }
     menu.addItem((mi) => mi.setTitle(i18n.t("roll.card.dismiss")).setIcon("x").onClick(close));
     menu.addItem((mi) => mi.setTitle(i18n.t("roll.closeAll")).setIcon("x-circle").onClick(closeAllRolls));
-    menu.showAtMouseEvent(ev);
+    showMenu(menu, ev);
   };
 
   /**
