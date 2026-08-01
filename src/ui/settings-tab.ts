@@ -232,6 +232,9 @@ export class EPSettingTab extends PluginSettingTab {
         this.query = "";
         search.value = "";
         apply();
+        // The bar scrolls with the page, so bring it back into view: a tab
+        // opened from halfway down should start at its top.
+        chrome.scrollIntoView({ block: "start" });
       };
       return b;
     });

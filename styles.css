@@ -1162,10 +1162,12 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 
 /* -- settings tabs + filter ------------------------------------------------ */
 
+/* Deliberately not sticky. A sticky bar parks at its scroll container's
+   PADDING box - Obsidian's, not ours - so rows scrolled into that strip stay
+   visible above it, and nothing paintable of ours reaches up there to cover
+   them. The bar scrolls with the content instead, and a tab switch scrolls
+   back to it. */
 .ep-settings-chrome {
-  position: sticky;
-  top: 0;
-  z-index: 1;
   background: var(--background-primary);
   padding: 8px var(--ep-row-pad-r, 12px) 4px var(--ep-row-pad-l, 12px);
   border-bottom: 1px solid var(--background-modifier-border);
@@ -1212,11 +1214,10 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 
 /* The settings tab draws inside its declarative row: strip the row's own
    frame so the sections lay out exactly as before. */
-/* Top padding only: the first child is loose copy, and a bare margin would
-   collapse straight out of the host. */
+/* No padding of its own: the tab bar starts the tab and brings its own. */
 .ep-settings-host {
   display: block;
-  padding: var(--ep-row-pad-t, var(--size-4-3, 12px)) 0 0;
+  padding: 0;
   border: none;
   background: none;
 }

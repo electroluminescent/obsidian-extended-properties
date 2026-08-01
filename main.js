@@ -13724,6 +13724,7 @@ var EPSettingTab = class extends import_obsidian35.PluginSettingTab {
         this.query = "";
         search.value = "";
         apply();
+        chrome.scrollIntoView({ block: "start" });
       };
       return b;
     });

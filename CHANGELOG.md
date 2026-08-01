@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.25.1
+
+- **No more strip of settings scrolling above the search bar.** The bar was
+  sticky, and a sticky element parks at its scroll container's padding box -
+  Obsidian's container, not ours - so rows scrolled into that strip stayed
+  visible above it, with nothing of ours able to reach up and cover them. The
+  bar now scrolls with the content, and switching tabs scrolls back to it.
+
 ## 4.25.0
 
 - **Nine settings tabs instead of seventeen**, each holding related sections
