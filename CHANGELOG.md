@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.24.0
+
+- **The settings are tabs now**, one section at a time instead of one long
+  scroll: Type, Defaults, Dice, Rolls, Features and the rest. The body is still
+  written as a single document and partitioned by its headings when it renders,
+  so a new section becomes a tab on its own - there is no list to keep in step.
+- **A search box above the tabs filters every section at once.** Matching rows
+  appear under their section heading, so a result says where it lives; a
+  section whose heading matches shows whole, which keeps the bespoke editors
+  (types, macros, short forms) findable. A clear button empties the box - the
+  settings window claims Escape before a field inside it sees it.
+- The open tab and the search text survive the re-render that follows a change,
+  and the box keeps focus and caret while you type.
+
 ## 4.23.0
 
 - **A text property can edit in a box that grows.** *Options -> Text ->

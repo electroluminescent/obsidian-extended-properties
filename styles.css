@@ -998,7 +998,9 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-feature-hidden { display: none; }
 
 /* -- date value type (custom calendars) ----------------------------------- */
-.ep-hidden { display: none; }
+/* Doubled deliberately: this must outrank the `display` an element's own
+   class sets (the settings clear button is an inline-flex button). */
+.ep-hidden.ep-hidden { display: none; }
 .ep-era-chip { font-size: var(--font-ui-smaller); color: var(--text-muted); background: var(--background-modifier-hover); border-radius: var(--ep-radius, 4px); padding: 0 5px; cursor: pointer; white-space: nowrap; }
 .ep-era-chip:hover { color: var(--text-normal); }
 .ep-era-chip.ep-era-unset { opacity: 0.55; font-style: italic; }
@@ -1157,6 +1159,57 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 
 /* The configured type-property name, wherever it appears in a sentence. */
 .ep-typename { color: var(--text-accent); }
+
+/* -- settings tabs + filter ------------------------------------------------ */
+
+.ep-settings-chrome {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--background-primary);
+  padding: 8px var(--ep-row-pad-r, 12px) 4px var(--ep-row-pad-l, 12px);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.ep-settings-searchrow { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
+.ep-settings-search { flex: 1 1 auto; min-width: 0; box-sizing: border-box; }
+.ep-settings-clear {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.ep-settings-clear:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+.ep-settings-clear svg { width: 15px; height: 15px; }
+.ep-settings-tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+.ep-settings-tab {
+  padding: 3px 10px;
+  font-size: var(--font-ui-smaller);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--text-muted);
+  cursor: pointer;
+  box-shadow: none;
+}
+.ep-settings-tab:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+.ep-settings-tab.is-active {
+  color: var(--text-on-accent);
+  background: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+}
+/* One tab at a time: its own heading is redundant with the tab that opened it.
+   While filtering, headings come back as the grouping for the results. */
+.ep-settings-panel > .setting-item-heading { display: none; }
+.ep-settings-filtering .ep-settings-panel > .setting-item-heading { display: flex; }
+.ep-settings-empty { padding: 12px var(--ep-row-pad-l, 12px); }
 
 /* The settings tab draws inside its declarative row: strip the row's own
    frame so the sections lay out exactly as before. */

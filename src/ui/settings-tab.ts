@@ -94,10 +94,142 @@ export class EPSettingTab extends PluginSettingTab {
     return this.renderTarget ?? this.containerEl;
   }
 
+  /** Heading text of the open tab (survives re-renders; "" = the first one). */
+  private activeTab = "";
+  /** Current filter text, likewise. */
+  private query = "";
+  /** Whether the filter box had focus when the tab last rebuilt. */
+  private queryFocused = false;
+
   render(): void {
     this.renderBody();
+    this.tabify();
     this.tint();
     this.alignLooseText();
+  }
+
+  /**
+   * Turn the rendered body into tabs with a filter box.
+   *
+   * The body is written as one long document - which is how it stays readable
+   * to write - and partitioned here by its headings. Sections therefore need no
+   * registration: a new heading becomes a new tab on its own, and the two views
+   * (one tab at a time, or every match of a search) are the same nodes moved
+   * around rather than a second rendering path that could drift.
+   */
+  private tabify(): void {
+    const host = this.host;
+    const t = this.plugin.i18n.t.bind(this.plugin.i18n);
+    const nodes = Array.from(host.children) as HTMLElement[];
+
+    // Everything before the first heading (the intro) stays above the chrome.
+    const first = nodes.findIndex((n) => n.hasClass("setting-item-heading"));
+    if (first < 0) return;
+
+    const chrome = host.createDiv({ cls: "ep-settings-chrome" });
+    const body = host.createDiv({ cls: "ep-settings-panels" });
+
+    interface Group { title: string; panel: HTMLElement; heading: HTMLElement }
+    const groups: Group[] = [];
+    let panel: HTMLElement | null = null;
+    for (const node of nodes.slice(first)) {
+      if (node.hasClass("setting-item-heading")) {
+        panel = body.createDiv({ cls: "ep-settings-panel" });
+        groups.push({ title: node.textContent?.trim() ?? "", panel, heading: node });
+      }
+      panel?.appendChild(node);
+    }
+    if (!groups.length) return;
+
+    // -- filter ---------------------------------------------------------------
+    const row = chrome.createDiv({ cls: "ep-settings-searchrow" });
+    const search = row.createEl("input", { cls: "ep-edit-input ep-settings-search" });
+    search.type = "search";
+    search.placeholder = t("settings.searchPlaceholder");
+    search.value = this.query;
+    search.setAttr("aria-label", t("settings.searchPlaceholder"));
+    // A clear button rather than only Escape: the settings window claims that
+    // key before a field inside it ever sees it.
+    const clear = row.createEl("button", { cls: "ep-settings-clear" });
+    setIcon(clear, "x");
+    clear.setAttr("aria-label", t("settings.searchClear"));
+    clear.setAttr("title", t("settings.searchClear"));
+    clear.onclick = () => {
+      search.value = "";
+      this.query = "";
+      search.focus();
+      apply();
+    };
+
+    // -- tabs -----------------------------------------------------------------
+    const bar = chrome.createDiv({ cls: "ep-settings-tabs" });
+    const active = groups.some((g) => g.title === this.activeTab) ? this.activeTab : groups[0].title;
+    this.activeTab = active;
+    const buttons = groups.map((g) => {
+      const b = bar.createEl("button", { cls: "ep-settings-tab", text: g.title });
+      b.setAttr("role", "tab");
+      b.onclick = () => {
+        this.activeTab = g.title;
+        this.query = "";
+        search.value = "";
+        apply();
+      };
+      return b;
+    });
+
+    /** Show the open tab, or - while filtering - every row that matches. */
+    const apply = (): void => {
+      const q = this.query.trim().toLowerCase();
+      host.toggleClass("ep-settings-filtering", !!q);
+      clear.toggleClass("ep-hidden", !this.query);
+      buttons.forEach((b, i) => b.toggleClass("is-active", !q && groups[i].title === this.activeTab));
+      let hits = 0;
+      for (const g of groups) {
+        if (!q) {
+          g.panel.toggleClass("ep-hidden", g.title !== this.activeTab);
+          for (const row of g.panel.findAll(".setting-item")) row.removeClass("ep-hidden");
+          continue;
+        }
+        // A matching heading shows its whole section: some sections are bespoke
+        // editors rather than rows, and would otherwise look empty.
+        const whole = g.title.toLowerCase().includes(q);
+        let shown = 0;
+        for (const row of g.panel.findAll(".setting-item")) {
+          if (row === g.heading) continue;
+          const hit = whole || (row.textContent ?? "").toLowerCase().includes(q);
+          row.toggleClass("ep-hidden", !hit);
+          if (hit) shown++;
+        }
+        g.panel.toggleClass("ep-hidden", shown === 0);
+        hits += shown;
+      }
+      empty.toggleClass("ep-hidden", !q || hits > 0);
+    };
+
+    const empty = body.createDiv({ cls: "ep-settings-empty setting-item-description ep-hidden" });
+    empty.setText(t("settings.searchNoResults"));
+
+    search.addEventListener("input", () => {
+      this.query = search.value;
+      apply();
+    });
+    search.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || !search.value) return;
+      e.preventDefault();
+      e.stopPropagation(); // Escape would otherwise close the settings window
+      search.value = "";
+      this.query = "";
+      apply();
+    });
+    // The tab re-renders on many changes; typing must survive that.
+    search.addEventListener("focus", () => (this.queryFocused = true));
+    search.addEventListener("blur", () => (this.queryFocused = false));
+    if (this.queryFocused) {
+      search.focus();
+      search.setSelectionRange(search.value.length, search.value.length);
+    }
+
+    apply();
   }
 
   /**

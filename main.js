@@ -593,6 +593,9 @@ var en_default = {
   "conflict.keys": "Both sides changed: {keys}",
   "preset.empty": "Empty",
   "settings.intro": "Open a note whose {typeProp} matches one below, then click Edit (or right-click anything) to arrange it. Drag handles, use ... / right-click for options (Configure for the full panel), click labels to rename, add properties at each section's bottom.",
+  "settings.searchPlaceholder": "Search these settings...",
+  "settings.searchClear": "Clear the search",
+  "settings.searchNoResults": "Nothing here matches that.",
   "settings.typesHeading": "{typeProp}",
   "settings.typeProp": "Type property (currently {typeProp})",
   "settings.typePropDesc": "The frontmatter property that selects a note's layout - currently {typeProp}. Point it at an existing property (e.g. category) and the plugin recognizes those notes retroactively, without renaming anything in your vault.",
@@ -13562,6 +13565,12 @@ var EPSettingTab = class extends import_obsidian35.PluginSettingTab {
     this.plugin = plugin;
     /** Where the tab draws: the definition's row, else the tab container. */
     this.renderTarget = null;
+    /** Heading text of the open tab (survives re-renders; "" = the first one). */
+    this.activeTab = "";
+    /** Current filter text, likewise. */
+    this.query = "";
+    /** Whether the filter box had focus when the tab last rebuilt. */
+    this.queryFocused = false;
   }
   /**
    * Obsidian 1.13 renders a tab from its setting DEFINITIONS and only falls
@@ -13607,8 +13616,115 @@ var EPSettingTab = class extends import_obsidian35.PluginSettingTab {
   }
   render() {
     this.renderBody();
+    this.tabify();
     this.tint();
     this.alignLooseText();
+  }
+  /**
+   * Turn the rendered body into tabs with a filter box.
+   *
+   * The body is written as one long document - which is how it stays readable
+   * to write - and partitioned here by its headings. Sections therefore need no
+   * registration: a new heading becomes a new tab on its own, and the two views
+   * (one tab at a time, or every match of a search) are the same nodes moved
+   * around rather than a second rendering path that could drift.
+   */
+  tabify() {
+    var _a, _b;
+    const host = this.host;
+    const t = this.plugin.i18n.t.bind(this.plugin.i18n);
+    const nodes = Array.from(host.children);
+    const first = nodes.findIndex((n) => n.hasClass("setting-item-heading"));
+    if (first < 0) return;
+    const chrome = host.createDiv({ cls: "ep-settings-chrome" });
+    const body = host.createDiv({ cls: "ep-settings-panels" });
+    const groups = [];
+    let panel = null;
+    for (const node of nodes.slice(first)) {
+      if (node.hasClass("setting-item-heading")) {
+        panel = body.createDiv({ cls: "ep-settings-panel" });
+        groups.push({ title: (_b = (_a = node.textContent) == null ? void 0 : _a.trim()) != null ? _b : "", panel, heading: node });
+      }
+      panel == null ? void 0 : panel.appendChild(node);
+    }
+    if (!groups.length) return;
+    const row = chrome.createDiv({ cls: "ep-settings-searchrow" });
+    const search = row.createEl("input", { cls: "ep-edit-input ep-settings-search" });
+    search.type = "search";
+    search.placeholder = t("settings.searchPlaceholder");
+    search.value = this.query;
+    search.setAttr("aria-label", t("settings.searchPlaceholder"));
+    const clear = row.createEl("button", { cls: "ep-settings-clear" });
+    (0, import_obsidian35.setIcon)(clear, "x");
+    clear.setAttr("aria-label", t("settings.searchClear"));
+    clear.setAttr("title", t("settings.searchClear"));
+    clear.onclick = () => {
+      search.value = "";
+      this.query = "";
+      search.focus();
+      apply();
+    };
+    const bar = chrome.createDiv({ cls: "ep-settings-tabs" });
+    const active = groups.some((g) => g.title === this.activeTab) ? this.activeTab : groups[0].title;
+    this.activeTab = active;
+    const buttons = groups.map((g) => {
+      const b = bar.createEl("button", { cls: "ep-settings-tab", text: g.title });
+      b.setAttr("role", "tab");
+      b.onclick = () => {
+        this.activeTab = g.title;
+        this.query = "";
+        search.value = "";
+        apply();
+      };
+      return b;
+    });
+    const apply = () => {
+      var _a2;
+      const q = this.query.trim().toLowerCase();
+      host.toggleClass("ep-settings-filtering", !!q);
+      clear.toggleClass("ep-hidden", !this.query);
+      buttons.forEach((b, i) => b.toggleClass("is-active", !q && groups[i].title === this.activeTab));
+      let hits = 0;
+      for (const g of groups) {
+        if (!q) {
+          g.panel.toggleClass("ep-hidden", g.title !== this.activeTab);
+          for (const row2 of g.panel.findAll(".setting-item")) row2.removeClass("ep-hidden");
+          continue;
+        }
+        const whole = g.title.toLowerCase().includes(q);
+        let shown = 0;
+        for (const row2 of g.panel.findAll(".setting-item")) {
+          if (row2 === g.heading) continue;
+          const hit = whole || ((_a2 = row2.textContent) != null ? _a2 : "").toLowerCase().includes(q);
+          row2.toggleClass("ep-hidden", !hit);
+          if (hit) shown++;
+        }
+        g.panel.toggleClass("ep-hidden", shown === 0);
+        hits += shown;
+      }
+      empty.toggleClass("ep-hidden", !q || hits > 0);
+    };
+    const empty = body.createDiv({ cls: "ep-settings-empty setting-item-description ep-hidden" });
+    empty.setText(t("settings.searchNoResults"));
+    search.addEventListener("input", () => {
+      this.query = search.value;
+      apply();
+    });
+    search.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape" || !search.value) return;
+      e.preventDefault();
+      e.stopPropagation();
+      search.value = "";
+      this.query = "";
+      apply();
+    });
+    search.addEventListener("focus", () => this.queryFocused = true);
+    search.addEventListener("blur", () => this.queryFocused = false);
+    if (this.queryFocused) {
+      search.focus();
+      search.setSelectionRange(search.value.length, search.value.length);
+    }
+    apply();
   }
   /**
    * Loose copy (section blurbs, the intro, the override search field) is not
