@@ -204,6 +204,17 @@ export function renderEntryOptionsBody(
         changed();
       });
     });
+  // Every kind and data type: the button sits at the end of the row, after
+  // whatever the type rendered.
+  new Setting(c)
+    .setName(t("options.menuBtn"))
+    .setDesc(t("options.menuBtnDesc"))
+    .addToggle((tg) => {
+      tg.setValue(e.menuBtn === true).onChange((v) => {
+        e.menuBtn = v ? true : undefined;
+        changed();
+      });
+    });
   if (isProp) {
     new Setting(c)
       .setName(t("options.showType"))

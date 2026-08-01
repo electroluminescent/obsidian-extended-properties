@@ -51,6 +51,11 @@ export interface EntryBase {
   showDice?: boolean;
   /** Show the die icon before the dice breakdown (default true). */
   showDiceIcon?: boolean;
+  /**
+   * Show a menu button at the end of the row outside edit mode too (edit mode
+   * always shows one). Opens this entry's context menu.
+   */
+  menuBtn?: boolean;
   labelSize?: number;
   valueSize?: number;
   labelColor?: string;

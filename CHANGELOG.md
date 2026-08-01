@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.21.0
+
+- **A per-property menu button.** *Appearance -> Menu button* puts a vertical
+  three-dot button at the end of the row outside edit mode, opening the same
+  menu a right-click does. It is appended after the value type has rendered, so
+  it sits to the right of the roll button where there is one and at the end of
+  the row where there is not - the same for every data type, every layout mode,
+  and for cards in notes (which open their own card menu). Off by default.
+- The edit-mode menu button now draws the same vertical-dots icon instead of
+  three full stops, so the two are one control in two places.
+
 ## 4.20.0
 
 - **Single click can open a value outside edit mode.** A new *Editing outside

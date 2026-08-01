@@ -469,6 +469,8 @@ var en_default = {
   "options.mixed": "Mixed values - changing this writes it to every selected tab.",
   "options.multiNote": "Editing {n} {type} properties together - every setting you change here is written to all of them.",
   "options.multiMixed": "Currently differing across the selection: {list}.",
+  "options.menuBtn": "Menu button",
+  "options.menuBtnDesc": "Show a menu button at the end of this row (after the roll button, where there is one) outside edit mode. Opens the same menu a right-click does.",
   "options.showLabel": "Show label",
   "options.showLabelDesc": "On = the label is visible outside edit mode",
   "options.showWhenEmpty": "Show when empty",
@@ -8307,6 +8309,12 @@ function renderEntryOptionsBody(octx, onDone, onRemoved, opts = {}) {
       changed();
     });
   });
+  new import_obsidian22.Setting(c).setName(t("options.menuBtn")).setDesc(t("options.menuBtnDesc")).addToggle((tg) => {
+    tg.setValue(e.menuBtn === true).onChange((v) => {
+      e.menuBtn = v ? true : void 0;
+      changed();
+    });
+  });
   if (isProp) {
     new import_obsidian22.Setting(c).setName(t("options.showType")).setDesc(t("options.showTypeDesc")).addToggle((tg) => {
       tg.setValue(e.showType !== false).onChange((v) => {
@@ -8813,11 +8821,13 @@ function renderEntry(grid, view, file, section, entry, flags, drag) {
     v.createSpan({ cls: "ep-placeholder", text: view.i18n.t("entry.unknownKind", { kind: entry.kind }) });
   }
   wireEntryInteractions(wrap, view, file, section, entry);
-  if (view.editMode) {
-    const menuBtn = head.createSpan({ cls: "ep-menu-btn", text: "..." });
+  if (view.editMode || entry.menuBtn === true) {
+    const menuBtn = head.createSpan({ cls: "ep-menu-btn" });
+    (0, import_obsidian24.setIcon)(menuBtn, "more-vertical");
     menuBtn.setAttr("role", "button");
     menuBtn.tabIndex = 0;
     menuBtn.setAttr("aria-label", view.i18n.t("a11y.entryMenu"));
+    menuBtn.setAttr("title", view.i18n.t("a11y.entryMenu"));
     menuBtn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -8830,8 +8840,8 @@ function renderEntry(grid, view, file, section, entry, flags, drag) {
         openEntryMenu(new MouseEvent("contextmenu", { clientX: r.left, clientY: r.bottom }), view, file, section, entry);
       }
     };
-    if (grip) drag.attachEntry(wrap, grip, section, entry);
   }
+  if (view.editMode && grip) drag.attachEntry(wrap, grip, section, entry);
 }
 
 // src/ui/menus/section-menu.ts
@@ -16836,6 +16846,26 @@ function makeValsEl(ctx2, file, body, onEditSource) {
       }
       menu.showAtMouseEvent(ev);
     };
+    if (entry.menuBtn === true) {
+      const mb = head.createSpan({ cls: "ep-menu-btn" });
+      (0, import_obsidian44.setIcon)(mb, "more-vertical");
+      mb.setAttr("role", "button");
+      mb.tabIndex = 0;
+      mb.setAttr("aria-label", t("a11y.entryMenu"));
+      mb.setAttr("title", t("a11y.entryMenu"));
+      mb.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openCardMenu(e.clientX, e.clientY);
+      };
+      mb.onkeydown = (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          const r = mb.getBoundingClientRect();
+          openCardMenu(r.left, r.bottom);
+        }
+      };
+    }
     wireGestures(wrap, ctx2.settings, {
       menu: openCardMenu,
       settings: (x, y) => openEntrySettingsPopup(view, target, section, entry, x, y)

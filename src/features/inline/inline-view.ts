@@ -377,6 +377,28 @@ export function makeValsEl(ctx: InlineCtx, file: TFile, body: string, onEditSour
     };
     // Same four mappable gestures as the sidebar: right click, hold, right
     // hold and click, with the property-settings popup available too.
+    // The same per-entry menu button the sidebar row offers, opening this
+    // card's menu (no structural grid actions, since there is no grid here).
+    if (entry.menuBtn === true) {
+      const mb = head.createSpan({ cls: "ep-menu-btn" });
+      setIcon(mb, "more-vertical");
+      mb.setAttr("role", "button");
+      mb.tabIndex = 0;
+      mb.setAttr("aria-label", t("a11y.entryMenu"));
+      mb.setAttr("title", t("a11y.entryMenu"));
+      mb.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openCardMenu(e.clientX, e.clientY);
+      };
+      mb.onkeydown = (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          const r = mb.getBoundingClientRect();
+          openCardMenu(r.left, r.bottom);
+        }
+      };
+    }
     wireGestures(wrap, ctx.settings, {
       menu: openCardMenu,
       settings: (x, y) => openEntrySettingsPopup(view, target, section, entry, x, y),

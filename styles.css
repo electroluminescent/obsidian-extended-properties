@@ -127,6 +127,10 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
 .ep-ticon svg, .ep-picon svg { width: 16px; height: 16px; }
 .ep-cols-btn, .ep-menu-btn, .ep-icon-btn { cursor: pointer; color: var(--text-muted); padding: 0 3px; border-radius: 4px; font-weight: 700; display: inline-flex; align-items: center; transition: background-color .2s ease, color .2s ease; }
 .ep-cols-btn:hover, .ep-menu-btn:hover, .ep-icon-btn:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+/* The menu button draws an icon (vertical dots), not text: size it like the
+   other row glyphs and keep it from being squeezed by a long value. */
+.ep-menu-btn { flex: 0 0 auto; }
+.ep-menu-btn svg { width: 15px; height: 15px; }
 .ep-dim { opacity: 0.5; }
 .ep-collapse { transition: height .2s ease; }
 

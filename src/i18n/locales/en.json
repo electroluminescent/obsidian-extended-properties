@@ -367,6 +367,8 @@
   "options.mixed": "Mixed values - changing this writes it to every selected tab.",
   "options.multiNote": "Editing {n} {type} properties together - every setting you change here is written to all of them.",
   "options.multiMixed": "Currently differing across the selection: {list}.",
+  "options.menuBtn": "Menu button",
+  "options.menuBtnDesc": "Show a menu button at the end of this row (after the roll button, where there is one) outside edit mode. Opens the same menu a right-click does.",
   "options.showLabel": "Show label",
   "options.showLabelDesc": "On = the label is visible outside edit mode",
   "options.showWhenEmpty": "Show when empty",

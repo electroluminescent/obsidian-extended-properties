@@ -100,11 +100,17 @@ export function renderEntry(
   // Right-click and press-and-hold are user-mappable (menu / property
   // settings popup / focus); the hold charges a ring around the cursor.
   wireEntryInteractions(wrap, view, file, section, entry);
-  if (view.editMode) {
-    const menuBtn = head.createSpan({ cls: "ep-menu-btn", text: "..." });
+  // The menu button: always in edit mode, and outside it when the entry asks
+  // for one. It is appended to the head after the value type has rendered, so
+  // it lands at the end of the row - to the right of the cluster, and so of
+  // the roll button - whatever the data type or layout mode.
+  if (view.editMode || entry.menuBtn === true) {
+    const menuBtn = head.createSpan({ cls: "ep-menu-btn" });
+    setIcon(menuBtn, "more-vertical");
     menuBtn.setAttr("role", "button");
     menuBtn.tabIndex = 0;
     menuBtn.setAttr("aria-label", view.i18n.t("a11y.entryMenu"));
+    menuBtn.setAttr("title", view.i18n.t("a11y.entryMenu"));
     menuBtn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -117,6 +123,6 @@ export function renderEntry(
         openEntryMenu(new MouseEvent("contextmenu", { clientX: r.left, clientY: r.bottom }), view, file, section, entry);
       }
     };
-    if (grip) drag.attachEntry(wrap, grip, section, entry);
   }
+  if (view.editMode && grip) drag.attachEntry(wrap, grip, section, entry);
 }
