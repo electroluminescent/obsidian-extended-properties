@@ -8775,27 +8775,98 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
     doc.removeEventListener("keydown", onKey, true);
   };
 }
+function runInteraction(el, handlers, action, x, y) {
+  if (action === "none") return;
+  if (action === "focus") {
+    if (handlers.focus) handlers.focus();
+    else focusEntry(el);
+    return;
+  }
+  if (action === "settings" && handlers.settings) {
+    handlers.focus ? handlers.focus() : focusEntry(el);
+    handlers.settings(x, y);
+    return;
+  }
+  handlers.menu(x, y);
+}
+function chargeRing(x, y, ms, done) {
+  const ring = activeDocument.body.createDiv({ cls: "ep-holdring" });
+  ring.setCssStyles({ left: x + "px", top: y + "px" });
+  const started = performance.now();
+  let raf = 0;
+  const stop2 = () => {
+    window.cancelAnimationFrame(raf);
+    ring.remove();
+  };
+  const tick = () => {
+    const p = Math.min(1, (performance.now() - started) / ms);
+    ring.setCssProps({ "--ep-hold": String(p) });
+    if (p >= 1) {
+      stop2();
+      done();
+      return;
+    }
+    raf = window.requestAnimationFrame(tick);
+  };
+  raf = window.requestAnimationFrame(tick);
+  return stop2;
+}
+function wireKeyGestures(el, settings, handlers, tap) {
+  const mobile = mobileGestures();
+  const actionFor = (kind) => interactionFor(settings, effectiveGesture(kind, mobile));
+  const at = () => {
+    const r = el.getBoundingClientRect();
+    return { x: r.left, y: r.bottom };
+  };
+  let cancel = null;
+  let held = false;
+  let tapTimer = 0;
+  let lastTap = 0;
+  el.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.repeat || cancel) return;
+    held = false;
+    const action = actionFor("hold");
+    if (action === "none") return;
+    const { x, y } = at();
+    cancel = chargeRing(x, y, holdMsOf(settings), () => {
+      cancel = null;
+      held = true;
+      runInteraction(el, handlers, action, x, y);
+    });
+  });
+  el.addEventListener("keyup", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    cancel == null ? void 0 : cancel();
+    cancel = null;
+    if (held) {
+      held = false;
+      return;
+    }
+    const { x, y } = at();
+    const dbl = actionFor("dblClick");
+    const now = performance.now();
+    if (dbl !== "none" && now - lastTap < DBL_WINDOW_MS) {
+      window.clearTimeout(tapTimer);
+      lastTap = 0;
+      runInteraction(el, handlers, dbl, x, y);
+      return;
+    }
+    lastTap = now;
+    if (dbl === "none") tap(x, y);
+    else tapTimer = window.setTimeout(() => tap(x, y), DBL_WINDOW_MS);
+  });
+  el.addEventListener("blur", () => {
+    cancel == null ? void 0 : cancel();
+    cancel = null;
+  });
+}
 function wireGestures(el, settings, handlers) {
   const mobile = mobileGestures();
   const actionFor = (kind) => interactionFor(settings, effectiveGesture(kind, mobile));
-  const run = (action, x, y) => {
-    if (action === "none") return;
-    if (action === "focus") {
-      if (handlers.focus) handlers.focus();
-      else focusEntry(el);
-      return;
-    }
-    if (action === "settings") {
-      if (handlers.settings) {
-        handlers.focus ? handlers.focus() : focusEntry(el);
-        handlers.settings(x, y);
-      } else {
-        handlers.menu(x, y);
-      }
-      return;
-    }
-    handlers.menu(x, y);
-  };
+  const run = (action, x, y) => runInteraction(el, handlers, action, x, y);
   let ring = null;
   let raf = 0;
   let start = 0;
@@ -8992,14 +9063,16 @@ function renderEntry(grid, view, file, section, entry, flags, drag) {
       e.stopPropagation();
       openEntryMenu(e, view, file, section, entry);
     };
-    menuBtn.onkeydown = (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        e.stopPropagation();
-        const r = menuBtn.getBoundingClientRect();
-        openEntryMenu(new MouseEvent("contextmenu", { clientX: r.left, clientY: r.bottom }), view, file, section, entry);
-      }
-    };
+    wireKeyGestures(
+      menuBtn,
+      view.settings,
+      {
+        menu: (x, y) => openEntryMenu(new MouseEvent("contextmenu", { clientX: x, clientY: y }), view, file, section, entry),
+        settings: (x, y) => openEntrySettingsPopup(view, file, section, entry, x, y),
+        focus: () => focusEntry(wrap)
+      },
+      (x, y) => openEntryMenu(new MouseEvent("contextmenu", { clientX: x, clientY: y }), view, file, section, entry)
+    );
   }
   if (view.editMode && grip) drag.attachEntry(wrap, grip, section, entry);
 }
@@ -17241,14 +17314,15 @@ function makeValsEl(ctx2, file, body, onEditSource) {
         e.stopPropagation();
         openCardMenu(e.clientX, e.clientY);
       };
-      mb.onkeydown = (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          e.stopPropagation();
-          const r = mb.getBoundingClientRect();
-          openCardMenu(r.left, r.bottom);
-        }
-      };
+      wireKeyGestures(
+        mb,
+        ctx2.settings,
+        {
+          menu: openCardMenu,
+          settings: (x, y) => openEntrySettingsPopup(view, target, section, entry, x, y)
+        },
+        openCardMenu
+      );
     }
     wireGestures(wrap, ctx2.settings, {
       menu: openCardMenu,

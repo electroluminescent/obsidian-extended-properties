@@ -26,7 +26,7 @@ import { NoteModel } from "../../core/note-model";
 import { buildCluster, emptyFlags, mergeNeeds } from "../../ui/render/cluster";
 import { renderLinkedText } from "../../ui/components/links";
 import { guardScrollTaps } from "../../ui/components/long-press";
-import { openEntrySettingsPopup, wireGestures } from "../../ui/components/hold-config";
+import { openEntrySettingsPopup, wireGestures, wireKeyGestures } from "../../ui/components/hold-config";
 import { activationHint, bindActivation } from "../../ui/components/activate";
 import { registerOpener } from "../../ui/components/tab-chain";
 import { ColorPickerModal } from "../../ui/modals/color-picker";
@@ -394,14 +394,16 @@ export function makeValsEl(ctx: InlineCtx, file: TFile, body: string, onEditSour
         e.stopPropagation();
         openCardMenu(e.clientX, e.clientY);
       };
-      mb.onkeydown = (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          e.stopPropagation();
-          const r = mb.getBoundingClientRect();
-          openCardMenu(r.left, r.bottom);
-        }
-      };
+      // Same mapping from the keyboard as from a press (see wireKeyGestures).
+      wireKeyGestures(
+        mb,
+        ctx.settings,
+        {
+          menu: openCardMenu,
+          settings: (x, y) => openEntrySettingsPopup(view, target, section, entry, x, y),
+        },
+        openCardMenu
+      );
     }
     wireGestures(wrap, ctx.settings, {
       menu: openCardMenu,

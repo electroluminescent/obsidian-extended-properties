@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.28.0
+
+- **The menu button answers to held and double keys.** Holding Enter or Space
+  on it runs whatever the hold gesture is mapped to - the property settings by
+  default - with the same charging ring a press draws; two quick taps run the
+  double-click mapping; one tap still opens the menu. So a keyboard reaches
+  every mapped action, not just the one action the button carries. The same
+  applies to a card's menu button in a note.
+- With a double-tap action mapped, a single tap waits out the double-tap window
+  first, and a key released elsewhere never leaves a ring charging.
+
 ## 4.27.2
 
 - **Tab reaches every control again, not only the values.** The chain was

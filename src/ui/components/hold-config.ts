@@ -337,6 +337,136 @@ export interface GestureHandlers {
 }
 
 /**
+ * Carry out a mapped action. Actions the surface can't provide fall back to its
+ * menu, so a mapping never leaves a gesture dead.
+ */
+function runInteraction(
+  el: HTMLElement,
+  handlers: GestureHandlers,
+  action: EntryInteraction,
+  x: number,
+  y: number
+): void {
+  if (action === "none") return;
+  if (action === "focus") {
+    if (handlers.focus) handlers.focus();
+    else focusEntry(el);
+    return;
+  }
+  if (action === "settings" && handlers.settings) {
+    handlers.focus ? handlers.focus() : focusEntry(el);
+    handlers.settings(x, y);
+    return;
+  }
+  handlers.menu(x, y);
+}
+
+/**
+ * Charge a ring at (x, y) and fire after `ms`. Returns a canceller.
+ *
+ * The pointer path draws its own ring, deliberately: it delays it past the
+ * length of a normal click and ties it to the pressed element's focus glow,
+ * neither of which applies to a key held on purpose on an already-focused
+ * control.
+ */
+function chargeRing(x: number, y: number, ms: number, done: () => void): () => void {
+  const ring = activeDocument.body.createDiv({ cls: "ep-holdring" });
+  ring.setCssStyles({ left: x + "px", top: y + "px" });
+  const started = performance.now();
+  let raf = 0;
+  const stop = (): void => {
+    window.cancelAnimationFrame(raf);
+    ring.remove();
+  };
+  const tick = (): void => {
+    const p = Math.min(1, (performance.now() - started) / ms);
+    ring.setCssProps({ "--ep-hold": String(p) });
+    if (p >= 1) {
+      stop();
+      done();
+      return;
+    }
+    raf = window.requestAnimationFrame(tick);
+  };
+  raf = window.requestAnimationFrame(tick);
+  return stop;
+}
+
+/**
+ * The keyboard equivalents of the press gestures, for a focusable control.
+ *
+ * A tap does the control's own job; holding Enter or Space runs the hold
+ * mapping (with the same charging ring); two quick taps run the double-click
+ * mapping. So a keyboard reaches the property settings exactly as a press does,
+ * instead of only the one action a button carries.
+ */
+export function wireKeyGestures(
+  el: HTMLElement,
+  settings: InteractionSettings,
+  handlers: GestureHandlers,
+  tap: (x: number, y: number) => void
+): void {
+  const mobile = mobileGestures();
+  const actionFor = (kind: GestureKind): EntryInteraction =>
+    interactionFor(settings, effectiveGesture(kind, mobile));
+  /** Where a menu or popup opened by key should appear: under the control. */
+  const at = (): { x: number; y: number } => {
+    const r = el.getBoundingClientRect();
+    return { x: r.left, y: r.bottom };
+  };
+
+  let cancel: (() => void) | null = null;
+  let held = false;
+  let tapTimer = 0;
+  let lastTap = 0;
+
+  el.addEventListener("keydown", (e: KeyboardEvent) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    e.stopPropagation(); // the row answers to these keys too
+    if (e.repeat || cancel) return; // auto-repeat is still one press
+    held = false;
+    const action = actionFor("hold");
+    if (action === "none") return;
+    const { x, y } = at();
+    cancel = chargeRing(x, y, holdMsOf(settings), () => {
+      cancel = null;
+      held = true;
+      runInteraction(el, handlers, action, x, y);
+    });
+  });
+
+  el.addEventListener("keyup", (e: KeyboardEvent) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    cancel?.();
+    cancel = null;
+    if (held) {
+      held = false;
+      return;
+    }
+    const { x, y } = at();
+    const dbl = actionFor("dblClick");
+    const now = performance.now();
+    if (dbl !== "none" && now - lastTap < DBL_WINDOW_MS) {
+      window.clearTimeout(tapTimer);
+      lastTap = 0;
+      runInteraction(el, handlers, dbl, x, y);
+      return;
+    }
+    lastTap = now;
+    // With a double tap mapped, a single tap waits out the window first.
+    if (dbl === "none") tap(x, y);
+    else tapTimer = window.setTimeout(() => tap(x, y), DBL_WINDOW_MS);
+  });
+
+  // A key released elsewhere must not leave a ring charging.
+  el.addEventListener("blur", () => {
+    cancel?.();
+    cancel = null;
+  });
+}
+
+/**
  * Wire the four mappable gestures onto any element (sidebar entries, inline
  * cards, inline chips). Actions the surface can't provide fall back to its
  * menu, so a mapping never leaves a gesture dead.
@@ -351,24 +481,8 @@ export function wireGestures(
   const actionFor = (kind: GestureKind): EntryInteraction =>
     interactionFor(settings, effectiveGesture(kind, mobile));
 
-  const run = (action: EntryInteraction, x: number, y: number): void => {
-    if (action === "none") return;
-    if (action === "focus") {
-      if (handlers.focus) handlers.focus();
-      else focusEntry(el);
-      return;
-    }
-    if (action === "settings") {
-      if (handlers.settings) {
-        handlers.focus ? handlers.focus() : focusEntry(el);
-        handlers.settings(x, y);
-      } else {
-        handlers.menu(x, y);
-      }
-      return;
-    }
-    handlers.menu(x, y);
-  };
+  const run = (action: EntryInteraction, x: number, y: number): void =>
+    runInteraction(el, handlers, action, x, y);
 
   let ring: HTMLElement | null = null;
   let raf = 0;

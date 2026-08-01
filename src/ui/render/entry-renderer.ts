@@ -9,7 +9,12 @@ import type { TFile } from "obsidian";
 import type { ClusterFlags, EntryRenderCtx, ViewCtx } from "../../core/context";
 import type { Entry, Section } from "../../core/model";
 import { openEntryMenu } from "../menus/entry-menu";
-import { wireEntryInteractions } from "../components/hold-config";
+import {
+  focusEntry,
+  openEntrySettingsPopup,
+  wireEntryInteractions,
+  wireKeyGestures,
+} from "../components/hold-config";
 import type { DragController } from "../drag";
 
 /** True when the entry should be hidden outside edit mode (empty prop). */
@@ -116,15 +121,19 @@ export function renderEntry(
       e.stopPropagation();
       openEntryMenu(e, view, file, section, entry);
     };
-    menuBtn.onkeydown = (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        // The row listens for the same keys; this press belongs to the button.
-        e.stopPropagation();
-        const r = menuBtn.getBoundingClientRect();
-        openEntryMenu(new MouseEvent("contextmenu", { clientX: r.left, clientY: r.bottom }), view, file, section, entry);
-      }
-    };
+    // The keyboard gets the same mapping a press has: tap for the menu, hold
+    // for the hold action, two taps for the double-click action.
+    wireKeyGestures(
+      menuBtn,
+      view.settings,
+      {
+        menu: (x, y) =>
+          openEntryMenu(new MouseEvent("contextmenu", { clientX: x, clientY: y }), view, file, section, entry),
+        settings: (x, y) => openEntrySettingsPopup(view, file, section, entry, x, y),
+        focus: () => focusEntry(wrap),
+      },
+      (x, y) => openEntryMenu(new MouseEvent("contextmenu", { clientX: x, clientY: y }), view, file, section, entry)
+    );
   }
   if (view.editMode && grip) drag.attachEntry(wrap, grip, section, entry);
 }
