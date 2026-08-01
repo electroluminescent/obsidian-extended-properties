@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.30.4
+
+- **Holding a key no longer takes the first item as the menu opens.** The hold
+  fires while the key is still down, so its repeats and its release landed on
+  the menu or popup that had just appeared - and Space and Enter take whatever
+  is highlighted there. What is left of that press is now eaten, up to and
+  including the release, so the menu opens on its first item and waits.
+
 ## 4.30.3
 
 - **Escape returns to the row, not the note.** Obsidian answers an element

@@ -43,6 +43,8 @@ const DBL_WINDOW_MS = 250;
 const GRAB_SETTLE_MS = 60;
 /** How long the popup insists on the keyboard after it opens. */
 const FOCUS_GUARD_MS = 1200;
+/** How long a held key is watched for its release before giving up on it. */
+const KEY_TAIL_MS = 4000;
 
 interface InteractionSettings {
   clickAction?: string;
@@ -522,6 +524,33 @@ export function wireKeyGestures(
   let tapTimer = 0;
   let lastTap = 0;
 
+  /**
+   * Eat what is left of the press that opened something. The key is still
+   * down when a hold fires, and its repeats and its release land on the menu
+   * or popup that has just appeared - where Space and Enter take whatever is
+   * highlighted, so it would act on itself the moment it opened.
+   */
+  const swallow = (key: string): void => {
+    const doc = el.ownerDocument;
+    const stop = (ev: KeyboardEvent): void => {
+      if (ev.key !== key) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      ev.stopImmediatePropagation();
+      if (ev.type === "keyup") end();
+    };
+    const end = (): void => {
+      window.clearTimeout(tail);
+      doc.removeEventListener("keydown", stop, true);
+      doc.removeEventListener("keyup", stop, true);
+      held = false;
+    };
+    // In case the release never arrives here - focus moved, window blurred.
+    const tail = window.setTimeout(end, KEY_TAIL_MS);
+    doc.addEventListener("keydown", stop, true);
+    doc.addEventListener("keyup", stop, true);
+  };
+
   el.addEventListener("keydown", (e: KeyboardEvent) => {
     if (e.key !== "Enter" && e.key !== " ") return;
     e.preventDefault();
@@ -534,6 +563,7 @@ export function wireKeyGestures(
     cancel = chargeRing(x, y, holdMsOf(settings), () => {
       cancel = null;
       held = true;
+      swallow(e.key); // before it opens: the guard has to be in place first
       runInteraction(el, handlers, action, x, y);
     });
   });

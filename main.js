@@ -8638,6 +8638,7 @@ var RING_DELAY_MS = 140;
 var DBL_WINDOW_MS = 250;
 var GRAB_SETTLE_MS = 60;
 var FOCUS_GUARD_MS = 1200;
+var KEY_TAIL_MS = 4e3;
 var DEFAULTS = {
   click: "none",
   // clicks belong to the value editors
@@ -8943,6 +8944,25 @@ function wireKeyGestures(el, settings, handlers, tap) {
   let held = false;
   let tapTimer = 0;
   let lastTap = 0;
+  const swallow = (key) => {
+    const doc = el.ownerDocument;
+    const stop2 = (ev) => {
+      if (ev.key !== key) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      ev.stopImmediatePropagation();
+      if (ev.type === "keyup") end();
+    };
+    const end = () => {
+      window.clearTimeout(tail);
+      doc.removeEventListener("keydown", stop2, true);
+      doc.removeEventListener("keyup", stop2, true);
+      held = false;
+    };
+    const tail = window.setTimeout(end, KEY_TAIL_MS);
+    doc.addEventListener("keydown", stop2, true);
+    doc.addEventListener("keyup", stop2, true);
+  };
   el.addEventListener("keydown", (e) => {
     if (e.key !== "Enter" && e.key !== " ") return;
     e.preventDefault();
@@ -8955,6 +8975,7 @@ function wireKeyGestures(el, settings, handlers, tap) {
     cancel = chargeRing(x, y, holdMsOf(settings), () => {
       cancel = null;
       held = true;
+      swallow(e.key);
       runInteraction(el, handlers, action, x, y);
     });
   });
