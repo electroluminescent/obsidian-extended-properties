@@ -152,6 +152,26 @@ function closeSettingsPopup(): void {
 const OUTSIDE_LAYERS =
   ".ep-popup, .suggestion-container, .menu, .modal-container, .prompt, .notice, .notice-container";
 
+/** Layers that answer Escape before the popup does - when actually shown. */
+const OWN_ESCAPE = ".modal-container, .suggestion-container, .menu, .ep-popup:not(.ep-entrysettings)";
+
+/**
+ * Whether any element matching `sel` is really on screen.
+ *
+ * A hit in the DOM is not enough: Obsidian keeps a suggestion container and a
+ * menu element parked and hidden, and either would otherwise look like a layer
+ * in front of the popup forever.
+ */
+function displayed(doc: Document, sel: string): boolean {
+  const win = doc.defaultView ?? window;
+  for (const el of Array.from(doc.querySelectorAll<HTMLElement>(sel))) {
+    const cs = win.getComputedStyle(el);
+    if (cs.display === "none" || cs.visibility === "hidden" || cs.opacity === "0") continue;
+    if (el.getClientRects().length > 0) return true;
+  }
+  return false;
+}
+
 
 /**
  * Whether a press or key really landed away from the popup.
@@ -312,11 +332,24 @@ export function openEntrySettingsPopup(
     if (!outsidePopup(pop, ev.target, doc)) return;
     closeSettingsPopup();
   };
+  /**
+   * Escape closes the popup, wherever focus is - inside it or on the control
+   * that opened it. A layer the popup itself put in front (a suggestion list,
+   * a menu, a modal) gets the key first; that check looks at what is actually
+   * displayed, because Obsidian parks a hidden suggestion container in the DOM
+   * permanently and matching it left Escape deferred to a layer that was not
+   * there.
+   */
+  const onKey = (ev: KeyboardEvent): void => {
+    if (ev.key !== "Escape" || displayed(doc, OWN_ESCAPE)) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    closeSettingsPopup();
+  };
   doc.addEventListener("pointerdown", onDown, true);
-  // Escape goes through Obsidian's keymap rather than a listener of ours: its
-  // own scope claims the key first, so a document listener never sees it.
-  // Nothing else has to be checked for here - a suggestion list, menu or modal
-  // opened afterwards pushes its scope above this one and answers first.
+  doc.addEventListener("keydown", onKey, true);
+  // Also through Obsidian's keymap, in case its own scope claims Escape before
+  // a document listener ever sees it. Closing twice is a no-op.
   const scope = new Scope(view.app.scope);
   scope.register([], "Escape", () => {
     closeSettingsPopup();
@@ -325,6 +358,7 @@ export function openEntrySettingsPopup(
   view.app.keymap.pushScope(scope);
   popupCleanup = () => {
     doc.removeEventListener("pointerdown", onDown, true);
+    doc.removeEventListener("keydown", onKey, true);
     view.app.keymap.popScope(scope);
   };
 }

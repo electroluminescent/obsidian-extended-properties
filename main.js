@@ -6898,13 +6898,20 @@ function adopt(menu) {
   openOverlay(close);
   menu.onHide(() => overlayClosed(close));
 }
+function selectFirst(doc) {
+  window.setTimeout(() => {
+    doc.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+  }, 0);
+}
 function showMenu(menu, ev) {
   adopt(menu);
   menu.showAtMouseEvent(ev);
+  selectFirst(activeDocument);
 }
 function showMenuAt(menu, pos, doc) {
   adopt(menu);
   menu.showAtPosition(pos, doc);
+  selectFirst(doc != null ? doc : activeDocument);
 }
 
 // src/ui/render/value-types/date.ts
@@ -8655,6 +8662,17 @@ function closeSettingsPopup() {
   window.setTimeout(drop, 200);
 }
 var OUTSIDE_LAYERS = ".ep-popup, .suggestion-container, .menu, .modal-container, .prompt, .notice, .notice-container";
+var OWN_ESCAPE = ".modal-container, .suggestion-container, .menu, .ep-popup:not(.ep-entrysettings)";
+function displayed(doc, sel) {
+  var _a;
+  const win = (_a = doc.defaultView) != null ? _a : window;
+  for (const el of Array.from(doc.querySelectorAll(sel))) {
+    const cs = win.getComputedStyle(el);
+    if (cs.display === "none" || cs.visibility === "hidden" || cs.opacity === "0") continue;
+    if (el.getClientRects().length > 0) return true;
+  }
+  return false;
+}
 function outsidePopup(pop, target, doc) {
   if (!(target instanceof Node)) return false;
   if (pop.contains(target)) return false;
@@ -8779,7 +8797,14 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
     if (!outsidePopup(pop, ev.target, doc)) return;
     closeSettingsPopup();
   };
+  const onKey = (ev) => {
+    if (ev.key !== "Escape" || displayed(doc, OWN_ESCAPE)) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    closeSettingsPopup();
+  };
   doc.addEventListener("pointerdown", onDown, true);
+  doc.addEventListener("keydown", onKey, true);
   const scope = new import_obsidian23.Scope(view.app.scope);
   scope.register([], "Escape", () => {
     closeSettingsPopup();
@@ -8788,6 +8813,7 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
   view.app.keymap.pushScope(scope);
   popupCleanup = () => {
     doc.removeEventListener("pointerdown", onDown, true);
+    doc.removeEventListener("keydown", onKey, true);
     view.app.keymap.popScope(scope);
   };
 }

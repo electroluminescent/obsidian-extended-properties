@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.29.1
+
+- **Escape closes the settings popup.** Two faults, either of which was enough
+  to stop it: the handler ignored the key whenever it came from inside the popup
+  - the usual case - and the check for a layer in front matched elements merely
+  present in the DOM, which Obsidian's parked suggestion container and menu
+  always are. Escape now closes it wherever focus is, and only a layer actually
+  on screen takes the key first. It listens both directly and through Obsidian's
+  keymap, so whichever sees the key first, the popup closes.
+- **Opening a menu highlights its first item**, so Enter takes it or the arrows
+  move on, instead of a key press being needed just to enter the list. The
+  highlight is Obsidian's own selection, not a mark of ours, so the menu's idea
+  of where you are stays true.
+
 ## 4.29.0
 
 - **One overlay at a time.** A context menu and the property-settings popup are

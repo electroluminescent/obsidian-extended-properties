@@ -31,14 +31,32 @@ function adopt(menu: Menu): void {
   menu.onHide(() => overlayClosed(close));
 }
 
+/**
+ * Highlight the menu's first item, so it can be used from the keyboard at once
+ * - Enter takes it, or the arrows move on - rather than needing a press of a
+ * key just to enter the list.
+ *
+ * Done by handing Obsidian its own ArrowDown rather than by marking an item
+ * ourselves, so the highlight and the menu's idea of which item is selected
+ * stay the same thing. A native menu (Obsidian's setting) ignores this
+ * harmlessly, since the key goes to a menu it does not own.
+ */
+function selectFirst(doc: Document): void {
+  window.setTimeout(() => {
+    doc.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+  }, 0);
+}
+
 /** Show `menu` at the event's position, replacing any menu already open. */
 export function showMenu(menu: Menu, ev: MouseEvent): void {
   adopt(menu);
   menu.showAtMouseEvent(ev);
+  selectFirst(activeDocument);
 }
 
 /** Show `menu` at a point, replacing any menu already open. */
 export function showMenuAt(menu: Menu, pos: MenuPositionDef, doc?: Document): void {
   adopt(menu);
   menu.showAtPosition(pos, doc);
+  selectFirst(doc ?? activeDocument);
 }
