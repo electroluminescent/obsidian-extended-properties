@@ -360,6 +360,33 @@ export class SidebarView extends ItemView implements ViewCtx {
       const mode = bindActivation(el, this.settings, "values", () => open());
       el.setAttr("title", activationHint(this.i18n, mode));
     }
+    this.widenHit(el, open);
+  }
+
+  /**
+   * Extend a value's hit area to its whole cell.
+   *
+   * An empty value renders as a dash - a few pixels of target, which is no way
+   * to start typing into a field. The cell fills the row's free width (CSS), so
+   * routing its own presses to the value makes the whole strip clickable, the
+   * way a properties panel behaves.
+   *
+   * Only presses on the cell itself count: a press on a child (a link, an era
+   * chip, a lock badge) belongs to that child. And the cell keeps NO editable
+   * marking, so a hold or right click over the empty part still reaches the
+   * row's own gestures rather than being swallowed as a control.
+   */
+  private widenHit(el: HTMLElement, open: () => void): void {
+    const cell = el.closest<HTMLElement>(".ep-val-right");
+    if (!cell || cell.hasClass("ep-val-hit")) return;
+    cell.addClass("ep-val-hit");
+    const run = (ev: MouseEvent): void => {
+      if (ev.target !== cell) return;
+      ev.preventDefault();
+      open();
+    };
+    if (this.editMode) cell.onclick = run;
+    else bindActivation(cell, this.settings, "values", run);
   }
 
   renderLinks(el: HTMLElement, text: string): void {

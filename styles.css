@@ -156,6 +156,10 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
 
 .ep-line-name { flex: 1; min-width: 2.6em; padding-left: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--ep-size-label, inherit); }
 .ep-val-right { margin-left: auto; display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--ep-size-value, inherit); }
+/* The value cell takes the row's free width so an empty value is a strip to
+   click, not a dash to hit. Content stays right-aligned, so nothing moves. */
+.ep-entry-head > .ep-val-hit { flex: 1 1 auto; justify-content: flex-end; cursor: text; }
+.ep-entry-head > .ep-val-hit:hover { background: var(--background-modifier-hover); border-radius: var(--ep-radius, 4px); }
 
 .ep-cluster { margin-left: auto; display: inline-grid; align-items: center; justify-items: center; gap: 2px; }
 .ep-cell { display: flex; align-items: center; justify-content: center; width: 100%; }

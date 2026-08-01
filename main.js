@@ -11373,6 +11373,32 @@ var SidebarView = class extends import_obsidian31.ItemView {
       const mode = bindActivation(el, this.settings, "values", () => open());
       el.setAttr("title", activationHint(this.i18n, mode));
     }
+    this.widenHit(el, open);
+  }
+  /**
+   * Extend a value's hit area to its whole cell.
+   *
+   * An empty value renders as a dash - a few pixels of target, which is no way
+   * to start typing into a field. The cell fills the row's free width (CSS), so
+   * routing its own presses to the value makes the whole strip clickable, the
+   * way a properties panel behaves.
+   *
+   * Only presses on the cell itself count: a press on a child (a link, an era
+   * chip, a lock badge) belongs to that child. And the cell keeps NO editable
+   * marking, so a hold or right click over the empty part still reaches the
+   * row's own gestures rather than being swallowed as a control.
+   */
+  widenHit(el, open) {
+    const cell = el.closest(".ep-val-right");
+    if (!cell || cell.hasClass("ep-val-hit")) return;
+    cell.addClass("ep-val-hit");
+    const run = (ev) => {
+      if (ev.target !== cell) return;
+      ev.preventDefault();
+      open();
+    };
+    if (this.editMode) cell.onclick = run;
+    else bindActivation(cell, this.settings, "values", run);
   }
   renderLinks(el, text) {
     renderLinkedText(this.app, el, text, this.note.path || "");

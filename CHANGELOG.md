@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.26.0
+
+- **An empty value is a strip to click, not a dash to hit.** The value cell now
+  takes the row's free width and routes its own presses to the value, so
+  clicking anywhere in that area starts editing - the way a properties panel
+  behaves. Content stays right-aligned, so nothing moves; the area lights up on
+  hover to show what it is.
+- Presses on a child of the cell still belong to that child (a link opens, an
+  era chip picks an era), and the cell itself is not marked editable - so a hold
+  or right click over the empty part still reaches the row's own gestures
+  instead of being swallowed.
+
 ## 4.25.1
 
 - **No more strip of settings scrolling above the search bar.** The bar was
