@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.22.0
+
+- **A double click is now a mappable gesture too.** *Double click on a
+  property* joins click, hold, right click and right-click-and-hold, with the
+  same choices - context menu, property settings, focus, nothing - and defaults
+  to nothing, so no vault changes behaviour on upgrade.
+- Values keep their own behaviour: a double click on the value opens its editor
+  when that is the activation gesture chosen for it, and the row's mapping
+  applies to the rest of the row. With a click action mapped as well, the click
+  waits out the double-click window first, so a double click no longer fires
+  the single-click action twice on its way.
+
 ## 4.21.2
 
 - **Repeating an action no longer stacks context menus.** Obsidian dismisses a

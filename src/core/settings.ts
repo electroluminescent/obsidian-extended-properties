@@ -85,7 +85,8 @@ const HANDLED_KEYS: ReadonlySet<string> = new Set([
   "schemaVersion", "soundUi", "soundDice", "soundCrit", "layoutVault",
   "layoutVaultFolder", "appVersion", "snapshots", "snapshotKeep", "lastSnapshot",
   "inlineEntries", "propTypes", "dateProps", "typeProp", "typeIcons", "defaultTypeIcon",
-  "clickAction", "holdAction", "rightClickAction", "rightHoldAction", "holdMs", "activation",
+  "clickAction", "dblClickAction", "holdAction", "rightClickAction", "rightHoldAction", "holdMs",
+  "activation",
 ]);
 
 /** Coerce a persisted `types` value to a clean list of non-empty strings. */
@@ -220,7 +221,7 @@ export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EP
       s.typeIcons = data.typeIcons as EPSettings["typeIcons"];
     if (typeof data.defaultTypeIcon === "string" && data.defaultTypeIcon.trim())
       s.defaultTypeIcon = data.defaultTypeIcon.trim();
-    for (const k of ["clickAction", "holdAction", "rightClickAction", "rightHoldAction"] as const) {
+    for (const k of ["clickAction", "dblClickAction", "holdAction", "rightClickAction", "rightHoldAction"] as const) {
       if (typeof data[k] === "string") s[k] = data[k];
     }
     if (typeof data.holdMs === "number" && data.holdMs >= 100) s.holdMs = Math.min(5000, Math.floor(data.holdMs));

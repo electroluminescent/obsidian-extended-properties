@@ -741,6 +741,8 @@ var en_default = {
   "settings.propMenuDesc": "Adds a hide toggle to the right-click menu in Obsidian's properties panel (replaces the default menu for that click).",
   "settings.clickAction": "Click on a property",
   "settings.clickActionDesc": "What a plain click on a property's row does. Values and controls keep their own click behavior.",
+  "settings.dblClickAction": "Double click on a property",
+  "settings.dblClickActionDesc": "What a double click on a property's row does. Values keep their own behaviour - a double click on the value opens its editor when that is the gesture you chose above, and this applies to the rest of the row. With a click action mapped too, the click waits out the double-click window first.",
   "settings.rightClickAction": "Right click on a property",
   "settings.rightClickActionDesc": "What a right click on a property does.",
   "settings.holdAction": "Hold on a property",
@@ -1886,6 +1888,7 @@ var HANDLED_KEYS = /* @__PURE__ */ new Set([
   "typeIcons",
   "defaultTypeIcon",
   "clickAction",
+  "dblClickAction",
   "holdAction",
   "rightClickAction",
   "rightHoldAction",
@@ -1988,7 +1991,7 @@ function normalizeSettings(raw, defaultLayout) {
       s.typeIcons = data.typeIcons;
     if (typeof data.defaultTypeIcon === "string" && data.defaultTypeIcon.trim())
       s.defaultTypeIcon = data.defaultTypeIcon.trim();
-    for (const k of ["clickAction", "holdAction", "rightClickAction", "rightHoldAction"]) {
+    for (const k of ["clickAction", "dblClickAction", "holdAction", "rightClickAction", "rightHoldAction"]) {
       if (typeof data[k] === "string") s[k] = data[k];
     }
     if (typeof data.holdMs === "number" && data.holdMs >= 100) s.holdMs = Math.min(5e3, Math.floor(data.holdMs));
@@ -8462,16 +8465,25 @@ var EntryOptionsModal = class extends import_obsidian22.Modal {
 var DEFAULT_HOLD_MS = 500;
 var MOVE_TOLERANCE = 8;
 var RING_DELAY_MS = 140;
+var DBL_WINDOW_MS = 250;
 var DEFAULTS = {
   click: "none",
   // clicks belong to the value editors
+  dblClick: "none",
   hold: "settings",
   right: "menu",
   rightHold: "settings"
   // same as a left hold - the property settings
 };
+var FIELD = {
+  click: "clickAction",
+  dblClick: "dblClickAction",
+  hold: "holdAction",
+  right: "rightClickAction",
+  rightHold: "rightHoldAction"
+};
 function interactionFor(settings, kind) {
-  const v = kind === "click" ? settings.clickAction : kind === "hold" ? settings.holdAction : kind === "right" ? settings.rightClickAction : settings.rightHoldAction;
+  const v = settings[FIELD[kind]];
   return v === "menu" || v === "settings" || v === "focus" || v === "none" ? v : DEFAULTS[kind];
 }
 function mobileGestures() {
@@ -8706,6 +8718,7 @@ function wireGestures(el, settings, handlers) {
     if (mobile) return;
     run(actionFor("right"), e.clientX, e.clientY);
   });
+  let clickTimer = 0;
   el.addEventListener("click", (e) => {
     if (consumed) {
       consumed = false;
@@ -8713,6 +8726,22 @@ function wireGestures(el, settings, handlers) {
     }
     if (onControl(e.target)) return;
     const action = actionFor("click");
+    if (action === "none") return;
+    e.preventDefault();
+    e.stopPropagation();
+    const x = e.clientX;
+    const y = e.clientY;
+    if (actionFor("dblClick") === "none") {
+      run(action, x, y);
+      return;
+    }
+    window.clearTimeout(clickTimer);
+    clickTimer = window.setTimeout(() => run(action, x, y), DBL_WINDOW_MS);
+  });
+  el.addEventListener("dblclick", (e) => {
+    window.clearTimeout(clickTimer);
+    if (onControl(e.target)) return;
+    const action = actionFor("dblClick");
     if (action === "none") return;
     e.preventDefault();
     e.stopPropagation();
@@ -14154,6 +14183,16 @@ var EPSettingTab = class extends import_obsidian35.PluginSettingTab {
           return (_a = plugin.settings.clickAction) != null ? _a : "none";
         },
         (v) => plugin.settings.clickAction = v === "none" ? void 0 : v,
+        "none"
+      );
+      interactionDrop(
+        t("settings.dblClickAction"),
+        t("settings.dblClickActionDesc"),
+        () => {
+          var _a;
+          return (_a = plugin.settings.dblClickAction) != null ? _a : "none";
+        },
+        (v) => plugin.settings.dblClickAction = v === "none" ? void 0 : v,
         "none"
       );
       interactionDrop(

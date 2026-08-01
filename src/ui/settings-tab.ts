@@ -871,6 +871,12 @@ export class EPSettingTab extends PluginSettingTab {
         "none"
       );
       interactionDrop(
+        t("settings.dblClickAction"), t("settings.dblClickActionDesc"),
+        () => plugin.settings.dblClickAction ?? "none",
+        (v) => (plugin.settings.dblClickAction = v === "none" ? undefined : v),
+        "none"
+      );
+      interactionDrop(
         t("settings.holdAction"), t("settings.holdActionDesc"),
         () => plugin.settings.holdAction ?? "settings",
         (v) => (plugin.settings.holdAction = v === "settings" ? undefined : v),

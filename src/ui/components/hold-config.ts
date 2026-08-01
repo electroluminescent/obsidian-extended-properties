@@ -29,16 +29,19 @@ import { showMenuAt } from "../menus/show";
 
 export type EntryInteraction = "menu" | "settings" | "focus" | "none";
 
-/** The four mappable gestures on a property. */
-export type GestureKind = "click" | "hold" | "right" | "rightHold";
+/** The mappable gestures on a property. */
+export type GestureKind = "click" | "dblClick" | "hold" | "right" | "rightHold";
 
 const DEFAULT_HOLD_MS = 500;
 const MOVE_TOLERANCE = 8;
 /** A press shorter than this never shows the ring - it is just a click. */
 const RING_DELAY_MS = 140;
+/** How long a mapped click waits to see whether a double click follows. */
+const DBL_WINDOW_MS = 250;
 
 interface InteractionSettings {
   clickAction?: string;
+  dblClickAction?: string;
   holdAction?: string;
   rightClickAction?: string;
   rightHoldAction?: string;
@@ -47,18 +50,24 @@ interface InteractionSettings {
 
 const DEFAULTS: Record<GestureKind, EntryInteraction> = {
   click: "none", // clicks belong to the value editors
+  dblClick: "none",
   hold: "settings",
   right: "menu",
   rightHold: "settings", // same as a left hold - the property settings
 };
 
+/** Settings field backing each gesture. */
+const FIELD: Record<GestureKind, keyof InteractionSettings> = {
+  click: "clickAction",
+  dblClick: "dblClickAction",
+  hold: "holdAction",
+  right: "rightClickAction",
+  rightHold: "rightHoldAction",
+};
+
 /** The configured action for a gesture (with sensible defaults). */
 export function interactionFor(settings: InteractionSettings, kind: GestureKind): EntryInteraction {
-  const v =
-    kind === "click" ? settings.clickAction
-    : kind === "hold" ? settings.holdAction
-    : kind === "right" ? settings.rightClickAction
-    : settings.rightHoldAction;
+  const v = settings[FIELD[kind]];
   return v === "menu" || v === "settings" || v === "focus" || v === "none" ? v : DEFAULTS[kind];
 }
 
@@ -396,13 +405,37 @@ export function wireGestures(
     run(actionFor("right"), e.clientX, e.clientY);
   });
 
+  /** Pending click action, held back while a double click may still arrive. */
+  let clickTimer = 0;
+
   el.addEventListener("click", (e: MouseEvent) => {
     if (consumed) {
       consumed = false;
       return;
     }
+    // Values and buttons own their own clicks: the editor wins on the value,
+    // the row's mapping applies to the rest of the row.
     if (onControl(e.target)) return;
     const action = actionFor("click");
+    if (action === "none") return;
+    e.preventDefault();
+    e.stopPropagation();
+    const x = e.clientX;
+    const y = e.clientY;
+    // With both mapped, a double click would fire the click action twice on
+    // its way to the second one - so wait out the double-click window first.
+    if (actionFor("dblClick") === "none") {
+      run(action, x, y);
+      return;
+    }
+    window.clearTimeout(clickTimer);
+    clickTimer = window.setTimeout(() => run(action, x, y), DBL_WINDOW_MS);
+  });
+
+  el.addEventListener("dblclick", (e: MouseEvent) => {
+    window.clearTimeout(clickTimer);
+    if (onControl(e.target)) return;
+    const action = actionFor("dblClick");
     if (action === "none") return;
     e.preventDefault();
     e.stopPropagation();

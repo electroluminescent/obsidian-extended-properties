@@ -421,6 +421,8 @@ export interface EPSettings {
   poolExtras?: Record<string, string[]>;
   /** Click action on a property: none (default) / menu / settings / focus. */
   clickAction?: string;
+  /** Double-click action: none (default) / menu / settings / focus. */
+  dblClickAction?: string;
   /** Press-and-hold action: settings (default) / menu / focus / none. */
   holdAction?: string;
   /** Right-click action: menu (default) / settings / focus / none. */

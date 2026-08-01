@@ -9,10 +9,23 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { effectiveGesture, interactionFor, outsidePopup } from "../src/ui/components/hold-config";
 
 describe("gesture mapping", () => {
-  it("keeps the four gestures apart on desktop", () => {
-    for (const kind of ["click", "hold", "right", "rightHold"] as const) {
+  it("keeps every gesture apart on desktop", () => {
+    for (const kind of ["click", "dblClick", "hold", "right", "rightHold"] as const) {
       expect(effectiveGesture(kind, false)).toBe(kind);
     }
+  });
+
+  it("maps a double click of its own, defaulting to nothing", () => {
+    expect(interactionFor({}, "dblClick")).toBe("none");
+    expect(interactionFor({ dblClickAction: "settings" }, "dblClick")).toBe("settings");
+    // Independent of the single click.
+    expect(interactionFor({ dblClickAction: "settings" }, "click")).toBe("none");
+    expect(interactionFor({ clickAction: "menu", dblClickAction: "settings" }, "click")).toBe("menu");
+  });
+
+  it("leaves a double click alone on mobile, where it is not offered", () => {
+    expect(effectiveGesture("dblClick", true)).toBe("dblClick");
+    expect(interactionFor({}, effectiveGesture("dblClick", true))).toBe("none");
   });
 
   it("routes a mobile long press through the right-click-and-hold mapping", () => {

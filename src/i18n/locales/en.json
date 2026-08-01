@@ -639,6 +639,8 @@
   "settings.propMenuDesc": "Adds a hide toggle to the right-click menu in Obsidian's properties panel (replaces the default menu for that click).",
   "settings.clickAction": "Click on a property",
   "settings.clickActionDesc": "What a plain click on a property's row does. Values and controls keep their own click behavior.",
+  "settings.dblClickAction": "Double click on a property",
+  "settings.dblClickActionDesc": "What a double click on a property's row does. Values keep their own behaviour - a double click on the value opens its editor when that is the gesture you chose above, and this applies to the rest of the row. With a click action mapped too, the click waits out the double-click window first.",
   "settings.rightClickAction": "Right click on a property",
   "settings.rightClickActionDesc": "What a right click on a property does.",
   "settings.holdAction": "Hold on a property",
