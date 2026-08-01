@@ -1,5 +1,18 @@
 # Changelog
 
+## 4.30.2
+
+- **The popup shows where the keyboard landed.** It had been taking focus on
+  itself, which nothing marks - the container carries no focus ring - so it
+  looked as though nothing was focused at all. Focus now goes to a real
+  control: the first button on its toolbar, which is visibly focused. Its
+  first *field* is still left alone, since focusing one springs its
+  autocomplete open.
+- The close button moved to the end of the toolbar, so the button the popup
+  opens focused is a useful one rather than the one that throws it away.
+- Focus is re-asserted over the first few frames after opening, so the tail of
+  the press that opened the popup cannot take the keyboard back.
+
 ## 4.30.1
 
 - **Focus comes back to the row after the popup closes.** Two things stopped it:

@@ -39,6 +39,8 @@ const MOVE_TOLERANCE = 8;
 const RING_DELAY_MS = 140;
 /** How long a mapped click waits to see whether a double click follows. */
 const DBL_WINDOW_MS = 250;
+/** By when an opening popup has settled and can be sure of the keyboard. */
+const GRAB_SETTLE_MS = 60;
 
 interface InteractionSettings {
   clickAction?: string;
@@ -260,9 +262,6 @@ export function openEntrySettingsPopup(
     };
   };
   const t = view.i18n.t.bind(view.i18n);
-  // A way out that never depends on a key: Escape can be claimed by whatever
-  // else is listening, and a press outside is not obvious as a way to close.
-  tool("x", t("entry.popup.close"), () => closeSettingsPopup());
   // Escape hatch to the full settings page (descriptions, wide controls).
   tool("settings", t("entry.menu.configure", { name: (entry.alias as string) || view.defaultLabelFor(entry) }), () => {
     closeSettingsPopup();
@@ -319,6 +318,11 @@ export function openEntrySettingsPopup(
     view.removeEntry(section, entry);
     closeSettingsPopup();
   });
+  // A way out that never depends on a key: Escape can be claimed by whatever
+  // else is listening, and a press outside is not obvious as a way to close.
+  // Last, so that the button the popup opens focused is a useful one rather
+  // than the one that throws the popup away.
+  tool("x", t("entry.popup.close"), () => closeSettingsPopup());
   const body = pop.createDiv({ cls: "ep-entrysettings-body" });
   const build = (): void => {
     // Rows rebuild in place (a rename, a data-type change): keep the reader
@@ -360,8 +364,22 @@ export function openEntrySettingsPopup(
   };
   place();
   window.requestAnimationFrame(place);
-  // The popup takes the keyboard, the way the menu it stands in for does.
-  pop.focus();
+  // The popup takes the keyboard, the way the menu it stands in for does, and
+  // shows where it landed: its first toolbar button, which is visibly focused
+  // and safe to focus - the first field would spring its autocomplete open.
+  // The popup itself only stands in if the toolbar is empty.
+  const first = (): HTMLElement => bar.querySelector<HTMLElement>(".ep-entrysettings-tool") ?? pop;
+  // Re-asserted across the next few frames: the tail of the press that opened
+  // it, and controls that focus themselves as they settle, can take it back.
+  const grab = (): void => {
+    if (!openPopup) return;
+    const act = doc.activeElement;
+    if (act?.instanceOf(HTMLElement) && pop.contains(act)) return;
+    first().focus();
+  };
+  grab();
+  window.requestAnimationFrame(grab);
+  window.setTimeout(grab, GRAB_SETTLE_MS);
   const onDown = (ev: PointerEvent): void => {
     if (!outsidePopup(pop, ev.target, doc)) return;
     closeSettingsPopup();

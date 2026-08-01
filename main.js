@@ -8628,6 +8628,7 @@ var DEFAULT_HOLD_MS = 500;
 var MOVE_TOLERANCE = 8;
 var RING_DELAY_MS = 140;
 var DBL_WINDOW_MS = 250;
+var GRAB_SETTLE_MS = 60;
 var DEFAULTS = {
   click: "none",
   // clicks belong to the value editors
@@ -8750,7 +8751,6 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
     };
   };
   const t = view.i18n.t.bind(view.i18n);
-  tool("x", t("entry.popup.close"), () => closeSettingsPopup());
   tool("settings", t("entry.menu.configure", { name: entry.alias || view.defaultLabelFor(entry) }), () => {
     closeSettingsPopup();
     view.openEntryOptions(section, entry);
@@ -8806,6 +8806,7 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
     view.removeEntry(section, entry);
     closeSettingsPopup();
   });
+  tool("x", t("entry.popup.close"), () => closeSettingsPopup());
   const body = pop.createDiv({ cls: "ep-entrysettings-body" });
   const build = () => {
     var _a, _b, _c, _d, _e;
@@ -8842,7 +8843,19 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
   };
   place();
   window.requestAnimationFrame(place);
-  pop.focus();
+  const first = () => {
+    var _a;
+    return (_a = bar.querySelector(".ep-entrysettings-tool")) != null ? _a : pop;
+  };
+  const grab = () => {
+    if (!openPopup) return;
+    const act = doc.activeElement;
+    if ((act == null ? void 0 : act.instanceOf(HTMLElement)) && pop.contains(act)) return;
+    first().focus();
+  };
+  grab();
+  window.requestAnimationFrame(grab);
+  window.setTimeout(grab, GRAB_SETTLE_MS);
   const onDown = (ev) => {
     if (!outsidePopup(pop, ev.target, doc)) return;
     closeSettingsPopup();
