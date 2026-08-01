@@ -1093,6 +1093,8 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 /* Icon toolbar mirroring the context menu's actions. */
 .ep-entrysettings .ep-entrysettings-bar { display: flex; align-items: center; gap: 2px; padding: 4px 6px; border-bottom: 1px solid var(--background-modifier-border); }
 .ep-entrysettings .ep-entrysettings-bar:empty { display: none; }
+/* The popup holds focus so it can answer Escape; it is not itself a target. */
+.ep-entrysettings:focus, .ep-entrysettings:focus-visible { outline: none; box-shadow: var(--shadow-s); }
 .ep-entrysettings-tool { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; background: transparent; border: none; box-shadow: none; border-radius: 5px; color: var(--text-muted); cursor: pointer; }
 .ep-entrysettings-tool:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
 .ep-entrysettings-tool svg { width: 15px; height: 15px; }

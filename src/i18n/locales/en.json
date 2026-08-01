@@ -133,6 +133,7 @@
   "entry.menu.hideFromObsidian": "Hide \"{key}\" from Obsidian properties",
   "entry.menu.clearValue": "Remove value from \"{key}\"",
   "entry.menu.remove": "Remove from sidebar",
+  "entry.popup.close": "Close (Escape)",
   "entry.menu.valueActions": "Value actions for \"{key}\"",
   "entry.menu.editValue": "Edit value...",
   "entry.menu.toggle": "Toggle",

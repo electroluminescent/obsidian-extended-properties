@@ -216,7 +216,21 @@ export function openEntrySettingsPopup(
   // way menus do there: a sheet along the bottom edge, not a cursor popover.
   const sheet = mobileGestures();
   if (sheet) pop.addClass("ep-entrysettings-sheet");
+  // Focusable itself, not through a control: focusing the first field would
+  // spring its autocomplete open. This gives the popup the keyboard - Escape
+  // closes it, Tab walks into its toolbar and rows - without touching a value.
+  pop.tabIndex = -1;
+  pop.setAttr("role", "dialog");
   openPopup = pop;
+  // Escape from within the popup. There are three routes to this (here, on the
+  // document, and through Obsidian's keymap) because which of them sees the key
+  // depends on what else has claimed it; closing twice is a no-op.
+  pop.addEventListener("keydown", (ev: KeyboardEvent) => {
+    if (ev.key !== "Escape" || displayed(doc, OWN_ESCAPE)) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    closeSettingsPopup();
+  });
   // Icon toolbar: the regular context menu's actions, one button each.
   const bar = pop.createDiv({ cls: "ep-entrysettings-bar" });
   const tool = (icon: string, label: string, run: () => void): void => {
@@ -231,6 +245,9 @@ export function openEntrySettingsPopup(
     };
   };
   const t = view.i18n.t.bind(view.i18n);
+  // A way out that never depends on a key: Escape can be claimed by whatever
+  // else is listening, and a press outside is not obvious as a way to close.
+  tool("x", t("entry.popup.close"), () => closeSettingsPopup());
   // Escape hatch to the full settings page (descriptions, wide controls).
   tool("settings", t("entry.menu.configure", { name: (entry.alias as string) || view.defaultLabelFor(entry) }), () => {
     closeSettingsPopup();
@@ -328,6 +345,8 @@ export function openEntrySettingsPopup(
   };
   place();
   window.requestAnimationFrame(place);
+  // The popup takes the keyboard, the way the menu it stands in for does.
+  pop.focus();
   const onDown = (ev: PointerEvent): void => {
     if (!outsidePopup(pop, ev.target, doc)) return;
     closeSettingsPopup();

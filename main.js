@@ -235,6 +235,7 @@ var en_default = {
   "entry.menu.hideFromObsidian": 'Hide "{key}" from Obsidian properties',
   "entry.menu.clearValue": 'Remove value from "{key}"',
   "entry.menu.remove": "Remove from sidebar",
+  "entry.popup.close": "Close (Escape)",
   "entry.menu.valueActions": 'Value actions for "{key}"',
   "entry.menu.editValue": "Edit value...",
   "entry.menu.toggle": "Toggle",
@@ -6898,10 +6899,29 @@ function adopt(menu) {
   openOverlay(close);
   menu.onHide(() => overlayClosed(close));
 }
+var SELECTED = ".menu-item.selected, .menu-item.is-selected";
+var SETTLE_MS = 120;
+var HOLD_TAIL_MS = 1500;
+function liveMenu(doc) {
+  const all = Array.from(doc.querySelectorAll(".menu"));
+  for (let i = all.length - 1; i >= 0; i--) {
+    if (all[i].getClientRects().length > 0) return all[i];
+  }
+  return null;
+}
 function selectFirst(doc) {
-  window.setTimeout(() => {
+  const assert = () => {
+    const menu = liveMenu(doc);
+    if (!menu || menu.querySelector(SELECTED)) return;
     doc.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
-  }, 0);
+  };
+  window.setTimeout(assert, 0);
+  const settle = () => {
+    window.setTimeout(assert, 0);
+    window.setTimeout(assert, SETTLE_MS);
+  };
+  doc.addEventListener("pointerup", settle, { once: true, capture: true });
+  window.setTimeout(() => doc.removeEventListener("pointerup", settle, true), HOLD_TAIL_MS);
 }
 function showMenu(menu, ev) {
   adopt(menu);
@@ -8688,7 +8708,15 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
   const pop = doc.body.createDiv({ cls: "ep-popup ep-entrysettings ep-options ep-compactopts" });
   const sheet = mobileGestures();
   if (sheet) pop.addClass("ep-entrysettings-sheet");
+  pop.tabIndex = -1;
+  pop.setAttr("role", "dialog");
   openPopup = pop;
+  pop.addEventListener("keydown", (ev) => {
+    if (ev.key !== "Escape" || displayed(doc, OWN_ESCAPE)) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    closeSettingsPopup();
+  });
   const bar = pop.createDiv({ cls: "ep-entrysettings-bar" });
   const tool = (icon, label, run) => {
     const b = bar.createEl("button", { cls: "ep-entrysettings-tool" });
@@ -8702,6 +8730,7 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
     };
   };
   const t = view.i18n.t.bind(view.i18n);
+  tool("x", t("entry.popup.close"), () => closeSettingsPopup());
   tool("settings", t("entry.menu.configure", { name: entry.alias || view.defaultLabelFor(entry) }), () => {
     closeSettingsPopup();
     view.openEntryOptions(section, entry);
@@ -8793,6 +8822,7 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
   };
   place();
   window.requestAnimationFrame(place);
+  pop.focus();
   const onDown = (ev) => {
     if (!outsidePopup(pop, ev.target, doc)) return;
     closeSettingsPopup();

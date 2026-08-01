@@ -1,5 +1,23 @@
 # Changelog
 
+## 4.30.0
+
+- **The settings popup takes the keyboard when it opens.** It had been opening
+  behind the scenes as far as the keyboard was concerned: nothing in it was
+  focused, so Escape had nothing to reach and Tab carried on from wherever the
+  press had left off. The popup itself now holds focus - not its first field,
+  which would spring that field's autocomplete open - so Escape closes it and
+  Tab walks into its toolbar and rows.
+- **A close button on the popup toolbar**, as a way out that does not depend on
+  a key: Escape can be claimed by whatever else is listening, and a press
+  outside is not an obvious way to close.
+- **A menu opened by a hold keeps its highlighted first item.** The highlight
+  was going on and coming straight back off, because a menu opened mid-press
+  gets the rest of that press - the release, and the drift of the cursor around
+  it - on the menu that has just appeared underneath. The highlight is now put
+  back once the press ends, and only when nothing is highlighted, so the item
+  the cursor genuinely rests on is left alone.
+
 ## 4.29.1
 
 - **Escape closes the settings popup.** Two faults, either of which was enough

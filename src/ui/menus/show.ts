@@ -31,6 +31,23 @@ function adopt(menu: Menu): void {
   menu.onHide(() => overlayClosed(close));
 }
 
+/** How Obsidian marks the item a menu is currently on. */
+const SELECTED = ".menu-item.selected, .menu-item.is-selected";
+/** Long enough for the moves that follow a release to have been and gone. */
+const SETTLE_MS = 120;
+/** After this, a press is a new one rather than the tail of the hold. */
+const HOLD_TAIL_MS = 1500;
+
+/** The menu on screen, i.e. the one just shown. */
+function liveMenu(doc: Document): HTMLElement | null {
+  const all = Array.from(doc.querySelectorAll<HTMLElement>(".menu"));
+  // Obsidian parks hidden menus in the document, so presence proves nothing.
+  for (let i = all.length - 1; i >= 0; i--) {
+    if (all[i].getClientRects().length > 0) return all[i];
+  }
+  return null;
+}
+
 /**
  * Highlight the menu's first item, so it can be used from the keyboard at once
  * - Enter takes it, or the arrows move on - rather than needing a press of a
@@ -40,11 +57,26 @@ function adopt(menu: Menu): void {
  * ourselves, so the highlight and the menu's idea of which item is selected
  * stay the same thing. A native menu (Obsidian's setting) ignores this
  * harmlessly, since the key goes to a menu it does not own.
+ *
+ * A menu opened by a hold gets the rest of that press: the release, and the
+ * drift of the cursor around it, land on the menu that has just appeared under
+ * it and take the highlight back off. So the highlight is asserted again once
+ * the press ends - and only when nothing is highlighted, leaving the item the
+ * cursor genuinely rests on alone.
  */
 function selectFirst(doc: Document): void {
-  window.setTimeout(() => {
+  const assert = (): void => {
+    const menu = liveMenu(doc);
+    if (!menu || menu.querySelector(SELECTED)) return;
     doc.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
-  }, 0);
+  };
+  window.setTimeout(assert, 0);
+  const settle = (): void => {
+    window.setTimeout(assert, 0);
+    window.setTimeout(assert, SETTLE_MS);
+  };
+  doc.addEventListener("pointerup", settle, { once: true, capture: true });
+  window.setTimeout(() => doc.removeEventListener("pointerup", settle, true), HOLD_TAIL_MS);
 }
 
 /** Show `menu` at the event's position, replacing any menu already open. */
