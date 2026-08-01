@@ -201,6 +201,7 @@
   "options.eraAdd": "Add era (Enter)",
   "options.eraRemove": "Remove",
   "date.invalid": "Doesn't match the format {format}",
+  "date.eraPick": "Pick the era",
   "date.eraNone": "No era",
   "date.eraCustom": "Custom era...",
   "date.eraCustomPrompt": "New era suffix",

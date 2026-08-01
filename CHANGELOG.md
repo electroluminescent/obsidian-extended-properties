@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.27.2
+
+- **Tab reaches every control again, not only the values.** The chain was
+  limited to fields to fill, which meant it skipped the steppers, roll buttons,
+  chips, menu buttons and section headers that plain tabbing used to reach. It
+  now stops on anything a keyboard can operate, in screen order, still opening a
+  value it lands on. The row wrapper (which carries a tabindex for arrow
+  navigation) and disabled controls are passed over.
+- The era chip on a date is keyboard-operable now - focusable, with Enter or
+  Space opening its era menu.
+
 ## 4.27.1
 
 - Opening on arrival is now a setting - *Tab opens the field*, with the other

@@ -12,17 +12,35 @@
  * at either end falls through to the browser, so focus is never trapped.
  */
 
-/** Everything that counts as a field to fill. */
-const FIELDS = ".ep-editable, .ep-entry input[type='checkbox'], .ep-list-addbtn";
+/**
+ * Every stop on the chain: whatever a keyboard can operate.
+ *
+ * Not just the values - a row's steppers, roll button, chips, menu button and
+ * the section's own controls are all things you may want next, and skipping
+ * them would make Tab less useful than the browser's own traversal rather than
+ * more. `.ep-editable` values carry `tabindex`, so they are in here too.
+ */
+const FIELDS = "a[href], button, input, select, textarea, [tabindex]:not([tabindex='-1'])";
 
 /** Whether an element is actually on screen (not in a collapsed section). */
 function visible(el: HTMLElement): boolean {
   return el.offsetParent !== null || el.getClientRects().length > 0;
 }
 
-/** The fields of `scope`, in document order. */
+/**
+ * Whether `el` is a stop rather than scaffolding: the row wrapper carries a
+ * tabindex for arrow navigation but is not something to land on while filling
+ * a note, and a disabled control cannot be operated.
+ */
+function stop(el: HTMLElement): boolean {
+  if (el.hasClass("ep-entry")) return false;
+  if (el.hasAttribute("disabled") || el.getAttribute("aria-hidden") === "true") return false;
+  return visible(el);
+}
+
+/** The stops of `scope`, in document order. */
 export function fieldsIn(scope: ParentNode): HTMLElement[] {
-  return Array.from(scope.querySelectorAll<HTMLElement>(FIELDS)).filter(visible);
+  return Array.from(scope.querySelectorAll<HTMLElement>(FIELDS)).filter(stop);
 }
 
 /**

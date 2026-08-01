@@ -164,6 +164,10 @@ function render(ctx: EntryRenderCtx): void {
   if (entry.valueSize) cell.setCssStyles({ fontSize: entry.valueSize + "px" });
   const txt = cell.createSpan({ cls: "ep-editable" });
   const eraChip = cell.createSpan({ cls: "ep-era-chip" });
+  // Operable by keyboard, like every other control on a row.
+  eraChip.tabIndex = 0;
+  eraChip.setAttr("role", "button");
+  eraChip.setAttr("aria-label", t("date.eraPick"));
 
   const hasEraToken = /(^|[^A-Za-z])E([^A-Za-z]|$)/.test(" " + cfg.format + " ");
   const parsed = (): DateParts | null => rawToParts(view.note.raw[key], cfg);
@@ -187,7 +191,7 @@ function render(ctx: EntryRenderCtx): void {
 
   // Era chip: pick from the pool per note; "custom" grows the pool. The
   // stored integer is re-encoded with the new era.
-  eraChip.onclick = (ev) => {
+  const openEraMenu = (ev: MouseEvent): void => {
     const p = parsed();
     if (!p) return;
     const menu = new Menu();
@@ -215,6 +219,13 @@ function render(ctx: EntryRenderCtx): void {
       })
     );
     showMenu(menu, ev);
+  };
+  eraChip.onclick = openEraMenu;
+  eraChip.onkeydown = (ev) => {
+    if (ev.key !== "Enter" && ev.key !== " ") return;
+    ev.preventDefault();
+    const r = eraChip.getBoundingClientRect();
+    openEraMenu(new MouseEvent("click", { clientX: r.left, clientY: r.bottom }));
   };
 
   // Click-to-edit: free text against the format. What the user types is

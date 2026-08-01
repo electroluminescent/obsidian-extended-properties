@@ -12,11 +12,18 @@ class FakeEl {
   classes: string[] = [];
   focused = false;
   offsetParent: unknown = {};
+  attrs: Record<string, string> = {};
   constructor(...classes: string[]) {
     this.classes = classes;
   }
   hasClass(c: string): boolean {
     return this.classes.includes(c);
+  }
+  hasAttribute(a: string): boolean {
+    return a in this.attrs;
+  }
+  getAttribute(a: string): string | null {
+    return this.attrs[a] ?? null;
   }
   focus(): void {
     this.focused = true;
@@ -66,6 +73,33 @@ describe("stepField", () => {
     const a = new FakeEl("ep-editable");
     const stranger = new FakeEl();
     expect(stepField(scopeOf([a]), as(stranger), false)).toBe(false);
+  });
+
+  it("stops on a row's controls too, not only its values", () => {
+    const value = new FakeEl("ep-editable");
+    const stepper = new FakeEl("ep-step-btn");
+    const roll = new FakeEl("ep-roll-btn");
+    const scope = scopeOf([value, stepper, roll]);
+    expect(stepField(scope, as(value), false)).toBe(true);
+    vi.runAllTimers();
+    expect(stepper.focused).toBe(true);
+    expect(stepField(scope, as(stepper), false)).toBe(true);
+    vi.runAllTimers();
+    expect(roll.focused).toBe(true);
+  });
+
+  it("skips the row wrapper and disabled controls", () => {
+    const a = new FakeEl("ep-editable");
+    const wrapper = new FakeEl("ep-entry");
+    const off = new FakeEl("ep-roll-btn");
+    off.attrs.disabled = "";
+    const b = new FakeEl("ep-editable");
+    const scope = scopeOf([a, wrapper, off, b]);
+    expect(stepField(scope, as(a), false)).toBe(true);
+    vi.runAllTimers();
+    expect(wrapper.focused).toBe(false);
+    expect(off.focused).toBe(false);
+    expect(b.focused).toBe(true);
   });
 
   it("skips fields that are not on screen (a collapsed section)", () => {

@@ -158,12 +158,11 @@ export class SidebarView extends ItemView implements ViewCtx {
   private onSidebarKey(e: KeyboardEvent): void {
     const target = e.target as HTMLElement | null;
     if (!target) return;
-    // Tab walks the fields (see `tab-chain`), whether or not one is open: an
-    // open editor handles its own Tab first, and at either end of the chain the
-    // key falls through to the browser so focus is never trapped here.
+    // Tab walks every control in the view (see `tab-chain`), opening a value it
+    // lands on. An open editor handles its own Tab first, and at either end of
+    // the chain the key falls through so focus is never trapped here.
     if (e.key === "Tab" && !e.defaultPrevented && this.content.contains(target)) {
-      const from = target.closest<HTMLElement>(".ep-editable, input, .ep-list-addbtn");
-      if (from && stepField(this.content, from, e.shiftKey)) e.preventDefault();
+      if (stepField(this.content, target, e.shiftKey)) e.preventDefault();
       return;
     }
     if (target.matches("input, textarea, select, [contenteditable='true']")) return;

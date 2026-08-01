@@ -303,6 +303,7 @@ var en_default = {
   "options.eraAdd": "Add era (Enter)",
   "options.eraRemove": "Remove",
   "date.invalid": "Doesn't match the format {format}",
+  "date.eraPick": "Pick the era",
   "date.eraNone": "No era",
   "date.eraCustom": "Custom era...",
   "date.eraCustomPrompt": "New era suffix",
@@ -3142,12 +3143,17 @@ _TextLinkSuggest.OPEN = /\[\[([^[\]]*)$/;
 var TextLinkSuggest = _TextLinkSuggest;
 
 // src/ui/components/tab-chain.ts
-var FIELDS = ".ep-editable, .ep-entry input[type='checkbox'], .ep-list-addbtn";
+var FIELDS = "a[href], button, input, select, textarea, [tabindex]:not([tabindex='-1'])";
 function visible(el) {
   return el.offsetParent !== null || el.getClientRects().length > 0;
 }
+function stop(el) {
+  if (el.hasClass("ep-entry")) return false;
+  if (el.hasAttribute("disabled") || el.getAttribute("aria-hidden") === "true") return false;
+  return visible(el);
+}
 function fieldsIn(scope) {
-  return Array.from(scope.querySelectorAll(FIELDS)).filter(visible);
+  return Array.from(scope.querySelectorAll(FIELDS)).filter(stop);
 }
 var openers = /* @__PURE__ */ new WeakMap();
 function registerOpener(el, open) {
@@ -6971,6 +6977,9 @@ function render2(ctx2) {
   if (entry.valueSize) cell.setCssStyles({ fontSize: entry.valueSize + "px" });
   const txt = cell.createSpan({ cls: "ep-editable" });
   const eraChip = cell.createSpan({ cls: "ep-era-chip" });
+  eraChip.tabIndex = 0;
+  eraChip.setAttr("role", "button");
+  eraChip.setAttr("aria-label", t("date.eraPick"));
   const hasEraToken = /(^|[^A-Za-z])E([^A-Za-z]|$)/.test(" " + cfg.format + " ");
   const parsed = () => rawToParts(view.note.raw[key], cfg);
   const draw = () => {
@@ -6989,7 +6998,7 @@ function render2(ctx2) {
     const show = hasEraToken && !!p && (pool.length > 0 || !!era);
     eraChip.toggleClass("ep-hidden", !show);
   };
-  eraChip.onclick = (ev) => {
+  const openEraMenu = (ev) => {
     var _a;
     const p = parsed();
     if (!p) return;
@@ -7017,6 +7026,13 @@ function render2(ctx2) {
       })
     );
     showMenu(menu, ev);
+  };
+  eraChip.onclick = openEraMenu;
+  eraChip.onkeydown = (ev) => {
+    if (ev.key !== "Enter" && ev.key !== " ") return;
+    ev.preventDefault();
+    const r = eraChip.getBoundingClientRect();
+    openEraMenu(new MouseEvent("click", { clientX: r.left, clientY: r.bottom }));
   };
   txt.onclick = () => {
     var _a;
@@ -8789,7 +8805,7 @@ function wireGestures(el, settings, handlers) {
   let heldButton = 0;
   let consumed = false;
   let detach = null;
-  const stop = (keepFocus) => {
+  const stop2 = (keepFocus) => {
     if (!holding) return;
     holding = false;
     window.cancelAnimationFrame(raf);
@@ -8850,7 +8866,7 @@ function wireGestures(el, settings, handlers) {
     sy = e.clientY;
     const holdMs = holdMsOf(settings);
     const doc = el.ownerDocument;
-    const onRelease = () => stop(false);
+    const onRelease = () => stop2(false);
     doc.addEventListener("pointerup", onRelease, true);
     doc.addEventListener("pointercancel", onRelease, true);
     detach = () => {
@@ -8869,7 +8885,7 @@ function wireGestures(el, settings, handlers) {
       ring == null ? void 0 : ring.setCssProps({ "--ep-hold": String(p) });
       if (p >= 1) {
         const action = actionFor(kind);
-        stop(action === "focus" || action === "settings");
+        stop2(action === "focus" || action === "settings");
         if (action === "focus") focused = el;
         consumed = true;
         run(action, sx, sy);
@@ -8881,13 +8897,13 @@ function wireGestures(el, settings, handlers) {
   });
   el.addEventListener("pointermove", (e) => {
     if (!holding) return;
-    if (Math.hypot(e.clientX - sx, e.clientY - sy) > MOVE_TOLERANCE) stop(false);
+    if (Math.hypot(e.clientX - sx, e.clientY - sy) > MOVE_TOLERANCE) stop2(false);
   });
   el.addEventListener("pointerup", (e) => {
-    if (holding && e.button === heldButton) stop(false);
+    if (holding && e.button === heldButton) stop2(false);
   });
   for (const ev of ["pointercancel", "pointerleave"]) {
-    el.addEventListener(ev, () => stop(false));
+    el.addEventListener(ev, () => stop2(false));
   }
 }
 function onControl(t) {
@@ -11210,8 +11226,7 @@ var SidebarView = class extends import_obsidian31.ItemView {
     const target = e.target;
     if (!target) return;
     if (e.key === "Tab" && !e.defaultPrevented && this.content.contains(target)) {
-      const from = target.closest(".ep-editable, input, .ep-list-addbtn");
-      if (from && stepField(this.content, from, e.shiftKey)) e.preventDefault();
+      if (stepField(this.content, target, e.shiftKey)) e.preventDefault();
       return;
     }
     if (target.matches("input, textarea, select, [contenteditable='true']")) return;
