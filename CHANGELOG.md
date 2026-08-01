@@ -1,5 +1,26 @@
 # Changelog
 
+## 4.25.0
+
+- **Nine settings tabs instead of seventeen**, each holding related sections
+  with their headings intact:
+  - **Types** - the type list and Defaults
+  - **Sections** - new section defaults
+  - **Modifiers** - the building blocks
+  - **Short forms**
+  - **Dice & rolls** - dice, rolls and saved rolls
+  - **Editing outside edit mode**
+  - **Interface** - typography, interface features, Obsidian, always-hidden
+    properties and UI text
+  - **Features** - features and value types
+  - **Reset**, last
+- Tabs follow that order rather than the order the body happens to render in,
+  and a section no tab claims still gets one of its own, just before Reset - so
+  a new section is never lost by forgetting to list it.
+- Searching now works section by section within a tab: a matching heading shows
+  its section whole, and a section's blurb travels with the section rather than
+  with a row that happened to match.
+
 ## 4.24.1
 
 - The intro paragraph above the settings is gone; the tabs and the search box

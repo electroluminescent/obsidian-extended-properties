@@ -31,6 +31,38 @@ import { DICE_STYLES } from "../features/rolling/dice-styles";
 const OVERRIDE_ROW_LIMIT = 25;
 
 /** Section headings, offered to the settings search as aliases. */
+/**
+ * How the body's section headings group into tabs, in tab order.
+ *
+ * Sections are matched by their rendered heading text (both sides go through
+ * `t()`, so a translation moves them together). A heading no group claims gets
+ * a tab of its own, appended after these - a new section is never lost by
+ * forgetting to list it here.
+ */
+const TAB_GROUPS: { label: string; sections: string[] }[] = [
+  { label: "settings.tab.types", sections: ["settings.typesHeading", "settings.defaultsHeading"] },
+  { label: "settings.tab.sections", sections: ["settings.newSectionHeading"] },
+  { label: "settings.tab.modifiers", sections: ["settings.derivationsHeading"] },
+  { label: "settings.abbrHeading", sections: ["settings.abbrHeading"] },
+  {
+    label: "settings.tab.rolling",
+    sections: ["settings.diceHeading", "settings.rollsHeading", "settings.macrosHeading"],
+  },
+  { label: "settings.activationHeading", sections: ["settings.activationHeading"] },
+  {
+    label: "settings.tab.interface",
+    sections: [
+      "settings.typographyHeading",
+      "settings.featuresUi",
+      "settings.obsidianHeading",
+      "settings.hiddenHeading",
+      "settings.languageHeading",
+    ],
+  },
+  { label: "settings.featuresHeading", sections: ["settings.featuresHeading", "settings.featuresTypes"] },
+  { label: "settings.resetHeading", sections: ["settings.resetHeading"] },
+];
+
 const SEARCH_SECTIONS = [
   "settings.typesHeading", "settings.defaultsHeading", "settings.newSectionHeading",
   "settings.derivationsHeading", "settings.abbrHeading", "settings.diceHeading",
@@ -112,34 +144,61 @@ export class EPSettingTab extends PluginSettingTab {
    * Turn the rendered body into tabs with a filter box.
    *
    * The body is written as one long document - which is how it stays readable
-   * to write - and partitioned here by its headings. Sections therefore need no
-   * registration: a new heading becomes a new tab on its own, and the two views
-   * (one tab at a time, or every match of a search) are the same nodes moved
-   * around rather than a second rendering path that could drift.
+   * to write - and partitioned here by its headings, which are grouped into
+   * tabs by {@link TAB_GROUPS}. The headings stay visible inside a tab, since a
+   * tab may hold several. A heading no group claims still gets a tab of its
+   * own, so a new section is never lost, and the two views (one tab at a time,
+   * or every match of a search) are the same nodes moved around rather than a
+   * second rendering path that could drift.
    */
   private tabify(): void {
     const host = this.host;
     const t = this.plugin.i18n.t.bind(this.plugin.i18n);
     const nodes = Array.from(host.children) as HTMLElement[];
 
-    // Everything before the first heading (the intro) stays above the chrome.
     const first = nodes.findIndex((n) => n.hasClass("setting-item-heading"));
     if (first < 0) return;
 
     const chrome = host.createDiv({ cls: "ep-settings-chrome" });
     const body = host.createDiv({ cls: "ep-settings-panels" });
 
-    interface Group { title: string; panel: HTMLElement; heading: HTMLElement }
+    /** One heading and what belongs to it: its rows, and its loose copy. */
+    interface Sect { title: string; heading: HTMLElement; rows: HTMLElement[]; loose: HTMLElement[] }
+    interface Group { title: string; panel: HTMLElement; sects: Sect[] }
     const groups: Group[] = [];
-    let panel: HTMLElement | null = null;
+    /** Tab for a heading title, creating one for anything unclaimed. */
+    const tabFor = (title: string): Group => {
+      const spec = TAB_GROUPS.find((g) => g.sections.some((k) => t(k) === title));
+      const label = spec ? t(spec.label) : title;
+      const found = groups.find((g) => g.title === label);
+      if (found) return found;
+      const made = { title: label, panel: body.createDiv({ cls: "ep-settings-panel" }), sects: [] };
+      groups.push(made);
+      return made;
+    };
+
+    let group: Group | null = null;
+    let sect: Sect | null = null;
     for (const node of nodes.slice(first)) {
       if (node.hasClass("setting-item-heading")) {
-        panel = body.createDiv({ cls: "ep-settings-panel" });
-        groups.push({ title: node.textContent?.trim() ?? "", panel, heading: node });
-      }
-      panel?.appendChild(node);
+        const title = node.textContent?.trim() ?? "";
+        group = tabFor(title);
+        sect = { title, heading: node, rows: [], loose: [] };
+        group.sects.push(sect);
+      } else if (node.hasClass("setting-item")) sect?.rows.push(node);
+      else sect?.loose.push(node);
+      group?.panel.appendChild(node);
     }
     if (!groups.length) return;
+
+    // Tabs follow TAB_GROUPS rather than the order the body happens to render
+    // in; a tab nothing claimed sits just before the last listed one (Reset).
+    const rank = (title: string): number => {
+      const i = TAB_GROUPS.findIndex((g) => t(g.label) === title);
+      return i >= 0 ? i : TAB_GROUPS.length - 1.5;
+    };
+    groups.sort((a, b) => rank(a.title) - rank(b.title));
+    for (const g of groups) body.appendChild(g.panel);
 
     // -- filter ---------------------------------------------------------------
     const row = chrome.createDiv({ cls: "ep-settings-searchrow" });
@@ -187,21 +246,29 @@ export class EPSettingTab extends PluginSettingTab {
       for (const g of groups) {
         if (!q) {
           g.panel.toggleClass("ep-hidden", g.title !== this.activeTab);
-          for (const row of g.panel.findAll(".setting-item")) row.removeClass("ep-hidden");
+          for (const s of g.sects)
+            for (const el of [s.heading, ...s.rows, ...s.loose]) el.removeClass("ep-hidden");
           continue;
         }
-        // A matching heading shows its whole section: some sections are bespoke
-        // editors rather than rows, and would otherwise look empty.
-        const whole = g.title.toLowerCase().includes(q);
-        let shown = 0;
-        for (const row of g.panel.findAll(".setting-item")) {
-          if (row === g.heading) continue;
-          const hit = whole || (row.textContent ?? "").toLowerCase().includes(q);
-          row.toggleClass("ep-hidden", !hit);
-          if (hit) shown++;
+        let shownInTab = 0;
+        for (const s of g.sects) {
+          // A matching heading shows its whole section: several sections are
+          // bespoke editors rather than rows, and would otherwise look empty.
+          const whole = s.title.toLowerCase().includes(q) || g.title.toLowerCase().includes(q);
+          let shown = 0;
+          for (const row of s.rows) {
+            const hit = whole || (row.textContent ?? "").toLowerCase().includes(q);
+            row.toggleClass("ep-hidden", !hit);
+            if (hit) shown++;
+          }
+          // Loose copy is context, not a result: it comes along with a whole
+          // section, not with a row that happened to match.
+          for (const el of s.loose) el.toggleClass("ep-hidden", !whole);
+          s.heading.toggleClass("ep-hidden", !whole && shown === 0);
+          shownInTab += shown;
         }
-        g.panel.toggleClass("ep-hidden", shown === 0);
-        hits += shown;
+        g.panel.toggleClass("ep-hidden", shownInTab === 0);
+        hits += shownInTab;
       }
       empty.toggleClass("ep-hidden", !q || hits > 0);
     };

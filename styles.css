@@ -1205,10 +1205,9 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
   background: var(--interactive-accent);
   border-color: var(--interactive-accent);
 }
-/* One tab at a time: its own heading is redundant with the tab that opened it.
-   While filtering, headings come back as the grouping for the results. */
-.ep-settings-panel > .setting-item-heading { display: none; }
-.ep-settings-filtering .ep-settings-panel > .setting-item-heading { display: flex; }
+/* A tab holds one or more sections, so their headings stay - they are the
+   structure inside the tab, and the grouping for search results. */
+.ep-settings-panel > .setting-item-heading:first-child { padding-top: 4px; border-top: none; }
 .ep-settings-empty { padding: 12px var(--ep-row-pad-l, 12px); }
 
 /* The settings tab draws inside its declarative row: strip the row's own

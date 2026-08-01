@@ -593,6 +593,11 @@ var en_default = {
   "conflict.keys": "Both sides changed: {keys}",
   "preset.empty": "Empty",
   "settings.intro": "Open a note whose {typeProp} matches one below, then click Edit (or right-click anything) to arrange it. Drag handles, use ... / right-click for options (Configure for the full panel), click labels to rename, add properties at each section's bottom.",
+  "settings.tab.types": "Types",
+  "settings.tab.sections": "Sections",
+  "settings.tab.modifiers": "Modifiers",
+  "settings.tab.rolling": "Dice & rolls",
+  "settings.tab.interface": "Interface",
   "settings.searchPlaceholder": "Search these settings...",
   "settings.searchClear": "Clear the search",
   "settings.searchNoResults": "Nothing here matches that.",
@@ -13540,6 +13545,29 @@ function pickDiceStyle(id) {
 
 // src/ui/settings-tab.ts
 var OVERRIDE_ROW_LIMIT = 25;
+var TAB_GROUPS = [
+  { label: "settings.tab.types", sections: ["settings.typesHeading", "settings.defaultsHeading"] },
+  { label: "settings.tab.sections", sections: ["settings.newSectionHeading"] },
+  { label: "settings.tab.modifiers", sections: ["settings.derivationsHeading"] },
+  { label: "settings.abbrHeading", sections: ["settings.abbrHeading"] },
+  {
+    label: "settings.tab.rolling",
+    sections: ["settings.diceHeading", "settings.rollsHeading", "settings.macrosHeading"]
+  },
+  { label: "settings.activationHeading", sections: ["settings.activationHeading"] },
+  {
+    label: "settings.tab.interface",
+    sections: [
+      "settings.typographyHeading",
+      "settings.featuresUi",
+      "settings.obsidianHeading",
+      "settings.hiddenHeading",
+      "settings.languageHeading"
+    ]
+  },
+  { label: "settings.featuresHeading", sections: ["settings.featuresHeading", "settings.featuresTypes"] },
+  { label: "settings.resetHeading", sections: ["settings.resetHeading"] }
+];
 var SEARCH_SECTIONS = [
   "settings.typesHeading",
   "settings.defaultsHeading",
@@ -13624,10 +13652,12 @@ var EPSettingTab = class extends import_obsidian35.PluginSettingTab {
    * Turn the rendered body into tabs with a filter box.
    *
    * The body is written as one long document - which is how it stays readable
-   * to write - and partitioned here by its headings. Sections therefore need no
-   * registration: a new heading becomes a new tab on its own, and the two views
-   * (one tab at a time, or every match of a search) are the same nodes moved
-   * around rather than a second rendering path that could drift.
+   * to write - and partitioned here by its headings, which are grouped into
+   * tabs by {@link TAB_GROUPS}. The headings stay visible inside a tab, since a
+   * tab may hold several. A heading no group claims still gets a tab of its
+   * own, so a new section is never lost, and the two views (one tab at a time,
+   * or every match of a search) are the same nodes moved around rather than a
+   * second rendering path that could drift.
    */
   tabify() {
     var _a, _b;
@@ -13639,15 +13669,34 @@ var EPSettingTab = class extends import_obsidian35.PluginSettingTab {
     const chrome = host.createDiv({ cls: "ep-settings-chrome" });
     const body = host.createDiv({ cls: "ep-settings-panels" });
     const groups = [];
-    let panel = null;
+    const tabFor = (title) => {
+      const spec = TAB_GROUPS.find((g) => g.sections.some((k) => t(k) === title));
+      const label = spec ? t(spec.label) : title;
+      const found = groups.find((g) => g.title === label);
+      if (found) return found;
+      const made = { title: label, panel: body.createDiv({ cls: "ep-settings-panel" }), sects: [] };
+      groups.push(made);
+      return made;
+    };
+    let group = null;
+    let sect = null;
     for (const node of nodes.slice(first)) {
       if (node.hasClass("setting-item-heading")) {
-        panel = body.createDiv({ cls: "ep-settings-panel" });
-        groups.push({ title: (_b = (_a = node.textContent) == null ? void 0 : _a.trim()) != null ? _b : "", panel, heading: node });
-      }
-      panel == null ? void 0 : panel.appendChild(node);
+        const title = (_b = (_a = node.textContent) == null ? void 0 : _a.trim()) != null ? _b : "";
+        group = tabFor(title);
+        sect = { title, heading: node, rows: [], loose: [] };
+        group.sects.push(sect);
+      } else if (node.hasClass("setting-item")) sect == null ? void 0 : sect.rows.push(node);
+      else sect == null ? void 0 : sect.loose.push(node);
+      group == null ? void 0 : group.panel.appendChild(node);
     }
     if (!groups.length) return;
+    const rank = (title) => {
+      const i = TAB_GROUPS.findIndex((g) => t(g.label) === title);
+      return i >= 0 ? i : TAB_GROUPS.length - 1.5;
+    };
+    groups.sort((a, b) => rank(a.title) - rank(b.title));
+    for (const g of groups) body.appendChild(g.panel);
     const row = chrome.createDiv({ cls: "ep-settings-searchrow" });
     const search = row.createEl("input", { cls: "ep-edit-input ep-settings-search" });
     search.type = "search";
@@ -13688,19 +13737,25 @@ var EPSettingTab = class extends import_obsidian35.PluginSettingTab {
       for (const g of groups) {
         if (!q) {
           g.panel.toggleClass("ep-hidden", g.title !== this.activeTab);
-          for (const row2 of g.panel.findAll(".setting-item")) row2.removeClass("ep-hidden");
+          for (const s of g.sects)
+            for (const el of [s.heading, ...s.rows, ...s.loose]) el.removeClass("ep-hidden");
           continue;
         }
-        const whole = g.title.toLowerCase().includes(q);
-        let shown = 0;
-        for (const row2 of g.panel.findAll(".setting-item")) {
-          if (row2 === g.heading) continue;
-          const hit = whole || ((_a2 = row2.textContent) != null ? _a2 : "").toLowerCase().includes(q);
-          row2.toggleClass("ep-hidden", !hit);
-          if (hit) shown++;
+        let shownInTab = 0;
+        for (const s of g.sects) {
+          const whole = s.title.toLowerCase().includes(q) || g.title.toLowerCase().includes(q);
+          let shown = 0;
+          for (const row2 of s.rows) {
+            const hit = whole || ((_a2 = row2.textContent) != null ? _a2 : "").toLowerCase().includes(q);
+            row2.toggleClass("ep-hidden", !hit);
+            if (hit) shown++;
+          }
+          for (const el of s.loose) el.toggleClass("ep-hidden", !whole);
+          s.heading.toggleClass("ep-hidden", !whole && shown === 0);
+          shownInTab += shown;
         }
-        g.panel.toggleClass("ep-hidden", shown === 0);
-        hits += shown;
+        g.panel.toggleClass("ep-hidden", shownInTab === 0);
+        hits += shownInTab;
       }
       empty.toggleClass("ep-hidden", !q || hits > 0);
     };
