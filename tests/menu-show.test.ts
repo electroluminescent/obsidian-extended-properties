@@ -25,11 +25,16 @@ function menuEl(opts: { shown: boolean; selected: boolean }): unknown {
 interface FakeDoc {
   menus: unknown[];
   keys: string[];
-  listeners: Map<string, () => void>;
+  listeners: Map<string, (ev?: unknown) => void>;
   querySelectorAll: (sel: string) => unknown[];
   dispatchEvent: (ev: FakeKeyboardEvent) => void;
-  addEventListener: (type: string, fn: () => void, opts?: unknown) => void;
-  removeEventListener: (type: string, fn: () => void, capture?: boolean) => void;
+  addEventListener: (type: string, fn: (ev?: unknown) => void, opts?: unknown) => void;
+  removeEventListener: (type: string, fn: (ev?: unknown) => void, capture?: boolean) => void;
+}
+
+/** A key press as the menu's key handler reads it. */
+function press(key: string, shiftKey = false): Record<string, unknown> {
+  return { key, shiftKey, preventDefault: () => undefined, stopPropagation: () => undefined };
 }
 
 function fakeDoc(): FakeDoc {
@@ -47,9 +52,10 @@ function fakeDoc(): FakeDoc {
 
 /** The bit of Obsidian's Menu that showing one touches. */
 function fakeMenu(): { showAtPosition: () => void; onHide: () => void; hide: () => void } {
-  return { showAtPosition: () => undefined, onHide: () => undefined, hide: () => undefined };
+  return { showAtPosition: () => undefined, onHide: () => undefined, hide: hidden };
 }
 
+let hidden: () => void;
 let doc: FakeDoc;
 
 beforeAll(() => {
@@ -62,8 +68,16 @@ beforeAll(() => {
 
 beforeEach(() => {
   doc = fakeDoc();
+  hidden = vi.fn();
   (globalThis as Record<string, unknown>).activeDocument = doc;
 });
+
+/** The key handler the open menu installed. */
+function menuKeys(): (ev?: unknown) => void {
+  const fn = doc.listeners.get("keydown");
+  if (!fn) throw new Error("no key handler while a menu is open");
+  return fn;
+}
 
 /** Show a menu over a document holding `menus`. */
 function show(menus: unknown[]): void {
@@ -89,6 +103,29 @@ describe("first item", () => {
     show([menuEl({ shown: false, selected: false })]);
     vi.runAllTimers();
     expect(doc.keys).toHaveLength(0);
+  });
+});
+
+describe("keys while a menu is open", () => {
+  it("moves the selection on Tab, and back on shift-Tab", () => {
+    show([menuEl({ shown: true, selected: true })]);
+    vi.runAllTimers();
+    doc.keys.length = 0;
+    menuKeys()(press("Tab"));
+    menuKeys()(press("Tab", true));
+    expect(doc.keys).toEqual(["ArrowDown", "ArrowUp"]);
+  });
+
+  it("closes on Escape rather than letting Obsidian have the key", () => {
+    show([menuEl({ shown: true, selected: true })]);
+    menuKeys()(press("Escape"));
+    expect(hidden).toHaveBeenCalledOnce();
+  });
+
+  it("leaves Escape alone once the menu is gone", () => {
+    show([menuEl({ shown: false, selected: false })]); // parked, not on screen
+    menuKeys()(press("Escape"));
+    expect(hidden).not.toHaveBeenCalled();
   });
 });
 

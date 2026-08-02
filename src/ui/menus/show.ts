@@ -23,12 +23,50 @@ export function closeOpenMenu(): void {
  * Take the overlay slot for `menu` - closing whatever was open, menu or
  * popup - and give focus back to its opener when it hides.
  */
-function adopt(menu: Menu): void {
+function adopt(menu: Menu, doc: Document): void {
   const close = (): void => {
     menu.hide();
   };
   openOverlay(close);
-  menu.onHide(() => overlayClosed(close));
+  const unwire = wireMenuKeys(doc, close);
+  menu.onHide(() => {
+    unwire();
+    overlayClosed(close);
+  });
+}
+
+/**
+ * Tab and Escape while one of our menus is open.
+ *
+ * A menu is arrow-navigable but nothing else: Tab walks past it into the view
+ * behind, and Escape reaches Obsidian, which answers it by putting focus in
+ * the editor - so a keyboard trip through the sidebar ended in the note. Tab
+ * now moves the menu's selection the way the arrows do, and Escape closes the
+ * menu here, before Obsidian can act on it, leaving focus on the row the menu
+ * was opened from.
+ */
+function wireMenuKeys(doc: Document, close: () => void): () => void {
+  const onKey = (ev: KeyboardEvent): void => {
+    if (ev.key === "Tab") {
+      ev.preventDefault();
+      ev.stopPropagation();
+      // Moved by handing the menu the arrow it already answers to, so its
+      // selection stays its own.
+      arrow(doc, ev.shiftKey ? "ArrowUp" : "ArrowDown");
+      return;
+    }
+    if (ev.key !== "Escape" || !liveMenu(doc)) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    close();
+  };
+  doc.addEventListener("keydown", onKey, true);
+  return () => doc.removeEventListener("keydown", onKey, true);
+}
+
+/** Hand the menu a key of its own, as though the user had pressed it. */
+function arrow(doc: Document, key: string): void {
+  doc.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
 }
 
 /** How Obsidian marks the item a menu is currently on. */
@@ -68,7 +106,7 @@ function selectFirst(doc: Document): void {
   const assert = (): void => {
     const menu = liveMenu(doc);
     if (!menu || menu.querySelector(SELECTED)) return;
-    doc.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    arrow(doc, "ArrowDown");
   };
   window.setTimeout(assert, 0);
   const settle = (): void => {
@@ -81,14 +119,14 @@ function selectFirst(doc: Document): void {
 
 /** Show `menu` at the event's position, replacing any menu already open. */
 export function showMenu(menu: Menu, ev: MouseEvent): void {
-  adopt(menu);
+  adopt(menu, activeDocument);
   menu.showAtMouseEvent(ev);
   selectFirst(activeDocument);
 }
 
 /** Show `menu` at a point, replacing any menu already open. */
 export function showMenuAt(menu: Menu, pos: MenuPositionDef, doc?: Document): void {
-  adopt(menu);
+  adopt(menu, doc ?? activeDocument);
   menu.showAtPosition(pos, doc);
   selectFirst(doc ?? activeDocument);
 }

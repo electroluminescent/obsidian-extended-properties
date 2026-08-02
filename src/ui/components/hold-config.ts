@@ -116,7 +116,7 @@ export function focusEntry(wrap: HTMLElement): void {
   // anything that hands focus back later - a menu or the settings popup
   // closing - has an element to hand it back to.
   if (wrap.hasClass("ep-entry")) {
-    const view = wrap.closest<HTMLElement>(".ep-content") ?? wrap.ownerDocument.body;
+    const view = wrap.closest<HTMLElement>(".ep-sidebar") ?? wrap.ownerDocument.body;
     // The roving tab stop moves with it (see `view.initRovingFocus`).
     for (const row of Array.from(view.querySelectorAll<HTMLElement>(".ep-entry"))) row.tabIndex = -1;
     wrap.tabIndex = 0;

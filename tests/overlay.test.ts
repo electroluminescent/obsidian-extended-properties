@@ -21,12 +21,12 @@ class FakeEl {
   isConnected = true;
   ownerDocument: FakeDoc;
   id: string | null;
-  /** What this element sits inside: ".ep-content" for a row in the view. */
+  /** What this element sits inside: ".ep-sidebar" for a row in the view. */
   within: string[];
   constructor(doc: FakeDoc, id: string | null = null, within: string[] = []) {
     this.ownerDocument = doc;
     this.id = id;
-    this.within = id === null ? within : [...within, ".ep-entry", ".ep-content"];
+    this.within = id === null ? within : [...within, ".ep-entry", ".ep-sidebar"];
   }
   focus(): void {
     this.focused = true;
@@ -135,9 +135,22 @@ describe("focus", () => {
     openOverlay(close);
     doc.activeElement = doc.body;
     overlayClosed(close);
-    doc.activeElement = new FakeEl(doc, null, [".ep-content"]); // tabbed onward
+    doc.activeElement = new FakeEl(doc, null, [".ep-sidebar"]); // tabbed onward
     vi.runAllTimers();
     expect(opener.focused).toBe(false);
+  });
+
+  it("puts the row back when the editor takes focus after a menu closes", () => {
+    // A menu never takes focus off the row, so focus is still right when it
+    // closes - and wrong a moment later, once Obsidian has had the key.
+    const opener = new FakeEl(doc, "e:1");
+    doc.activeElement = opener;
+    const close = vi.fn();
+    openOverlay(close);
+    overlayClosed(close);
+    doc.activeElement = new FakeEl(doc); // the editor
+    vi.runAllTimers();
+    expect(opener.focused).toBe(true);
   });
 
   it("finds the row again when the view re-rendered underneath", () => {

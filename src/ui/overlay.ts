@@ -40,6 +40,11 @@ function adrift(doc: Document): boolean {
   return !!el.closest(".menu, .ep-popup");
 }
 
+/** Whether focus is still in the view the overlay was opened from. */
+function inView(doc: Document): boolean {
+  return !!doc.activeElement?.closest(".ep-sidebar");
+}
+
 /**
  * The element to give focus back to. Usually the one that had it, but a view
  * that re-rendered while the overlay was open - which closing it often causes -
@@ -85,11 +90,17 @@ export function overlayClosed(close: () => void): void {
   // Decided now, while the overlay has only just let focus go. Waiting until
   // the timeout to decide loses the view: by then the editor has been handed
   // focus, which reads as somewhere the user chose to be.
-  if (!adrift(opener.ownerDocument)) return;
+  //
+  // Focus still sitting in the view counts too, and is the ordinary case for a
+  // menu - which never took focus off the row. It is where it belongs at this
+  // instant, but Obsidian moves it to the editor a moment later, so the passes
+  // below have to run to put it back.
+  const doc = opener.ownerDocument;
+  if (!adrift(doc) && !inView(doc)) return;
   const give = (): void => {
     const el = target(overlay);
     // Unless the user has since put focus somewhere in the view themselves.
-    if (!el || el.ownerDocument.activeElement?.closest(".ep-content")) return;
+    if (!el || el.ownerDocument.activeElement?.closest(".ep-sidebar")) return;
     el.focus();
   };
   // After the overlay's own teardown, which may move focus itself, and then

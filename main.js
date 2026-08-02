@@ -6877,6 +6877,10 @@ function adrift(doc) {
   if (!el.isConnected) return true;
   return !!el.closest(".menu, .ep-popup");
 }
+function inView(doc) {
+  var _a;
+  return !!((_a = doc.activeElement) == null ? void 0 : _a.closest(".ep-sidebar"));
+}
 function target(o) {
   const opener = o.opener;
   if (!opener) return null;
@@ -6900,23 +6904,47 @@ function overlayClosed(close) {
   current = null;
   const opener = overlay.opener;
   if (!opener) return;
-  if (!adrift(opener.ownerDocument)) return;
+  const doc = opener.ownerDocument;
+  if (!adrift(doc) && !inView(doc)) return;
   const give = () => {
     var _a;
     const el = target(overlay);
-    if (!el || ((_a = el.ownerDocument.activeElement) == null ? void 0 : _a.closest(".ep-content"))) return;
+    if (!el || ((_a = el.ownerDocument.activeElement) == null ? void 0 : _a.closest(".ep-sidebar"))) return;
     el.focus();
   };
   for (const ms of [0, RECLAIM_MS, RECLAIM_MS * 3]) window.setTimeout(give, ms);
 }
 
 // src/ui/menus/show.ts
-function adopt(menu) {
+function adopt(menu, doc) {
   const close = () => {
     menu.hide();
   };
   openOverlay(close);
-  menu.onHide(() => overlayClosed(close));
+  const unwire = wireMenuKeys(doc, close);
+  menu.onHide(() => {
+    unwire();
+    overlayClosed(close);
+  });
+}
+function wireMenuKeys(doc, close) {
+  const onKey = (ev) => {
+    if (ev.key === "Tab") {
+      ev.preventDefault();
+      ev.stopPropagation();
+      arrow(doc, ev.shiftKey ? "ArrowUp" : "ArrowDown");
+      return;
+    }
+    if (ev.key !== "Escape" || !liveMenu(doc)) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    close();
+  };
+  doc.addEventListener("keydown", onKey, true);
+  return () => doc.removeEventListener("keydown", onKey, true);
+}
+function arrow(doc, key) {
+  doc.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
 }
 var SELECTED = ".menu-item.selected, .menu-item.is-selected";
 var SETTLE_MS = 120;
@@ -6932,7 +6960,7 @@ function selectFirst(doc) {
   const assert = () => {
     const menu = liveMenu(doc);
     if (!menu || menu.querySelector(SELECTED)) return;
-    doc.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    arrow(doc, "ArrowDown");
   };
   window.setTimeout(assert, 0);
   const settle = () => {
@@ -6943,12 +6971,12 @@ function selectFirst(doc) {
   window.setTimeout(() => doc.removeEventListener("pointerup", settle, true), HOLD_TAIL_MS);
 }
 function showMenu(menu, ev) {
-  adopt(menu);
+  adopt(menu, activeDocument);
   menu.showAtMouseEvent(ev);
   selectFirst(activeDocument);
 }
 function showMenuAt(menu, pos, doc) {
-  adopt(menu);
+  adopt(menu, doc != null ? doc : activeDocument);
   menu.showAtPosition(pos, doc);
   selectFirst(doc != null ? doc : activeDocument);
 }
@@ -8677,7 +8705,7 @@ function focusEntry(wrap) {
   wrap.addClass("ep-holdfocus");
   wrap.scrollIntoView({ block: "nearest" });
   if (wrap.hasClass("ep-entry")) {
-    const view = (_a = wrap.closest(".ep-content")) != null ? _a : wrap.ownerDocument.body;
+    const view = (_a = wrap.closest(".ep-sidebar")) != null ? _a : wrap.ownerDocument.body;
     for (const row of Array.from(view.querySelectorAll(".ep-entry"))) row.tabIndex = -1;
     wrap.tabIndex = 0;
   }

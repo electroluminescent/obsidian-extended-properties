@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.31.0
+
+- **Tab walks a context menu**, forward and back with shift, moving the same
+  selection the arrows move. Tab used to walk straight past an open menu into
+  the view behind it.
+- **Escape closes a context menu without landing in the note.** Obsidian
+  answers Escape by putting focus in the editor, so a keyboard trip through the
+  sidebar ended in the note whenever a menu was dismissed. The menu now answers
+  the key first, and focus stays on the row it was opened from.
+- Two focus checks were looking for a class the view does not carry, so they
+  never matched: focus sitting on the row when a menu closed did not count as
+  the view's, and the row was left to whatever took focus next. Both now test
+  the class the view actually has.
+
 ## 4.30.4
 
 - **Holding a key no longer takes the first item as the menu opens.** The hold
