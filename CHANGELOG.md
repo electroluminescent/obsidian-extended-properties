@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.31.1
+
+- Retyping a list-valued type property mapped over values the review guide
+  reads as untyped. The values are kept as unknown, which is what they are.
+
 ## 4.31.0
 
 - **Tab walks a context menu**, forward and back with shift, moving the same

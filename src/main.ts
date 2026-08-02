@@ -741,7 +741,9 @@ export default class ExtendedPropertiesPlugin extends Plugin {
           if (!realKey) return;
           const cur = fm[realKey];
           if (Array.isArray(cur)) {
-            const next = cur.map((x) => (isFrom(x) ? to : x));
+            // The values stay unknown: `Array.isArray` widens the list to
+            // any[], and mapping it would otherwise hand back `any`.
+            const next = cur.map((x: unknown): unknown => (isFrom(x) ? to : x));
             // Renaming onto a value the list already holds must not duplicate it.
             fm[realKey] = next.filter((x, i) => next.findIndex((y) => String(y) === String(x)) === i);
             n++;
