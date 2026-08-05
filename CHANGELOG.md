@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.35.0
+
+- **The Link type is no longer offered for new properties.** It has moved into
+  Text, which carries the same field behind "Links to a note". Properties
+  already using it keep working and keep their settings; their settings page
+  says where the type has gone and offers the move.
+- A text property that links to notes now renders as a link in the type table
+  too, as the Link type always did.
+
 ## 4.34.0
 
 - **A link property can move to the Text type, keeping everything.** Its

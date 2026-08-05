@@ -141,6 +141,10 @@ function promptLink(view: LinkPromptView, set: (v: string | undefined) => void, 
 export const linkType: ValueTypeDef = {
   id: "link",
   name: (i18n) => i18n.t("type.link"),
+  // Absorbed by the text type ("links to a note"), which carries the same
+  // field: hidden from the type dropdowns, still rendering existing entries
+  // until each is moved across (see `convertLinkToText`).
+  deprecated: true,
 
   render(ctx) {
     const { view, file, entry } = ctx;
@@ -162,6 +166,8 @@ export const linkType: ValueTypeDef = {
     const { view, entry, container: c, changed, redraw } = octx;
     const t = view.i18n.t.bind(view.i18n);
     c.createEl("h4", { text: t("options.linkHeading") });
+    // Says where the type has gone, for a property that still carries it.
+    c.createDiv({ cls: "ep-moved-note", text: t("options.linkMoved") });
     renderNoteChoices(octx);
     // The type is being absorbed into Text (which carries the same field
     // behind a switch), so a property can move across without losing anything.

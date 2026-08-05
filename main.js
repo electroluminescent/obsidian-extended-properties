@@ -330,6 +330,7 @@ var en_default = {
   "options.convertToTextDesc": 'Link is being folded into Text, which carries the same field behind its "Links to a note" switch. Moving keeps the source folder and every other setting; the data type is shared, so this applies to this property everywhere. To come back, set the data type to Link again.',
   "options.convertToTextBtn": "Convert to Text",
   "options.convertedToText": '"{key}" is now a text property that links to notes ({count} updated).',
+  "options.linkMoved": "The Link type has moved into Text, which carries the same field. Existing link properties keep working; move this one across when convenient.",
   "options.linkHeading": "Link",
   "options.linkFolder": "Source folder",
   "options.linkFolderDesc": "Offer only the notes in this folder while editing. Empty = the whole vault.",
@@ -6829,6 +6830,10 @@ function promptLink(view, set, key) {
 var linkType = {
   id: "link",
   name: (i18n) => i18n.t("type.link"),
+  // Absorbed by the text type ("links to a note"), which carries the same
+  // field: hidden from the type dropdowns, still rendering existing entries
+  // until each is moved across (see `convertLinkToText`).
+  deprecated: true,
   render(ctx2) {
     const { view, file, entry } = ctx2;
     const key = entry.key;
@@ -6844,6 +6849,7 @@ var linkType = {
     const { view, entry, container: c, changed, redraw } = octx;
     const t = view.i18n.t.bind(view.i18n);
     c.createEl("h4", { text: t("options.linkHeading") });
+    c.createDiv({ cls: "ep-moved-note", text: t("options.linkMoved") });
     renderNoteChoices(octx);
     new import_obsidian19.Setting(c).setName(t("options.convertToText")).setDesc(t("options.convertToTextDesc")).addButton((b) => {
       b.setButtonText(t("options.convertToTextBtn")).onClick(() => {
@@ -13064,7 +13070,7 @@ var TableView = class extends import_obsidian34.ItemView {
       return void 0;
     };
     return cols.map((key) => {
-      var _a;
+      var _a, _b;
       const entry = findEntry(key);
       let type = ((_a = this.plugin.settings.propTypes) == null ? void 0 : _a[key.toLowerCase()]) || (entry == null ? void 0 : entry.dataType) || this.plugin.props.obsidianType(key) || "";
       if (!type) {
@@ -13079,7 +13085,8 @@ var TableView = class extends import_obsidian34.ItemView {
       const roll = entry ? entry["roll"] : void 0;
       const rollable = rolling && !!roll && (NUMERIC2.has(type) || type === "rating");
       const dice = entry ? entry["dice"] : void 0;
-      return { key, type, rollable, dice, max: entry == null ? void 0 : entry.max };
+      const links = type === "link" || ((_b = entry == null ? void 0 : entry.choices) == null ? void 0 : _b.linksToNotes) === true;
+      return { key, type, rollable, dice, max: entry == null ? void 0 : entry.max, links };
     });
   }
   // -- render ----------------------------------------------------------------
@@ -13237,7 +13244,7 @@ var TableView = class extends import_obsidian34.ItemView {
       td.createSpan({ cls: "ep-cell-muted", text: s });
       return;
     }
-    if (type === "link") {
+    if (m.links) {
       const s = fmtCell(raw);
       const target2 = linkTarget3(s);
       const a = td.createEl("a", { cls: "ep-table-link", text: target2 || s });

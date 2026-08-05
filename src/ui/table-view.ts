@@ -50,6 +50,8 @@ interface ColMeta {
   rollable: boolean;
   dice?: string;
   max?: number;
+  /** Whether the value names a note, whatever type it is stored under. */
+  links?: boolean;
 }
 
 /** Compact text projection of a frontmatter value. */
@@ -185,7 +187,9 @@ export class TableView extends ItemView {
       const roll = entry ? (entry as Record<string, unknown>)["roll"] : undefined;
       const rollable = rolling && !!roll && (NUMERIC.has(type) || type === "rating");
       const dice = entry ? ((entry as Record<string, unknown>)["dice"] as string | undefined) : undefined;
-      return { key, type, rollable, dice, max: entry?.max };
+      // A text property with "links to a note" reads as a link here too.
+      const links = type === "link" || entry?.choices?.linksToNotes === true;
+      return { key, type, rollable, dice, max: entry?.max, links };
     });
   }
 
@@ -366,7 +370,7 @@ export class TableView extends ItemView {
       td.createSpan({ cls: "ep-cell-muted", text: s });
       return;
     }
-    if (type === "link") {
+    if (m.links) {
       const s = fmtCell(raw);
       const target = linkTarget(s);
       const a = td.createEl("a", { cls: "ep-table-link", text: target || s });
