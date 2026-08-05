@@ -323,7 +323,7 @@ var en_default = {
   "options.linkFolder": "Source folder",
   "options.linkFolderDesc": "Offer only the notes in this folder while editing. Empty = the whole vault.",
   "options.linkSubfolders": "Include subfolders",
-  "options.linkSubfoldersDesc": "Offer notes below the source folder as well.",
+  "options.linkSubfoldersDesc": "Offer notes below the source folder as well. On by default; off restricts to the folder itself.",
   "options.linkStrict": "Only existing notes",
   "options.linkStrictDesc": "Refuse a value that is not one of the notes on offer.",
   "options.linkCreate": "Offer to create",
@@ -6479,7 +6479,7 @@ function promptLink(view, set, key) {
 var linkSpans = /* @__PURE__ */ new WeakMap();
 function linkScope(entry) {
   const c = entry.choices;
-  return (c == null ? void 0 : c.folder) ? { folder: c.folder, subfolders: c.subfolders } : void 0;
+  return (c == null ? void 0 : c.folder) ? { folder: c.folder, subfolders: c.subfolders !== false } : void 0;
 }
 function editLink(ctx2, span) {
   var _a;
@@ -6550,8 +6550,8 @@ var linkType = {
     });
     new import_obsidian18.Setting(c).setName(t("options.linkSubfolders")).setDesc(t("options.linkSubfoldersDesc")).addToggle((tg) => {
       var _a;
-      tg.setValue(((_a = entry.choices) == null ? void 0 : _a.subfolders) === true).onChange((v) => {
-        ch().subfolders = v || void 0;
+      tg.setValue(((_a = entry.choices) == null ? void 0 : _a.subfolders) !== false).onChange((v) => {
+        ch().subfolders = v ? void 0 : false;
         changed();
       });
     });

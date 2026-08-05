@@ -28,7 +28,7 @@ export type SectionPin = "header" | "body" | "footer";
 export interface Choices {
   /** Vault-relative folder a link property draws its notes from. */
   folder?: string;
-  /** Whether notes below `folder` are offered too. */
+  /** Whether notes below `folder` are offered too. Unset = yes. */
   subfolders?: boolean;
   /** Hold the value to something on offer, instead of taking free text. */
   strict?: boolean;

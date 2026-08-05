@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.32.1
+
+- A link property's source folder now includes what is below it by default. A
+  folder of characters that grows a "Minor" subfolder still holds characters,
+  so the narrower reading was the wrong way round; turn the switch off to keep
+  to the folder itself.
+
 ## 4.32.0
 
 - **A link property can be told which folder its notes come from.** Set a

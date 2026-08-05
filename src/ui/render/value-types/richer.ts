@@ -160,7 +160,9 @@ const linkSpans = new WeakMap<Entry, HTMLElement>();
 /** The folder scope an entry's link field offers notes from. */
 function linkScope(entry: Entry): NoteScope | undefined {
   const c = entry.choices;
-  return c?.folder ? { folder: c.folder, subfolders: c.subfolders } : undefined;
+  // Subfolders count unless turned off: a folder of characters that grows a
+  // "Minor" subfolder still holds characters.
+  return c?.folder ? { folder: c.folder, subfolders: c.subfolders !== false } : undefined;
 }
 
 /** Open the inline link field over `span`, writing back to `key`. */
@@ -242,8 +244,8 @@ export const linkType: ValueTypeDef = {
       .setName(t("options.linkSubfolders"))
       .setDesc(t("options.linkSubfoldersDesc"))
       .addToggle((tg) => {
-        tg.setValue(entry.choices?.subfolders === true).onChange((v) => {
-          ch().subfolders = v || undefined;
+        tg.setValue(entry.choices?.subfolders !== false).onChange((v) => {
+          ch().subfolders = v ? undefined : false;
           changed();
         });
       });
