@@ -4,7 +4,7 @@
  * free-form value suggestions fed by vault usage.
  */
 
-import { AbstractInputSuggest, App, TFile } from "obsidian";
+import { AbstractInputSuggest, App, TFile, TFolder } from "obsidian";
 import type { I18n } from "../../i18n/i18n";
 
 interface PropSuggestion { key: string; kind: "note" | "vault" | "create"; typeName?: string }
@@ -141,9 +141,31 @@ export class ValueSuggest extends AbstractInputSuggest<string> {
 }
 
 
+/**
+ * Which notes a link may point at: everywhere, or one folder - the "only
+ * characters" / "only locations" case, where a property references one
+ * category of note.
+ */
+export interface NoteScope {
+  /** Vault-relative folder path. Empty or unset = the whole vault. */
+  folder?: string;
+  /** Whether notes in folders below `folder` count too. */
+  subfolders?: boolean;
+}
+
+/** Whether a note's path falls inside `scope`. Pure - the testable half. */
+export function inScope(path: string, scope?: NoteScope): boolean {
+  const folder = (scope?.folder ?? "").replace(/^\/+|\/+$/g, "");
+  if (!folder) return true;
+  const dir = path.slice(0, path.lastIndexOf("/") < 0 ? 0 : path.lastIndexOf("/"));
+  const f = folder.toLowerCase();
+  const d = dir.toLowerCase();
+  return scope?.subfolders ? d === f || d.startsWith(f + "/") : d === f;
+}
+
 /** Markdown notes whose basename matches `q` (empty = all), best matches first. */
-function noteMatches(app: App, q: string, limit = 30): TFile[] {
-  const files = app.vault.getMarkdownFiles();
+function noteMatches(app: App, q: string, scope?: NoteScope, limit = 30): TFile[] {
+  const files = app.vault.getMarkdownFiles().filter((f) => inScope(f.path, scope));
   if (!q) return files.slice().sort((a, b) => a.basename.localeCompare(b.basename)).slice(0, limit);
   const out: { f: TFile; rank: number }[] = [];
   for (const f of files) {
@@ -155,9 +177,48 @@ function noteMatches(app: App, q: string, limit = 30): TFile[] {
   return out.slice(0, limit).map((x) => x.f);
 }
 
+/** Suggests vault folders, for settings that name one. */
+export class FolderSuggest extends AbstractInputSuggest<string> {
+  constructor(app: App, inputEl: HTMLInputElement, private onChoose: (path: string) => void) {
+    super(app, inputEl);
+  }
+
+  getSuggestions(query: string): string[] {
+    const q = query.trim().toLowerCase();
+    const all: string[] = [];
+    for (const f of this.app.vault.getAllLoadedFiles()) {
+      if (f instanceof TFolder && f.path !== "/") all.push(f.path);
+    }
+    all.sort((a, b) => a.localeCompare(b));
+    return (q ? all.filter((p) => p.toLowerCase().includes(q)) : all).slice(0, 50);
+  }
+
+  renderSuggestion(p: string, el: HTMLElement): void {
+    el.setText(p);
+  }
+
+  selectSuggestion(p: string): void {
+    this.onChoose(p);
+    this.setValue(p);
+    (this as { close?: () => void }).close?.();
+  }
+}
+
 type LinkOrValue =
   | { kind: "link"; text: string; file: TFile }
-  | { kind: "value" | "create"; text: string };
+  | { kind: "value" | "create" | "newNote"; text: string };
+
+/** How a field offers notes: scoped to a folder, and whether it may invent one. */
+export interface LinkMode {
+  /**
+   * Offer notes for whatever is typed, without waiting for a `[[` token - the
+   * field *is* a link, so typing `f` should list the notes starting with f.
+   */
+  bare?: boolean;
+  scope?: () => NoteScope | undefined;
+  /** Offer to create the note when the typed name matches none. */
+  create?: boolean;
+}
 
 /**
  * Text-input autocomplete that offers vault-note links when the caret sits in
@@ -175,19 +236,33 @@ export class TextLinkSuggest extends AbstractInputSuggest<LinkOrValue> {
     app: App,
     inputEl: HTMLInputElement,
     private getOptions?: () => string[],
-    private onChoose?: (v: string) => void
+    private onChoose?: (v: string) => void,
+    private link?: LinkMode
   ) {
     super(app, inputEl);
     this.el = inputEl;
     this.appRef = app;
   }
 
+  /** The notes on offer for what has been typed, as suggestion rows. */
+  private notes(typed: string): LinkOrValue[] {
+    // Matched case-insensitively, but offered to be created as written: a new
+    // note takes the name the user typed, capitals and all.
+    const q = typed.trim();
+    const ql = q.toLowerCase();
+    const found = noteMatches(this.appRef, ql, this.link?.scope?.());
+    const res: LinkOrValue[] = found.map((f) => ({ kind: "link" as const, text: f.basename, file: f }));
+    if (this.link?.create && q && !found.some((f) => f.basename.toLowerCase() === ql)) {
+      res.unshift({ kind: "newNote", text: q });
+    }
+    return res;
+  }
+
   getSuggestions(value: string): LinkOrValue[] {
     const link = TextLinkSuggest.OPEN.exec(value);
-    if (link) {
-      const q = link[1].trim().toLowerCase();
-      return noteMatches(this.appRef, q).map((f) => ({ kind: "link" as const, text: f.basename, file: f }));
-    }
+    if (link) return this.notes(link[1]);
+    // A link field takes the whole box as the name of a note - no `[[` first.
+    if (this.link?.bare) return this.notes(linkNameOf(value));
     if (!this.getOptions) return [];
     const q = value.trim();
     const ql = q.toLowerCase();
@@ -205,11 +280,26 @@ export class TextLinkSuggest extends AbstractInputSuggest<LinkOrValue> {
       if (p && p !== "/") el.createSpan({ cls: "ep-sug-badge", text: p });
       return;
     }
+    if (s.kind === "newNote") {
+      el.addClass("ep-sug-create");
+      el.setText(`+ ${s.text}`);
+      return;
+    }
     el.setText(s.text);
   }
 
   selectSuggestion(s: LinkOrValue): void {
+    if (s.kind === "newNote") {
+      void this.createNote(s.text);
+      return;
+    }
     if (s.kind === "link") {
+      // A link field holds one link, so the pick replaces the box rather than
+      // being spliced in where a `[[` was typed.
+      if (this.link?.bare) {
+        this.commitLink(s.text);
+        return;
+      }
       const val = this.el.value;
       const m = TextLinkSuggest.OPEN.exec(val);
       const start = m ? m.index : val.length;
@@ -229,4 +319,32 @@ export class TextLinkSuggest extends AbstractInputSuggest<LinkOrValue> {
     this.setValue(s.text);
     (this as unknown as { close?: () => void }).close?.();
   }
+
+  /** Put `[[name]]` in the box and hand it on, as though typed in full. */
+  private commitLink(name: string): void {
+    const val = `[[${name}]]`;
+    this.setValue(val);
+    this.el.value = val;
+    this.el.dispatchEvent(new Event("input"));
+    this.onChoose?.(val);
+    (this as unknown as { close?: () => void }).close?.();
+  }
+
+  /** Make the note the typed name asks for, in the scoped folder, and link it. */
+  private async createNote(name: string): Promise<void> {
+    const folder = (this.link?.scope?.()?.folder ?? "").replace(/^\/+|\/+$/g, "");
+    const path = `${folder ? folder + "/" : ""}${name}.md`;
+    try {
+      if (!this.appRef.vault.getAbstractFileByPath(path)) await this.appRef.vault.create(path, "");
+    } catch (err) {
+      console.error("Extended Properties: could not create", path, err);
+    }
+    this.commitLink(name);
+  }
+}
+
+/** The bare note name in `[[Name|alias]]`, or the text as typed. */
+export function linkNameOf(raw: string): string {
+  const m = /\[\[([^\]|#]*)/.exec(raw);
+  return (m ? m[1] : raw).trim();
 }

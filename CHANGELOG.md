@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.32.0
+
+- **A link property can be told which folder its notes come from.** Set a
+  source folder on the property and editing it offers only the notes in that
+  folder - "characters", "locations", "items" - narrowing as you type. Notes in
+  folders below it are offered too if you ask for them.
+- **Editing a link no longer means typing a wikilink.** The value opens in
+  place, like every other value does, and typing a name lists the notes it
+  could mean: no `[[` first, and picking one writes the link. It replaces the
+  prompt window, which offered nothing at all.
+- **Only existing notes**, per property: a value that names no note on offer is
+  refused rather than stored, and a link pointing outside the property's folder
+  reads as unresolved, since for that property it is.
+- **Offer to create**, per property: when the name matches nothing, the list
+  ends with an entry that makes the note in the source folder and links it.
+
 ## 4.31.1
 
 - Retyping a list-valued type property mapped over values the review guide

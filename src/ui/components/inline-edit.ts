@@ -3,9 +3,10 @@
  * `<input>`, commit on Enter/blur, cancel on Escape, restore the element.
  */
 
-import { App } from "obsidian";
+import { App, Notice } from "obsidian";
 import { fmtNum, clamp } from "../../utils/misc";
-import { TextLinkSuggest } from "./suggest";
+import { inScope, linkNameOf, TextLinkSuggest } from "./suggest";
+import type { NoteScope } from "./suggest";
 import { stepField } from "./tab-chain";
 import { sfx } from "../../utils/sound";
 
@@ -96,6 +97,74 @@ export function openTextInput(
   input.onkeydown = (e: KeyboardEvent) => {
     if (e.key === "Enter") { e.preventDefault(); finish(true); }
     else if (e.key === "Escape") { e.preventDefault(); finish(false); }
+    else if (e.key === "Tab") { e.preventDefault(); finish(true); focusEditableFrom(span, e.shiftKey); }
+  };
+}
+
+export interface LinkInputOptions {
+  scope?: NoteScope;
+  /** Refuse anything but a note on offer, rather than taking free text. */
+  strict?: boolean;
+  /** Offer to make the note when the name matches none. */
+  create?: boolean;
+  /** What to say when a strict field is given a note that is not on offer. */
+  rejected: string;
+}
+
+/**
+ * Swap `span` for a link field: typing a name lists the notes it could mean -
+ * no `[[` needed, since the field holds nothing else - and picking one writes
+ * `[[Note]]`. With a folder named, only that folder's notes are offered, and
+ * `strict` refuses anything else rather than storing a link to nowhere.
+ */
+export function openLinkInput(
+  app: App,
+  span: HTMLElement,
+  value: string,
+  opts: LinkInputOptions,
+  commit: (v: string) => void
+): void {
+  const input = createEl("input", { cls: "ep-edit-input" });
+  input.type = "text";
+  input.value = value;
+  span.replaceWith(input);
+  input.focus();
+  input.select();
+  const allowed = (v: string): boolean => {
+    if (!opts.strict) return true;
+    const name = linkNameOf(v);
+    if (name === "") return true; // clearing the value is always allowed
+    const dest = app.metadataCache.getFirstLinkpathDest(name, "");
+    return !!dest && inScope(dest.path, opts.scope);
+  };
+  let done = false;
+  const finish = (save: boolean): void => {
+    if (done) return;
+    if (save && !allowed(input.value)) {
+      new Notice(opts.rejected);
+      input.focus();
+      input.select();
+      return;
+    }
+    done = true;
+    if (input.parentElement) input.replaceWith(span);
+    if (save) {
+      sfx.tick();
+      commit(input.value.trim());
+    }
+  };
+  new TextLinkSuggest(app, input, undefined, () => window.setTimeout(() => finish(true), 0), {
+    bare: true,
+    create: opts.create,
+    scope: () => opts.scope,
+  });
+  input.addEventListener("focus", () => input.dispatchEvent(new Event("input")));
+  input.dispatchEvent(new Event("input"));
+  // Delay so a suggestion click can land before the blur commits.
+  input.onblur = () => window.setTimeout(() => finish(true), 150);
+  input.onkeydown = (e: KeyboardEvent) => {
+    if (e.key === "Enter") { e.preventDefault(); finish(true); }
+    else if (e.key === "Escape") { e.preventDefault(); done = true; input.replaceWith(span); }
     else if (e.key === "Tab") { e.preventDefault(); finish(true); focusEditableFrom(span, e.shiftKey); }
   };
 }

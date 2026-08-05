@@ -24,6 +24,18 @@ export type LayoutMode = "list" | "columns" | "grid";
 /** Where a section is pinned while the sidebar scrolls. */
 export type SectionPin = "header" | "body" | "footer";
 
+/** Where an entry's editor draws the values it offers. */
+export interface Choices {
+  /** Vault-relative folder a link property draws its notes from. */
+  folder?: string;
+  /** Whether notes below `folder` are offered too. */
+  subfolders?: boolean;
+  /** Hold the value to something on offer, instead of taking free text. */
+  strict?: boolean;
+  /** Offer to create the note when the typed name matches none. */
+  create?: boolean;
+}
+
 /** Generic, feature-agnostic fields of a sidebar entry. */
 export interface EntryBase {
   /** Stable id used for drag & drop and FLIP animations. */
@@ -107,6 +119,13 @@ export interface EntryBase {
 
   /** Optional validation constraints (range, regex, allowed values, required). */
   constraints?: Constraints;
+
+  /**
+   * Where the values on offer come from while editing. A link property that
+   * names a folder suggests only the notes in it - "characters", "locations" -
+   * and `strict` holds the value to one of them.
+   */
+  choices?: Choices;
 
   /**
    * Conditional visibility: a boolean expression over the note's values, e.g.
