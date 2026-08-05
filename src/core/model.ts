@@ -26,6 +26,17 @@ export type SectionPin = "header" | "body" | "footer";
 
 /** Where an entry's editor draws the values it offers. */
 export interface Choices {
+  /**
+   * Treat the value as the name of a note: render it as a link, and offer
+   * notes while editing. What the "link" data type is, as a switch - so a text
+   * property can be a note reference without being a different type.
+   */
+  linksToNotes?: boolean;
+  /**
+   * Which values a text field offers: those the vault already holds for this
+   * property (unset), or the entry's allowed values.
+   */
+  from?: "vault" | "allowed";
   /** Vault-relative folder a link property draws its notes from. */
   folder?: string;
   /** Whether notes below `folder` are offered too. Unset = yes. */

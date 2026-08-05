@@ -237,7 +237,9 @@ export class TextLinkSuggest extends AbstractInputSuggest<LinkOrValue> {
     inputEl: HTMLInputElement,
     private getOptions?: () => string[],
     private onChoose?: (v: string) => void,
-    private link?: LinkMode
+    private link?: LinkMode,
+    /** Whether a value that matches nothing may still be offered as typed. */
+    private allowNew = true
   ) {
     super(app, inputEl);
     this.el = inputEl;
@@ -269,7 +271,10 @@ export class TextLinkSuggest extends AbstractInputSuggest<LinkOrValue> {
     const opts = this.getOptions();
     const filtered = (ql ? opts.filter((o) => o.toLowerCase().includes(ql)) : opts).slice(0, 50);
     const res: LinkOrValue[] = filtered.map((o) => ({ kind: "value" as const, text: o }));
-    if (q && !opts.some((o) => o.toLowerCase() === ql)) res.unshift({ kind: "create", text: q });
+    // A field that only takes what it offers must not offer anything else.
+    if (this.allowNew && q && !opts.some((o) => o.toLowerCase() === ql)) {
+      res.unshift({ kind: "create", text: q });
+    }
     return res;
   }
 

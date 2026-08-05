@@ -6,6 +6,7 @@
 import { App, Notice } from "obsidian";
 import { fmtNum, clamp } from "../../utils/misc";
 import { inScope, linkNameOf, TextLinkSuggest } from "./suggest";
+import { valueAllowed } from "../../core/choices";
 import type { NoteScope } from "./suggest";
 import { stepField } from "./tab-chain";
 import { sfx } from "../../utils/sound";
@@ -67,6 +68,13 @@ export function openNumberInput(
   };
 }
 
+export interface TextInputOptions {
+  /** Refuse anything but a value on offer, rather than taking free text. */
+  strict?: boolean;
+  /** What to say when a strict field is given something not on offer. */
+  rejected?: string;
+}
+
 /** Swap `span` for a text input with value autocompletion for `key`. */
 export function openTextInput(
   app: App,
@@ -74,7 +82,8 @@ export function openTextInput(
   key: string,
   value: string,
   valuesFor: (key: string) => string[],
-  commit: (v: string) => void
+  commit: (v: string) => void,
+  opts: TextInputOptions = {}
 ): void {
   const input = createEl("input", { cls: "ep-edit-input" });
   input.type = "text";
@@ -82,16 +91,34 @@ export function openTextInput(
   span.replaceWith(input);
   input.focus();
   input.select();
-  new TextLinkSuggest(app, input, () => valuesFor(key), (v) => commit(v));
-  input.addEventListener("focus", () => input.dispatchEvent(new Event("input")));
-  input.dispatchEvent(new Event("input"));
   let done = false;
   const finish = (save: boolean) => {
     if (done) return;
+    if (save && !valueAllowed(input.value, valuesFor(key), opts.strict)) {
+      if (opts.rejected) new Notice(opts.rejected);
+      input.focus();
+      input.select();
+      return;
+    }
     done = true;
     if (input.parentElement) input.replaceWith(span);
     if (save) { sfx.tick(); commit(input.value.trim()); }
   };
+  // A pick goes through the same commit as typing, so a strict field cannot be
+  // talked into a value it would refuse.
+  new TextLinkSuggest(
+    app,
+    input,
+    () => valuesFor(key),
+    (v) => {
+      input.value = v;
+      window.setTimeout(() => finish(true), 0);
+    },
+    undefined,
+    !opts.strict
+  );
+  input.addEventListener("focus", () => input.dispatchEvent(new Event("input")));
+  input.dispatchEvent(new Event("input"));
   // Delay so a suggestion click can land before the blur commits.
   input.onblur = () => window.setTimeout(() => finish(true), 150);
   input.onkeydown = (e: KeyboardEvent) => {

@@ -13,16 +13,14 @@
  * is the point of the registry architecture.
  */
 
-import { setIcon, Setting, TFile } from "obsidian";
+import { setIcon, Setting } from "obsidian";
 import type { App } from "obsidian";
 import type { I18n } from "../../../i18n/i18n";
 import type { NoteModel } from "../../../core/note-model";
-import type { Entry } from "../../../core/model";
 import type { ValueTypeDef } from "../../../core/registry";
 import { fmtNum } from "../../../utils/misc";
-import { openLinkInput, openNumberInput } from "../../components/inline-edit";
-import { FolderSuggest, inScope } from "../../components/suggest";
-import type { NoteScope } from "../../components/suggest";
+import { openNumberInput } from "../../components/inline-edit";
+import { drawNoteLink, editNoteLink, linkSpanFor, renderNoteChoices } from "./note-link";
 import { sfx } from "../../../utils/sound";
 import { TextPromptModal } from "../../modals/dialogs";
 
@@ -33,12 +31,6 @@ interface LinkPromptView {
   note: NoteModel;
 }
 
-/** What editing a link in place needs: the view, the note, and the entry. */
-interface LinkEditCtx {
-  view: LinkPromptView;
-  file: TFile;
-  entry: Entry;
-}
 
 // ---------------------------------------------------------------------------
 // rating
@@ -138,50 +130,11 @@ export const ratingType: ValueTypeDef = {
 // link
 // ---------------------------------------------------------------------------
 
-/** The bare link target inside `[[Target|alias]]`, or the raw string. */
-function linkTarget(raw: string): string {
-  const m = /\[\[([^\]|#]+)/.exec(raw);
-  return (m ? m[1] : raw).trim();
-}
-
 function promptLink(view: LinkPromptView, set: (v: string | undefined) => void, key: string): void {
   new TextPromptModal(view.app, view.i18n, view.i18n.t("link.prompt"), view.note.str(key), (val) => {
     const s = val.trim();
     set(s === "" ? undefined : s);
   }).open();
-}
-
-/**
- * The span each rendered link occupies, so the row menu can open the same
- * in-place field the cell does rather than a prompt window of its own.
- */
-const linkSpans = new WeakMap<Entry, HTMLElement>();
-
-/** The folder scope an entry's link field offers notes from. */
-function linkScope(entry: Entry): NoteScope | undefined {
-  const c = entry.choices;
-  // Subfolders count unless turned off: a folder of characters that grows a
-  // "Minor" subfolder still holds characters.
-  return c?.folder ? { folder: c.folder, subfolders: c.subfolders !== false } : undefined;
-}
-
-/** Open the inline link field over `span`, writing back to `key`. */
-function editLink(ctx: LinkEditCtx, span: HTMLElement): void {
-  const { view, file, entry } = ctx;
-  const key = entry.key as string;
-  const c = entry.choices;
-  openLinkInput(
-    view.app,
-    span,
-    view.note.str(key),
-    {
-      scope: linkScope(entry),
-      strict: c?.strict === true,
-      create: c?.create === true,
-      rejected: view.i18n.t(c?.folder ? "link.notInFolder" : "link.notANote", { folder: c?.folder ?? "" }),
-    },
-    (val) => view.note.set(file, key, val === "" ? undefined : val)
-  );
 }
 
 export const linkType: ValueTypeDef = {
@@ -196,77 +149,17 @@ export const linkType: ValueTypeDef = {
     // The link lives in a span of its own, so the editor can stand in its
     // place without taking the cell (and its classes) with it.
     const s = v.createSpan();
-    const draw = () => {
-      s.empty();
-      s.removeClass("ep-placeholder");
-      v.removeClass("ep-link-unresolved");
-      const raw = view.note.str(key);
-      if (!raw) {
-        s.addClass("ep-placeholder");
-        s.setText("-");
-        return;
-      }
-      // Render as an internal link (wrap bare text in [[...]]) and flag unresolved.
-      view.renderLinks(s, /\[\[.+?\]\]|\]\([^)]+\)/.test(raw) ? raw : `[[${raw}]]`);
-      const dest = view.app.metadataCache.getFirstLinkpathDest(linkTarget(raw), view.note.path || "");
-      // Unresolved, and - for a property held to one folder - resolved but
-      // pointing outside it, which is just as wrong for that property.
-      if (!dest || (entry.choices?.strict === true && !inScope(dest.path, linkScope(entry)))) {
-        v.addClass("ep-link-unresolved");
-      }
-    };
+    const draw = () => drawNoteLink(view, v, s, entry, view.note.str(key));
     draw();
-    linkSpans.set(entry, s);
     // No editable marking on the cell: a press on the link itself follows it,
     // as a link should, and the free space beside it opens the editor.
-    view.bindOpen(v, () => editLink({ view, file, entry }, s), false);
+    view.bindOpen(v, () => editNoteLink(view, file, entry, s), false);
     view.registerUpdater(draw);
   },
 
   renderOptions(octx) {
-    const { view, entry, container: c, changed } = octx;
-    const t = view.i18n.t.bind(view.i18n);
-    const ch = (): NonNullable<Entry["choices"]> => (entry.choices ??= {});
-    c.createEl("h4", { text: t("options.linkHeading") });
-    new Setting(c)
-      .setName(t("options.linkFolder"))
-      .setDesc(t("options.linkFolderDesc"))
-      .addText((tx) => {
-        tx.setValue(entry.choices?.folder ?? "");
-        const save = (v: string): void => {
-          ch().folder = v.trim() || undefined;
-          changed();
-        };
-        tx.onChange(save);
-        new FolderSuggest(view.app, tx.inputEl, save);
-      });
-    new Setting(c)
-      .setName(t("options.linkSubfolders"))
-      .setDesc(t("options.linkSubfoldersDesc"))
-      .addToggle((tg) => {
-        tg.setValue(entry.choices?.subfolders !== false).onChange((v) => {
-          ch().subfolders = v ? undefined : false;
-          changed();
-        });
-      });
-    new Setting(c)
-      .setName(t("options.linkStrict"))
-      .setDesc(t("options.linkStrictDesc"))
-      .addToggle((tg) => {
-        tg.setValue(entry.choices?.strict === true).onChange((v) => {
-          ch().strict = v || undefined;
-          changed();
-        });
-      });
-    new Setting(c)
-      .setName(t("options.linkCreate"))
-      .setDesc(t("options.linkCreateDesc"))
-      .addToggle((tg) => {
-        tg.setValue(entry.choices?.create === true).onChange((v) => {
-          ch().create = v || undefined;
-          changed();
-        });
-      });
+    octx.container.createEl("h4", { text: octx.view.i18n.t("options.linkHeading") });
+    renderNoteChoices(octx);
   },
 
   menuItems(menu, ref) {
@@ -276,8 +169,8 @@ export const linkType: ValueTypeDef = {
       i.setTitle(view.i18n.t("link.edit")).setIcon("link").onClick(() => {
         // The in-place field, with its suggestions, wherever the row is on
         // screen; the prompt window only stands in where it is not (a table).
-        const span = linkSpans.get(entry);
-        if (span?.isConnected) editLink({ view, file, entry }, span);
+        const span = linkSpanFor(entry);
+        if (span) editNoteLink(view, file, entry, span);
         else promptLink(view, (val) => view.note.set(file, key, val), key);
       })
     );

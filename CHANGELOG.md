@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.33.0
+
+- **A text property can link to a note.** Switch on "Links to a note" and the
+  value shows as a link - a bare name counts - and editing offers notes, with
+  the same source folder, only-existing and offer-to-create settings the Link
+  type has. The two are now one field: the Link type is built on it, so
+  neither can drift from the other.
+- **Allowed values can be offered rather than only enforced.** A text property
+  set to offer them suggests the list written under Validation while editing,
+  narrowing as you type, and "Only offered values" refuses anything else -
+  which makes a Status property a dropdown of Draft / Active / Completed.
+
 ## 4.32.1
 
 - A link property's source folder now includes what is below it by default. A
