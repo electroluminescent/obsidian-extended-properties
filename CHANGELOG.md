@@ -1,5 +1,18 @@
 # Changelog
 
+## 4.34.0
+
+- **A link property can move to the Text type, keeping everything.** Its
+  settings carry a "Move to the Text type" button: the property becomes text
+  with "Links to a note" on, and its source folder, subfolders, only-existing
+  and offer-to-create settings come with it. Nothing about the value changes -
+  it was already a link in the note.
+- The move reaches every entry showing that property, on every sheet and
+  inline, because the data type is shared per property key and a half-moved
+  key would render one way in one place and another elsewhere. Settings an
+  entry had made for itself are kept. It is reversible while the Link type
+  exists: set the data type back to Link.
+
 ## 4.33.0
 
 - **A text property can link to a note.** Switch on "Links to a note" and the

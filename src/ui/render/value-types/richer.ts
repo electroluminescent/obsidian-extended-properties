@@ -13,13 +13,14 @@
  * is the point of the registry architecture.
  */
 
-import { setIcon, Setting } from "obsidian";
+import { Notice, setIcon, Setting } from "obsidian";
 import type { App } from "obsidian";
 import type { I18n } from "../../../i18n/i18n";
 import type { NoteModel } from "../../../core/note-model";
 import type { ValueTypeDef } from "../../../core/registry";
 import { fmtNum } from "../../../utils/misc";
 import { openNumberInput } from "../../components/inline-edit";
+import { convertLinkToText } from "../../../core/layout-ops";
 import { drawNoteLink, editNoteLink, linkSpanFor, renderNoteChoices } from "./note-link";
 import { sfx } from "../../../utils/sound";
 import { TextPromptModal } from "../../modals/dialogs";
@@ -158,8 +159,27 @@ export const linkType: ValueTypeDef = {
   },
 
   renderOptions(octx) {
-    octx.container.createEl("h4", { text: octx.view.i18n.t("options.linkHeading") });
+    const { view, entry, container: c, changed, redraw } = octx;
+    const t = view.i18n.t.bind(view.i18n);
+    c.createEl("h4", { text: t("options.linkHeading") });
     renderNoteChoices(octx);
+    // The type is being absorbed into Text (which carries the same field
+    // behind a switch), so a property can move across without losing anything.
+    // Reversible: set the data type back to Link while it still exists.
+    new Setting(c)
+      .setName(t("options.convertToText"))
+      .setDesc(t("options.convertToTextDesc"))
+      .addButton((b) => {
+        b.setButtonText(t("options.convertToTextBtn")).onClick(() => {
+          const key = entry.key as string;
+          if (!key) return;
+          const n = convertLinkToText(view.settings, key, entry.choices);
+          changed();
+          view.rerender();
+          redraw();
+          new Notice(t("options.convertedToText", { key, count: String(n) }));
+        });
+      });
   },
 
   menuItems(menu, ref) {

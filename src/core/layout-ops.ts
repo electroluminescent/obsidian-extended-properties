@@ -8,7 +8,7 @@
  * and the behavior unit-testable.
  */
 
-import type { Entry, EPSettings, Layout, Section } from "./model";
+import type { Choices, Entry, EPSettings, Layout, Section } from "./model";
 import { genId } from "../utils/misc";
 
 /**
@@ -32,6 +32,34 @@ export function setSharedDataType(settings: EPSettings, key: string, typeId: str
     const e = settings.inlineEntries?.[k];
     if (e && e.kind === "prop" && e.key && e.key.toLowerCase() === kl) e.dataType = typeId;
   }
+}
+
+/**
+ * Turn a link property into a text property that links to notes: the same
+ * field under the type it is being absorbed into (see `note-link`).
+ *
+ * The data type is shared per key, so this goes through
+ * {@link setSharedDataType} - a half-converted key would render one way on one
+ * sheet and another elsewhere. The choices are per-entry, so `source` (the
+ * settings of the entry being converted) fills in every other entry showing
+ * that key, without overwriting anything those entries had set themselves.
+ *
+ * Returns how many entries were given the switch, and is safe to run twice.
+ */
+export function convertLinkToText(settings: EPSettings, key: string, source: Choices | undefined): number {
+  const kl = key.trim().toLowerCase();
+  if (!kl) return 0;
+  setSharedDataType(settings, key, "text");
+  let n = 0;
+  const convert = (e: Entry | undefined): void => {
+    if (!e || e.kind !== "prop" || (e.key ?? "").toLowerCase() !== kl) return;
+    e.choices = { ...(source ?? {}), ...(e.choices ?? {}), linksToNotes: true };
+    n++;
+  };
+  for (const lk of Object.keys(settings.layouts ?? {}))
+    for (const s of settings.layouts[lk].sections ?? []) for (const e of s.entries ?? []) convert(e);
+  for (const k of Object.keys(settings.inlineEntries ?? {})) convert(settings.inlineEntries?.[k]);
+  return n;
 }
 
 /** Create a blank grid filler entry. */
