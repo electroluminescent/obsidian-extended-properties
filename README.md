@@ -269,21 +269,6 @@ Toggle **Flat sections** in Style Settings (or add the `ep-flat-sections` class 
 - Migrations are applied automatically for schema updates, via a versioned, idempotent runner; the pre-migration `data.json` is backed up first (last 5 kept).
 - Customizations carry across plugin versions: settings written by a newer version (or by a third-party module) are preserved rather than dropped on load, and any version change snapshots `data.json` so an upgrade can always be rolled back.
 
-## Privacy & network use
-
-Extended Properties is built for private, offline use and complies with the [Obsidian developer policies](https://docs.obsidian.md/Developer+policies):
-
-- **No telemetry, analytics or tracking** — client- or server-side. Nothing about you or your vault is collected or transmitted.
-- **No ads, no account, no payment** — every feature works offline.
-- **No network requests of its own.** The plugin never contacts a remote service. The only outbound traffic is browser-level rendering of addresses *you* enter: the **Image** and **Iframe** value types display remote `https://` URLs you type (exactly like Obsidian's own `![](url)` embeds). Reference only local/vault content and the plugin is entirely offline.
-- **No file access outside your vault.** Data lives as plain YAML frontmatter in your notes, plus the plugin's own `data.json` and optional layout / snapshot / backup files inside the vault. Nothing is written elsewhere.
-- **Vault-wide reads (local only).** To power cross-note formulas, aggregates and property/link autocomplete, the plugin builds an in-memory index of your notes' paths and frontmatter through Obsidian's vault and metadata cache — it is never transmitted, and cross-note reads can be turned off with the settings kill-switch.
-- **Clipboard.** The plugin touches the system clipboard only for actions you trigger — *Export* / *Export section* copy a layout snippet, the Import dialog reads it once to pre-fill a recognized snippet when you open it, and *copy roll result* copies a number. It never monitors or continuously reads the clipboard.
-- **Encryption stays local.** The optional AES-256-GCM property encryption holds your passphrase only in memory and stores only the ciphertext envelope in the note — no keys or plaintext leave the vault.
-- **No self-update or remote code.** The plugin downloads and executes nothing at runtime; `main.js` is a standard, un-obfuscated esbuild bundle of the public, MIT-licensed TypeScript source in this repository.
-
-- **Vault-wide edits happen only on explicit action**: removing an option from a property's autofill pool (the `.p` pool editor) rewrites that property in the notes that carry the value - always behind a confirmation that names the value and the affected note count.
-
 ## License
 
 MIT
