@@ -8,6 +8,7 @@
 
 import type { Defaults, Entry, EPSettings, Layout } from "./model";
 import { defaultDerivations } from "./influences";
+import { convertLinkToText } from "./layout-ops";
 
 export const DEFAULT_DEFAULTS: Defaults = {
   dataType: "text",
@@ -300,7 +301,7 @@ export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EP
 // ---------------------------------------------------------------------------
 
 /** Current settings schema version. Bump when adding a migration step below. */
-export const CURRENT_SCHEMA = 2;
+export const CURRENT_SCHEMA = 3;
 
 /** One ordered migration step: bring settings up to schema `to`. */
 export interface Migration {
@@ -379,6 +380,30 @@ export const SCHEMA_MIGRATIONS: Migration[] = [
         changed = true;
       }
       return changed;
+    },
+  },
+  {
+    to: 3,
+    name: "link-type-into-text",
+    run: (s) => {
+      // The link type is absorbed by text, which carries the same field behind
+      // `choices.linksToNotes` (see `ui/render/value-types/note-link`). Every
+      // property still typed as a link moves across, keeping the folder and
+      // the rest of its choices; the values in notes are already links and are
+      // not touched. `convertLinkToText` does one key at a time, so gather the
+      // keys first - from the shared map and from the entries alike, since a
+      // vault may have either.
+      const keys = new Set<string>();
+      for (const [k, t] of Object.entries(s.propTypes ?? {})) if (t === "link") keys.add(k);
+      const each = (e: Entry | undefined): void => {
+        if (e?.kind === "prop" && e.key && e.dataType === "link") keys.add(e.key.toLowerCase());
+      };
+      for (const lk of Object.keys(s.layouts ?? {}))
+        for (const sec of s.layouts[lk].sections ?? []) for (const e of sec.entries ?? []) each(e);
+      for (const k of Object.keys(s.inlineEntries ?? {})) each(s.inlineEntries?.[k]);
+      if (!keys.size) return false;
+      for (const k of keys) convertLinkToText(s, k, undefined);
+      return true;
     },
   },
 ];

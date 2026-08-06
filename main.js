@@ -277,6 +277,7 @@ var en_default = {
   "type.pdf": "PDF",
   "type.iframe": "iframe",
   "type.rating": "rating (legacy)",
+  "type.linkMoved": "Link (moved to Text)",
   "type.link": "link",
   "type.unit": "unit (legacy)",
   "type.datetime": "date/time (legacy)",
@@ -1819,6 +1820,178 @@ function influenceSources(entries) {
   return [...new Set(out)];
 }
 
+// src/core/layout-ops.ts
+function setSharedDataType(settings, key, typeId) {
+  var _a, _b, _c, _d, _e;
+  const kl = key.trim().toLowerCase();
+  if (!kl || !typeId) return;
+  if (!settings.propTypes) settings.propTypes = {};
+  settings.propTypes[kl] = typeId;
+  for (const lk of Object.keys((_a = settings.layouts) != null ? _a : {}))
+    for (const s of (_b = settings.layouts[lk].sections) != null ? _b : [])
+      for (const e of (_c = s.entries) != null ? _c : [])
+        if (e.kind === "prop" && e.key && e.key.toLowerCase() === kl) e.dataType = typeId;
+  for (const k of Object.keys((_d = settings.inlineEntries) != null ? _d : {})) {
+    const e = (_e = settings.inlineEntries) == null ? void 0 : _e[k];
+    if (e && e.kind === "prop" && e.key && e.key.toLowerCase() === kl) e.dataType = typeId;
+  }
+}
+function convertLinkToText(settings, key, source) {
+  var _a, _b, _c, _d, _e;
+  const kl = key.trim().toLowerCase();
+  if (!kl) return 0;
+  setSharedDataType(settings, key, "text");
+  let n = 0;
+  const convert = (e) => {
+    var _a2, _b2;
+    if (!e || e.kind !== "prop" || ((_a2 = e.key) != null ? _a2 : "").toLowerCase() !== kl) return;
+    e.choices = { ...source != null ? source : {}, ...(_b2 = e.choices) != null ? _b2 : {}, linksToNotes: true };
+    n++;
+  };
+  for (const lk of Object.keys((_a = settings.layouts) != null ? _a : {}))
+    for (const s of (_b = settings.layouts[lk].sections) != null ? _b : []) for (const e of (_c = s.entries) != null ? _c : []) convert(e);
+  for (const k of Object.keys((_d = settings.inlineEntries) != null ? _d : {})) convert((_e = settings.inlineEntries) == null ? void 0 : _e[k]);
+  return n;
+}
+function blankEntry() {
+  return { id: genId(), kind: "blank" };
+}
+function moveSectionBy(layout, id, delta) {
+  const secs = layout.sections;
+  const i = secs.findIndex((s2) => s2.id === id);
+  const j = i + delta;
+  if (i < 0 || j < 0 || j >= secs.length) return false;
+  const [s] = secs.splice(i, 1);
+  secs.splice(j, 0, s);
+  return true;
+}
+function moveSectionTo(layout, dragId, targetId, after) {
+  if (dragId === targetId) return false;
+  const secs = layout.sections;
+  const from = secs.findIndex((s2) => s2.id === dragId);
+  if (from < 0) return false;
+  const [s] = secs.splice(from, 1);
+  let idx = secs.findIndex((x) => x.id === targetId);
+  if (idx < 0) idx = secs.length;
+  if (after) idx += 1;
+  secs.splice(idx, 0, s);
+  return true;
+}
+function swapEntries(layout, aId, bId) {
+  let aS, bS, ai = -1, bi = -1;
+  for (const sec of layout.sections) {
+    const i = sec.entries.findIndex((e) => e.id === aId);
+    if (i >= 0) {
+      aS = sec;
+      ai = i;
+    }
+    const j = sec.entries.findIndex((e) => e.id === bId);
+    if (j >= 0) {
+      bS = sec;
+      bi = j;
+    }
+  }
+  if (!aS || !bS || ai < 0 || bi < 0) return false;
+  const t = aS.entries[ai];
+  aS.entries[ai] = bS.entries[bi];
+  bS.entries[bi] = t;
+  return true;
+}
+function moveLeavingBlank(layout, entryId, fromId) {
+  const sec = layout.sections.find((s) => s.id === fromId);
+  if (!sec) return false;
+  const i = sec.entries.findIndex((e) => e.id === entryId);
+  if (i < 0) return false;
+  const [en] = sec.entries.splice(i, 1);
+  sec.entries.splice(i, 0, blankEntry());
+  sec.entries.push(en);
+  return true;
+}
+function reorderByDomOrder(layout, entryId, fromId, toId, order) {
+  const from = layout.sections.find((s) => s.id === fromId);
+  const to = layout.sections.find((s) => s.id === toId);
+  if (!from || !to) return false;
+  const i = from.entries.findIndex((e) => e.id === entryId);
+  if (i < 0) return false;
+  const [en] = from.entries.splice(i, 1);
+  const map = new Map(to.entries.map((e) => [e.id, e]));
+  map.set(en.id, en);
+  const next = [];
+  for (const id of order) {
+    const e = map.get(id);
+    if (e) {
+      next.push(e);
+      map.delete(id);
+    }
+  }
+  for (const e of map.values()) next.push(e);
+  to.entries = next;
+  return true;
+}
+function ensurePropEntries(layout, section, keys, defaults = {}) {
+  const have = /* @__PURE__ */ new Set();
+  for (const s of layout.sections)
+    for (const e of s.entries) if (e.kind === "prop" && e.key) have.add(e.key.toLowerCase());
+  const toAdd = [];
+  for (const k of keys) {
+    if (!k || have.has(k.toLowerCase())) continue;
+    have.add(k.toLowerCase());
+    toAdd.push({ id: genId(), kind: "prop", key: k, dataType: "number", ...defaults });
+  }
+  section.entries.unshift(...toAdd);
+  return toAdd.length;
+}
+function gridRows(section, cols) {
+  const rows = [];
+  const es = section.entries;
+  for (let i = 0; i < es.length; i += cols) {
+    const row = es.slice(i, i + cols);
+    while (row.length < cols) row.push(blankEntry());
+    rows.push(row);
+  }
+  return rows;
+}
+function addColumnAt(section, idx, isGrid) {
+  if (!isGrid) {
+    section.columns = (section.columns || 1) + 1;
+    return;
+  }
+  const cols = section.columns || 1;
+  const rows = gridRows(section, cols);
+  const ci = Math.max(0, Math.min(idx, cols));
+  for (const row of rows) row.splice(ci, 0, blankEntry());
+  section.columns = cols + 1;
+  section.entries = rows.flat();
+}
+function removeColumnAt(section, colIdx, isGrid) {
+  if (!isGrid) {
+    section.columns = Math.max(1, (section.columns || 1) - 1);
+    return;
+  }
+  const cols = section.columns || 1;
+  if (cols <= 1) return;
+  const rows = gridRows(section, cols);
+  for (const row of rows) if (colIdx < row.length) row.splice(colIdx, 1);
+  section.columns = cols - 1;
+  section.entries = rows.flat();
+}
+function addRowAt(section, idx) {
+  const cols = section.columns || 1;
+  const rows = gridRows(section, cols);
+  const ri = Math.max(0, Math.min(idx, rows.length));
+  rows.splice(ri, 0, Array.from({ length: cols }, () => blankEntry()));
+  if (section.rows && section.rows > 0) section.rows = rows.length;
+  section.entries = rows.flat();
+}
+function removeRowAt(section, rowIdx) {
+  const cols = section.columns || 1;
+  const rows = gridRows(section, cols);
+  if (rowIdx < 0 || rowIdx >= rows.length) return;
+  rows.splice(rowIdx, 1);
+  if (section.rows && section.rows > 0) section.rows = rows.length;
+  section.entries = rows.flat();
+}
+
 // src/core/settings.ts
 var DEFAULT_DEFAULTS = {
   dataType: "text",
@@ -2093,7 +2266,7 @@ function normalizeSettings(raw, defaultLayout) {
   }
   return s;
 }
-var CURRENT_SCHEMA = 2;
+var CURRENT_SCHEMA = 3;
 var SCHEMA_MIGRATIONS = [
   {
     to: 1,
@@ -2152,6 +2325,24 @@ var SCHEMA_MIGRATIONS = [
         changed = true;
       }
       return changed;
+    }
+  },
+  {
+    to: 3,
+    name: "link-type-into-text",
+    run: (s) => {
+      var _a, _b, _c, _d, _e, _f;
+      const keys = /* @__PURE__ */ new Set();
+      for (const [k, t] of Object.entries((_a = s.propTypes) != null ? _a : {})) if (t === "link") keys.add(k);
+      const each = (e) => {
+        if ((e == null ? void 0 : e.kind) === "prop" && e.key && e.dataType === "link") keys.add(e.key.toLowerCase());
+      };
+      for (const lk of Object.keys((_b = s.layouts) != null ? _b : {}))
+        for (const sec of (_c = s.layouts[lk].sections) != null ? _c : []) for (const e of (_d = sec.entries) != null ? _d : []) each(e);
+      for (const k of Object.keys((_e = s.inlineEntries) != null ? _e : {})) each((_f = s.inlineEntries) == null ? void 0 : _f[k]);
+      if (!keys.size) return false;
+      for (const k of keys) convertLinkToText(s, k, void 0);
+      return true;
     }
   }
 ];
@@ -6570,180 +6761,6 @@ var iframeType = {
 
 // src/ui/render/value-types/richer.ts
 var import_obsidian19 = require("obsidian");
-
-// src/core/layout-ops.ts
-function setSharedDataType(settings, key, typeId) {
-  var _a, _b, _c, _d, _e;
-  const kl = key.trim().toLowerCase();
-  if (!kl || !typeId) return;
-  if (!settings.propTypes) settings.propTypes = {};
-  settings.propTypes[kl] = typeId;
-  for (const lk of Object.keys((_a = settings.layouts) != null ? _a : {}))
-    for (const s of (_b = settings.layouts[lk].sections) != null ? _b : [])
-      for (const e of (_c = s.entries) != null ? _c : [])
-        if (e.kind === "prop" && e.key && e.key.toLowerCase() === kl) e.dataType = typeId;
-  for (const k of Object.keys((_d = settings.inlineEntries) != null ? _d : {})) {
-    const e = (_e = settings.inlineEntries) == null ? void 0 : _e[k];
-    if (e && e.kind === "prop" && e.key && e.key.toLowerCase() === kl) e.dataType = typeId;
-  }
-}
-function convertLinkToText(settings, key, source) {
-  var _a, _b, _c, _d, _e;
-  const kl = key.trim().toLowerCase();
-  if (!kl) return 0;
-  setSharedDataType(settings, key, "text");
-  let n = 0;
-  const convert = (e) => {
-    var _a2, _b2;
-    if (!e || e.kind !== "prop" || ((_a2 = e.key) != null ? _a2 : "").toLowerCase() !== kl) return;
-    e.choices = { ...source != null ? source : {}, ...(_b2 = e.choices) != null ? _b2 : {}, linksToNotes: true };
-    n++;
-  };
-  for (const lk of Object.keys((_a = settings.layouts) != null ? _a : {}))
-    for (const s of (_b = settings.layouts[lk].sections) != null ? _b : []) for (const e of (_c = s.entries) != null ? _c : []) convert(e);
-  for (const k of Object.keys((_d = settings.inlineEntries) != null ? _d : {})) convert((_e = settings.inlineEntries) == null ? void 0 : _e[k]);
-  return n;
-}
-function blankEntry() {
-  return { id: genId(), kind: "blank" };
-}
-function moveSectionBy(layout, id, delta) {
-  const secs = layout.sections;
-  const i = secs.findIndex((s2) => s2.id === id);
-  const j = i + delta;
-  if (i < 0 || j < 0 || j >= secs.length) return false;
-  const [s] = secs.splice(i, 1);
-  secs.splice(j, 0, s);
-  return true;
-}
-function moveSectionTo(layout, dragId, targetId, after) {
-  if (dragId === targetId) return false;
-  const secs = layout.sections;
-  const from = secs.findIndex((s2) => s2.id === dragId);
-  if (from < 0) return false;
-  const [s] = secs.splice(from, 1);
-  let idx = secs.findIndex((x) => x.id === targetId);
-  if (idx < 0) idx = secs.length;
-  if (after) idx += 1;
-  secs.splice(idx, 0, s);
-  return true;
-}
-function swapEntries(layout, aId, bId) {
-  let aS, bS, ai = -1, bi = -1;
-  for (const sec of layout.sections) {
-    const i = sec.entries.findIndex((e) => e.id === aId);
-    if (i >= 0) {
-      aS = sec;
-      ai = i;
-    }
-    const j = sec.entries.findIndex((e) => e.id === bId);
-    if (j >= 0) {
-      bS = sec;
-      bi = j;
-    }
-  }
-  if (!aS || !bS || ai < 0 || bi < 0) return false;
-  const t = aS.entries[ai];
-  aS.entries[ai] = bS.entries[bi];
-  bS.entries[bi] = t;
-  return true;
-}
-function moveLeavingBlank(layout, entryId, fromId) {
-  const sec = layout.sections.find((s) => s.id === fromId);
-  if (!sec) return false;
-  const i = sec.entries.findIndex((e) => e.id === entryId);
-  if (i < 0) return false;
-  const [en] = sec.entries.splice(i, 1);
-  sec.entries.splice(i, 0, blankEntry());
-  sec.entries.push(en);
-  return true;
-}
-function reorderByDomOrder(layout, entryId, fromId, toId, order) {
-  const from = layout.sections.find((s) => s.id === fromId);
-  const to = layout.sections.find((s) => s.id === toId);
-  if (!from || !to) return false;
-  const i = from.entries.findIndex((e) => e.id === entryId);
-  if (i < 0) return false;
-  const [en] = from.entries.splice(i, 1);
-  const map = new Map(to.entries.map((e) => [e.id, e]));
-  map.set(en.id, en);
-  const next = [];
-  for (const id of order) {
-    const e = map.get(id);
-    if (e) {
-      next.push(e);
-      map.delete(id);
-    }
-  }
-  for (const e of map.values()) next.push(e);
-  to.entries = next;
-  return true;
-}
-function ensurePropEntries(layout, section, keys, defaults = {}) {
-  const have = /* @__PURE__ */ new Set();
-  for (const s of layout.sections)
-    for (const e of s.entries) if (e.kind === "prop" && e.key) have.add(e.key.toLowerCase());
-  const toAdd = [];
-  for (const k of keys) {
-    if (!k || have.has(k.toLowerCase())) continue;
-    have.add(k.toLowerCase());
-    toAdd.push({ id: genId(), kind: "prop", key: k, dataType: "number", ...defaults });
-  }
-  section.entries.unshift(...toAdd);
-  return toAdd.length;
-}
-function gridRows(section, cols) {
-  const rows = [];
-  const es = section.entries;
-  for (let i = 0; i < es.length; i += cols) {
-    const row = es.slice(i, i + cols);
-    while (row.length < cols) row.push(blankEntry());
-    rows.push(row);
-  }
-  return rows;
-}
-function addColumnAt(section, idx, isGrid) {
-  if (!isGrid) {
-    section.columns = (section.columns || 1) + 1;
-    return;
-  }
-  const cols = section.columns || 1;
-  const rows = gridRows(section, cols);
-  const ci = Math.max(0, Math.min(idx, cols));
-  for (const row of rows) row.splice(ci, 0, blankEntry());
-  section.columns = cols + 1;
-  section.entries = rows.flat();
-}
-function removeColumnAt(section, colIdx, isGrid) {
-  if (!isGrid) {
-    section.columns = Math.max(1, (section.columns || 1) - 1);
-    return;
-  }
-  const cols = section.columns || 1;
-  if (cols <= 1) return;
-  const rows = gridRows(section, cols);
-  for (const row of rows) if (colIdx < row.length) row.splice(colIdx, 1);
-  section.columns = cols - 1;
-  section.entries = rows.flat();
-}
-function addRowAt(section, idx) {
-  const cols = section.columns || 1;
-  const rows = gridRows(section, cols);
-  const ri = Math.max(0, Math.min(idx, rows.length));
-  rows.splice(ri, 0, Array.from({ length: cols }, () => blankEntry()));
-  if (section.rows && section.rows > 0) section.rows = rows.length;
-  section.entries = rows.flat();
-}
-function removeRowAt(section, rowIdx) {
-  const cols = section.columns || 1;
-  const rows = gridRows(section, cols);
-  if (rowIdx < 0 || rowIdx >= rows.length) return;
-  rows.splice(rowIdx, 1);
-  if (section.rows && section.rows > 0) section.rows = rows.length;
-  section.entries = rows.flat();
-}
-
-// src/ui/render/value-types/richer.ts
 var ratingType = {
   id: "rating",
   name: (i18n) => i18n.t("type.rating"),
@@ -6829,7 +6846,9 @@ function promptLink(view, set, key) {
 }
 var linkType = {
   id: "link",
-  name: (i18n) => i18n.t("type.link"),
+  // Named for where it went: after the migration the only way to meet this
+  // type is a layout imported from an older vault, and the name should say so.
+  name: (i18n) => i18n.t("type.linkMoved"),
   // Absorbed by the text type ("links to a note"), which carries the same
   // field: hidden from the type dropdowns, still rendering existing entries
   // until each is moved across (see `convertLinkToText`).

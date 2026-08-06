@@ -66,6 +66,68 @@ describe("runSchemaMigrations (D3)", () => {
     expect(s2.layouts.character.sections[0].entries[0].dataType).toBeUndefined();
   });
 
+  it("moves link properties into the text type (step 3)", () => {
+    const s = defaultSettings();
+    s.types = ["Character"];
+    s.layouts = {
+      character: {
+        version: 4,
+        sections: [
+          {
+            id: "s",
+            title: "S",
+            columns: 1,
+            entries: [
+              { id: "e1", kind: "prop", key: "Patron", dataType: "link", choices: { folder: "10.People" } },
+              { id: "e2", kind: "prop", key: "Notes", dataType: "text" },
+            ],
+          },
+        ],
+      },
+    };
+    s.inlineEntries = { patron: { id: "i1", kind: "prop", key: "Patron", dataType: "link" } };
+    runSchemaMigrations(s);
+    const moved = s.layouts.character.sections[0].entries[0];
+    expect(moved.dataType).toBe("text");
+    expect(moved.choices).toEqual({ folder: "10.People", linksToNotes: true });
+    expect(s.propTypes?.patron).toBe("text");
+    // The inline entry for the same key moves with it ...
+    expect(s.inlineEntries?.patron.dataType).toBe("text");
+    expect(s.inlineEntries?.patron.choices?.linksToNotes).toBe(true);
+    // ... and a property that was never a link is left alone.
+    expect(s.layouts.character.sections[0].entries[1].choices).toBeUndefined();
+  });
+
+  it("finds link properties recorded only in the shared type map (step 3)", () => {
+    const s = defaultSettings();
+    s.types = ["Character"];
+    s.layouts = {
+      character: {
+        version: 4,
+        sections: [{ id: "s", title: "S", columns: 1, entries: [{ id: "e", kind: "prop", key: "Patron" }] }],
+      },
+    };
+    s.propTypes = { patron: "link" };
+    runSchemaMigrations(s);
+    expect(s.propTypes.patron).toBe("text");
+    expect(s.layouts.character.sections[0].entries[0].choices?.linksToNotes).toBe(true);
+  });
+
+  it("leaves a vault with no link properties untouched (step 3)", () => {
+    const s = defaultSettings();
+    s.types = ["Character"];
+    s.layouts = {
+      character: {
+        version: 4,
+        sections: [{ id: "s", title: "S", columns: 1, entries: [{ id: "e", kind: "prop", key: "Notes", dataType: "text" }] }],
+      },
+    };
+    runSchemaMigrations(s);
+    expect(s.layouts.character.sections[0].entries[0].choices).toBeUndefined();
+    // Step 2 still records the shared type; step 3 has nothing to do.
+    expect(s.propTypes).toEqual({ notes: "text" });
+  });
+
   it("setSharedDataType records the shared type and re-stamps every layout and inline entry", () => {
     const lay = (dt?: string): Layout => ({
       version: 4,

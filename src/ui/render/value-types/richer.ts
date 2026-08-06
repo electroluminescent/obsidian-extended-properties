@@ -140,7 +140,9 @@ function promptLink(view: LinkPromptView, set: (v: string | undefined) => void, 
 
 export const linkType: ValueTypeDef = {
   id: "link",
-  name: (i18n) => i18n.t("type.link"),
+  // Named for where it went: after the migration the only way to meet this
+  // type is a layout imported from an older vault, and the name should say so.
+  name: (i18n) => i18n.t("type.linkMoved"),
   // Absorbed by the text type ("links to a note"), which carries the same
   // field: hidden from the type dropdowns, still rendering existing entries
   // until each is moved across (see `convertLinkToText`).

@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.36.0
+
+- **Link properties move to the Text type by themselves.** Loading this version
+  converts every property still typed as a link - on every sheet, inline, and
+  in the shared type map - into a text property with "Links to a note" on,
+  keeping its source folder and the rest of its settings. Nothing in your notes
+  changes: the values were already links. The step runs once and is recorded in
+  the settings schema, so a second load does nothing.
+- The Link type stays registered for a layout imported from an older vault,
+  where it now reads "Link (moved to Text)" and offers the same move.
+
 ## 4.35.0
 
 - **The Link type is no longer offered for new properties.** It has moved into

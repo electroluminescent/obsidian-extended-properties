@@ -175,6 +175,7 @@
   "type.pdf": "PDF",
   "type.iframe": "iframe",
   "type.rating": "rating (legacy)",
+  "type.linkMoved": "Link (moved to Text)",
   "type.link": "link",
   "type.unit": "unit (legacy)",
   "type.datetime": "date/time (legacy)",
