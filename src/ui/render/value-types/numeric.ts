@@ -14,7 +14,7 @@ import type { ClusterNeeds, ValueTypeDef } from "../../../core/registry";
 import { compileFormula, invertFormula } from "../../../utils/formula";
 import { clamp, fmtFraction, fmtNum } from "../../../utils/misc";
 import { snapReach, snapTicks, snapValue, ticksFor } from "../../../utils/ticks";
-import { evalMeasure } from "../../../utils/measure";
+import { evalMeasure, unitsForField } from "../../../utils/measure";
 import { sfx } from "../../../utils/sound";
 import { shouldClamp, clampToConstraints } from "../../../core/validate";
 import { applyValidity } from "../validity";
@@ -152,9 +152,9 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
     float: wantsFractions(kind, entry) || factor !== 1,
     clamp: !!entry.clamp,
     // The field takes arithmetic and measurements, not just digits: what is
-    // typed is worked out on the way in (see `utils/measure`). A value shown
-    // through a unit factor is typed in displayed units, as it always was.
-    evaluate: (text) => evalMeasure(text, view.settings.units),
+    // typed is worked out on the way in (see `utils/measure`), in this
+    // property's own unit where it names one the table knows.
+    evaluate: (text) => evalMeasure(text, unitsForField(view.settings.units, entry.unit as string)),
     commit: (v) => {
       const raw = v / factor;
       view.note.set(file, key, shouldClamp(entry.constraints) ? clampToConstraints(raw, entry.constraints) : raw);
@@ -717,7 +717,7 @@ function menuItems(kind: NumericKind, menu: Menu, ref: EntryRef): void {
         view.i18n.t("prompt.editValue", { name: (entry.alias as string) || key }),
         view.note.str(key),
         (v) => {
-          let n = evalMeasure(v, view.settings.units) ?? NaN;
+          let n = evalMeasure(v, unitsForField(view.settings.units, entry.unit as string)) ?? NaN;
           if (!Number.isFinite(n)) return;
           if (!float) n = Math.round(n);
           if (entry.clamp && entry.min !== undefined && entry.max !== undefined)

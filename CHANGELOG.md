@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.44.1
+
+- **A property that names its own unit is kept in that unit.** A field marked
+  ft resolves what you type into feet, one marked kg into kilograms, whatever
+  the vault-wide setting says for that quantity - the number stored belongs to
+  the property. Other quantities still follow the settings, and a unit the
+  table does not know ("XP", "%") changes nothing.
+
 ## 4.44.0
 
 - **Numeric fields take arithmetic.** Type `12*3`, `(8+4)/2`, `120/2.5` and it

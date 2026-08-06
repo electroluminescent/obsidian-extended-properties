@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { evalMeasure, needsEval, toPlainMath } from "../src/utils/measure";
+import { evalMeasure, needsEval, toPlainMath, unitsForField } from "../src/utils/measure";
 import { convert, preferredUnit, unitByAlias, unitsFor, UNITS } from "../src/utils/units";
 
 /** Rounded, since a converted measurement is rarely exact. */
@@ -75,6 +75,30 @@ describe("measurements", () => {
     // Spacing is the tokeniser's business; what matters is the maths left behind.
     expect(toPlainMath("12 + 3").replace(/\s+/g, "")).toBe("12+3");
     expect(evalMeasure("12 + 3")).toBe(15);
+  });
+});
+
+describe("a property with its own unit", () => {
+  it("is kept in that unit, whatever the setting says for the quantity", () => {
+    const settings = { length: "cm" };
+    near(evalMeasure('1\'2" - 5cm', unitsForField(settings, "in")), 12.03);
+    near(evalMeasure('1\'2" - 5cm', unitsForField(settings, undefined)), 30.56);
+  });
+
+  it("leaves the other quantities to the settings", () => {
+    const at = unitsForField({ mass: "lb" }, "ft");
+    near(evalMeasure("3 lb + 12 oz", at), 3.75); // mass still in pounds
+    near(evalMeasure("1 yd", at), 3); // length now in feet
+  });
+
+  it("ignores a unit the table does not know", () => {
+    expect(unitsForField({ length: "cm" }, "XP")).toEqual({ length: "cm" });
+    expect(unitsForField(undefined, "%")).toBeUndefined();
+  });
+
+  it("takes the unit however it is written", () => {
+    expect(unitsForField({}, "Feet")).toEqual({ length: "ft" });
+    expect(unitsForField({}, "kg")).toEqual({ mass: "kg" });
   });
 });
 

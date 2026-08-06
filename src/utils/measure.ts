@@ -82,6 +82,19 @@ export function evalMeasure(text: string, units?: Record<string, string>): numbe
   return typeof n === "number" && Number.isFinite(n) ? n : undefined;
 }
 
+/**
+ * The units a particular field reads in. A property that names its own unit
+ * ("ft", "kg") is kept in that one, whatever the vault-wide setting says for
+ * that quantity - the number stored belongs to the property, so the property's
+ * own unit wins. Every other quantity still follows the settings.
+ *
+ * A unit the table does not know ("XP", "%") changes nothing.
+ */
+export function unitsForField(units: Record<string, string> | undefined, fieldUnit?: string): Record<string, string> | undefined {
+  const u = fieldUnit ? unitByAlias(fieldUnit) : undefined;
+  return u ? { ...(units ?? {}), [u.quantity]: u.id } : units;
+}
+
 /** Whether `text` is anything more than a plain number. */
 export function needsEval(text: string): boolean {
   return !/^\s*-?(\d+(\.\d+)?|\.\d+)\s*$/.test(text);

@@ -5514,6 +5514,11 @@ var BY_ID = new Map(UNITS.map((u) => [u.id, u]));
 function unitById(id) {
   return id ? BY_ID.get(id.toLowerCase()) : void 0;
 }
+function unitByAlias(text) {
+  const t = text.trim().toLowerCase();
+  if (!t) return void 0;
+  return UNITS.find((u) => u.aliases.some((a) => a.toLowerCase() === t));
+}
 function aliasesByLength() {
   const out = [];
   for (const unit of UNITS) for (const alias of unit.aliases) out.push({ alias, unit });
@@ -5579,6 +5584,10 @@ function evalMeasure(text, units) {
   if (!ast) return void 0;
   const n = evalExpr(ast, { resolve: () => void 0 });
   return typeof n === "number" && Number.isFinite(n) ? n : void 0;
+}
+function unitsForField(units, fieldUnit) {
+  const u = fieldUnit ? unitByAlias(fieldUnit) : void 0;
+  return u ? { ...units != null ? units : {}, [u.quantity]: u.id } : units;
 }
 
 // src/ui/render/cluster.ts
@@ -5738,9 +5747,9 @@ function render(kind, ctx2) {
     float: wantsFractions(kind, entry) || factor !== 1,
     clamp: !!entry.clamp,
     // The field takes arithmetic and measurements, not just digits: what is
-    // typed is worked out on the way in (see `utils/measure`). A value shown
-    // through a unit factor is typed in displayed units, as it always was.
-    evaluate: (text) => evalMeasure(text, view.settings.units),
+    // typed is worked out on the way in (see `utils/measure`), in this
+    // property's own unit where it names one the table knows.
+    evaluate: (text) => evalMeasure(text, unitsForField(view.settings.units, entry.unit)),
     commit: (v) => {
       const raw = v / factor;
       view.note.set(file, key, shouldClamp(entry.constraints) ? clampToConstraints(raw, entry.constraints) : raw);
@@ -6208,7 +6217,7 @@ function menuItems(kind, menu, ref) {
         view.note.str(key),
         (v) => {
           var _a;
-          let n = (_a = evalMeasure(v, view.settings.units)) != null ? _a : NaN;
+          let n = (_a = evalMeasure(v, unitsForField(view.settings.units, entry.unit))) != null ? _a : NaN;
           if (!Number.isFinite(n)) return;
           if (!float) n = Math.round(n);
           if (entry.clamp && entry.min !== void 0 && entry.max !== void 0)
