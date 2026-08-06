@@ -325,7 +325,7 @@ var en_default = {
   "options.textStrict": "Only offered values",
   "options.textStrictDesc": "Refuse a value that is not one of the ones offered.",
   "text.notAllowed": "Only one of the offered values can go here.",
-  "link.notInFolder": 'Only notes in "{folder}" can go here.',
+  "link.notInFolder": "Only notes in {folder} can go here.",
   "link.notANote": "Only an existing note can go here.",
   "options.convertToText": "Move to the Text type",
   "options.convertToTextDesc": 'Link is being folded into Text, which carries the same field behind its "Links to a note" switch. Moving keeps the source folder and every other setting; the data type is shared, so this applies to this property everywhere. To come back, set the data type to Link again.',
@@ -334,9 +334,11 @@ var en_default = {
   "options.linkMoved": "The Link type has moved into Text, which carries the same field. Existing link properties keep working; move this one across when convenient.",
   "options.linkHeading": "Link",
   "options.linkFolder": "Source folder",
-  "options.linkFolderDesc": "Offer only the notes in this folder while editing. Empty = the whole vault.",
+  "options.linkFolderAdd": "Add folder",
+  "options.linkFolderRemove": "Remove this folder",
+  "options.linkFolderDesc": "Offer only the notes in these folders while editing. Empty = the whole vault. A new note is made in the first one.",
   "options.linkSubfolders": "Include subfolders",
-  "options.linkSubfoldersDesc": "Offer notes below the source folder as well. On by default; off restricts to the folder itself.",
+  "options.linkSubfoldersDesc": "Offer notes below those folders as well. On by default; off restricts to the folders themselves.",
   "options.linkStrict": "Only existing notes",
   "options.linkStrictDesc": "Refuse a value that is not one of the notes on offer.",
   "options.linkCreate": "Offer to create",
@@ -2283,7 +2285,7 @@ function normalizeSettings(raw, defaultLayout) {
   }
   return s;
 }
-var CURRENT_SCHEMA = 3;
+var CURRENT_SCHEMA = 4;
 var SCHEMA_MIGRATIONS = [
   {
     to: 1,
@@ -2360,6 +2362,26 @@ var SCHEMA_MIGRATIONS = [
       if (!keys.size) return false;
       for (const k of keys) convertLinkToText(s, k, void 0);
       return true;
+    }
+  },
+  {
+    to: 4,
+    name: "link-folder-to-folders",
+    run: (s) => {
+      var _a, _b, _c, _d, _e;
+      let changed = false;
+      const each = (e) => {
+        var _a2;
+        const c = e == null ? void 0 : e.choices;
+        if (!(c == null ? void 0 : c.folder)) return;
+        c.folders = ((_a2 = c.folders) == null ? void 0 : _a2.length) ? c.folders : [c.folder];
+        c.folder = void 0;
+        changed = true;
+      };
+      for (const lk of Object.keys((_a = s.layouts) != null ? _a : {}))
+        for (const sec of (_b = s.layouts[lk].sections) != null ? _b : []) for (const e of (_c = sec.entries) != null ? _c : []) each(e);
+      for (const k of Object.keys((_d = s.inlineEntries) != null ? _d : {})) each((_e = s.inlineEntries) == null ? void 0 : _e[k]);
+      return changed;
     }
   }
 ];
@@ -3306,14 +3328,16 @@ var ValueSuggest = class extends import_obsidian4.AbstractInputSuggest {
     (_a = this.close) == null ? void 0 : _a.call(this);
   }
 };
+function tidy(folder) {
+  return folder.replace(/^\/+|\/+$/g, "").trim().toLowerCase();
+}
 function inScope(path, scope) {
   var _a;
-  const folder = ((_a = scope == null ? void 0 : scope.folder) != null ? _a : "").replace(/^\/+|\/+$/g, "");
-  if (!folder) return true;
-  const dir = path.slice(0, path.lastIndexOf("/") < 0 ? 0 : path.lastIndexOf("/"));
-  const f = folder.toLowerCase();
-  const d = dir.toLowerCase();
-  return (scope == null ? void 0 : scope.subfolders) ? d === f || d.startsWith(f + "/") : d === f;
+  const folders = ((_a = scope == null ? void 0 : scope.folders) != null ? _a : []).map(tidy).filter(Boolean);
+  if (!folders.length) return true;
+  const cut = path.lastIndexOf("/");
+  const dir = (cut < 0 ? "" : path.slice(0, cut)).toLowerCase();
+  return folders.some((f) => (scope == null ? void 0 : scope.subfolders) ? dir === f || dir.startsWith(f + "/") : dir === f);
 }
 function noteMatches(app, q, scope, limit = 30) {
   const files = app.vault.getMarkdownFiles().filter((f) => inScope(f.path, scope));
@@ -3449,8 +3473,8 @@ var _TextLinkSuggest = class _TextLinkSuggest extends import_obsidian4.AbstractI
   }
   /** Make the note the typed name asks for, in the scoped folder, and link it. */
   async createNote(name) {
-    var _a, _b, _c, _d;
-    const folder = ((_d = (_c = (_b = (_a = this.link) == null ? void 0 : _a.scope) == null ? void 0 : _b.call(_a)) == null ? void 0 : _c.folder) != null ? _d : "").replace(/^\/+|\/+$/g, "");
+    var _a, _b, _c, _d, _e;
+    const folder = (_e = ((_d = (_c = (_b = (_a = this.link) == null ? void 0 : _a.scope) == null ? void 0 : _b.call(_a)) == null ? void 0 : _c.folders) != null ? _d : []).map((f) => f.replace(/^\/+|\/+$/g, "").trim())[0]) != null ? _e : "";
     const path = `${folder ? folder + "/" : ""}${name}.md`;
     try {
       if (!this.appRef.vault.getAbstractFileByPath(path)) await this.appRef.vault.create(path, "");
@@ -4870,9 +4894,16 @@ function linksToNotes(entry) {
   var _a;
   return ((_a = entry.choices) == null ? void 0 : _a.linksToNotes) === true;
 }
-function linkScopeOf(entry) {
+function foldersOf(entry) {
+  var _a;
   const c = entry.choices;
-  return (c == null ? void 0 : c.folder) ? { folder: c.folder, subfolders: c.subfolders !== false } : void 0;
+  const list = (_a = c == null ? void 0 : c.folders) != null ? _a : (c == null ? void 0 : c.folder) ? [c.folder] : [];
+  return list.map((f) => f.trim()).filter(Boolean);
+}
+function linkScopeOf(entry) {
+  var _a;
+  const folders = foldersOf(entry);
+  return folders.length ? { folders, subfolders: ((_a = entry.choices) == null ? void 0 : _a.subfolders) !== false } : void 0;
 }
 function linkTarget2(raw) {
   const m = /\[\[([^\]|#]+)/.exec(raw);
@@ -4884,7 +4915,7 @@ function linkSpanFor(entry) {
   return (s == null ? void 0 : s.isConnected) ? s : null;
 }
 function drawNoteLink(view, file, cell, span, entry, raw) {
-  var _a, _b;
+  var _a;
   spans.set(entry, span);
   span.empty();
   span.removeClass("ep-placeholder");
@@ -4899,7 +4930,7 @@ function drawNoteLink(view, file, cell, span, entry, raw) {
   if (!dest || ((_a = entry.choices) == null ? void 0 : _a.strict) === true && !inScope(dest.path, linkScopeOf(entry))) {
     cell.addClass("ep-link-unresolved");
   }
-  if (!dest && ((_b = entry.choices) == null ? void 0 : _b.folder)) {
+  if (!dest && foldersOf(entry).length) {
     const a = span.querySelector("a");
     a == null ? void 0 : a.addEventListener(
       "click",
@@ -4913,8 +4944,8 @@ function drawNoteLink(view, file, cell, span, entry, raw) {
   }
 }
 async function createInFolder(view, file, entry, name) {
-  var _a, _b;
-  const folder = ((_b = (_a = entry.choices) == null ? void 0 : _a.folder) != null ? _b : "").replace(/^\/+|\/+$/g, "");
+  var _a;
+  const folder = ((_a = foldersOf(entry)[0]) != null ? _a : "").replace(/^\/+|\/+$/g, "");
   const path = `${folder ? folder + "/" : ""}${name}.md`;
   try {
     if (!view.app.vault.getAbstractFileByPath(path)) await view.app.vault.create(path, "");
@@ -4925,7 +4956,6 @@ async function createInFolder(view, file, entry, name) {
   }
 }
 function editNoteLink(view, file, entry, span) {
-  var _a;
   const key = entry.key;
   const c = entry.choices;
   const isNote = (n) => !!view.app.metadataCache.getFirstLinkpathDest(n, view.note.path || "");
@@ -4937,12 +4967,54 @@ function editNoteLink(view, file, entry, span) {
       scope: linkScopeOf(entry),
       strict: (c == null ? void 0 : c.strict) === true,
       create: (c == null ? void 0 : c.create) === true,
-      rejected: view.i18n.t((c == null ? void 0 : c.folder) ? "link.notInFolder" : "link.notANote", { folder: (_a = c == null ? void 0 : c.folder) != null ? _a : "" })
+      rejected: folderList(entry) ? view.i18n.t("link.notInFolder", { folder: folderList(entry) }) : view.i18n.t("link.notANote")
     },
     (val) => {
       const stored = linkStored(val, isNote);
       view.note.set(file, key, stored === "" ? void 0 : stored);
     }
+  );
+}
+function folderList(entry) {
+  return foldersOf(entry).join(", ");
+}
+function renderFolderList(octx) {
+  const { view, entry, container: c, changed, redraw } = octx;
+  const t = view.i18n.t.bind(view.i18n);
+  const list = foldersOf(entry);
+  const write = (next) => {
+    var _a;
+    const ch = (_a = entry.choices) != null ? _a : entry.choices = {};
+    ch.folders = next.length ? next : void 0;
+    ch.folder = void 0;
+    changed();
+  };
+  new import_obsidian11.Setting(c).setName(t("options.linkFolder")).setDesc(t("options.linkFolderDesc"));
+  const rows = c.createDiv({ cls: "ep-mini-list" });
+  list.forEach((val, i) => {
+    const row = new import_obsidian11.Setting(rows).setClass("ep-mini-row");
+    row.addText((tx) => {
+      tx.setValue(val);
+      const save = (v) => {
+        const next = [...list];
+        next[i] = v.trim();
+        write(next.filter(Boolean));
+      };
+      new FolderSuggest(view.app, tx.inputEl, save);
+      tx.inputEl.addEventListener("change", () => save(tx.getValue()));
+    });
+    row.addExtraButton(
+      (b) => b.setIcon("x").setTooltip(t("options.linkFolderRemove")).onClick(() => {
+        write(list.filter((_, j) => j !== i));
+        redraw();
+      })
+    );
+  });
+  new import_obsidian11.Setting(rows).setClass("ep-mini-row").addButton(
+    (b) => b.setButtonText(t("options.linkFolderAdd")).onClick(() => {
+      write([...list, ""]);
+      redraw();
+    })
   );
 }
 function renderNoteChoices(octx) {
@@ -4952,16 +5024,7 @@ function renderNoteChoices(octx) {
     var _a;
     return (_a = entry.choices) != null ? _a : entry.choices = {};
   };
-  new import_obsidian11.Setting(c).setName(t("options.linkFolder")).setDesc(t("options.linkFolderDesc")).addText((tx) => {
-    var _a, _b;
-    tx.setValue((_b = (_a = entry.choices) == null ? void 0 : _a.folder) != null ? _b : "");
-    const save = (v) => {
-      ch().folder = v.trim() || void 0;
-      changed();
-    };
-    tx.onChange(save);
-    new FolderSuggest(view.app, tx.inputEl, save);
-  });
+  renderFolderList(octx);
   new import_obsidian11.Setting(c).setName(t("options.linkSubfolders")).setDesc(t("options.linkSubfoldersDesc")).addToggle((tg) => {
     var _a;
     tg.setValue(((_a = entry.choices) == null ? void 0 : _a.subfolders) !== false).onChange((v) => {
@@ -8903,9 +8966,9 @@ function renderAllowedList(octx) {
     changed();
   };
   new import_obsidian24.Setting(c).setName(t("options.constraintAllowed")).setDesc(t("options.constraintAllowedDesc"));
-  const rows = c.createDiv({ cls: "ep-allowed-list" });
+  const rows = c.createDiv({ cls: "ep-mini-list" });
   list.forEach((val, i) => {
-    const row = new import_obsidian24.Setting(rows).setClass("ep-allowed-row");
+    const row = new import_obsidian24.Setting(rows).setClass("ep-mini-row");
     row.addText((tx) => {
       tx.setValue(val);
       tx.inputEl.addEventListener("change", () => {
@@ -8921,7 +8984,7 @@ function renderAllowedList(octx) {
       })
     );
   });
-  const foot = new import_obsidian24.Setting(rows).setClass("ep-allowed-row");
+  const foot = new import_obsidian24.Setting(rows).setClass("ep-mini-row");
   foot.addButton(
     (b) => b.setButtonText(t("options.constraintAllowedAdd")).onClick(() => {
       write([...list, ""]);

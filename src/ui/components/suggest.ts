@@ -147,20 +147,24 @@ export class ValueSuggest extends AbstractInputSuggest<string> {
  * category of note.
  */
 export interface NoteScope {
-  /** Vault-relative folder path. Empty or unset = the whole vault. */
-  folder?: string;
-  /** Whether notes in folders below `folder` count too. */
+  /** Vault-relative folder paths. None = the whole vault. */
+  folders?: string[];
+  /** Whether notes in folders below those count too. */
   subfolders?: boolean;
+}
+
+/** A folder path with its stray slashes taken off, lower-cased for matching. */
+function tidy(folder: string): string {
+  return folder.replace(/^\/+|\/+$/g, "").trim().toLowerCase();
 }
 
 /** Whether a note's path falls inside `scope`. Pure - the testable half. */
 export function inScope(path: string, scope?: NoteScope): boolean {
-  const folder = (scope?.folder ?? "").replace(/^\/+|\/+$/g, "");
-  if (!folder) return true;
-  const dir = path.slice(0, path.lastIndexOf("/") < 0 ? 0 : path.lastIndexOf("/"));
-  const f = folder.toLowerCase();
-  const d = dir.toLowerCase();
-  return scope?.subfolders ? d === f || d.startsWith(f + "/") : d === f;
+  const folders = (scope?.folders ?? []).map(tidy).filter(Boolean);
+  if (!folders.length) return true;
+  const cut = path.lastIndexOf("/");
+  const dir = (cut < 0 ? "" : path.slice(0, cut)).toLowerCase();
+  return folders.some((f) => (scope?.subfolders ? dir === f || dir.startsWith(f + "/") : dir === f));
 }
 
 /** Markdown notes whose basename matches `q` (empty = all), best matches first. */
@@ -341,7 +345,9 @@ export class TextLinkSuggest extends AbstractInputSuggest<LinkOrValue> {
 
   /** Make the note the typed name asks for, in the scoped folder, and link it. */
   private async createNote(name: string): Promise<void> {
-    const folder = (this.link?.scope?.()?.folder ?? "").replace(/^\/+|\/+$/g, "");
+    // The first folder named: with several to choose from, the one listed
+    // first is the property's home, and the rest are also-acceptable.
+    const folder = (this.link?.scope?.()?.folders ?? []).map((f) => f.replace(/^\/+|\/+$/g, "").trim())[0] ?? "";
     const path = `${folder ? folder + "/" : ""}${name}.md`;
     try {
       if (!this.appRef.vault.getAbstractFileByPath(path)) await this.appRef.vault.create(path, "");

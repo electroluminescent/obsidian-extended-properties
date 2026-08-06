@@ -89,13 +89,39 @@ describe("runSchemaMigrations (D3)", () => {
     runSchemaMigrations(s);
     const moved = s.layouts.character.sections[0].entries[0];
     expect(moved.dataType).toBe("text");
-    expect(moved.choices).toEqual({ folder: "10.People", linksToNotes: true });
+    // Step 4 follows on and stores the folder as a list.
+    expect(moved.choices).toEqual({ folders: ["10.People"], linksToNotes: true });
     expect(s.propTypes?.patron).toBe("text");
     // The inline entry for the same key moves with it ...
     expect(s.inlineEntries?.patron.dataType).toBe("text");
     expect(s.inlineEntries?.patron.choices?.linksToNotes).toBe(true);
     // ... and a property that was never a link is left alone.
     expect(s.layouts.character.sections[0].entries[1].choices).toBeUndefined();
+  });
+
+  it("stores a single source folder as a list (step 4)", () => {
+    const s = defaultSettings();
+    s.types = ["Character"];
+    s.layouts = {
+      character: {
+        version: 4,
+        sections: [
+          {
+            id: "s",
+            title: "S",
+            columns: 1,
+            entries: [
+              { id: "e", kind: "prop", key: "Patron", choices: { linksToNotes: true, folder: "10.People" } },
+            ],
+          },
+        ],
+      },
+    };
+    runSchemaMigrations(s);
+    expect(s.layouts.character.sections[0].entries[0].choices).toEqual({
+      linksToNotes: true,
+      folders: ["10.People"],
+    });
   });
 
   it("finds link properties recorded only in the shared type map (step 3)", () => {

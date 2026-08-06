@@ -301,7 +301,7 @@ export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EP
 // ---------------------------------------------------------------------------
 
 /** Current settings schema version. Bump when adding a migration step below. */
-export const CURRENT_SCHEMA = 3;
+export const CURRENT_SCHEMA = 4;
 
 /** One ordered migration step: bring settings up to schema `to`. */
 export interface Migration {
@@ -404,6 +404,27 @@ export const SCHEMA_MIGRATIONS: Migration[] = [
       if (!keys.size) return false;
       for (const k of keys) convertLinkToText(s, k, undefined);
       return true;
+    },
+  },
+  {
+    to: 4,
+    name: "link-folder-to-folders",
+    run: (s) => {
+      // One source folder becomes a list of them. The single field is still
+      // read wherever it turns up (an import, an old snapshot), but settings
+      // are written in the new shape from here.
+      let changed = false;
+      const each = (e: Entry | undefined): void => {
+        const c = e?.choices;
+        if (!c?.folder) return;
+        c.folders = c.folders?.length ? c.folders : [c.folder];
+        c.folder = undefined;
+        changed = true;
+      };
+      for (const lk of Object.keys(s.layouts ?? {}))
+        for (const sec of s.layouts[lk].sections ?? []) for (const e of sec.entries ?? []) each(e);
+      for (const k of Object.keys(s.inlineEntries ?? {})) each(s.inlineEntries?.[k]);
+      return changed;
     },
   },
 ];

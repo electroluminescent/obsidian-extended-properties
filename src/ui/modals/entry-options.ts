@@ -116,9 +116,9 @@ function renderAllowedList(octx: OptionsCtx): void {
     changed();
   };
   new Setting(c).setName(t("options.constraintAllowed")).setDesc(t("options.constraintAllowedDesc"));
-  const rows = c.createDiv({ cls: "ep-allowed-list" });
+  const rows = c.createDiv({ cls: "ep-mini-list" });
   list.forEach((val, i) => {
-    const row = new Setting(rows).setClass("ep-allowed-row");
+    const row = new Setting(rows).setClass("ep-mini-row");
     row.addText((tx) => {
       tx.setValue(val);
       tx.inputEl.addEventListener("change", () => {
@@ -134,7 +134,7 @@ function renderAllowedList(octx: OptionsCtx): void {
       })
     );
   });
-  const foot = new Setting(rows).setClass("ep-allowed-row");
+  const foot = new Setting(rows).setClass("ep-mini-row");
   foot.addButton((b) =>
     b.setButtonText(t("options.constraintAllowedAdd")).onClick(() => {
       write([...list, ""]);

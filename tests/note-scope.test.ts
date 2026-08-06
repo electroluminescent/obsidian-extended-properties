@@ -10,11 +10,11 @@ describe("in scope", () => {
   it("takes every note when no folder is named", () => {
     expect(inScope("10.Personaggi/Ada.md")).toBe(true);
     expect(inScope("Ada.md", {})).toBe(true);
-    expect(inScope("Ada.md", { folder: "" })).toBe(true);
+    expect(inScope("Ada.md", { folders: [""] })).toBe(true);
   });
 
   it("takes the folder's own notes, and not a deeper one", () => {
-    const scope = { folder: "10.Personaggi" };
+    const scope = { folders: ["10.Personaggi"] };
     expect(inScope("10.Personaggi/Ada.md", scope)).toBe(true);
     expect(inScope("10.Personaggi/Minori/Bo.md", scope)).toBe(false);
     expect(inScope("20.Luoghi/Ada.md", scope)).toBe(false);
@@ -22,19 +22,26 @@ describe("in scope", () => {
   });
 
   it("takes what is below the folder when asked to", () => {
-    const scope = { folder: "10.Personaggi", subfolders: true };
+    const scope = { folders: ["10.Personaggi"], subfolders: true };
     expect(inScope("10.Personaggi/Minori/Bo.md", scope)).toBe(true);
     expect(inScope("10.Personaggi/Ada.md", scope)).toBe(true);
     expect(inScope("20.Luoghi/Bo.md", scope)).toBe(false);
   });
 
+  it("takes a note in any of several folders", () => {
+    const scope = { folders: ["10.Personaggi", "20.Luoghi"] };
+    expect(inScope("10.Personaggi/Ada.md", scope)).toBe(true);
+    expect(inScope("20.Luoghi/Ancona.md", scope)).toBe(true);
+    expect(inScope("30.Oggetti/Spada.md", scope)).toBe(false);
+  });
+
   it("is not fooled by a folder that merely starts the same", () => {
-    expect(inScope("10.PersonaggiVecchi/Ada.md", { folder: "10.Personaggi" })).toBe(false);
-    expect(inScope("10.PersonaggiVecchi/Ada.md", { folder: "10.Personaggi", subfolders: true })).toBe(false);
+    expect(inScope("10.PersonaggiVecchi/Ada.md", { folders: ["10.Personaggi"] })).toBe(false);
+    expect(inScope("10.PersonaggiVecchi/Ada.md", { folders: ["10.Personaggi"], subfolders: true })).toBe(false);
   });
 
   it("ignores stray slashes around the folder", () => {
-    expect(inScope("10.Personaggi/Ada.md", { folder: "/10.Personaggi/" })).toBe(true);
+    expect(inScope("10.Personaggi/Ada.md", { folders: ["/10.Personaggi/"] })).toBe(true);
   });
 });
 

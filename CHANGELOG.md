@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.38.0
+
+- **A link property can draw from several folders.** Source folder is now a
+  list you add to, the same way allowed values are: a folder per row with its
+  own picker and a remove button. A note in any of them is offered, and a new
+  one is made in the first - so "Characters" can sit above "Villains" and get
+  the new arrivals.
+- The single folder earlier versions stored becomes the first entry of the
+  list on load, and is still read wherever it turns up later - an imported
+  layout, an old snapshot - so nothing loses its scope.
+
 ## 4.37.0
 
 - **A link field reads and writes note names, not bracket syntax.** Opening one

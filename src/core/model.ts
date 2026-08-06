@@ -37,9 +37,14 @@ export interface Choices {
    * property (unset), or the entry's allowed values.
    */
   from?: "vault" | "allowed";
-  /** Vault-relative folder a link property draws its notes from. */
+  /** Vault-relative folders a link property draws its notes from. */
+  folders?: string[];
+  /**
+   * The single folder earlier versions stored. Still read - imported layouts
+   * and old snapshots carry it - but written as `folders` from now on.
+   */
   folder?: string;
-  /** Whether notes below `folder` are offered too. Unset = yes. */
+  /** Whether notes below those folders are offered too. Unset = yes. */
   subfolders?: boolean;
   /** Hold the value to something on offer, instead of taking free text. */
   strict?: boolean;

@@ -19,12 +19,22 @@ export function linksToNotes(entry: Entry): boolean {
   return entry.choices?.linksToNotes === true;
 }
 
-/** The folder an entry offers notes from, if it names one. */
-export function linkScopeOf(entry: Entry): NoteScope | undefined {
+/**
+ * The folders an entry offers notes from. `folder` is the single one older
+ * versions stored, still read so an imported layout keeps its scope.
+ */
+export function foldersOf(entry: Entry): string[] {
   const c = entry.choices;
+  const list = c?.folders ?? (c?.folder ? [c.folder] : []);
+  return list.map((f) => f.trim()).filter(Boolean);
+}
+
+/** The folders an entry offers notes from, if it names any. */
+export function linkScopeOf(entry: Entry): NoteScope | undefined {
+  const folders = foldersOf(entry);
   // Subfolders count unless turned off: a folder of characters that grows a
   // "Minor" subfolder still holds characters.
-  return c?.folder ? { folder: c.folder, subfolders: c.subfolders !== false } : undefined;
+  return folders.length ? { folders, subfolders: entry.choices?.subfolders !== false } : undefined;
 }
 
 /** The bare link target inside `[[Target|alias]]`, or the raw string. */
@@ -74,7 +84,7 @@ export function drawNoteLink(
   }
   // A property that draws from one folder makes its notes there: following a
   // link to a note that does not exist yet should not drop one somewhere else.
-  if (!dest && entry.choices?.folder) {
+  if (!dest && foldersOf(entry).length) {
     const a = span.querySelector("a");
     a?.addEventListener(
       "click",
@@ -88,9 +98,9 @@ export function drawNoteLink(
   }
 }
 
-/** Make `name` in the entry's folder, link it, and open it. */
+/** Make `name` in the entry's first folder, link it, and open it. */
 async function createInFolder(view: ViewCtx, file: TFile, entry: Entry, name: string): Promise<void> {
-  const folder = (entry.choices?.folder ?? "").replace(/^\/+|\/+$/g, "");
+  const folder = (foldersOf(entry)[0] ?? "").replace(/^\/+|\/+$/g, "");
   const path = `${folder ? folder + "/" : ""}${name}.md`;
   try {
     if (!view.app.vault.getAbstractFileByPath(path)) await view.app.vault.create(path, "");
@@ -117,7 +127,9 @@ export function editNoteLink(view: ViewCtx, file: TFile, entry: Entry, span: HTM
       scope: linkScopeOf(entry),
       strict: c?.strict === true,
       create: c?.create === true,
-      rejected: view.i18n.t(c?.folder ? "link.notInFolder" : "link.notANote", { folder: c?.folder ?? "" }),
+      rejected: folderList(entry)
+        ? view.i18n.t("link.notInFolder", { folder: folderList(entry) })
+        : view.i18n.t("link.notANote"),
     },
     (val) => {
       const stored = linkStored(val, isNote);
@@ -126,23 +138,61 @@ export function editNoteLink(view: ViewCtx, file: TFile, entry: Entry, span: HTM
   );
 }
 
+/** The folders named, for a message that has to say which. */
+function folderList(entry: Entry): string {
+  return foldersOf(entry).join(", ");
+}
+
+/**
+ * The folders a note-linking field draws from, as a list that grows: several
+ * folders can hold the same kind of note ("Characters" and "Villains"), and
+ * the first one is where a new note is made.
+ */
+function renderFolderList(octx: OptionsCtx): void {
+  const { view, entry, container: c, changed, redraw } = octx;
+  const t = view.i18n.t.bind(view.i18n);
+  const list = foldersOf(entry);
+  const write = (next: string[]): void => {
+    const ch = (entry.choices ??= {});
+    ch.folders = next.length ? next : undefined;
+    ch.folder = undefined; // the single-folder field is superseded
+    changed();
+  };
+  new Setting(c).setName(t("options.linkFolder")).setDesc(t("options.linkFolderDesc"));
+  const rows = c.createDiv({ cls: "ep-mini-list" });
+  list.forEach((val, i) => {
+    const row = new Setting(rows).setClass("ep-mini-row");
+    row.addText((tx) => {
+      tx.setValue(val);
+      const save = (v: string): void => {
+        const next = [...list];
+        next[i] = v.trim();
+        write(next.filter(Boolean));
+      };
+      new FolderSuggest(view.app, tx.inputEl, save);
+      tx.inputEl.addEventListener("change", () => save(tx.getValue()));
+    });
+    row.addExtraButton((b) =>
+      b.setIcon("x").setTooltip(t("options.linkFolderRemove")).onClick(() => {
+        write(list.filter((_, j) => j !== i));
+        redraw();
+      })
+    );
+  });
+  new Setting(rows).setClass("ep-mini-row").addButton((b) =>
+    b.setButtonText(t("options.linkFolderAdd")).onClick(() => {
+      write([...list, ""]);
+      redraw();
+    })
+  );
+}
+
 /** The settings a note-linking field carries: where its notes come from. */
 export function renderNoteChoices(octx: OptionsCtx): void {
   const { view, entry, container: c, changed } = octx;
   const t = view.i18n.t.bind(view.i18n);
   const ch = (): NonNullable<Entry["choices"]> => (entry.choices ??= {});
-  new Setting(c)
-    .setName(t("options.linkFolder"))
-    .setDesc(t("options.linkFolderDesc"))
-    .addText((tx) => {
-      tx.setValue(entry.choices?.folder ?? "");
-      const save = (v: string): void => {
-        ch().folder = v.trim() || undefined;
-        changed();
-      };
-      tx.onChange(save);
-      new FolderSuggest(view.app, tx.inputEl, save);
-    });
+  renderFolderList(octx);
   new Setting(c)
     .setName(t("options.linkSubfolders"))
     .setDesc(t("options.linkSubfoldersDesc"))
