@@ -125,9 +125,15 @@ export interface EntryBase {
   multiline?: boolean;
   /**
    * Number type: keep fractions instead of rounding to whole numbers. What
-   * the "decimal" type was, as a switch - so a number can be either.
+   * the "decimal" type was, as a switch - so a number can be either. The
+   * setting reads the other way round ("Whole numbers only", on by default),
+   * which is this field unset.
    */
   fractions?: boolean;
+  /** Show the fractional part as a fraction (1.5 as 1 and a half). */
+  fracDisplay?: boolean;
+  /** The largest denominator a fraction display may use (default 8). */
+  fracMax?: number;
   /** List chips alignment: "center" | "right" (unset = left). */
   listAlign?: string;
   /** Image value type: height preset. */

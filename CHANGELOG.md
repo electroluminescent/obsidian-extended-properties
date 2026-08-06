@@ -1,5 +1,18 @@
 # Changelog
 
+## 4.40.0
+
+- **"Whole numbers only", on by default**, replaces "Allow fractions" and
+  reads the other way round. Nothing changes for existing properties: a
+  number that said nothing rounded before and still does, and one moved over
+  from Decimal has the switch off.
+- **Show a number as a fraction.** 1.5 reads as 1½, 0.67 as ⅔, 3.0625 as
+  3 1/16 - the glyph where Unicode has one, "a/b" where it does not, always in
+  lowest terms. Available on any number that keeps its fractions.
+- **The largest denominator is yours to set**, default 8: eighths by default,
+  4 for quarters, 16 for sixteenths. A value that rounds to a whole number
+  shows as one, never as "2 0/8".
+
 ## 4.39.0
 
 - **Decimal has moved into Number**, which was all the type ever was: a number

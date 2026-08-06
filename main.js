@@ -258,8 +258,12 @@ var en_default = {
   "grid.removeRowHint": "Remove this row",
   "type.text": "text",
   "type.number": "number",
-  "options.fractions": "Allow fractions",
-  "options.fractionsDesc": "Keep decimal places instead of rounding to whole numbers.",
+  "options.wholeOnly": "Whole numbers only",
+  "options.wholeOnlyDesc": "Round to whole numbers. Off keeps decimal places - what the Decimal type was.",
+  "options.fracDisplay": "Show as a fraction",
+  "options.fracDisplayDesc": "Write the decimal part as the nearest fraction: 1.5 as 1 and a half, 0.67 as two thirds.",
+  "options.fracMax": "Largest denominator",
+  "options.fracMaxDesc": "The finest fraction to round to: 8 gives eighths, 4 gives quarters. Default 8.",
   "options.decimalMoved": "The Decimal type has moved into Number, which keeps fractions when told to. Existing decimal properties keep working; move this one across when convenient.",
   "options.convertToNumber": "Move to the Number type",
   "options.convertToNumberDesc": 'Decimal is being folded into Number. Moving turns on "Allow fractions" and changes nothing else - the range, slider and rolls stay as they are. The data type is shared, so this applies to this property everywhere.',
@@ -1323,6 +1327,49 @@ function clamp(n, min, max) {
 }
 function fmtNum(n) {
   return Number.isInteger(n) ? String(n) : String(Math.round(n * 1e3) / 1e3);
+}
+var GLYPHS = {
+  "1/2": "\xBD",
+  "1/3": "\u2153",
+  "2/3": "\u2154",
+  "1/4": "\xBC",
+  "3/4": "\xBE",
+  "1/5": "\u2155",
+  "2/5": "\u2156",
+  "3/5": "\u2157",
+  "4/5": "\u2158",
+  "1/6": "\u2159",
+  "5/6": "\u215A",
+  "1/7": "\u2150",
+  "1/8": "\u215B",
+  "3/8": "\u215C",
+  "5/8": "\u215D",
+  "7/8": "\u215E",
+  "1/9": "\u2151",
+  "1/10": "\u2152"
+};
+function gcd(a, b) {
+  return b ? gcd(b, a % b) : a;
+}
+function fmtFraction(n, maxDen = 8) {
+  var _a;
+  if (!Number.isFinite(n)) return fmtNum(n);
+  const cap = Math.max(1, Math.min(64, Math.floor(maxDen) || 1));
+  const sign = n < 0 ? "-" : "";
+  const abs = Math.abs(n);
+  const whole = Math.floor(abs);
+  const rest = abs - whole;
+  let num = Math.round(rest * cap);
+  let den = cap;
+  if (num === 0) return sign + String(whole);
+  if (num === den) return sign + String(whole + 1);
+  const g = gcd(num, den);
+  num /= g;
+  den /= g;
+  const part = (_a = GLYPHS[`${num}/${den}`]) != null ? _a : `${num}/${den}`;
+  const glyph = part.length === 1;
+  if (whole === 0) return sign + part;
+  return sign + String(whole) + (glyph ? "" : " ") + part;
 }
 function fmtMod(m) {
   return (m >= 0 ? "+" : "") + m;
@@ -5327,6 +5374,11 @@ function buildCluster(head, flags, o, bindOpen) {
 function wantsFractions(kind, entry) {
   return kind === "decimal" || kind === "formula" || entry.fractions === true;
 }
+function fmtValue(kind, entry, n) {
+  if (!entry.fracDisplay || !wantsFractions(kind, entry)) return fmtNum(n);
+  return fmtFraction(n, Number(entry.fracMax) > 0 ? Number(entry.fracMax) : DEFAULT_FRAC_MAX);
+}
+var DEFAULT_FRAC_MAX = 8;
 function defaultRange(kind, entry) {
   if (kind === "formula") return { min: 0, max: 10 };
   if (wantsFractions(kind, entry)) return { min: 0, max: 1 };
@@ -5379,7 +5431,7 @@ function render(kind, ctx2) {
   for (const a of addons) Object.assign(slots, a.fillSlots(ctx2, { get, label }));
   const refs = view.buildCluster(ctx2.head, ctx2.flags, {
     get: () => get() * factor,
-    display: fmtNum(get() * factor),
+    display: fmtValue(kind, entry, get() * factor),
     steppers: wantSteppers(kind, entry),
     min: min * factor,
     max: max * factor,
@@ -5395,7 +5447,7 @@ function render(kind, ctx2) {
   if (entry.valueSize) refs.val.setCssStyles({ fontSize: entry.valueSize + "px" });
   const unit = ((_b = entry.unit) != null ? _b : "").trim();
   const setVal = (v) => {
-    refs.val.setText(fmtNum(v * factor));
+    refs.val.setText(fmtValue(kind, entry, v * factor));
     if (unit) refs.val.createSpan({ cls: "ep-unit-hint", text: unit });
   };
   if (unit || factor !== 1) setVal(get());
@@ -5604,12 +5656,32 @@ function renderOptions(kind, octx) {
     });
   });
   if (kind === "number") {
-    new import_obsidian13.Setting(c).setName(t("options.fractions")).setDesc(t("options.fractionsDesc")).addToggle((tg) => {
-      tg.setValue(entry.fractions === true).onChange((v) => {
-        entry.fractions = v || void 0;
+    new import_obsidian13.Setting(c).setName(t("options.wholeOnly")).setDesc(t("options.wholeOnlyDesc")).addToggle((tg) => {
+      tg.setValue(entry.fractions !== true).onChange((v) => {
+        entry.fractions = v ? void 0 : true;
         changed();
+        octx.redraw();
       });
     });
+  }
+  if (wantsFractions(kind, entry)) {
+    new import_obsidian13.Setting(c).setName(t("options.fracDisplay")).setDesc(t("options.fracDisplayDesc")).addToggle((tg) => {
+      tg.setValue(entry.fracDisplay === true).onChange((v) => {
+        entry.fracDisplay = v || void 0;
+        changed();
+        octx.redraw();
+      });
+    });
+    if (entry.fracDisplay)
+      new import_obsidian13.Setting(c).setName(t("options.fracMax")).setDesc(t("options.fracMaxDesc")).addText((tx) => {
+        tx.setValue(String(Number(entry.fracMax) > 0 ? entry.fracMax : DEFAULT_FRAC_MAX));
+        tx.inputEl.type = "number";
+        tx.onChange((v) => {
+          const n = Math.floor(Number(v));
+          entry.fracMax = Number.isFinite(n) && n > 1 && n !== DEFAULT_FRAC_MAX ? Math.min(64, n) : void 0;
+          changed();
+        });
+      });
   }
   if (kind === "decimal") {
     c.createDiv({ cls: "ep-moved-note", text: t("options.decimalMoved") });

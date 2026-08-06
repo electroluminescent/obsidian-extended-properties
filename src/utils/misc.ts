@@ -12,6 +12,53 @@ export function fmtNum(n: number): string {
   return Number.isInteger(n) ? String(n) : String(Math.round(n * 1000) / 1000);
 }
 
+/** The vulgar fractions Unicode has a glyph for, by "numerator/denominator". */
+const GLYPHS: Record<string, string> = {
+  "1/2": "½",
+  "1/3": "⅓", "2/3": "⅔",
+  "1/4": "¼", "3/4": "¾",
+  "1/5": "⅕", "2/5": "⅖", "3/5": "⅗", "4/5": "⅘",
+  "1/6": "⅙", "5/6": "⅚",
+  "1/7": "⅐",
+  "1/8": "⅛", "3/8": "⅜", "5/8": "⅝", "7/8": "⅞",
+  "1/9": "⅑",
+  "1/10": "⅒",
+};
+
+/** Greatest common divisor, for putting a fraction in lowest terms. */
+function gcd(a: number, b: number): number {
+  return b ? gcd(b, a % b) : a;
+}
+
+/**
+ * Format `n` as a fraction: the closest one whose denominator is at most
+ * `maxDen`, in lowest terms, using the single glyph where Unicode has one
+ * (1.5 -> "1½", 0.667 -> "⅔") and "a/b" where it does not.
+ *
+ * A value that lands on a whole number after rounding prints as that whole
+ * number, so a fraction display never shows "2 0/8".
+ */
+export function fmtFraction(n: number, maxDen = 8): string {
+  if (!Number.isFinite(n)) return fmtNum(n);
+  const cap = Math.max(1, Math.min(64, Math.floor(maxDen) || 1));
+  const sign = n < 0 ? "-" : "";
+  const abs = Math.abs(n);
+  const whole = Math.floor(abs);
+  const rest = abs - whole;
+  // The nearest k/cap, then reduced: 6/8 is three quarters, not six eighths.
+  let num = Math.round(rest * cap);
+  let den = cap;
+  if (num === 0) return sign + String(whole);
+  if (num === den) return sign + String(whole + 1);
+  const g = gcd(num, den);
+  num /= g;
+  den /= g;
+  const part = GLYPHS[`${num}/${den}`] ?? `${num}/${den}`;
+  const glyph = part.length === 1;
+  if (whole === 0) return sign + part;
+  return sign + String(whole) + (glyph ? "" : " ") + part;
+}
+
 /** Format a signed modifier, e.g. `+3` / `-1`. */
 export function fmtMod(m: number): string {
   return (m >= 0 ? "+" : "") + m;

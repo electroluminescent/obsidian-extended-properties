@@ -12,7 +12,7 @@ import { Menu, Notice, setIcon, Setting } from "obsidian";
 import type { EntryRenderCtx, EntryRef, OptionsCtx } from "../../../core/context";
 import type { ClusterNeeds, ValueTypeDef } from "../../../core/registry";
 import { compileFormula, invertFormula } from "../../../utils/formula";
-import { clamp, fmtNum } from "../../../utils/misc";
+import { clamp, fmtFraction, fmtNum } from "../../../utils/misc";
 import { sfx } from "../../../utils/sound";
 import { shouldClamp, clampToConstraints } from "../../../core/validate";
 import { applyValidity } from "../validity";
@@ -32,6 +32,18 @@ type NumericKind = "number" | "decimal" | "formula";
 function wantsFractions(kind: NumericKind, entry: { fractions?: boolean }): boolean {
   return kind === "decimal" || kind === "formula" || entry.fractions === true;
 }
+
+/**
+ * How the value reads: as a fraction when the entry asks for one (and keeps
+ * its fractions at all), otherwise as a plain number.
+ */
+function fmtValue(kind: NumericKind, entry: { fractions?: boolean; fracDisplay?: boolean; fracMax?: number }, n: number): string {
+  if (!entry.fracDisplay || !wantsFractions(kind, entry)) return fmtNum(n);
+  return fmtFraction(n, Number(entry.fracMax) > 0 ? Number(entry.fracMax) : DEFAULT_FRAC_MAX);
+}
+
+/** The largest denominator a fraction display uses unless told otherwise. */
+export const DEFAULT_FRAC_MAX = 8;
 
 /**
  * Range fallbacks, used only where neither the entry nor the vault's own
@@ -114,7 +126,7 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
 
   const refs = view.buildCluster(ctx.head, ctx.flags, {
     get: () => get() * factor,
-    display: fmtNum(get() * factor),
+    display: fmtValue(kind, entry, get() * factor),
     steppers: wantSteppers(kind, entry),
     min: min * factor,
     max: max * factor,
@@ -134,7 +146,7 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
   // place that rewrites the value text re-appends it via setVal.
   const unit = ((entry.unit as string) ?? "").trim();
   const setVal = (v: number): void => {
-    refs.val.setText(fmtNum(v * factor));
+    refs.val.setText(fmtValue(kind, entry, v * factor));
     if (unit) refs.val.createSpan({ cls: "ep-unit-hint", text: unit });
   };
   if (unit || factor !== 1) setVal(get());
@@ -365,16 +377,44 @@ function renderOptions(kind: NumericKind, octx: OptionsCtx): void {
     });
   });
   if (kind === "number") {
-    // What the decimal type was: a number that keeps its fractions.
+    // Whole numbers are the default; turning this off is what the decimal
+    // type was. Stored the other way round (`fractions`), so an entry that
+    // says nothing rounds, as it always has.
     new Setting(c)
-      .setName(t("options.fractions"))
-      .setDesc(t("options.fractionsDesc"))
+      .setName(t("options.wholeOnly"))
+      .setDesc(t("options.wholeOnlyDesc"))
       .addToggle((tg) => {
-        tg.setValue(entry.fractions === true).onChange((v) => {
-          entry.fractions = v || undefined;
+        tg.setValue(entry.fractions !== true).onChange((v) => {
+          entry.fractions = v ? undefined : true;
           changed();
+          octx.redraw();
         });
       });
+  }
+  if (wantsFractions(kind, entry)) {
+    new Setting(c)
+      .setName(t("options.fracDisplay"))
+      .setDesc(t("options.fracDisplayDesc"))
+      .addToggle((tg) => {
+        tg.setValue(entry.fracDisplay === true).onChange((v) => {
+          entry.fracDisplay = v || undefined;
+          changed();
+          octx.redraw();
+        });
+      });
+    if (entry.fracDisplay)
+      new Setting(c)
+        .setName(t("options.fracMax"))
+        .setDesc(t("options.fracMaxDesc"))
+        .addText((tx) => {
+          tx.setValue(String(Number(entry.fracMax) > 0 ? entry.fracMax : DEFAULT_FRAC_MAX));
+          tx.inputEl.type = "number";
+          tx.onChange((v) => {
+            const n = Math.floor(Number(v));
+            entry.fracMax = Number.isFinite(n) && n > 1 && n !== DEFAULT_FRAC_MAX ? Math.min(64, n) : undefined;
+            changed();
+          });
+        });
   }
   if (kind === "decimal") {
     // The type has been absorbed by Number; a property still carrying it
