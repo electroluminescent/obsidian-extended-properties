@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.40.1
+
+- **Always use the largest denominator**, per property: every fraction is
+  written over the same one - 6/8 rather than three quarters - the way a scale
+  of eighths reads. A whole number still shows as one, and a fraction that
+  already sits over that denominator keeps its glyph.
+
 ## 4.40.0
 
 - **"Whole numbers only", on by default**, replaces "Allow fractions" and

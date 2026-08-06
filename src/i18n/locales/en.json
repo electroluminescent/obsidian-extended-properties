@@ -160,6 +160,8 @@
   "options.wholeOnlyDesc": "Round to whole numbers. Off keeps decimal places - what the Decimal type was.",
   "options.fracDisplay": "Show as a fraction",
   "options.fracDisplayDesc": "Write the decimal part as the nearest fraction: 1.5 as 1 and a half, 0.67 as two thirds.",
+  "options.fracKeepDen": "Always use the largest denominator",
+  "options.fracKeepDenDesc": "Write every fraction over the same denominator - 6/8 rather than three quarters - the way a scale of eighths reads.",
   "options.fracMax": "Largest denominator",
   "options.fracMaxDesc": "The finest fraction to round to: 8 gives eighths, 4 gives quarters. Default 8.",
   "options.decimalMoved": "The Decimal type has moved into Number, which keeps fractions when told to. Existing decimal properties keep working; move this one across when convenient.",

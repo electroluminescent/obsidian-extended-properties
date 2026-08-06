@@ -38,19 +38,21 @@ function gcd(a: number, b: number): number {
  * A value that lands on a whole number after rounding prints as that whole
  * number, so a fraction display never shows "2 0/8".
  */
-export function fmtFraction(n: number, maxDen = 8): string {
+export function fmtFraction(n: number, maxDen = 8, keepDen = false): string {
   if (!Number.isFinite(n)) return fmtNum(n);
   const cap = Math.max(1, Math.min(64, Math.floor(maxDen) || 1));
   const sign = n < 0 ? "-" : "";
   const abs = Math.abs(n);
   const whole = Math.floor(abs);
   const rest = abs - whole;
-  // The nearest k/cap, then reduced: 6/8 is three quarters, not six eighths.
+  // The nearest k/cap, then reduced: 6/8 is three quarters, not six eighths -
+  // unless `keepDen`, where every fraction is written over the same
+  // denominator, as a scale of eighths or sixteenths reads.
   let num = Math.round(rest * cap);
   let den = cap;
   if (num === 0) return sign + String(whole);
   if (num === den) return sign + String(whole + 1);
-  const g = gcd(num, den);
+  const g = keepDen ? 1 : gcd(num, den);
   num /= g;
   den /= g;
   const part = GLYPHS[`${num}/${den}`] ?? `${num}/${den}`;

@@ -262,6 +262,8 @@ var en_default = {
   "options.wholeOnlyDesc": "Round to whole numbers. Off keeps decimal places - what the Decimal type was.",
   "options.fracDisplay": "Show as a fraction",
   "options.fracDisplayDesc": "Write the decimal part as the nearest fraction: 1.5 as 1 and a half, 0.67 as two thirds.",
+  "options.fracKeepDen": "Always use the largest denominator",
+  "options.fracKeepDenDesc": "Write every fraction over the same denominator - 6/8 rather than three quarters - the way a scale of eighths reads.",
   "options.fracMax": "Largest denominator",
   "options.fracMaxDesc": "The finest fraction to round to: 8 gives eighths, 4 gives quarters. Default 8.",
   "options.decimalMoved": "The Decimal type has moved into Number, which keeps fractions when told to. Existing decimal properties keep working; move this one across when convenient.",
@@ -1351,7 +1353,7 @@ var GLYPHS = {
 function gcd(a, b) {
   return b ? gcd(b, a % b) : a;
 }
-function fmtFraction(n, maxDen = 8) {
+function fmtFraction(n, maxDen = 8, keepDen = false) {
   var _a;
   if (!Number.isFinite(n)) return fmtNum(n);
   const cap = Math.max(1, Math.min(64, Math.floor(maxDen) || 1));
@@ -1363,7 +1365,7 @@ function fmtFraction(n, maxDen = 8) {
   let den = cap;
   if (num === 0) return sign + String(whole);
   if (num === den) return sign + String(whole + 1);
-  const g = gcd(num, den);
+  const g = keepDen ? 1 : gcd(num, den);
   num /= g;
   den /= g;
   const part = (_a = GLYPHS[`${num}/${den}`]) != null ? _a : `${num}/${den}`;
@@ -5376,7 +5378,8 @@ function wantsFractions(kind, entry) {
 }
 function fmtValue(kind, entry, n) {
   if (!entry.fracDisplay || !wantsFractions(kind, entry)) return fmtNum(n);
-  return fmtFraction(n, Number(entry.fracMax) > 0 ? Number(entry.fracMax) : DEFAULT_FRAC_MAX);
+  const max = Number(entry.fracMax) > 0 ? Number(entry.fracMax) : DEFAULT_FRAC_MAX;
+  return fmtFraction(n, max, entry.fracKeepDen === true);
 }
 var DEFAULT_FRAC_MAX = 8;
 function defaultRange(kind, entry) {
@@ -5672,6 +5675,13 @@ function renderOptions(kind, octx) {
         octx.redraw();
       });
     });
+    if (entry.fracDisplay)
+      new import_obsidian13.Setting(c).setName(t("options.fracKeepDen")).setDesc(t("options.fracKeepDenDesc")).addToggle((tg) => {
+        tg.setValue(entry.fracKeepDen === true).onChange((v) => {
+          entry.fracKeepDen = v || void 0;
+          changed();
+        });
+      });
     if (entry.fracDisplay)
       new import_obsidian13.Setting(c).setName(t("options.fracMax")).setDesc(t("options.fracMaxDesc")).addText((tx) => {
         tx.setValue(String(Number(entry.fracMax) > 0 ? entry.fracMax : DEFAULT_FRAC_MAX));

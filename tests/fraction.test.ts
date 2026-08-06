@@ -46,6 +46,17 @@ describe("as a fraction", () => {
     expect(fmtFraction(-3)).toBe("-3");
   });
 
+  it("keeps the denominator when asked, instead of reducing", () => {
+    expect(fmtFraction(0.75, 8, true)).toBe("6/8");
+    expect(fmtFraction(0.5, 8, true)).toBe("4/8");
+    // Already over the denominator asked for, so the glyph still applies.
+    expect(fmtFraction(2.25, 4, true)).toBe("2¼");
+    // A whole number is still a whole number, not 2 0/8 or 1 8/8.
+    expect(fmtFraction(2, 8, true)).toBe("2");
+    expect(fmtFraction(1.99, 8, true)).toBe("2");
+    expect(fmtFraction(-0.5, 8, true)).toBe("-4/8");
+  });
+
   it("takes a silly denominator without falling over", () => {
     // A denominator below 1 is no denominator at all: whole numbers.
     expect(fmtFraction(0.5, 0)).toBe("1");

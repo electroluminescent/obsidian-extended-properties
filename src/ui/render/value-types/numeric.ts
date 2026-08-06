@@ -37,9 +37,14 @@ function wantsFractions(kind: NumericKind, entry: { fractions?: boolean }): bool
  * How the value reads: as a fraction when the entry asks for one (and keeps
  * its fractions at all), otherwise as a plain number.
  */
-function fmtValue(kind: NumericKind, entry: { fractions?: boolean; fracDisplay?: boolean; fracMax?: number }, n: number): string {
+function fmtValue(
+  kind: NumericKind,
+  entry: { fractions?: boolean; fracDisplay?: boolean; fracMax?: number; fracKeepDen?: boolean },
+  n: number
+): string {
   if (!entry.fracDisplay || !wantsFractions(kind, entry)) return fmtNum(n);
-  return fmtFraction(n, Number(entry.fracMax) > 0 ? Number(entry.fracMax) : DEFAULT_FRAC_MAX);
+  const max = Number(entry.fracMax) > 0 ? Number(entry.fracMax) : DEFAULT_FRAC_MAX;
+  return fmtFraction(n, max, entry.fracKeepDen === true);
 }
 
 /** The largest denominator a fraction display uses unless told otherwise. */
@@ -402,6 +407,16 @@ function renderOptions(kind: NumericKind, octx: OptionsCtx): void {
           octx.redraw();
         });
       });
+    if (entry.fracDisplay)
+      new Setting(c)
+        .setName(t("options.fracKeepDen"))
+        .setDesc(t("options.fracKeepDenDesc"))
+        .addToggle((tg) => {
+          tg.setValue(entry.fracKeepDen === true).onChange((v) => {
+            entry.fracKeepDen = v || undefined;
+            changed();
+          });
+        });
     if (entry.fracDisplay)
       new Setting(c)
         .setName(t("options.fracMax"))

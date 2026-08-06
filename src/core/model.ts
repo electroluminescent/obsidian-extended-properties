@@ -134,6 +134,8 @@ export interface EntryBase {
   fracDisplay?: boolean;
   /** The largest denominator a fraction display may use (default 8). */
   fracMax?: number;
+  /** Write every fraction over that denominator (6/8) instead of reducing (3/4). */
+  fracKeepDen?: boolean;
   /** List chips alignment: "center" | "right" (unset = left). */
   listAlign?: string;
   /** Image value type: height preset. */
