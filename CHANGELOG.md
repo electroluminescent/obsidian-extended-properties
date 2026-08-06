@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.36.1
+
+- Closed the three ways a link property could come back after the move: a
+  section or type imported from an older vault, a layout file written by one,
+  and a restored snapshot. Each now moves its link entries across as it lands,
+  and a restored snapshot re-runs the schema steps its own stamp says it
+  missed.
+- The Link type is always registered rather than sitting behind a feature
+  toggle. It is offered nowhere, but a layout that still carries it renders as
+  a link instead of falling back to plain text because a toggle was off; the
+  toggle itself is gone from the settings.
+
 ## 4.36.0
 
 - **Link properties move to the Text type by themselves.** Loading this version

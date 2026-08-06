@@ -19,6 +19,7 @@ import { materializeShortForms, registerDerivations } from "./core/influences";
 import { FeatureModule, Registries } from "./core/registry";
 import { PropertyIndex } from "./core/property-index";
 import { renameType, type MergeChoice, type RenameOutcome } from "./core/type-ops";
+import { absorbLinkEntries } from "./core/layout-ops";
 import { HideService } from "./core/hide-service";
 import { registerCore } from "./ui/render/value-types/index";
 import { featureOn } from "./core/features";
@@ -190,7 +191,12 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     if (this.settings.layoutVault === true) {
       // Vault files are authoritative: load them over the data.json copies.
       const fromFiles = await this.layoutStore.readAll();
-      for (const k of Object.keys(fromFiles)) this.settings.layouts[k] = fromFiles[k];
+      for (const k of Object.keys(fromFiles)) {
+        // Written by an older version, so they arrive after the migration:
+        // move any link-typed entries across as the migration would have.
+        absorbLinkEntries(fromFiles[k].sections ?? []);
+        this.settings.layouts[k] = fromFiles[k];
+      }
     }
     this.registerEvent(this.app.vault.on("modify", (f) => this.onLayoutFileEvent(f.path)));
     this.registerEvent(this.app.vault.on("create", (f) => this.onLayoutFileEvent(f.path)));
@@ -620,6 +626,9 @@ export default class ExtendedPropertiesPlugin extends Plugin {
         if (!data || typeof data !== "object") return;
         await this.backupData(this.settings); // insurance before overwrite
         Object.assign(this.settings, data as Record<string, unknown>);
+        // A snapshot taken before a schema step brings its shape back with it,
+        // and its own (older) schema stamp, so the steps run again over it.
+        runSchemaMigrations(this.settings);
         await this.saveSettings();
         if (this.settings.layoutVault === true) await this.layoutStore?.writeAll(this.settings.types);
         this.rebuildRegistries();

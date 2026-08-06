@@ -45,7 +45,11 @@ export function registerCore(ctx: FeatureContext, settings: EPSettings): void {
   }
   if (on("iframe")) r.valueTypes.add(iframeType);
   if (on("rating")) r.valueTypes.add(ratingType);
-  if (on("link")) r.valueTypes.add(linkType);
+  // Always registered, never offered: the link type has been absorbed by text
+  // ("links to a note"), and a layout that still carries it - imported, or
+  // restored from a snapshot - must keep rendering rather than fall back to
+  // plain text because a feature toggle happened to be off.
+  r.valueTypes.add(linkType);
   if (on("unit")) r.valueTypes.add(unitType);
   if (on("datetime")) r.valueTypes.add(datetimeType);
   if (on("date")) r.valueTypes.add(dateType);

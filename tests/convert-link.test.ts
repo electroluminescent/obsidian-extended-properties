@@ -5,8 +5,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { convertLinkToText } from "../src/core/layout-ops";
-import type { EPSettings, Entry } from "../src/core/model";
+import { absorbLinkEntries, convertLinkToText } from "../src/core/layout-ops";
+import { freshSection } from "../src/core/transfer";
+import type { EPSettings, Entry, Section } from "../src/core/model";
 
 function prop(key: string, extra: Partial<Entry> = {}): Entry {
   return { id: key + "-" + Math.random().toString(36).slice(2), kind: "prop", key, dataType: "link", ...extra };
@@ -82,5 +83,40 @@ describe("converting a link property", () => {
   it("does nothing without a key", () => {
     const s = vault();
     expect(convertLinkToText(s, "  ", undefined)).toBe(0);
+  });
+});
+
+describe("entries that arrive after the migration", () => {
+  const section = (): Section =>
+    ({
+      id: "s",
+      title: "Imported",
+      columns: 1,
+      entries: [
+        { id: "a", kind: "prop", key: "Patron", dataType: "link", choices: { folder: "10.People" } },
+        { id: "b", kind: "prop", key: "Notes", dataType: "text" },
+      ],
+    }) as unknown as Section;
+
+  it("moves link entries in a section handed to it", () => {
+    const s = section();
+    expect(absorbLinkEntries([s])).toBe(1);
+    expect(s.entries[0].dataType).toBe("text");
+    expect(s.entries[0].choices).toEqual({ folder: "10.People", linksToNotes: true });
+    expect(s.entries[1].choices).toBeUndefined();
+  });
+
+  it("moves them as a section is imported", () => {
+    const imported = freshSection(section());
+    expect(imported.entries[0].dataType).toBe("text");
+    expect(imported.entries[0].choices?.linksToNotes).toBe(true);
+    // Still a fresh copy: ids are new and the original is untouched.
+    expect(imported.entries[0].id).not.toBe("a");
+  });
+
+  it("changes nothing when there is nothing to move", () => {
+    const s = section();
+    absorbLinkEntries([s]);
+    expect(absorbLinkEntries([s])).toBe(0);
   });
 });

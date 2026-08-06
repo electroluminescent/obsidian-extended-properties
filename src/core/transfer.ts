@@ -13,6 +13,7 @@ import type { Layout, Section } from "./model";
 import { ext } from "./model";
 import type { DerivationSetting, ModExt } from "./influences";
 import { genId } from "../utils/misc";
+import { absorbLinkEntries } from "./layout-ops";
 
 /** Bump when the snippet shape changes incompatibly. */
 export const TRANSFER_SCHEMA = 1;
@@ -131,6 +132,9 @@ export function freshSection(section: Section): Section {
   const s = clone(section);
   s.id = genId();
   for (const e of s.entries) e.id = genId();
+  // A document exported before the link type was absorbed brings link-typed
+  // entries with it, after the schema migration has already run.
+  absorbLinkEntries([s]);
   return s;
 }
 

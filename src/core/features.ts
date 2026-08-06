@@ -40,7 +40,6 @@ export const TYPE_FEATURES: CoreFeature[] = [
   { id: "media", typeIds: ["audio", "video", "pdf"] },
   { id: "iframe", typeIds: ["iframe"] },
   { id: "rating", typeIds: ["rating"] },
-  { id: "link", typeIds: ["link"] },
   { id: "unit", typeIds: ["unit"] },
   { id: "datetime", typeIds: ["datetime"] },
   { id: "date", typeIds: ["date"] },

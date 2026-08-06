@@ -62,6 +62,27 @@ export function convertLinkToText(settings: EPSettings, key: string, source: Cho
   return n;
 }
 
+/**
+ * Move any link-typed entries in `sections` across to text, for entries that
+ * arrive after the schema migration has run: an imported layout or section, a
+ * layout file written by an older version, a restored snapshot. Returns how
+ * many were moved.
+ *
+ * Per-entry rather than per-key, because these entries are not in the settings
+ * yet - the shared type map is stamped when they land.
+ */
+export function absorbLinkEntries(sections: Section[]): number {
+  let n = 0;
+  for (const s of sections ?? [])
+    for (const e of s.entries ?? []) {
+      if (e.kind !== "prop" || e.dataType !== "link") continue;
+      e.dataType = "text";
+      e.choices = { ...(e.choices ?? {}), linksToNotes: true };
+      n++;
+    }
+  return n;
+}
+
 /** Create a blank grid filler entry. */
 export function blankEntry(): Entry {
   return { id: genId(), kind: "blank" };

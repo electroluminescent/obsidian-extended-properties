@@ -1853,6 +1853,18 @@ function convertLinkToText(settings, key, source) {
   for (const k of Object.keys((_d = settings.inlineEntries) != null ? _d : {})) convert((_e = settings.inlineEntries) == null ? void 0 : _e[k]);
   return n;
 }
+function absorbLinkEntries(sections) {
+  var _a, _b;
+  let n = 0;
+  for (const s of sections != null ? sections : [])
+    for (const e of (_a = s.entries) != null ? _a : []) {
+      if (e.kind !== "prop" || e.dataType !== "link") continue;
+      e.dataType = "text";
+      e.choices = { ...(_b = e.choices) != null ? _b : {}, linksToNotes: true };
+      n++;
+    }
+  return n;
+}
 function blankEntry() {
   return { id: genId(), kind: "blank" };
 }
@@ -8060,7 +8072,6 @@ var TYPE_FEATURES = [
   { id: "media", typeIds: ["audio", "video", "pdf"] },
   { id: "iframe", typeIds: ["iframe"] },
   { id: "rating", typeIds: ["rating"] },
-  { id: "link", typeIds: ["link"] },
   { id: "unit", typeIds: ["unit"] },
   { id: "datetime", typeIds: ["datetime"] },
   { id: "date", typeIds: ["date"] }
@@ -8098,7 +8109,7 @@ function registerCore(ctx2, settings) {
   }
   if (on("iframe")) r.valueTypes.add(iframeType);
   if (on("rating")) r.valueTypes.add(ratingType);
-  if (on("link")) r.valueTypes.add(linkType);
+  r.valueTypes.add(linkType);
   if (on("unit")) r.valueTypes.add(unitType);
   if (on("datetime")) r.valueTypes.add(datetimeType);
   if (on("date")) r.valueTypes.add(dateType);
@@ -9698,6 +9709,7 @@ function freshSection(section) {
   const s = clone(section);
   s.id = genId();
   for (const e of s.entries) e.id = genId();
+  absorbLinkEntries([s]);
   return s;
 }
 function freshSections(doc) {
@@ -18755,7 +18767,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian49.Plugin {
     return FEATURE_MODULES;
   }
   async onload() {
-    var _a, _b, _c;
+    var _a, _b, _c, _d;
     this.props = new PropertyIndex(this.app, () => {
       var _a2, _b2;
       return ((_b2 = (_a2 = this.settings) == null ? void 0 : _a2.typeProp) != null ? _b2 : "Type").trim() || "Type";
@@ -18827,7 +18839,10 @@ var ExtendedPropertiesPlugin = class extends import_obsidian49.Plugin {
     );
     if (this.settings.layoutVault === true) {
       const fromFiles = await this.layoutStore.readAll();
-      for (const k of Object.keys(fromFiles)) this.settings.layouts[k] = fromFiles[k];
+      for (const k of Object.keys(fromFiles)) {
+        absorbLinkEntries((_c = fromFiles[k].sections) != null ? _c : []);
+        this.settings.layouts[k] = fromFiles[k];
+      }
     }
     this.registerEvent(this.app.vault.on("modify", (f) => this.onLayoutFileEvent(f.path)));
     this.registerEvent(this.app.vault.on("create", (f) => this.onLayoutFileEvent(f.path)));
@@ -18841,7 +18856,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian49.Plugin {
       },
       this.manifest.version
     );
-    if (featureOn(this.settings, "snapshots") && this.settings.snapshots === true && Date.now() - ((_c = this.settings.lastSnapshot) != null ? _c : 0) > 24 * 3600 * 1e3)
+    if (featureOn(this.settings, "snapshots") && this.settings.snapshots === true && Date.now() - ((_d = this.settings.lastSnapshot) != null ? _d : 0) > 24 * 3600 * 1e3)
       void this.saveSnapshot(false);
     this.registerView(VIEW_TYPE, (leaf) => new SidebarView(leaf, this));
     this.addRibbonIcon("panel-right", this.i18n.t("command.openSidebar"), () => this.activateView());
@@ -19219,6 +19234,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian49.Plugin {
         if (!data || typeof data !== "object") return;
         await this.backupData(this.settings);
         Object.assign(this.settings, data);
+        runSchemaMigrations(this.settings);
         await this.saveSettings();
         if (this.settings.layoutVault === true) await ((_a = this.layoutStore) == null ? void 0 : _a.writeAll(this.settings.types));
         this.rebuildRegistries();
