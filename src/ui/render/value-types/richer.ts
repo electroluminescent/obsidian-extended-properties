@@ -218,7 +218,7 @@ export const unitType: ValueTypeDef = {
   render(ctx) {
     const { view, file, entry } = ctx;
     const key = entry.key as string;
-    const unit = (entry.unit as string) || "";
+    const unit = entry.unit || "";
     const factor = Number(entry.unitFactor) > 0 ? Number(entry.unitFactor) : 1;
     const cell = ctx.head.createDiv({ cls: "ep-val-right ep-unitval" });
     if (entry.valueColor) cell.setCssStyles({ color: entry.valueColor });
@@ -245,7 +245,7 @@ export const unitType: ValueTypeDef = {
     c.createEl("h4", { text: t("type.unit") });
     new Setting(c).setName(t("options.unitLabel")).setDesc(t("options.unitLabelDesc")).addText((tx) =>
       tx
-        .setValue((entry.unit as string) || "")
+        .setValue(entry.unit || "")
         .onChange((val) => {
           entry.unit = val.trim() || undefined;
           changed();

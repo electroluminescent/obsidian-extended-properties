@@ -155,8 +155,8 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
     // typed is worked out on the way in (see `utils/measure`), in this
     // property's own unit where it names one the table knows.
     evaluate: (text) =>
-      evalMeasure(text, unitsForField(view.settings.units, entry.unit as string), {
-        percentIsUnit: ((entry.unit as string) ?? "").trim() === "%",
+      evalMeasure(text, unitsForField(view.settings.units, entry.unit), {
+        percentIsUnit: (entry.unit ?? "").trim() === "%",
       }),
     commit: (v) => {
       const raw = v / factor;
@@ -170,7 +170,7 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
   // Optional unit suffix, rendered as a muted tag right after the value
   // (same `entry.unit` field the dedicated unit value type uses). Every
   // place that rewrites the value text re-appends it via setVal.
-  const unit = ((entry.unit as string) ?? "").trim();
+  const unit = (entry.unit ?? "").trim();
   const setVal = (v: number): void => {
     refs.val.setText(fmtValue(kind, entry, v * factor));
     if (unit) refs.val.createSpan({ cls: "ep-unit-hint", text: unit });
@@ -636,7 +636,7 @@ function renderOptions(kind: NumericKind, octx: OptionsCtx): void {
       .setName(t("options.unit"))
       .setDesc(t("options.unitDesc"))
       .addText((tx) => {
-        tx.setValue((entry.unit as string) ?? "").onChange((v) => {
+        tx.setValue(entry.unit ?? "").onChange((v) => {
           entry.unit = v.trim() || undefined;
           changed();
         });
@@ -721,8 +721,8 @@ function menuItems(kind: NumericKind, menu: Menu, ref: EntryRef): void {
         view.note.str(key),
         (v) => {
           let n =
-            evalMeasure(v, unitsForField(view.settings.units, entry.unit as string), {
-              percentIsUnit: ((entry.unit as string) ?? "").trim() === "%",
+            evalMeasure(v, unitsForField(view.settings.units, entry.unit), {
+              percentIsUnit: (entry.unit ?? "").trim() === "%",
             }) ?? NaN;
           if (!Number.isFinite(n)) return;
           if (!float) n = Math.round(n);

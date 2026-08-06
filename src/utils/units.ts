@@ -108,7 +108,7 @@ export const UNITS: UnitDef[] = [
   U("wh", "Watt hour (Wh)", "energy", "metric", 3600, ["wh", "watthour", "watthours"]),
   U("kwh", "Kilowatt hour (kWh)", "energy", "metric", 3.6e6, ["kwh", "kilowatthour", "kilowatthours"]),
   U("btu", "British thermal unit (BTU)", "energy", "imperial", 1055.05585262, ["btu", "btus"]),
-  U("ftlb", "Foot pound (ft-lb)", "energy", "imperial", 1.3558179483314004, ["ftlb", "footpound", "footpounds"]),
+  U("ftlb", "Foot pound (ft-lb)", "energy", "imperial", 1.3558179483314003, ["ftlb", "footpound", "footpounds"]),
 
   // -- power (base: watt) ----------------------------------------------------
   U("w", "Watt (W)", "power", "metric", 1, ["w", "watt", "watts"]),
