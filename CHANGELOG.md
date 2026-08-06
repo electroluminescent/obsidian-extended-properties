@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.41.0
+
+- **Show the denominator**, per property and on by default. Turn it off and
+  the value reads as the whole number, a divider and the numerator - two and
+  three eighths as 2.3 - which is how a scale of eighths is often written down.
+  The numerator is then always over the largest denominator, since a reduced
+  one could not be read back.
+- **The divider is yours to set** (default "."), and **a suffix** can follow
+  the value in either mode: 2.3" for inches, 2¾ in for the same value spelled
+  out.
+
 ## 4.40.1
 
 - **Always use the largest denominator**, per property: every fraction is

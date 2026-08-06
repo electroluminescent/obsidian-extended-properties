@@ -136,6 +136,15 @@ export interface EntryBase {
   fracMax?: number;
   /** Write every fraction over that denominator (6/8) instead of reducing (3/4). */
   fracKeepDen?: boolean;
+  /**
+   * Write the denominator at all (default yes). Off reads the value as
+   * `<whole><divider><numerator><suffix>` - 2.3" for two and three eighths.
+   */
+  fracShowDen?: boolean;
+  /** What separates whole from numerator when the denominator is hidden ("."). */
+  fracDivider?: string;
+  /** Written after the value, e.g. a units mark. */
+  fracSuffix?: string;
   /** List chips alignment: "center" | "right" (unset = left). */
   listAlign?: string;
   /** Image value type: height preset. */

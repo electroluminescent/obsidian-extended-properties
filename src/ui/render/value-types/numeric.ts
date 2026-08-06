@@ -37,14 +37,26 @@ function wantsFractions(kind: NumericKind, entry: { fractions?: boolean }): bool
  * How the value reads: as a fraction when the entry asks for one (and keeps
  * its fractions at all), otherwise as a plain number.
  */
-function fmtValue(
-  kind: NumericKind,
-  entry: { fractions?: boolean; fracDisplay?: boolean; fracMax?: number; fracKeepDen?: boolean },
-  n: number
-): string {
+function fmtValue(kind: NumericKind, entry: FractionEntry, n: number): string {
   if (!entry.fracDisplay || !wantsFractions(kind, entry)) return fmtNum(n);
-  const max = Number(entry.fracMax) > 0 ? Number(entry.fracMax) : DEFAULT_FRAC_MAX;
-  return fmtFraction(n, max, entry.fracKeepDen === true);
+  return fmtFraction(n, {
+    max: Number(entry.fracMax) > 0 ? Number(entry.fracMax) : DEFAULT_FRAC_MAX,
+    keepDen: entry.fracKeepDen === true,
+    showDen: entry.fracShowDen !== false,
+    divider: entry.fracDivider,
+    suffix: entry.fracSuffix,
+  });
+}
+
+/** The entry fields a fraction display reads. */
+interface FractionEntry {
+  fractions?: boolean;
+  fracDisplay?: boolean;
+  fracMax?: number;
+  fracKeepDen?: boolean;
+  fracShowDen?: boolean;
+  fracDivider?: string;
+  fracSuffix?: string;
 }
 
 /** The largest denominator a fraction display uses unless told otherwise. */
@@ -407,7 +419,7 @@ function renderOptions(kind: NumericKind, octx: OptionsCtx): void {
           octx.redraw();
         });
       });
-    if (entry.fracDisplay)
+    if (entry.fracDisplay && entry.fracShowDen !== false)
       new Setting(c)
         .setName(t("options.fracKeepDen"))
         .setDesc(t("options.fracKeepDenDesc"))
@@ -417,6 +429,44 @@ function renderOptions(kind: NumericKind, octx: OptionsCtx): void {
             changed();
           });
         });
+    if (entry.fracDisplay) {
+      // Off writes the numerator after a divider instead - 2.3 for two and
+      // three eighths - which only reads if every numerator is over the same
+      // denominator, so the fraction stops being reduced.
+      new Setting(c)
+        .setName(t("options.fracShowDen"))
+        .setDesc(t("options.fracShowDenDesc"))
+        .addToggle((tg) => {
+          tg.setValue(entry.fracShowDen !== false).onChange((v) => {
+            entry.fracShowDen = v ? undefined : false;
+            changed();
+            octx.redraw();
+          });
+        });
+      if (entry.fracShowDen === false) {
+        new Setting(c)
+          .setName(t("options.fracDivider"))
+          .setDesc(t("options.fracDividerDesc"))
+          .addText((tx) => {
+            tx.setPlaceholder(".");
+            tx.setValue(entry.fracDivider ?? "");
+            tx.onChange((v) => {
+              entry.fracDivider = v === "" || v === "." ? undefined : v;
+              changed();
+            });
+          });
+      }
+      new Setting(c)
+        .setName(t("options.fracSuffix"))
+        .setDesc(t("options.fracSuffixDesc"))
+        .addText((tx) => {
+          tx.setValue(entry.fracSuffix ?? "");
+          tx.onChange((v) => {
+            entry.fracSuffix = v || undefined;
+            changed();
+          });
+        });
+    }
     if (entry.fracDisplay)
       new Setting(c)
         .setName(t("options.fracMax"))

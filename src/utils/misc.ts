@@ -38,27 +38,48 @@ function gcd(a: number, b: number): number {
  * A value that lands on a whole number after rounding prints as that whole
  * number, so a fraction display never shows "2 0/8".
  */
-export function fmtFraction(n: number, maxDen = 8, keepDen = false): string {
-  if (!Number.isFinite(n)) return fmtNum(n);
-  const cap = Math.max(1, Math.min(64, Math.floor(maxDen) || 1));
+export interface FractionFormat {
+  /** Finest fraction to round to. Default 8. */
+  max?: number;
+  /** Write every fraction over `max` instead of reducing it. */
+  keepDen?: boolean;
+  /**
+   * Write the denominator at all. Off gives `<whole><divider><numerator>`
+   * with the suffix appended - 2.3" for two and three eighths - which only
+   * reads if every numerator is over the same denominator, so the fraction is
+   * left unreduced whatever `keepDen` says.
+   */
+  showDen?: boolean;
+  /** What separates the whole number from the numerator. Default ".". */
+  divider?: string;
+  /** Written after the number. Default none. */
+  suffix?: string;
+}
+
+export function fmtFraction(n: number, o: FractionFormat = {}): string {
+  const suffix = o.suffix ?? "";
+  if (!Number.isFinite(n)) return fmtNum(n) + suffix;
+  const cap = Math.max(1, Math.min(64, Math.floor(o.max ?? 8) || 1));
+  const showDen = o.showDen !== false;
   const sign = n < 0 ? "-" : "";
   const abs = Math.abs(n);
   const whole = Math.floor(abs);
   const rest = abs - whole;
   // The nearest k/cap, then reduced: 6/8 is three quarters, not six eighths -
-  // unless `keepDen`, where every fraction is written over the same
-  // denominator, as a scale of eighths or sixteenths reads.
+  // unless the denominator is being kept, where every fraction is written over
+  // the same one, as a scale of eighths or sixteenths reads.
   let num = Math.round(rest * cap);
   let den = cap;
-  if (num === 0) return sign + String(whole);
-  if (num === den) return sign + String(whole + 1);
-  const g = keepDen ? 1 : gcd(num, den);
+  if (num === 0) return sign + String(whole) + suffix;
+  if (num === den) return sign + String(whole + 1) + suffix;
+  const g = o.keepDen || !showDen ? 1 : gcd(num, den);
   num /= g;
   den /= g;
+  if (!showDen) return sign + String(whole) + (o.divider ?? ".") + String(num) + suffix;
   const part = GLYPHS[`${num}/${den}`] ?? `${num}/${den}`;
   const glyph = part.length === 1;
-  if (whole === 0) return sign + part;
-  return sign + String(whole) + (glyph ? "" : " ") + part;
+  if (whole === 0) return sign + part + suffix;
+  return sign + String(whole) + (glyph ? "" : " ") + part + suffix;
 }
 
 /** Format a signed modifier, e.g. `+3` / `-1`. */

@@ -264,6 +264,12 @@ var en_default = {
   "options.fracDisplayDesc": "Write the decimal part as the nearest fraction: 1.5 as 1 and a half, 0.67 as two thirds.",
   "options.fracKeepDen": "Always use the largest denominator",
   "options.fracKeepDenDesc": "Write every fraction over the same denominator - 6/8 rather than three quarters - the way a scale of eighths reads.",
+  "options.fracShowDen": "Show the denominator",
+  "options.fracShowDenDesc": "Off writes the numerator after a divider instead: two and three eighths as 2.3. Every numerator is then over the largest denominator, since that is the only way it reads.",
+  "options.fracDivider": "Divider",
+  "options.fracDividerDesc": 'What separates the whole number from the numerator. Default ".".',
+  "options.fracSuffix": "Suffix",
+  "options.fracSuffixDesc": "Written after the value, e.g. a units mark.",
   "options.fracMax": "Largest denominator",
   "options.fracMaxDesc": "The finest fraction to round to: 8 gives eighths, 4 gives quarters. Default 8.",
   "options.decimalMoved": "The Decimal type has moved into Number, which keeps fractions when told to. Existing decimal properties keep working; move this one across when convenient.",
@@ -1353,25 +1359,28 @@ var GLYPHS = {
 function gcd(a, b) {
   return b ? gcd(b, a % b) : a;
 }
-function fmtFraction(n, maxDen = 8, keepDen = false) {
-  var _a;
-  if (!Number.isFinite(n)) return fmtNum(n);
-  const cap = Math.max(1, Math.min(64, Math.floor(maxDen) || 1));
+function fmtFraction(n, o = {}) {
+  var _a, _b, _c, _d;
+  const suffix = (_a = o.suffix) != null ? _a : "";
+  if (!Number.isFinite(n)) return fmtNum(n) + suffix;
+  const cap = Math.max(1, Math.min(64, Math.floor((_b = o.max) != null ? _b : 8) || 1));
+  const showDen = o.showDen !== false;
   const sign = n < 0 ? "-" : "";
   const abs = Math.abs(n);
   const whole = Math.floor(abs);
   const rest = abs - whole;
   let num = Math.round(rest * cap);
   let den = cap;
-  if (num === 0) return sign + String(whole);
-  if (num === den) return sign + String(whole + 1);
-  const g = keepDen ? 1 : gcd(num, den);
+  if (num === 0) return sign + String(whole) + suffix;
+  if (num === den) return sign + String(whole + 1) + suffix;
+  const g = o.keepDen || !showDen ? 1 : gcd(num, den);
   num /= g;
   den /= g;
-  const part = (_a = GLYPHS[`${num}/${den}`]) != null ? _a : `${num}/${den}`;
+  if (!showDen) return sign + String(whole) + ((_c = o.divider) != null ? _c : ".") + String(num) + suffix;
+  const part = (_d = GLYPHS[`${num}/${den}`]) != null ? _d : `${num}/${den}`;
   const glyph = part.length === 1;
-  if (whole === 0) return sign + part;
-  return sign + String(whole) + (glyph ? "" : " ") + part;
+  if (whole === 0) return sign + part + suffix;
+  return sign + String(whole) + (glyph ? "" : " ") + part + suffix;
 }
 function fmtMod(m) {
   return (m >= 0 ? "+" : "") + m;
@@ -5378,8 +5387,13 @@ function wantsFractions(kind, entry) {
 }
 function fmtValue(kind, entry, n) {
   if (!entry.fracDisplay || !wantsFractions(kind, entry)) return fmtNum(n);
-  const max = Number(entry.fracMax) > 0 ? Number(entry.fracMax) : DEFAULT_FRAC_MAX;
-  return fmtFraction(n, max, entry.fracKeepDen === true);
+  return fmtFraction(n, {
+    max: Number(entry.fracMax) > 0 ? Number(entry.fracMax) : DEFAULT_FRAC_MAX,
+    keepDen: entry.fracKeepDen === true,
+    showDen: entry.fracShowDen !== false,
+    divider: entry.fracDivider,
+    suffix: entry.fracSuffix
+  });
 }
 var DEFAULT_FRAC_MAX = 8;
 function defaultRange(kind, entry) {
@@ -5675,13 +5689,41 @@ function renderOptions(kind, octx) {
         octx.redraw();
       });
     });
-    if (entry.fracDisplay)
+    if (entry.fracDisplay && entry.fracShowDen !== false)
       new import_obsidian13.Setting(c).setName(t("options.fracKeepDen")).setDesc(t("options.fracKeepDenDesc")).addToggle((tg) => {
         tg.setValue(entry.fracKeepDen === true).onChange((v) => {
           entry.fracKeepDen = v || void 0;
           changed();
         });
       });
+    if (entry.fracDisplay) {
+      new import_obsidian13.Setting(c).setName(t("options.fracShowDen")).setDesc(t("options.fracShowDenDesc")).addToggle((tg) => {
+        tg.setValue(entry.fracShowDen !== false).onChange((v) => {
+          entry.fracShowDen = v ? void 0 : false;
+          changed();
+          octx.redraw();
+        });
+      });
+      if (entry.fracShowDen === false) {
+        new import_obsidian13.Setting(c).setName(t("options.fracDivider")).setDesc(t("options.fracDividerDesc")).addText((tx) => {
+          var _a2;
+          tx.setPlaceholder(".");
+          tx.setValue((_a2 = entry.fracDivider) != null ? _a2 : "");
+          tx.onChange((v) => {
+            entry.fracDivider = v === "" || v === "." ? void 0 : v;
+            changed();
+          });
+        });
+      }
+      new import_obsidian13.Setting(c).setName(t("options.fracSuffix")).setDesc(t("options.fracSuffixDesc")).addText((tx) => {
+        var _a2;
+        tx.setValue((_a2 = entry.fracSuffix) != null ? _a2 : "");
+        tx.onChange((v) => {
+          entry.fracSuffix = v || void 0;
+          changed();
+        });
+      });
+    }
     if (entry.fracDisplay)
       new import_obsidian13.Setting(c).setName(t("options.fracMax")).setDesc(t("options.fracMaxDesc")).addText((tx) => {
         tx.setValue(String(Number(entry.fracMax) > 0 ? entry.fracMax : DEFAULT_FRAC_MAX));
