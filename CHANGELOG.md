@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.39.0
+
+- **Decimal has moved into Number**, which was all the type ever was: a number
+  that keeps its fractions. Number carries an "Allow fractions" switch, and
+  decimal properties move across on load - every entry for the key, on every
+  sheet and inline - with a button in their settings for anyone who wants to
+  do it by hand first.
+- Nothing else about a moved property changes. The range it falls back to when
+  neither it nor the vault says otherwise now follows the switch rather than
+  the type, so a slider stays where it was instead of stretching to a whole
+  number's default range.
+- Decimal is no longer offered for new properties, is no longer behind a
+  feature toggle (a layout that still carries it must render), and reads
+  "Decimal (moved to Number)" where it can still appear. The 5e sheet's Height
+  property is seeded as a fractional number.
+
 ## 4.38.1
 
 - **A link field never gives a link back as plain text.** It stores a typed

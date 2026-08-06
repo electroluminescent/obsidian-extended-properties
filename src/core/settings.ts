@@ -8,7 +8,7 @@
 
 import type { Defaults, Entry, EPSettings, Layout } from "./model";
 import { defaultDerivations } from "./influences";
-import { convertLinkToText } from "./layout-ops";
+import { convertDecimalToNumber, convertLinkToText } from "./layout-ops";
 
 export const DEFAULT_DEFAULTS: Defaults = {
   dataType: "text",
@@ -301,7 +301,7 @@ export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EP
 // ---------------------------------------------------------------------------
 
 /** Current settings schema version. Bump when adding a migration step below. */
-export const CURRENT_SCHEMA = 4;
+export const CURRENT_SCHEMA = 5;
 
 /** One ordered migration step: bring settings up to schema `to`. */
 export interface Migration {
@@ -425,6 +425,26 @@ export const SCHEMA_MIGRATIONS: Migration[] = [
         for (const sec of s.layouts[lk].sections ?? []) for (const e of sec.entries ?? []) each(e);
       for (const k of Object.keys(s.inlineEntries ?? {})) each(s.inlineEntries?.[k]);
       return changed;
+    },
+  },
+  {
+    to: 5,
+    name: "decimal-into-number",
+    run: (s) => {
+      // The decimal type is absorbed by number, which keeps fractions when
+      // told to. Nothing else moves: the range a converted property falls back
+      // to follows the switch, so a slider stays where it was.
+      const keys = new Set<string>();
+      for (const [k, t] of Object.entries(s.propTypes ?? {})) if (t === "decimal") keys.add(k);
+      const each = (e: Entry | undefined): void => {
+        if (e?.kind === "prop" && e.key && e.dataType === "decimal") keys.add(e.key.toLowerCase());
+      };
+      for (const lk of Object.keys(s.layouts ?? {}))
+        for (const sec of s.layouts[lk].sections ?? []) for (const e of sec.entries ?? []) each(e);
+      for (const k of Object.keys(s.inlineEntries ?? {})) each(s.inlineEntries?.[k]);
+      if (!keys.size) return false;
+      for (const k of keys) convertDecimalToNumber(s, k);
+      return true;
     },
   },
 ];

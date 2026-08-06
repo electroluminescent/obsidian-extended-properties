@@ -19,7 +19,7 @@ import { materializeShortForms, registerDerivations } from "./core/influences";
 import { FeatureModule, Registries } from "./core/registry";
 import { PropertyIndex } from "./core/property-index";
 import { renameType, type MergeChoice, type RenameOutcome } from "./core/type-ops";
-import { absorbLinkEntries } from "./core/layout-ops";
+import { absorbLegacyTypes } from "./core/layout-ops";
 import { HideService } from "./core/hide-service";
 import { registerCore } from "./ui/render/value-types/index";
 import { featureOn } from "./core/features";
@@ -194,7 +194,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       for (const k of Object.keys(fromFiles)) {
         // Written by an older version, so they arrive after the migration:
         // move any link-typed entries across as the migration would have.
-        absorbLinkEntries(fromFiles[k].sections ?? []);
+        absorbLegacyTypes(fromFiles[k].sections ?? []);
         this.settings.layouts[k] = fromFiles[k];
       }
     }

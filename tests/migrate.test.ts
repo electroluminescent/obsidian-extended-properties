@@ -154,6 +154,36 @@ describe("runSchemaMigrations (D3)", () => {
     expect(s.propTypes).toEqual({ notes: "text" });
   });
 
+  it("moves decimal properties into the number type (step 5)", () => {
+    const s = defaultSettings();
+    s.types = ["Character"];
+    s.layouts = {
+      character: {
+        version: 4,
+        sections: [
+          {
+            id: "s",
+            title: "S",
+            columns: 1,
+            entries: [
+              { id: "e1", kind: "prop", key: "Height", dataType: "decimal", min: 0, max: 8 },
+              { id: "e2", kind: "prop", key: "Level", dataType: "number" },
+            ],
+          },
+        ],
+      },
+    };
+    runSchemaMigrations(s);
+    const moved = s.layouts.character.sections[0].entries[0];
+    expect(moved.dataType).toBe("number");
+    expect(moved.fractions).toBe(true);
+    // Its range is its own and is left alone; a whole-number property is not touched.
+    expect(moved.min).toBe(0);
+    expect(moved.max).toBe(8);
+    expect(s.layouts.character.sections[0].entries[1].fractions).toBeUndefined();
+    expect(s.propTypes?.height).toBe("number");
+  });
+
   it("setSharedDataType records the shared type and re-stamps every layout and inline entry", () => {
     const lay = (dt?: string): Layout => ({
       version: 4,

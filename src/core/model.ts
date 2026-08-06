@@ -123,6 +123,11 @@ export interface EntryBase {
   // -- other value-type options --------------------------------------------
   /** Text type: edit in a box that grows with the content (long-form values). */
   multiline?: boolean;
+  /**
+   * Number type: keep fractions instead of rounding to whole numbers. What
+   * the "decimal" type was, as a switch - so a number can be either.
+   */
+  fractions?: boolean;
   /** List chips alignment: "center" | "right" (unset = left). */
   listAlign?: string;
   /** Image value type: height preset. */

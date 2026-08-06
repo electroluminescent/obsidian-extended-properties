@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { absorbLinkEntries, convertLinkToText } from "../src/core/layout-ops";
+import { absorbLegacyTypes, convertDecimalToNumber, convertLinkToText } from "../src/core/layout-ops";
 import { freshSection } from "../src/core/transfer";
 import type { EPSettings, Entry, Section } from "../src/core/model";
 
@@ -100,7 +100,7 @@ describe("entries that arrive after the migration", () => {
 
   it("moves link entries in a section handed to it", () => {
     const s = section();
-    expect(absorbLinkEntries([s])).toBe(1);
+    expect(absorbLegacyTypes([s])).toBe(1);
     expect(s.entries[0].dataType).toBe("text");
     expect(s.entries[0].choices).toEqual({ folder: "10.People", linksToNotes: true });
     expect(s.entries[1].choices).toBeUndefined();
@@ -114,9 +114,63 @@ describe("entries that arrive after the migration", () => {
     expect(imported.entries[0].id).not.toBe("a");
   });
 
+  it("moves a decimal entry to a number that keeps fractions", () => {
+    const s = {
+      id: "s",
+      title: "Imported",
+      columns: 1,
+      entries: [{ id: "a", kind: "prop", key: "Height", dataType: "decimal", min: 0 }],
+    } as unknown as Section;
+    expect(absorbLegacyTypes([s])).toBe(1);
+    expect(s.entries[0].dataType).toBe("number");
+    expect(s.entries[0].fractions).toBe(true);
+    expect(s.entries[0].min).toBe(0); // its own range is left exactly as it was
+  });
+
   it("changes nothing when there is nothing to move", () => {
     const s = section();
-    absorbLinkEntries([s]);
-    expect(absorbLinkEntries([s])).toBe(0);
+    absorbLegacyTypes([s]);
+    expect(absorbLegacyTypes([s])).toBe(0);
+  });
+});
+
+describe("converting a decimal property", () => {
+  it("moves every entry for the key and records the shared type", () => {
+    const s = {
+      layouts: {
+        character: {
+          sections: [
+            { id: "s1", title: "A", entries: [{ id: "e1", kind: "prop", key: "Height", dataType: "decimal" }] },
+          ],
+        },
+        beast: {
+          sections: [
+            { id: "s2", title: "B", entries: [{ id: "e2", kind: "prop", key: "height", dataType: "decimal" }] },
+          ],
+        },
+      },
+      inlineEntries: { height: { id: "i1", kind: "prop", key: "Height", dataType: "decimal" } },
+    } as unknown as EPSettings;
+    expect(convertDecimalToNumber(s, "Height")).toBe(3);
+    expect(s.propTypes?.height).toBe("number");
+    for (const e of [
+      s.layouts.character.sections[0].entries[0],
+      s.layouts.beast.sections[0].entries[0],
+      s.inlineEntries!.height,
+    ]) {
+      expect(e.dataType).toBe("number");
+      expect(e.fractions).toBe(true);
+    }
+  });
+
+  it("is safe to run twice, and does nothing without a key", () => {
+    const s = {
+      layouts: { character: { sections: [{ id: "s", title: "A", entries: [{ id: "e", kind: "prop", key: "Height", dataType: "decimal" }] }] } },
+    } as unknown as EPSettings;
+    convertDecimalToNumber(s, "Height");
+    const before = JSON.stringify(s);
+    convertDecimalToNumber(s, "Height");
+    expect(JSON.stringify(s)).toBe(before);
+    expect(convertDecimalToNumber(s, " ")).toBe(0);
   });
 });

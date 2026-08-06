@@ -30,7 +30,6 @@ export interface CoreFeature {
  * fallback renderer and the numeric systems - and are always registered.
  */
 export const TYPE_FEATURES: CoreFeature[] = [
-  { id: "decimal", typeIds: ["decimal"] },
   { id: "derived", typeIds: ["derived"] }, // + the modifier system
   { id: "list", typeIds: ["list"] },
   { id: "checkbox", typeIds: ["checkbox"] },

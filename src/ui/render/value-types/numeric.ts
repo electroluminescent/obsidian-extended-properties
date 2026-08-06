@@ -8,7 +8,7 @@
  * roll button this way.
  */
 
-import { Menu, setIcon, Setting } from "obsidian";
+import { Menu, Notice, setIcon, Setting } from "obsidian";
 import type { EntryRenderCtx, EntryRef, OptionsCtx } from "../../../core/context";
 import type { ClusterNeeds, ValueTypeDef } from "../../../core/registry";
 import { compileFormula, invertFormula } from "../../../utils/formula";
@@ -19,13 +19,28 @@ import { applyValidity } from "../validity";
 import { addonsFor, mergeNeeds, emptyFlags } from "../cluster";
 import { TextPromptModal } from "../../modals/dialogs";
 import { addIconSetting } from "../../components/setting-helpers";
+import { convertDecimalToNumber } from "../../../core/layout-ops";
 
 type NumericKind = "number" | "decimal" | "formula";
 
-/** Range fallbacks per kind (legacy behavior). */
-function defaultRange(kind: NumericKind): { min: number; max: number } {
+/**
+ * Whether this value keeps its fractions. The decimal type is a number that
+ * does (which is all the type ever was); "formula" always does; and a number
+ * shown through a unit factor has to, or a converted value would be rounded
+ * away.
+ */
+function wantsFractions(kind: NumericKind, entry: { fractions?: boolean }): boolean {
+  return kind === "decimal" || kind === "formula" || entry.fractions === true;
+}
+
+/**
+ * Range fallbacks, used only where neither the entry nor the vault's own
+ * values say otherwise. A fractional value falls back to 0-1 as the decimal
+ * type always did, so moving a property to Number does not stretch its slider.
+ */
+function defaultRange(kind: NumericKind, entry: { fractions?: boolean }): { min: number; max: number } {
   if (kind === "formula") return { min: 0, max: 10 };
-  if (kind === "decimal") return { min: 0, max: 1 };
+  if (wantsFractions(kind, entry)) return { min: 0, max: 1 };
   return { min: -9999, max: 99999 };
 }
 
@@ -56,10 +71,10 @@ function curveInvert(curve: string | undefined, u: number): number {
  */
 function effectiveRange(
   kind: NumericKind,
-  entry: { min?: number; max?: number },
+  entry: { min?: number; max?: number; fractions?: boolean },
   vault: { min: number; max: number } | null
 ): { min: number; max: number } {
-  const range = defaultRange(kind);
+  const range = defaultRange(kind, entry);
   let min = entry.min ?? vault?.min ?? range.min;
   let max = entry.max ?? vault?.max ?? range.max;
   if (max <= min) {
@@ -82,7 +97,6 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
   const { view, file, entry } = ctx;
   const key = entry.key as string;
   const isFormula = kind === "formula";
-  const isDecimal = kind === "decimal";
   const vault = entry.min === undefined || entry.max === undefined ? view.props.numberRange(key) : null;
   const { min, max } = effectiveRange(kind, entry, vault);
   const label = entry.alias ?? key;
@@ -104,7 +118,7 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
     steppers: wantSteppers(kind, entry),
     min: min * factor,
     max: max * factor,
-    float: isDecimal || isFormula || factor !== 1,
+    float: wantsFractions(kind, entry) || factor !== 1,
     clamp: !!entry.clamp,
     commit: (v) => {
       const raw = v / factor;
@@ -265,7 +279,7 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
     knob.setAttr("aria-valuemin", String(min));
     knob.setAttr("aria-valuemax", String(max));
 
-    const fmt = (v: number): number => (isDecimal || isFormula ? v : Math.round(v));
+    const fmt = (v: number): number => (wantsFractions(kind, entry) ? v : Math.round(v));
     const pctForValue = (v: number): number => (span <= 0 ? 0 : clamp((toPosition(v) - min) / span, 0, 1) * 100);
     const place = (v: number): void => {
       slider.setCssProps({ "--ep-knob": pctForValue(v) + "%" });
@@ -350,6 +364,37 @@ function renderOptions(kind: NumericKind, octx: OptionsCtx): void {
       octx.redraw();
     });
   });
+  if (kind === "number") {
+    // What the decimal type was: a number that keeps its fractions.
+    new Setting(c)
+      .setName(t("options.fractions"))
+      .setDesc(t("options.fractionsDesc"))
+      .addToggle((tg) => {
+        tg.setValue(entry.fractions === true).onChange((v) => {
+          entry.fractions = v || undefined;
+          changed();
+        });
+      });
+  }
+  if (kind === "decimal") {
+    // The type has been absorbed by Number; a property still carrying it
+    // works as before and can move across without changing anything.
+    c.createDiv({ cls: "ep-moved-note", text: t("options.decimalMoved") });
+    new Setting(c)
+      .setName(t("options.convertToNumber"))
+      .setDesc(t("options.convertToNumberDesc"))
+      .addButton((b) => {
+        b.setButtonText(t("options.convertToNumberBtn")).onClick(() => {
+          const key = entry.key as string;
+          if (!key) return;
+          const n = convertDecimalToNumber(view.settings, key);
+          changed();
+          view.rerender();
+          octx.redraw();
+          new Notice(t("options.convertedToNumber", { key, count: String(n) }));
+        });
+      });
+  }
   if (kind === "number" || kind === "decimal") {
     new Setting(c)
       .setName(t("options.ratingToggle"))
@@ -492,7 +537,7 @@ function renderOptions(kind: NumericKind, octx: OptionsCtx): void {
 function menuItems(kind: NumericKind, menu: Menu, ref: EntryRef): void {
   const { view, file, entry } = ref;
   const key = entry.key as string;
-  const float = kind === "decimal" || kind === "formula";
+  const float = wantsFractions(kind, entry);
   menu.addItem((i) =>
     i.setTitle(view.i18n.t("entry.menu.editValue")).setIcon("pencil").onClick(() =>
       new TextPromptModal(
@@ -525,7 +570,12 @@ function makeNumericType(kind: NumericKind, nameKey: string): ValueTypeDef {
 }
 
 export const numberType = makeNumericType("number", "type.number");
-export const decimalType = makeNumericType("decimal", "type.decimal");
+export const decimalType: ValueTypeDef = {
+  ...makeNumericType("decimal", "type.decimalMoved"),
+  // Absorbed by the number type ("allow fractions"), which is all this type
+  // ever was: hidden from the dropdowns, still rendering what carries it.
+  deprecated: true,
+};
 export const formulaType = makeNumericType("formula", "type.formula");
 
 /** Shared by the entry renderer to know which types are numeric. */

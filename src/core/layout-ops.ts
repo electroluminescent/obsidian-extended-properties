@@ -63,22 +63,51 @@ export function convertLinkToText(settings: EPSettings, key: string, source: Cho
 }
 
 /**
- * Move any link-typed entries in `sections` across to text, for entries that
- * arrive after the schema migration has run: an imported layout or section, a
- * layout file written by an older version, a restored snapshot. Returns how
- * many were moved.
+ * Turn a decimal property into a number that keeps its fractions - the same
+ * field, since that is all the decimal type ever was. The range it falls back
+ * to follows the switch, so nothing has to be written onto the entry to keep
+ * a slider where it was.
+ *
+ * Shared per key, like every data type: see {@link convertLinkToText}.
+ */
+export function convertDecimalToNumber(settings: EPSettings, key: string): number {
+  const kl = key.trim().toLowerCase();
+  if (!kl) return 0;
+  setSharedDataType(settings, key, "number");
+  let n = 0;
+  const convert = (e: Entry | undefined): void => {
+    if (!e || e.kind !== "prop" || (e.key ?? "").toLowerCase() !== kl) return;
+    e.fractions = true;
+    n++;
+  };
+  for (const lk of Object.keys(settings.layouts ?? {}))
+    for (const s of settings.layouts[lk].sections ?? []) for (const e of s.entries ?? []) convert(e);
+  for (const k of Object.keys(settings.inlineEntries ?? {})) convert(settings.inlineEntries?.[k]);
+  return n;
+}
+
+/**
+ * Move entries carrying an absorbed type across, for entries that arrive after
+ * the schema migration has run: an imported layout or section, a layout file
+ * written by an older version, a restored snapshot. Returns how many moved.
  *
  * Per-entry rather than per-key, because these entries are not in the settings
  * yet - the shared type map is stamped when they land.
  */
-export function absorbLinkEntries(sections: Section[]): number {
+export function absorbLegacyTypes(sections: Section[]): number {
   let n = 0;
   for (const s of sections ?? [])
     for (const e of s.entries ?? []) {
-      if (e.kind !== "prop" || e.dataType !== "link") continue;
-      e.dataType = "text";
-      e.choices = { ...(e.choices ?? {}), linksToNotes: true };
-      n++;
+      if (e.kind !== "prop") continue;
+      if (e.dataType === "link") {
+        e.dataType = "text";
+        e.choices = { ...(e.choices ?? {}), linksToNotes: true };
+        n++;
+      } else if (e.dataType === "decimal") {
+        e.dataType = "number";
+        e.fractions = true;
+        n++;
+      }
     }
   return n;
 }

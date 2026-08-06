@@ -258,6 +258,14 @@ var en_default = {
   "grid.removeRowHint": "Remove this row",
   "type.text": "text",
   "type.number": "number",
+  "options.fractions": "Allow fractions",
+  "options.fractionsDesc": "Keep decimal places instead of rounding to whole numbers.",
+  "options.decimalMoved": "The Decimal type has moved into Number, which keeps fractions when told to. Existing decimal properties keep working; move this one across when convenient.",
+  "options.convertToNumber": "Move to the Number type",
+  "options.convertToNumberDesc": 'Decimal is being folded into Number. Moving turns on "Allow fractions" and changes nothing else - the range, slider and rolls stay as they are. The data type is shared, so this applies to this property everywhere.',
+  "options.convertToNumberBtn": "Convert to Number",
+  "options.convertedToNumber": '"{key}" is now a number that keeps fractions ({count} updated).',
+  "type.decimalMoved": "Decimal (moved to Number)",
   "type.decimal": "decimal",
   "type.derived": "derived",
   "roll.partMod": "modifier",
@@ -1860,15 +1868,38 @@ function convertLinkToText(settings, key, source) {
   for (const k of Object.keys((_d = settings.inlineEntries) != null ? _d : {})) convert((_e = settings.inlineEntries) == null ? void 0 : _e[k]);
   return n;
 }
-function absorbLinkEntries(sections) {
+function convertDecimalToNumber(settings, key) {
+  var _a, _b, _c, _d, _e;
+  const kl = key.trim().toLowerCase();
+  if (!kl) return 0;
+  setSharedDataType(settings, key, "number");
+  let n = 0;
+  const convert = (e) => {
+    var _a2;
+    if (!e || e.kind !== "prop" || ((_a2 = e.key) != null ? _a2 : "").toLowerCase() !== kl) return;
+    e.fractions = true;
+    n++;
+  };
+  for (const lk of Object.keys((_a = settings.layouts) != null ? _a : {}))
+    for (const s of (_b = settings.layouts[lk].sections) != null ? _b : []) for (const e of (_c = s.entries) != null ? _c : []) convert(e);
+  for (const k of Object.keys((_d = settings.inlineEntries) != null ? _d : {})) convert((_e = settings.inlineEntries) == null ? void 0 : _e[k]);
+  return n;
+}
+function absorbLegacyTypes(sections) {
   var _a, _b;
   let n = 0;
   for (const s of sections != null ? sections : [])
     for (const e of (_a = s.entries) != null ? _a : []) {
-      if (e.kind !== "prop" || e.dataType !== "link") continue;
-      e.dataType = "text";
-      e.choices = { ...(_b = e.choices) != null ? _b : {}, linksToNotes: true };
-      n++;
+      if (e.kind !== "prop") continue;
+      if (e.dataType === "link") {
+        e.dataType = "text";
+        e.choices = { ...(_b = e.choices) != null ? _b : {}, linksToNotes: true };
+        n++;
+      } else if (e.dataType === "decimal") {
+        e.dataType = "number";
+        e.fractions = true;
+        n++;
+      }
     }
   return n;
 }
@@ -2285,7 +2316,7 @@ function normalizeSettings(raw, defaultLayout) {
   }
   return s;
 }
-var CURRENT_SCHEMA = 4;
+var CURRENT_SCHEMA = 5;
 var SCHEMA_MIGRATIONS = [
   {
     to: 1,
@@ -2382,6 +2413,24 @@ var SCHEMA_MIGRATIONS = [
         for (const sec of (_b = s.layouts[lk].sections) != null ? _b : []) for (const e of (_c = sec.entries) != null ? _c : []) each(e);
       for (const k of Object.keys((_d = s.inlineEntries) != null ? _d : {})) each((_e = s.inlineEntries) == null ? void 0 : _e[k]);
       return changed;
+    }
+  },
+  {
+    to: 5,
+    name: "decimal-into-number",
+    run: (s) => {
+      var _a, _b, _c, _d, _e, _f;
+      const keys = /* @__PURE__ */ new Set();
+      for (const [k, t] of Object.entries((_a = s.propTypes) != null ? _a : {})) if (t === "decimal") keys.add(k);
+      const each = (e) => {
+        if ((e == null ? void 0 : e.kind) === "prop" && e.key && e.dataType === "decimal") keys.add(e.key.toLowerCase());
+      };
+      for (const lk of Object.keys((_b = s.layouts) != null ? _b : {}))
+        for (const sec of (_c = s.layouts[lk].sections) != null ? _c : []) for (const e of (_d = sec.entries) != null ? _d : []) each(e);
+      for (const k of Object.keys((_e = s.inlineEntries) != null ? _e : {})) each((_f = s.inlineEntries) == null ? void 0 : _f[k]);
+      if (!keys.size) return false;
+      for (const k of keys) convertDecimalToNumber(s, k);
+      return true;
     }
   }
 ];
@@ -5275,9 +5324,12 @@ function buildCluster(head, flags, o, bindOpen) {
 }
 
 // src/ui/render/value-types/numeric.ts
-function defaultRange(kind) {
+function wantsFractions(kind, entry) {
+  return kind === "decimal" || kind === "formula" || entry.fractions === true;
+}
+function defaultRange(kind, entry) {
   if (kind === "formula") return { min: 0, max: 10 };
-  if (kind === "decimal") return { min: 0, max: 1 };
+  if (wantsFractions(kind, entry)) return { min: 0, max: 1 };
   return { min: -9999, max: 99999 };
 }
 function wantSteppers(kind, entry) {
@@ -5296,7 +5348,7 @@ function curveInvert(curve, u) {
 }
 function effectiveRange(kind, entry, vault) {
   var _a, _b, _c, _d, _e, _f;
-  const range = defaultRange(kind);
+  const range = defaultRange(kind, entry);
   let min = (_b = (_a = entry.min) != null ? _a : vault == null ? void 0 : vault.min) != null ? _b : range.min;
   let max = (_d = (_c = entry.max) != null ? _c : vault == null ? void 0 : vault.max) != null ? _d : range.max;
   if (max <= min) {
@@ -5316,7 +5368,6 @@ function render(kind, ctx2) {
   const { view, file, entry } = ctx2;
   const key = entry.key;
   const isFormula = kind === "formula";
-  const isDecimal = kind === "decimal";
   const vault = entry.min === void 0 || entry.max === void 0 ? view.props.numberRange(key) : null;
   const { min, max } = effectiveRange(kind, entry, vault);
   const label = (_a = entry.alias) != null ? _a : key;
@@ -5332,7 +5383,7 @@ function render(kind, ctx2) {
     steppers: wantSteppers(kind, entry),
     min: min * factor,
     max: max * factor,
-    float: isDecimal || isFormula || factor !== 1,
+    float: wantsFractions(kind, entry) || factor !== 1,
     clamp: !!entry.clamp,
     commit: (v) => {
       const raw = v / factor;
@@ -5463,7 +5514,7 @@ function render(kind, ctx2) {
     knob.setAttr("role", "slider");
     knob.setAttr("aria-valuemin", String(min));
     knob.setAttr("aria-valuemax", String(max));
-    const fmt = (v) => isDecimal || isFormula ? v : Math.round(v);
+    const fmt = (v) => wantsFractions(kind, entry) ? v : Math.round(v);
     const pctForValue = (v) => span <= 0 ? 0 : clamp((toPosition(v) - min) / span, 0, 1) * 100;
     const place = (v) => {
       slider.setCssProps({ "--ep-knob": pctForValue(v) + "%" });
@@ -5552,6 +5603,28 @@ function renderOptions(kind, octx) {
       octx.redraw();
     });
   });
+  if (kind === "number") {
+    new import_obsidian13.Setting(c).setName(t("options.fractions")).setDesc(t("options.fractionsDesc")).addToggle((tg) => {
+      tg.setValue(entry.fractions === true).onChange((v) => {
+        entry.fractions = v || void 0;
+        changed();
+      });
+    });
+  }
+  if (kind === "decimal") {
+    c.createDiv({ cls: "ep-moved-note", text: t("options.decimalMoved") });
+    new import_obsidian13.Setting(c).setName(t("options.convertToNumber")).setDesc(t("options.convertToNumberDesc")).addButton((b) => {
+      b.setButtonText(t("options.convertToNumberBtn")).onClick(() => {
+        const key = entry.key;
+        if (!key) return;
+        const n = convertDecimalToNumber(view.settings, key);
+        changed();
+        view.rerender();
+        octx.redraw();
+        new import_obsidian13.Notice(t("options.convertedToNumber", { key, count: String(n) }));
+      });
+    });
+  }
   if (kind === "number" || kind === "decimal") {
     new import_obsidian13.Setting(c).setName(t("options.ratingToggle")).setDesc(t("options.ratingToggleDesc")).addToggle((tg) => {
       tg.setValue(!!entry.rating).onChange((v) => {
@@ -5669,7 +5742,7 @@ function renderOptions(kind, octx) {
 function menuItems(kind, menu, ref) {
   const { view, file, entry } = ref;
   const key = entry.key;
-  const float = kind === "decimal" || kind === "formula";
+  const float = wantsFractions(kind, entry);
   menu.addItem(
     (i) => i.setTitle(view.i18n.t("entry.menu.editValue")).setIcon("pencil").onClick(
       () => new TextPromptModal(
@@ -5700,7 +5773,12 @@ function makeNumericType(kind, nameKey) {
   };
 }
 var numberType = makeNumericType("number", "type.number");
-var decimalType = makeNumericType("decimal", "type.decimal");
+var decimalType = {
+  ...makeNumericType("decimal", "type.decimalMoved"),
+  // Absorbed by the number type ("allow fractions"), which is all this type
+  // ever was: hidden from the dropdowns, still rendering what carries it.
+  deprecated: true
+};
 var formulaType = makeNumericType("formula", "type.formula");
 
 // src/ui/render/modifier-addon.ts
@@ -8169,7 +8247,6 @@ var tocKind = {
 // src/core/features.ts
 var featureOn = (settings, id) => settings.features[id] !== false;
 var TYPE_FEATURES = [
-  { id: "decimal", typeIds: ["decimal"] },
   { id: "derived", typeIds: ["derived"] },
   // + the modifier system
   { id: "list", typeIds: ["list"] },
@@ -8203,7 +8280,7 @@ function registerCore(ctx2, settings) {
   const on = (id) => featureOn(settings, id);
   r.valueTypes.add(textType);
   r.valueTypes.add(numberType);
-  if (on("decimal")) r.valueTypes.add(decimalType);
+  r.valueTypes.add(decimalType);
   if (on("derived")) r.valueTypes.add(derivedType);
   if (on("list")) r.valueTypes.add(listType);
   if (on("checkbox")) r.valueTypes.add(checkboxType);
@@ -9864,7 +9941,7 @@ function freshSection(section) {
   const s = clone(section);
   s.id = genId();
   for (const e of s.entries) e.id = genId();
-  absorbLinkEntries([s]);
+  absorbLegacyTypes([s]);
   return s;
 }
 function freshSections(doc) {
@@ -17416,7 +17493,7 @@ var builders = {
     dividers: true,
     entries: [
       prop("Age", { dataType: "number", min: 0, unit: "yrs" }),
-      prop("Height", { dataType: "decimal", min: 0, unit: "ft" }),
+      prop("Height", { dataType: "number", fractions: true, min: 0, unit: "ft" }),
       prop("Weight", { dataType: "number", min: 0, unit: "lb" }),
       prop("Eyes", { dataType: "color" }),
       prop("Skin", { dataType: "color" }),
@@ -18995,7 +19072,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian49.Plugin {
     if (this.settings.layoutVault === true) {
       const fromFiles = await this.layoutStore.readAll();
       for (const k of Object.keys(fromFiles)) {
-        absorbLinkEntries((_c = fromFiles[k].sections) != null ? _c : []);
+        absorbLegacyTypes((_c = fromFiles[k].sections) != null ? _c : []);
         this.settings.layouts[k] = fromFiles[k];
       }
     }

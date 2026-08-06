@@ -31,7 +31,9 @@ export function registerCore(ctx: FeatureContext, settings: EPSettings): void {
   // Value types (dropdown order).
   r.valueTypes.add(textType);
   r.valueTypes.add(numberType);
-  if (on("decimal")) r.valueTypes.add(decimalType);
+  // Always registered, never offered: absorbed by number ("allow fractions"),
+  // and a layout that still carries it must keep rendering.
+  r.valueTypes.add(decimalType);
   if (on("derived")) r.valueTypes.add(derivedType);
   if (on("list")) r.valueTypes.add(listType);
   if (on("checkbox")) r.valueTypes.add(checkboxType);

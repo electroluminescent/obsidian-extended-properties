@@ -227,7 +227,7 @@ const builders: Record<string, (i18n: I18n) => Section> = {
     dividers: true,
     entries: [
       prop("Age", { dataType: "number", min: 0, unit: "yrs" }),
-      prop("Height", { dataType: "decimal", min: 0, unit: "ft" }),
+      prop("Height", { dataType: "number", fractions: true, min: 0, unit: "ft" }),
       prop("Weight", { dataType: "number", min: 0, unit: "lb" }),
       prop("Eyes", { dataType: "color" }),
       prop("Skin", { dataType: "color" }),
