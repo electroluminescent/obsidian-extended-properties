@@ -93,6 +93,14 @@ export interface EntryBase {
   slider?: boolean;
   /** Slider response: "linear" (default), "root", or "exp". */
   sliderCurve?: string;
+  /** Interval between primary scale lines on the slider / date timeline. */
+  tickMajor?: number;
+  /** Interval between secondary lines; one under a primary is not drawn. */
+  tickMinor?: number;
+  /** Pull a dragged or stepped value onto the nearest line. */
+  snapTicks?: boolean;
+  /** How far a value may be pulled (default 0.5, capped at half the interval). */
+  snapRange?: number;
   /** Hide the -/+ stepper buttons when false (default: shown). */
   steppers?: boolean;
   /** Unset min/max default to the property's range across all notes. */

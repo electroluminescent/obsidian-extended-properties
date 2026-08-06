@@ -28,6 +28,8 @@ import { Menu, Notice, Setting } from "obsidian";
 import type { EntryRenderCtx, EntryRef, OptionsCtx, ViewCtx } from "../../../core/context";
 import type { ValueTypeDef } from "../../../core/registry";
 import { ext } from "../../../core/model";
+import { ticksFor } from "../../../utils/ticks";
+import { renderTickSettings } from "./numeric";
 import {
   DateConfig, DateParts, DEFAULT_DATE_FORMAT, decodeSerial, encodeSerial, formatDate, monthName,
   parseDateFlexible, systemOf, translateSerial,
@@ -279,6 +281,7 @@ function render(ctx: EntryRenderCtx): void {
   if (e.slider) {
     const plot = ctx.extra.createDiv({ cls: "ep-dateplot" });
     plot.createDiv({ cls: "ep-dateplot-track" });
+    const gridEl = plot.createDiv({ cls: "ep-dateplot-grid" });
     const marker = plot.createDiv({ cls: "ep-dateplot-marker" });
     const ticksEl = plot.createDiv({ cls: "ep-dateplot-ticks" });
     let pop: HTMLElement | null = null;
@@ -320,6 +323,13 @@ function render(ctx: EntryRenderCtx): void {
       if (!range) return;
       const span = range.max - range.min;
       const pct = (s: number): number => Math.max(0, Math.min(1, (s - range.min) / span)) * 100;
+      // Scale lines at the entry's intervals, in days, drawn under everything
+      // the plot puts on the track (see `utils/ticks`).
+      gridEl.empty();
+      for (const g of ticksFor(range.min, range.max, Number(entry.tickMajor), Number(entry.tickMinor))) {
+        const line = gridEl.createDiv({ cls: g.major ? "ep-tick ep-tick-major" : "ep-tick" });
+        line.setCssStyles({ left: pct(g.value) + "%" });
+      }
       // Group other notes by their date so shared dates make ONE tick.
       const groups = new Map<number, { parts: DateParts; files: { path: string; basename: string }[] }>();
       for (const { file, value } of view.props.entriesFor(key)) {
@@ -385,8 +395,12 @@ function renderOptions(octx: OptionsCtx): void {
     tg.setValue(!!e.slider).onChange((v) => {
       e.slider = v || undefined;
       changed();
+      octx.redraw();
     });
   });
+  // Scale lines on the timeline, in days - the same fields the slider uses,
+  // minus the snapping, which belongs to something you can drag.
+  if (e.slider) renderTickSettings(octx, { snap: false });
   new Setting(c)
     .setName(t("options.minimum"))
     .setDesc(t("options.dateRangeAuto"))

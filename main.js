@@ -501,6 +501,14 @@ var en_default = {
   "options.dataType": "Data type",
   "options.dataTypeDesc": "Defaults to the Obsidian property type",
   "options.numberHeading": "Number & slider",
+  "options.tickMajor": "Primary line interval",
+  "options.tickMajorDesc": "Draw a line every so many units along the scale. Empty = none.",
+  "options.tickMinor": "Secondary line interval",
+  "options.tickMinorDesc": "A fainter line at its own interval. Where one falls on a primary line, only the primary is drawn.",
+  "options.snapTicks": "Snap to the lines",
+  "options.snapTicksDesc": "Dragging or stepping settles on the nearest line when it is close enough.",
+  "options.snapRange": "Snap within",
+  "options.snapRangeDesc": "How far a value may be pulled onto a line. Default 0.5, and at most {max} here - half the finest interval, beyond which every value is already on a line.",
   "options.showSlider": "Show slider",
   "options.ratingToggle": "Rating icons",
   "options.ratingToggleDesc": "Show the value as clickable icons instead of the slider. The icon count is the Maximum above; a negative Minimum adds its own red icons left of the positives. There is no zero icon - zero is every icon clicked off.",
@@ -3164,10 +3172,10 @@ var PropertyIndex = class {
   filesWithValue(key, value, ci = false) {
     const out = [];
     const want = ci ? value.toLowerCase() : value;
-    const same = (x) => (ci ? String(x).toLowerCase() : String(x)) === want;
+    const same2 = (x) => (ci ? String(x).toLowerCase() : String(x)) === want;
     for (const { file, fm } of this.snapshots()) {
       const v = fm ? getCI(fm, key) : void 0;
-      const has = Array.isArray(v) ? v.some(same) : v !== void 0 && v !== null && same(v);
+      const has = Array.isArray(v) ? v.some(same2) : v !== void 0 && v !== null && same2(v);
       if (has) out.push(file);
     }
     return out;
@@ -5298,6 +5306,52 @@ var textType = {
 // src/ui/render/value-types/numeric.ts
 var import_obsidian13 = require("obsidian");
 
+// src/utils/ticks.ts
+var MAX_TICKS = 400;
+function same(a, b, span) {
+  return Math.abs(a - b) <= (span || 1) * 1e-9;
+}
+function marks(min, max, step) {
+  const out = [];
+  if (!(step > 0) || !(max > min)) return out;
+  if ((max - min) / step > MAX_TICKS) return out;
+  const first = Math.ceil(min / step);
+  for (let i = first; ; i++) {
+    const v = i * step;
+    if (v > max + step * 1e-9) break;
+    if (v >= min - step * 1e-9) out.push(v);
+  }
+  return out;
+}
+function ticksFor(min, max, major, minor) {
+  const span = max - min;
+  const majors = marks(min, max, Number(major) || 0);
+  const out = majors.map((value) => ({ value, major: true }));
+  for (const value of marks(min, max, Number(minor) || 0)) {
+    if (majors.some((m) => same(m, value, span))) continue;
+    out.push({ value, major: false });
+  }
+  return out.sort((a, b) => a.value - b.value);
+}
+function maxSnapRange(major, minor) {
+  const steps = [Number(major) || 0, Number(minor) || 0].filter((s) => s > 0);
+  return steps.length ? Math.min(...steps) / 2 : 0;
+}
+function snapValue(v, ticks, range) {
+  if (!(range > 0) || !ticks.length) return v;
+  let best = null;
+  let bestDist = Infinity;
+  for (const t of ticks) {
+    const d = Math.abs(t.value - v);
+    if (d > range) continue;
+    if (d < bestDist || d === bestDist && t.major && !(best == null ? void 0 : best.major)) {
+      best = t;
+      bestDist = d;
+    }
+  }
+  return best ? best.value : v;
+}
+
 // src/ui/render/cluster.ts
 function addonsFor(ref) {
   return ref.view.registries.clusterAddons.all().filter((a) => a.appliesTo(ref));
@@ -5396,6 +5450,7 @@ function fmtValue(kind, entry, n) {
   });
 }
 var DEFAULT_FRAC_MAX = 8;
+var DEFAULT_SNAP_RANGE = 0.5;
 function defaultRange(kind, entry) {
   if (kind === "formula") return { min: 0, max: 10 };
   if (wantsFractions(kind, entry)) return { min: 0, max: 1 };
@@ -5585,6 +5640,21 @@ function render(kind, ctx2) {
     knob.setAttr("aria-valuemax", String(max));
     const fmt = (v) => wantsFractions(kind, entry) ? v : Math.round(v);
     const pctForValue = (v) => span <= 0 ? 0 : clamp((toPosition(v) - min) / span, 0, 1) * 100;
+    const ticks = ticksFor(min, max, Number(entry.tickMajor), Number(entry.tickMinor));
+    if (ticks.length) {
+      const layer2 = slider.createDiv({ cls: "ep-slider2-ticks" });
+      for (const tk of ticks) {
+        const line = layer2.createDiv({ cls: tk.major ? "ep-tick ep-tick-major" : "ep-tick" });
+        line.setCssStyles({ left: pctForValue(tk.value) + "%" });
+      }
+    }
+    const snap = (v) => {
+      if (entry.snapTicks !== true) return v;
+      const cap = maxSnapRange(Number(entry.tickMajor), Number(entry.tickMinor));
+      const want = Number(entry.snapRange);
+      const range = Math.min(cap || 0, Number.isFinite(want) && want > 0 ? want : DEFAULT_SNAP_RANGE);
+      return snapValue(v, ticks, range);
+    };
     const place = (v) => {
       slider.setCssProps({ "--ep-knob": pctForValue(v) + "%" });
       knob.setAttr("aria-valuenow", String(fmt(v)));
@@ -5597,7 +5667,7 @@ function render(kind, ctx2) {
       var _a2;
       const r = slider.getBoundingClientRect();
       const t = r.width <= 0 ? 0 : clamp((clientX - r.left) / r.width, 0, 1);
-      let out = toValue(min + t * span);
+      let out = snap(toValue(min + t * span));
       if (!isFormula && entry.clamp) out = clamp(out, min, max);
       pending2 = fmt(out);
       place(pending2);
@@ -5646,6 +5716,7 @@ function render(kind, ctx2) {
       else if (e.key === "ArrowRight" || e.key === "ArrowUp") v += step;
       else return;
       e.preventDefault();
+      v = snap(v);
       if (entry.clamp) v = clamp(v, min, max);
       view.note.set(file, key, fmt(v));
     });
@@ -5658,6 +5729,41 @@ function render(kind, ctx2) {
     syncKnob == null ? void 0 : syncKnob();
     checkValid();
   });
+}
+function renderTickSettings(octx, opts = {}) {
+  const { view, entry, container: c, changed, redraw } = octx;
+  const t = view.i18n.t.bind(view.i18n);
+  const num = (name, desc, get, set) => new import_obsidian13.Setting(c).setName(name).setDesc(desc).addText((tx) => {
+    tx.inputEl.type = "number";
+    tx.setValue(get() === void 0 ? "" : String(get()));
+    tx.onChange((v) => {
+      const n = Number(v);
+      set(v.trim() === "" || !Number.isFinite(n) || n <= 0 ? void 0 : n);
+      changed();
+      redraw();
+    });
+  });
+  num(t("options.tickMajor"), t("options.tickMajorDesc"), () => entry.tickMajor, (n) => entry.tickMajor = n);
+  num(t("options.tickMinor"), t("options.tickMinorDesc"), () => entry.tickMinor, (n) => entry.tickMinor = n);
+  const cap = maxSnapRange(Number(entry.tickMajor), Number(entry.tickMinor));
+  if (!cap || opts.snap === false) return;
+  new import_obsidian13.Setting(c).setName(t("options.snapTicks")).setDesc(t("options.snapTicksDesc")).addToggle((tg) => {
+    tg.setValue(entry.snapTicks === true).onChange((v) => {
+      entry.snapTicks = v || void 0;
+      changed();
+      redraw();
+    });
+  });
+  if (entry.snapTicks)
+    new import_obsidian13.Setting(c).setName(t("options.snapRange")).setDesc(t("options.snapRangeDesc", { max: String(Math.round(cap * 1e3) / 1e3) })).addText((tx) => {
+      tx.inputEl.type = "number";
+      tx.setValue(String(Number(entry.snapRange) > 0 ? entry.snapRange : DEFAULT_SNAP_RANGE));
+      tx.onChange((v) => {
+        const n = Number(v);
+        entry.snapRange = !Number.isFinite(n) || n <= 0 || n === DEFAULT_SNAP_RANGE ? void 0 : Math.min(cap, n);
+        changed();
+      });
+    });
 }
 function renderOptions(kind, octx) {
   var _a;
@@ -5672,6 +5778,7 @@ function renderOptions(kind, octx) {
       octx.redraw();
     });
   });
+  if (entry.slider || kind === "formula") renderTickSettings(octx, {});
   if (kind === "number") {
     new import_obsidian13.Setting(c).setName(t("options.wholeOnly")).setDesc(t("options.wholeOnlyDesc")).addToggle((tg) => {
       tg.setValue(entry.fractions !== true).onChange((v) => {
@@ -8026,6 +8133,7 @@ function render2(ctx2) {
   if (e.slider) {
     const plot = ctx2.extra.createDiv({ cls: "ep-dateplot" });
     plot.createDiv({ cls: "ep-dateplot-track" });
+    const gridEl = plot.createDiv({ cls: "ep-dateplot-grid" });
     const marker = plot.createDiv({ cls: "ep-dateplot-marker" });
     const ticksEl = plot.createDiv({ cls: "ep-dateplot-ticks" });
     let pop = null;
@@ -8067,6 +8175,11 @@ function render2(ctx2) {
       if (!range) return;
       const span = range.max - range.min;
       const pct = (s) => Math.max(0, Math.min(1, (s - range.min) / span)) * 100;
+      gridEl.empty();
+      for (const g of ticksFor(range.min, range.max, Number(entry.tickMajor), Number(entry.tickMinor))) {
+        const line = gridEl.createDiv({ cls: g.major ? "ep-tick ep-tick-major" : "ep-tick" });
+        line.setCssStyles({ left: pct(g.value) + "%" });
+      }
       const groups = /* @__PURE__ */ new Map();
       for (const { file: file2, value } of view.props.entriesFor(key)) {
         if (file2.path === ownPath) continue;
@@ -8124,8 +8237,10 @@ function renderOptions2(octx) {
     tg.setValue(!!e.slider).onChange((v) => {
       e.slider = v || void 0;
       changed();
+      octx.redraw();
     });
   });
+  if (e.slider) renderTickSettings(octx, { snap: false });
   new import_obsidian20.Setting(c).setName(t("options.minimum")).setDesc(t("options.dateRangeAuto")).addText((tx) => {
     var _a;
     tx.setPlaceholder(cfg.format);

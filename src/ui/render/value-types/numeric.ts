@@ -13,6 +13,7 @@ import type { EntryRenderCtx, EntryRef, OptionsCtx } from "../../../core/context
 import type { ClusterNeeds, ValueTypeDef } from "../../../core/registry";
 import { compileFormula, invertFormula } from "../../../utils/formula";
 import { clamp, fmtFraction, fmtNum } from "../../../utils/misc";
+import { maxSnapRange, snapValue, ticksFor } from "../../../utils/ticks";
 import { sfx } from "../../../utils/sound";
 import { shouldClamp, clampToConstraints } from "../../../core/validate";
 import { applyValidity } from "../validity";
@@ -61,6 +62,9 @@ interface FractionEntry {
 
 /** The largest denominator a fraction display uses unless told otherwise. */
 export const DEFAULT_FRAC_MAX = 8;
+
+/** How far a value is pulled onto a line unless told otherwise. */
+export const DEFAULT_SNAP_RANGE = 0.5;
 
 /**
  * Range fallbacks, used only where neither the entry nor the vault's own
@@ -310,6 +314,26 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
 
     const fmt = (v: number): number => (wantsFractions(kind, entry) ? v : Math.round(v));
     const pctForValue = (v: number): number => (span <= 0 ? 0 : clamp((toPosition(v) - min) / span, 0, 1) * 100);
+
+    // Scale lines. Primary and secondary at their own intervals, one pixel
+    // wide, with a secondary dropped wherever a primary lands on it. Drawn
+    // under the knob and never interactive - the knob owns every press.
+    const ticks = ticksFor(min, max, Number(entry.tickMajor), Number(entry.tickMinor));
+    if (ticks.length) {
+      const layer = slider.createDiv({ cls: "ep-slider2-ticks" });
+      for (const tk of ticks) {
+        const line = layer.createDiv({ cls: tk.major ? "ep-tick ep-tick-major" : "ep-tick" });
+        line.setCssStyles({ left: pctForValue(tk.value) + "%" });
+      }
+    }
+    /** Pull a dragged or stepped value onto a line, when asked to. */
+    const snap = (v: number): number => {
+      if (entry.snapTicks !== true) return v;
+      const cap = maxSnapRange(Number(entry.tickMajor), Number(entry.tickMinor));
+      const want = Number(entry.snapRange);
+      const range = Math.min(cap || 0, Number.isFinite(want) && want > 0 ? want : DEFAULT_SNAP_RANGE);
+      return snapValue(v, ticks, range);
+    };
     const place = (v: number): void => {
       slider.setCssProps({ "--ep-knob": pctForValue(v) + "%" });
       knob.setAttr("aria-valuenow", String(fmt(v)));
@@ -322,7 +346,7 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
     const drag = (clientX: number): void => {
       const r = slider.getBoundingClientRect();
       const t = r.width <= 0 ? 0 : clamp((clientX - r.left) / r.width, 0, 1);
-      let out = toValue(min + t * span);
+      let out = snap(toValue(min + t * span));
       if (!isFormula && entry.clamp) out = clamp(out, min, max);
       pending = fmt(out);
       place(pending); // knob snaps to the (rounded) value's position
@@ -365,6 +389,7 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
       else if (e.key === "ArrowRight" || e.key === "ArrowUp") v += step;
       else return;
       e.preventDefault();
+      v = snap(v);
       if (entry.clamp) v = clamp(v, min, max);
       view.note.set(file, key, fmt(v));
     });
@@ -381,6 +406,56 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
 }
 
 /** Shared options UI (slider, range, clamp; formula gets its expression box). */
+/**
+ * Scale lines and snapping, shared by the slider here and the date timeline
+ * (which reads the same entry fields, in days).
+ */
+export function renderTickSettings(octx: OptionsCtx, opts: { snap?: boolean } = {}): void {
+  const { view, entry, container: c, changed, redraw } = octx;
+  const t = view.i18n.t.bind(view.i18n);
+  const num = (name: string, desc: string, get: () => number | undefined, set: (n: number | undefined) => void) =>
+    new Setting(c).setName(name).setDesc(desc).addText((tx) => {
+      tx.inputEl.type = "number";
+      tx.setValue(get() === undefined ? "" : String(get()));
+      tx.onChange((v) => {
+        const n = Number(v);
+        set(v.trim() === "" || !Number.isFinite(n) || n <= 0 ? undefined : n);
+        changed();
+        redraw();
+      });
+    });
+  num(t("options.tickMajor"), t("options.tickMajorDesc"), () => entry.tickMajor, (n) => (entry.tickMajor = n));
+  num(t("options.tickMinor"), t("options.tickMinorDesc"), () => entry.tickMinor, (n) => (entry.tickMinor = n));
+  const cap = maxSnapRange(Number(entry.tickMajor), Number(entry.tickMinor));
+  if (!cap || opts.snap === false) return; // nothing to snap to, or nothing to drag
+  new Setting(c)
+    .setName(t("options.snapTicks"))
+    .setDesc(t("options.snapTicksDesc"))
+    .addToggle((tg) => {
+      tg.setValue(entry.snapTicks === true).onChange((v) => {
+        entry.snapTicks = v || undefined;
+        changed();
+        redraw();
+      });
+    });
+  if (entry.snapTicks)
+    new Setting(c)
+      .setName(t("options.snapRange"))
+      .setDesc(t("options.snapRangeDesc", { max: String(Math.round(cap * 1000) / 1000) }))
+      .addText((tx) => {
+        tx.inputEl.type = "number";
+        tx.setValue(String(Number(entry.snapRange) > 0 ? entry.snapRange : DEFAULT_SNAP_RANGE));
+        tx.onChange((v) => {
+          const n = Number(v);
+          // Beyond half the interval every value is inside some line's reach,
+          // so the cap is where snapping stops meaning anything.
+          entry.snapRange =
+            !Number.isFinite(n) || n <= 0 || n === DEFAULT_SNAP_RANGE ? undefined : Math.min(cap, n);
+          changed();
+        });
+      });
+}
+
 function renderOptions(kind: NumericKind, octx: OptionsCtx): void {
   const { view, entry, container: c, changed } = octx;
   const t = view.i18n.t.bind(view.i18n);
@@ -393,6 +468,7 @@ function renderOptions(kind: NumericKind, octx: OptionsCtx): void {
       octx.redraw();
     });
   });
+  if (entry.slider || kind === "formula") renderTickSettings(octx, {});
   if (kind === "number") {
     // Whole numbers are the default; turning this off is what the decimal
     // type was. Stored the other way round (`fractions`), so an entry that

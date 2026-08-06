@@ -967,6 +967,10 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-sug-link { color: var(--text-accent); }
 
 /* -- skills type deprecation (F5) -------------------------------------------- */
+/* Scale lines on a slider or timeline: hairlines under the controls. */
+.ep-slider2-ticks, .ep-dateplot-grid { position: absolute; inset: 0; pointer-events: none; }
+.ep-tick { position: absolute; top: 50%; width: 1px; height: 7px; transform: translate(-0.5px, -50%); background: var(--background-modifier-border); opacity: .75; }
+.ep-tick-major { height: 12px; background: var(--text-faint); opacity: 1; }
 .ep-mini-list { margin: -6px 0 4px; }
 .ep-mini-list .ep-mini-row { padding: 3px 0; border: none; }
 .ep-mini-list .ep-mini-row .setting-item-info { display: none; }

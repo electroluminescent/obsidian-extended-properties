@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.42.0
+
+- **Scale lines on a slider and on the date timeline.** A primary and a
+  secondary interval, each yours to set, drawn as single-pixel verticals - the
+  primary taller and darker. Where a secondary line falls on a primary one,
+  only the primary is drawn. The timeline reads its intervals in days.
+- **Snap to the lines**, for sliders: dragging or stepping settles on the
+  nearest line when it is close enough. How close is yours to set, default
+  0.5, capped at half the finest interval - beyond that every value is already
+  within reach of a line, and snapping stops meaning anything.
+- Lines are drawn under the knob and take no presses, so nothing about
+  dragging changes, and a range too fine to draw (more lines than pixels) is
+  left blank rather than filled in.
+
 ## 4.41.0
 
 - **Show the denominator**, per property and on by default. Turn it off and
