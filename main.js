@@ -689,6 +689,17 @@ var en_default = {
   "settings.addTypeBtn": "+ {typeProp}",
   "settings.newTypePrompt": "New {typeProp} name",
   "settings.typeExists": "That {typeProp} already exists.",
+  "settings.unitsHeading": "Units",
+  "settings.unitsDesc": `A numeric field takes arithmetic and measurements - 12*3, '1'2" - 5cm, 3 lb + 12 oz - and works them out when you leave the field. Each quantity is kept in the unit chosen here, so that is what gets stored.`,
+  "quantity.length": "Length",
+  "quantity.mass": "Weight",
+  "quantity.volume": "Volume",
+  "quantity.area": "Area",
+  "quantity.pressure": "Pressure",
+  "quantity.energy": "Energy",
+  "quantity.power": "Power",
+  "quantity.time": "Time",
+  "quantity.speed": "Speed",
   "settings.defaultsHeading": "Defaults",
   "settings.defaultDataType": "Default data type",
   "settings.defaultDataTypeDesc": "For new properties with no Obsidian type",
@@ -2221,7 +2232,8 @@ var HANDLED_KEYS = /* @__PURE__ */ new Set([
   "rightHoldAction",
   "holdMs",
   "tabOpens",
-  "activation"
+  "activation",
+  "units"
 ]);
 function cleanTypes(raw) {
   return Array.isArray(raw) ? raw.filter((t) => typeof t === "string" && t.trim() !== "") : [];
@@ -2324,6 +2336,7 @@ function normalizeSettings(raw, defaultLayout) {
     }
     if (typeof data.holdMs === "number" && data.holdMs >= 100) s.holdMs = Math.min(5e3, Math.floor(data.holdMs));
     if (data.tabOpens === false) s.tabOpens = false;
+    if (data.units && typeof data.units === "object") s.units = data.units;
     if (data.activation && typeof data.activation === "object") {
       const act = {};
       for (const [k, v] of Object.entries(data.activation))
@@ -3771,15 +3784,21 @@ function focusEditableFrom(span, backwards) {
 }
 function openNumberInput(span, value, commit2, o) {
   const input = createEl("input", { cls: "ep-edit-input" });
-  input.type = "number";
+  if (o.evaluate) {
+    input.type = "text";
+    input.inputMode = "text";
+    input.spellcheck = false;
+  } else {
+    input.type = "number";
+    if (o.float) input.step = "any";
+  }
   input.value = fmtNum(value);
-  if (o.float) input.step = "any";
   span.replaceWith(input);
   input.focus();
   input.select();
   let done = false;
   const finish = (save) => {
-    var _a;
+    var _a, _b;
     if (done) return;
     done = true;
     if (input.parentElement) input.replaceWith(span);
@@ -3787,7 +3806,7 @@ function openNumberInput(span, value, commit2, o) {
       if (save) (_a = o.onEmpty) == null ? void 0 : _a.call(o);
       return;
     }
-    let n = Number(input.value);
+    let n = o.evaluate ? (_b = o.evaluate(input.value)) != null ? _b : NaN : Number(input.value);
     if (!Number.isFinite(n)) return;
     if (!o.float) n = Math.round(n);
     if (o.clamp) n = clamp(n, o.min, o.max);
@@ -5387,6 +5406,181 @@ function snapValue(v, ticks, range) {
   return best ? best.value : v;
 }
 
+// src/utils/units.ts
+var U = (id, label, quantity, system, factor, aliases) => ({ id, label, quantity, system, factor, aliases });
+var UNITS = [
+  // -- length (base: metre) --------------------------------------------------
+  U("m", "Metre (m)", "length", "metric", 1, ["m", "meter", "meters", "metre", "metres"]),
+  U("mm", "Millimetre (mm)", "length", "metric", 1e-3, ["mm", "millimetre", "millimetres", "millimeter", "millimeters"]),
+  U("cm", "Centimetre (cm)", "length", "metric", 0.01, ["cm", "centimetre", "centimetres", "centimeter", "centimeters"]),
+  U("km", "Kilometre (km)", "length", "metric", 1e3, ["km", "kilometre", "kilometres", "kilometer", "kilometers"]),
+  U("in", 'Inch (in, ")', "length", "imperial", 0.0254, ["in", "inch", "inches", '"', "\u2033"]),
+  U("ft", "Foot (ft, ')", "length", "imperial", 0.3048, ["ft", "foot", "feet", "'", "\u2032"]),
+  U("yd", "Yard (yd)", "length", "imperial", 0.9144, ["yd", "yard", "yards"]),
+  U("mi", "Mile (mi)", "length", "imperial", 1609.344, ["mi", "mile", "miles"]),
+  U("nmi", "Nautical mile (nmi)", "length", "other", 1852, ["nmi", "nauticalmile", "nauticalmiles"]),
+  // -- mass (base: kilogram) -------------------------------------------------
+  U("kg", "Kilogram (kg)", "mass", "metric", 1, ["kg", "kilo", "kilos", "kilogram", "kilograms"]),
+  U("mg", "Milligram (mg)", "mass", "metric", 1e-6, ["mg", "milligram", "milligrams"]),
+  U("g", "Gram (g)", "mass", "metric", 1e-3, ["g", "gram", "grams"]),
+  U("t", "Tonne (t)", "mass", "metric", 1e3, ["t", "tonne", "tonnes"]),
+  U("oz", "Ounce (oz)", "mass", "imperial", 0.028349523125, ["oz", "ounce", "ounces"]),
+  U("lb", "Pound (lb)", "mass", "imperial", 0.45359237, ["lb", "lbs", "pound", "pounds", "#"]),
+  U("st", "Stone (st)", "mass", "imperial", 6.35029318, ["st", "stone", "stones"]),
+  U("ton", "Short ton", "mass", "us", 907.18474, ["ton", "tons", "shortton"]),
+  // -- volume (base: litre) --------------------------------------------------
+  U("l", "Litre (L)", "volume", "metric", 1, ["l", "litre", "litres", "liter", "liters"]),
+  U("ml", "Millilitre (mL)", "volume", "metric", 1e-3, ["ml", "millilitre", "millilitres", "milliliter", "milliliters"]),
+  U("m3", "Cubic metre (m3)", "volume", "metric", 1e3, ["m3", "m^3", "cubicmetre", "cubicmeter"]),
+  U("tsp", "Teaspoon (tsp)", "volume", "us", 0.00492892159375, ["tsp", "teaspoon", "teaspoons"]),
+  U("tbsp", "Tablespoon (tbsp)", "volume", "us", 0.01478676478125, ["tbsp", "tablespoon", "tablespoons"]),
+  U("floz", "Fluid ounce (fl oz)", "volume", "us", 0.0295735295625, ["floz", "fluidounce", "fluidounces"]),
+  U("cup", "Cup", "volume", "us", 0.2365882365, ["cup", "cups"]),
+  U("pt", "Pint (pt)", "volume", "us", 0.473176473, ["pt", "pint", "pints"]),
+  U("qt", "Quart (qt)", "volume", "us", 0.946352946, ["qt", "quart", "quarts"]),
+  U("gal", "Gallon (gal)", "volume", "us", 3.785411784, ["gal", "gallon", "gallons"]),
+  U("impgal", "Imperial gallon", "volume", "imperial", 4.54609, ["impgal", "imperialgallon"]),
+  // -- area (base: square metre) --------------------------------------------
+  U("m2", "Square metre (m2)", "area", "metric", 1, ["m2", "m^2", "sqm", "squaremetre", "squaremeter"]),
+  U("cm2", "Square centimetre (cm2)", "area", "metric", 1e-4, ["cm2", "cm^2", "sqcm"]),
+  U("km2", "Square kilometre (km2)", "area", "metric", 1e6, ["km2", "km^2", "sqkm"]),
+  U("ha", "Hectare (ha)", "area", "metric", 1e4, ["ha", "hectare", "hectares"]),
+  U("in2", "Square inch (in2)", "area", "imperial", 64516e-8, ["in2", "in^2", "sqin"]),
+  U("ft2", "Square foot (ft2)", "area", "imperial", 0.09290304, ["ft2", "ft^2", "sqft"]),
+  U("yd2", "Square yard (yd2)", "area", "imperial", 0.83612736, ["yd2", "yd^2", "sqyd"]),
+  U("ac", "Acre (ac)", "area", "imperial", 4046.8564224, ["ac", "acre", "acres"]),
+  U("mi2", "Square mile (mi2)", "area", "imperial", 2589988110336e-6, ["mi2", "mi^2", "sqmi"]),
+  // -- pressure (base: pascal) ----------------------------------------------
+  U("pa", "Pascal (Pa)", "pressure", "metric", 1, ["pa", "pascal", "pascals"]),
+  U("kpa", "Kilopascal (kPa)", "pressure", "metric", 1e3, ["kpa", "kilopascal", "kilopascals"]),
+  U("mpa", "Megapascal (MPa)", "pressure", "metric", 1e6, ["mpa", "megapascal", "megapascals"]),
+  U("bar", "Bar", "pressure", "metric", 1e5, ["bar", "bars"]),
+  U("mbar", "Millibar (mbar)", "pressure", "metric", 100, ["mbar", "millibar", "millibars"]),
+  U("atm", "Atmosphere (atm)", "pressure", "other", 101325, ["atm", "atmosphere", "atmospheres"]),
+  U("psi", "Pound per square inch (psi)", "pressure", "imperial", 6894.757293168, ["psi"]),
+  U("mmhg", "Millimetre of mercury (mmHg)", "pressure", "other", 133.322387415, ["mmhg", "torr"]),
+  U("inhg", "Inch of mercury (inHg)", "pressure", "imperial", 3386.389, ["inhg"]),
+  // -- energy (base: joule) --------------------------------------------------
+  U("j", "Joule (J)", "energy", "metric", 1, ["j", "joule", "joules"]),
+  U("kj", "Kilojoule (kJ)", "energy", "metric", 1e3, ["kj", "kilojoule", "kilojoules"]),
+  U("cal", "Calorie (cal)", "energy", "other", 4.184, ["cal", "calorie", "calories"]),
+  U("kcal", "Kilocalorie (kcal)", "energy", "other", 4184, ["kcal", "kilocalorie", "kilocalories"]),
+  U("wh", "Watt hour (Wh)", "energy", "metric", 3600, ["wh", "watthour", "watthours"]),
+  U("kwh", "Kilowatt hour (kWh)", "energy", "metric", 36e5, ["kwh", "kilowatthour", "kilowatthours"]),
+  U("btu", "British thermal unit (BTU)", "energy", "imperial", 1055.05585262, ["btu", "btus"]),
+  U("ftlb", "Foot pound (ft-lb)", "energy", "imperial", 1.3558179483314003, ["ftlb", "footpound", "footpounds"]),
+  // -- power (base: watt) ----------------------------------------------------
+  U("w", "Watt (W)", "power", "metric", 1, ["w", "watt", "watts"]),
+  U("kw", "Kilowatt (kW)", "power", "metric", 1e3, ["kw", "kilowatt", "kilowatts"]),
+  U("mw", "Megawatt (MW)", "power", "metric", 1e6, ["megawatt", "megawatts"]),
+  U("hp", "Horsepower (hp)", "power", "imperial", 745.6998715822702, ["hp", "horsepower"]),
+  // -- time (base: second) ---------------------------------------------------
+  U("s", "Second (s)", "time", "metric", 1, ["s", "sec", "secs", "second", "seconds"]),
+  U("ms", "Millisecond (ms)", "time", "metric", 1e-3, ["ms", "millisecond", "milliseconds"]),
+  U("min", "Minute (min)", "time", "other", 60, ["min", "mins", "minute", "minutes"]),
+  U("h", "Hour (h)", "time", "other", 3600, ["h", "hr", "hrs", "hour", "hours"]),
+  U("d", "Day (d)", "time", "other", 86400, ["d", "day", "days"]),
+  U("wk", "Week (wk)", "time", "other", 604800, ["wk", "week", "weeks"]),
+  // -- speed (base: metre per second) ---------------------------------------
+  U("mps", "Metre per second (m/s)", "speed", "metric", 1, ["mps"]),
+  U("kph", "Kilometre per hour (km/h)", "speed", "metric", 1 / 3.6, ["kph", "kmh"]),
+  U("mph", "Mile per hour (mph)", "speed", "imperial", 0.44704, ["mph"]),
+  U("fps", "Foot per second (ft/s)", "speed", "imperial", 0.3048, ["fps"]),
+  U("kn", "Knot (kn)", "speed", "other", 0.514444, ["kn", "knot", "knots"])
+];
+var QUANTITIES = [
+  "length",
+  "mass",
+  "volume",
+  "area",
+  "pressure",
+  "energy",
+  "power",
+  "time",
+  "speed"
+];
+var DEFAULT_UNITS = {
+  length: "m",
+  mass: "kg",
+  volume: "l",
+  area: "m2",
+  pressure: "pa",
+  energy: "j",
+  power: "w",
+  time: "s",
+  speed: "mps"
+};
+var BY_ID = new Map(UNITS.map((u) => [u.id, u]));
+function unitById(id) {
+  return id ? BY_ID.get(id.toLowerCase()) : void 0;
+}
+function aliasesByLength() {
+  const out = [];
+  for (const unit of UNITS) for (const alias of unit.aliases) out.push({ alias, unit });
+  return out.sort((a, b) => b.alias.length - a.alias.length);
+}
+function unitsFor(quantity) {
+  const order = ["metric", "imperial", "us", "other"];
+  return UNITS.filter((u) => u.quantity === quantity).sort(
+    (a, b) => order.indexOf(a.system) - order.indexOf(b.system) || a.label.localeCompare(b.label)
+  );
+}
+function preferredUnit(quantity, chosen) {
+  var _a, _b;
+  return (_b = (_a = unitById(chosen == null ? void 0 : chosen[quantity])) != null ? _a : unitById(DEFAULT_UNITS[quantity])) != null ? _b : UNITS[0];
+}
+
+// src/utils/measure.ts
+var NUMBER = /(\d+(?:\.\d+)?|\.\d+)\s*/y;
+function toPlainMath(text, units) {
+  var _a;
+  const aliases = aliasesByLength();
+  let out = "";
+  let i = 0;
+  let lastWasMeasure = false;
+  while (i < text.length) {
+    NUMBER.lastIndex = i;
+    const m = NUMBER.exec(text);
+    if (!m) {
+      const ch = text[i];
+      if (!/\s/.test(ch)) lastWasMeasure = false;
+      out += ch;
+      i++;
+      continue;
+    }
+    const num = Number(m[1]);
+    i = NUMBER.lastIndex;
+    let hit = null;
+    for (const { alias, unit } of aliases) {
+      if (text.slice(i, i + alias.length).toLowerCase() !== alias.toLowerCase()) continue;
+      const after = (_a = text[i + alias.length]) != null ? _a : "";
+      if (/[a-z]/i.test(alias[alias.length - 1]) && /[a-z0-9]/i.test(after)) continue;
+      hit = { alias, quantity: unit.quantity, factor: unit.factor };
+      break;
+    }
+    if (!hit) {
+      out += (lastWasMeasure ? " + " : "") + String(num);
+      lastWasMeasure = false;
+      continue;
+    }
+    const to = preferredUnit(hit.quantity, units);
+    const converted = num * hit.factor / to.factor;
+    out += (lastWasMeasure ? " + " : "") + String(converted);
+    i += hit.alias.length;
+    lastWasMeasure = true;
+  }
+  return out;
+}
+function evalMeasure(text, units) {
+  const raw = text.trim();
+  if (!raw) return void 0;
+  const plain = toPlainMath(raw, units);
+  const ast = parseExpr(plain);
+  if (!ast) return void 0;
+  const n = evalExpr(ast, { resolve: () => void 0 });
+  return typeof n === "number" && Number.isFinite(n) ? n : void 0;
+}
+
 // src/ui/render/cluster.ts
 function addonsFor(ref) {
   return ref.view.registries.clusterAddons.all().filter((a) => a.appliesTo(ref));
@@ -5443,7 +5637,7 @@ function buildCluster(head, flags, o, bindOpen) {
     val.setText(fmtNum(o.get()));
     bindOpen(
       val,
-      () => openNumberInput(val, o.get(), o.commit, { min, max, float: !!o.float, clamp: !!o.clamp })
+      () => openNumberInput(val, o.get(), o.commit, { min, max, float: !!o.float, clamp: !!o.clamp, evaluate: o.evaluate })
     );
   } else {
     val.setText((_c = o.display) != null ? _c : "");
@@ -5543,6 +5737,10 @@ function render(kind, ctx2) {
     max: max * factor,
     float: wantsFractions(kind, entry) || factor !== 1,
     clamp: !!entry.clamp,
+    // The field takes arithmetic and measurements, not just digits: what is
+    // typed is worked out on the way in (see `utils/measure`). A value shown
+    // through a unit factor is typed in displayed units, as it always was.
+    evaluate: (text) => evalMeasure(text, view.settings.units),
     commit: (v) => {
       const raw = v / factor;
       view.note.set(file, key, shouldClamp(entry.constraints) ? clampToConstraints(raw, entry.constraints) : raw);
@@ -6009,7 +6207,8 @@ function menuItems(kind, menu, ref) {
         view.i18n.t("prompt.editValue", { name: entry.alias || key }),
         view.note.str(key),
         (v) => {
-          let n = Number(v);
+          var _a;
+          let n = (_a = evalMeasure(v, view.settings.units)) != null ? _a : NaN;
           if (!Number.isFinite(n)) return;
           if (!float) n = Math.round(n);
           if (entry.clamp && entry.min !== void 0 && entry.max !== void 0)
@@ -14495,11 +14694,11 @@ function trapezohedron() {
     const a = i * 2 * Math.PI / 5 + Math.PI / 5;
     verts.push([ringR * Math.cos(a), ringR * Math.sin(a), -ringZ]);
   }
-  const U = (i) => 2 + i % 5;
+  const U2 = (i) => 2 + i % 5;
   const L = (i) => 7 + i % 5;
   const faces = [];
-  for (let i = 0; i < 5; i++) faces.push([0, U(i), L(i), U(i + 1)]);
-  for (let i = 0; i < 5; i++) faces.push([1, L(i), U(i + 1), L(i + 1)]);
+  for (let i = 0; i < 5; i++) faces.push([0, U2(i), L(i), U2(i + 1)]);
+  for (let i = 0; i < 5; i++) faces.push([1, L(i), U2(i + 1), L(i + 1)]);
   return { verts, faces };
 }
 var SOLIDS = {
@@ -14767,6 +14966,7 @@ var TAB_GROUPS = [
     sections: ["settings.diceHeading", "settings.rollsHeading", "settings.macrosHeading"]
   },
   { label: "settings.activationHeading", sections: ["settings.activationHeading"] },
+  { label: "settings.unitsHeading", sections: ["settings.unitsHeading"] },
   {
     label: "settings.tab.interface",
     sections: [
@@ -14783,6 +14983,7 @@ var TAB_GROUPS = [
 var SEARCH_SECTIONS = [
   "settings.typesHeading",
   "settings.defaultsHeading",
+  "settings.unitsHeading",
   "settings.newSectionHeading",
   "settings.derivationsHeading",
   "settings.abbrHeading",
@@ -15162,6 +15363,7 @@ var EPSettingTab = class extends import_obsidian37.PluginSettingTab {
       )
     );
     new import_obsidian37.Setting(c).setName(t("transfer.importHeading")).setDesc(t("transfer.importHeadingDesc")).addButton((b) => b.setButtonText(t("transfer.importBtn")).setCta().onClick(() => new ImportModal(plugin).open()));
+    this.renderUnits(c);
     const d = plugin.settings.defaults;
     new import_obsidian37.Setting(c).setName(t("settings.defaultsHeading")).setHeading();
     new import_obsidian37.Setting(c).setName(t("settings.defaultDataType")).setDesc(t("settings.defaultDataTypeDesc")).addDropdown((dd) => {
@@ -15722,6 +15924,37 @@ var EPSettingTab = class extends import_obsidian37.PluginSettingTab {
     c.createEl("p", { cls: "setting-item-description", text: t("settings.featuresUiDesc") });
     for (const f of UI_FEATURES) {
       featureToggle(new import_obsidian37.Setting(c).setName(t("feature." + f.id)).setDesc(t("feature." + f.id + "Desc")), f.id);
+    }
+  }
+  /**
+   * The unit each quantity is kept in. A measurement typed into a numeric
+   * field is converted into it, so what gets stored is always in the same
+   * unit whatever was typed. One dropdown per quantity, grouped by system.
+   */
+  renderUnits(c) {
+    const plugin = this.plugin;
+    const t = plugin.i18n.t.bind(plugin.i18n);
+    new import_obsidian37.Setting(c).setName(t("settings.unitsHeading")).setHeading();
+    c.createEl("p", { cls: "setting-item-description", text: t("settings.unitsDesc") });
+    for (const q of QUANTITIES) {
+      new import_obsidian37.Setting(c).setName(t("quantity." + q)).addDropdown((dd) => {
+        let system = "";
+        for (const u of unitsFor(q)) {
+          if (system && u.system !== system) dd.addOption("", "\u2500".repeat(10));
+          system = u.system;
+          dd.addOption(u.id, u.label);
+        }
+        dd.setValue(preferredUnit(q, plugin.settings.units).id);
+        dd.onChange((v) => {
+          var _a;
+          if (!v) {
+            dd.setValue(preferredUnit(q, plugin.settings.units).id);
+            return;
+          }
+          plugin.settings.units = { ...(_a = plugin.settings.units) != null ? _a : {}, [q]: v };
+          void plugin.saveSettings();
+        });
+      });
     }
   }
   /**

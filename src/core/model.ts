@@ -501,6 +501,12 @@ export interface EPSettings {
   /** Tab opens the field it lands on (default true; false = focus only). */
   tabOpens?: boolean;
   /**
+   * The unit each quantity is kept in, keyed by quantity ("length", "mass",
+   * ...). A measurement typed into a numeric field is converted into it - so
+   * `1'2"` reads as 14 where length is inches, 35.56 where it is centimetres.
+   */
+  units?: Record<string, string>;
+  /**
    * How each surface opens a value outside edit mode, keyed by surface id
    * ("values", "checkboxes", ...): "single" or absent for the double-click
    * default. See `core/activation`.

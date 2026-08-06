@@ -91,7 +91,7 @@ export function buildCluster(
   if (editable) {
     val.setText(fmtNum(o.get!()));
     bindOpen(val, () =>
-      openNumberInput(val, o.get!(), o.commit!, { min, max, float: !!o.float, clamp: !!o.clamp })
+      openNumberInput(val, o.get!(), o.commit!, { min, max, float: !!o.float, clamp: !!o.clamp, evaluate: o.evaluate })
     );
   } else {
     val.setText(o.display ?? "");

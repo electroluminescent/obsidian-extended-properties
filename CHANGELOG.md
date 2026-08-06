@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.44.0
+
+- **Numeric fields take arithmetic.** Type `12*3`, `(8+4)/2`, `120/2.5` and it
+  is worked out when you leave the field. Anything that does not work out
+  leaves the value as it was, rather than storing nonsense.
+- **They take measurements too.** `1\'2" - 5cm` reads as one foot two inches
+  less five centimetres; `3 lb + 12 oz` and `1 gal - 2 cup` read as you would
+  expect. Feet and inches need no operator between them, the way they are
+  written everywhere.
+- **A new Units section in the settings** sets the unit each quantity is kept
+  in - length, weight, volume, area, pressure, energy, power, time and speed -
+  with the choices grouped by system. Everything typed is converted into it, so
+  the same typing stores 12.03 where lengths are inches and 30.56 where they
+  are centimetres.
+
 ## 4.43.0
 
 - **Snapping is now two switches: to primary lines, to secondary lines, or

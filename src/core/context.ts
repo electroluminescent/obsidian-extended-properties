@@ -37,6 +37,11 @@ export interface ClusterOptions {
   clamp?: boolean;
   /** Commit an edited value. Editability = `get` && `commit`. */
   commit?: (v: number) => void;
+  /**
+   * Work out what was typed into the value field - arithmetic, measurements -
+   * rather than reading it as a plain number (see `utils/measure`).
+   */
+  evaluate?: (text: string) => number | undefined;
   /** slot id -> renderer for the slots this entry actually uses. */
   slots?: Record<string, (cell: HTMLElement) => void>;
 }

@@ -8,6 +8,7 @@
 import { App, Notice, PluginSettingTab, Setting, setIcon, SettingDefinitionItem } from "obsidian";
 import type ExtendedPropertiesPlugin from "../main";
 import { TYPE_FEATURES, UI_FEATURES } from "../core/features";
+import { preferredUnit, QUANTITIES, unitsFor } from "../utils/units";
 import { COLOR_SPACES, ColorSpace } from "../utils/color";
 import type { SectionSize } from "../core/model";
 import { typeIconOf } from "../core/model";
@@ -49,6 +50,7 @@ const TAB_GROUPS: { label: string; sections: string[] }[] = [
     sections: ["settings.diceHeading", "settings.rollsHeading", "settings.macrosHeading"],
   },
   { label: "settings.activationHeading", sections: ["settings.activationHeading"] },
+  { label: "settings.unitsHeading", sections: ["settings.unitsHeading"] },
   {
     label: "settings.tab.interface",
     sections: [
@@ -64,7 +66,7 @@ const TAB_GROUPS: { label: string; sections: string[] }[] = [
 ];
 
 const SEARCH_SECTIONS = [
-  "settings.typesHeading", "settings.defaultsHeading", "settings.newSectionHeading",
+  "settings.typesHeading", "settings.defaultsHeading", "settings.unitsHeading", "settings.newSectionHeading",
   "settings.derivationsHeading", "settings.abbrHeading", "settings.diceHeading",
   "settings.rollsHeading", "settings.macrosHeading", "settings.typographyHeading",
   "settings.languageHeading", "settings.activationHeading", "settings.obsidianHeading",
@@ -481,6 +483,8 @@ export class EPSettingTab extends PluginSettingTab {
       .setName(t("transfer.importHeading"))
       .setDesc(t("transfer.importHeadingDesc"))
       .addButton((b) => b.setButtonText(t("transfer.importBtn")).setCta().onClick(() => new ImportModal(plugin).open()));
+
+    this.renderUnits(c);
 
     // -- defaults --------------------------------------------------------------
     const d = plugin.settings.defaults;
@@ -1176,6 +1180,38 @@ export class EPSettingTab extends PluginSettingTab {
     c.createEl("p", { cls: "setting-item-description", text: t("settings.featuresUiDesc") });
     for (const f of UI_FEATURES) {
       featureToggle(new Setting(c).setName(t("feature." + f.id)).setDesc(t("feature." + f.id + "Desc")), f.id);
+    }
+  }
+
+  /**
+   * The unit each quantity is kept in. A measurement typed into a numeric
+   * field is converted into it, so what gets stored is always in the same
+   * unit whatever was typed. One dropdown per quantity, grouped by system.
+   */
+  private renderUnits(c: HTMLElement): void {
+    const plugin = this.plugin;
+    const t = plugin.i18n.t.bind(plugin.i18n);
+    new Setting(c).setName(t("settings.unitsHeading")).setHeading();
+    c.createEl("p", { cls: "setting-item-description", text: t("settings.unitsDesc") });
+    for (const q of QUANTITIES) {
+      new Setting(c).setName(t("quantity." + q)).addDropdown((dd) => {
+        let system = "";
+        for (const u of unitsFor(q)) {
+          // A divider row between systems, so metric and imperial read apart.
+          if (system && u.system !== system) dd.addOption("", "\u2500".repeat(10));
+          system = u.system;
+          dd.addOption(u.id, u.label);
+        }
+        dd.setValue(preferredUnit(q, plugin.settings.units).id);
+        dd.onChange((v) => {
+          if (!v) {
+            dd.setValue(preferredUnit(q, plugin.settings.units).id); // a divider is not a choice
+            return;
+          }
+          plugin.settings.units = { ...(plugin.settings.units ?? {}), [q]: v };
+          void plugin.saveSettings();
+        });
+      });
     }
   }
 

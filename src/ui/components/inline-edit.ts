@@ -18,6 +18,11 @@ export interface NumberInputOptions {
   clamp: boolean;
   /** Called instead of `commit` when the field is emptied (e.g. to clear an override). */
   onEmpty?: () => void;
+  /**
+   * Work out what was typed - arithmetic, measurements - instead of reading it
+   * as a plain number. Given one, the field takes text rather than digits.
+   */
+  evaluate?: (text: string) => number | undefined;
 }
 
 /**
@@ -38,9 +43,17 @@ export function openNumberInput(
   o: NumberInputOptions
 ): void {
   const input = createEl("input", { cls: "ep-edit-input" });
-  input.type = "number";
+  if (o.evaluate) {
+    // A field that works out what it is given cannot be type=number: that
+    // refuses everything but digits, and the point is to take 1'2" - 5cm.
+    input.type = "text";
+    input.inputMode = "text";
+    input.spellcheck = false;
+  } else {
+    input.type = "number";
+    if (o.float) input.step = "any";
+  }
   input.value = fmtNum(value);
-  if (o.float) input.step = "any";
   span.replaceWith(input);
   input.focus();
   input.select();
@@ -54,7 +67,7 @@ export function openNumberInput(
       if (save) o.onEmpty?.();
       return;
     }
-    let n = Number(input.value);
+    let n = o.evaluate ? (o.evaluate(input.value) ?? NaN) : Number(input.value);
     if (!Number.isFinite(n)) return;
     if (!o.float) n = Math.round(n);
     if (o.clamp) n = clamp(n, o.min, o.max);
