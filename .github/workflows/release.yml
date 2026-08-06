@@ -6,12 +6,16 @@ name: Release
 #    publishes the release automatically.
 #  - Push a tag matching manifest.json's version by hand: same build, but the
 #    release is created as a draft (the manual escape hatch).
+#  - Run it by hand from the Actions tab: same as a push to main. Also the
+#    way to tell "GitHub is not creating runs" apart from "the push event
+#    never arrived".
 on:
   push:
     branches:
       - main
     tags:
       - "*.*.*"
+  workflow_dispatch:
 
 permissions:
   contents: write
