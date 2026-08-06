@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.38.1
+
+- **A link field never gives a link back as plain text.** It stores a typed
+  name as a link whether or not the note exists yet - the same as Obsidian's
+  own unresolved links, and the same as the field already draws it. Before, a
+  name whose note could not be resolved was stored bare, so opening and
+  closing the field over a link could quietly unlink it; turning "Links to a
+  note" off then left plain text where a link had been.
+
 ## 4.38.0
 
 - **A link property can draw from several folders.** Source folder is now a

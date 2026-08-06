@@ -118,7 +118,6 @@ export function editNoteLink(view: ViewCtx, file: TFile, entry: Entry, span: HTM
   const c = entry.choices;
   // The field shows and takes note names; the brackets are how the value is
   // stored, and are put back on the way out.
-  const isNote = (n: string): boolean => !!view.app.metadataCache.getFirstLinkpathDest(n, view.note.path || "");
   openLinkInput(
     view.app,
     span,
@@ -132,7 +131,7 @@ export function editNoteLink(view: ViewCtx, file: TFile, entry: Entry, span: HTM
         : view.i18n.t("link.notANote"),
     },
     (val) => {
-      const stored = linkStored(val, isNote);
+      const stored = linkStored(val);
       view.note.set(file, key, stored === "" ? undefined : stored);
     }
   );

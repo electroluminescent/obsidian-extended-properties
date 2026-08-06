@@ -74,26 +74,26 @@ describe("what the field shows", () => {
 });
 
 describe("what the field stores", () => {
-  const notes = ["Ada", "Bo"];
-  const isNote = (n: string): boolean => notes.includes(n);
-
-  it("links a name that means a note", () => {
-    expect(linkStored("Ada", isNote)).toBe("[[Ada]]");
-    expect(linkStored("  Ada  ", isNote)).toBe("[[Ada]]");
+  it("links a name, whether or not its note exists yet", () => {
+    expect(linkStored("Ada")).toBe("[[Ada]]");
+    expect(linkStored("  Ada  ")).toBe("[[Ada]]");
+    expect(linkStored("A note nobody has made")).toBe("[[A note nobody has made]]");
   });
 
-  it("keeps a name that means nothing yet as it was typed", () => {
-    expect(linkStored("Zeno", isNote)).toBe("Zeno");
+  it("keeps a link a link on the way through", () => {
+    // What the field shows for [[Ada]] is "Ada", and storing that must give
+    // the link back rather than a bare word.
+    expect(linkStored(linkDisplay("[[Ada]]"))).toBe("[[Ada]]");
   });
 
   it("leaves a value that already carries a link alone", () => {
-    expect(linkStored("[[Ada|the smith]]", isNote)).toBe("[[Ada|the smith]]");
-    expect(linkStored("[Ada](Ada.md)", isNote)).toBe("[Ada](Ada.md)");
-    expect(linkStored("https://example.com/Ada", isNote)).toBe("https://example.com/Ada");
+    expect(linkStored("[[Ada|the smith]]")).toBe("[[Ada|the smith]]");
+    expect(linkStored("[Ada](Ada.md)")).toBe("[Ada](Ada.md)");
+    expect(linkStored("https://example.com/Ada")).toBe("https://example.com/Ada");
   });
 
   it("gives back nothing for an emptied field", () => {
-    expect(linkStored("", isNote)).toBe("");
-    expect(linkStored("   ", isNote)).toBe("");
+    expect(linkStored("")).toBe("");
+    expect(linkStored("   ")).toBe("");
   });
 });

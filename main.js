@@ -3494,11 +3494,11 @@ function linkNameOf(raw) {
 function linkDisplay(raw) {
   return /^\s*\[\[[^[\]|#]+\]\]\s*$/.test(raw) ? linkNameOf(raw) : raw;
 }
-function linkStored(text, isNote) {
+function linkStored(text) {
   const v = text.trim();
   if (!v) return "";
   if (/\[\[|\]\(|^[a-z][a-z0-9+.-]*:\/\//i.test(v)) return v;
-  return isNote(v) ? `[[${v}]]` : v;
+  return `[[${v}]]`;
 }
 
 // src/core/choices.ts
@@ -4958,7 +4958,6 @@ async function createInFolder(view, file, entry, name) {
 function editNoteLink(view, file, entry, span) {
   const key = entry.key;
   const c = entry.choices;
-  const isNote = (n) => !!view.app.metadataCache.getFirstLinkpathDest(n, view.note.path || "");
   openLinkInput(
     view.app,
     span,
@@ -4970,7 +4969,7 @@ function editNoteLink(view, file, entry, span) {
       rejected: folderList(entry) ? view.i18n.t("link.notInFolder", { folder: folderList(entry) }) : view.i18n.t("link.notANote")
     },
     (val) => {
-      const stored = linkStored(val, isNote);
+      const stored = linkStored(val);
       view.note.set(file, key, stored === "" ? void 0 : stored);
     }
   );

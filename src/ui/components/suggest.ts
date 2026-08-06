@@ -370,14 +370,17 @@ export function linkDisplay(raw: string): string {
 }
 
 /**
- * What a typed value is stored as. A name that means a note becomes a link, so
- * a value typed as plain text - or typed before its note existed, and made
- * since - ends up linked like any other. Anything already carrying a link, or
- * an address, is stored as written.
+ * What a name typed into a link field is stored as: a link, always. The field
+ * is declared to hold one, so a name is stored as `[[name]]` whether or not
+ * the note exists yet - the same as Obsidian's own unresolved links, and the
+ * same as the field already draws it. Storing it bare would quietly downgrade
+ * a link the moment its note could not be resolved.
+ *
+ * Anything already carrying a link, or an address, is stored as written.
  */
-export function linkStored(text: string, isNote: (name: string) => boolean): string {
+export function linkStored(text: string): string {
   const v = text.trim();
   if (!v) return "";
   if (/\[\[|\]\(|^[a-z][a-z0-9+.-]*:\/\//i.test(v)) return v;
-  return isNote(v) ? `[[${v}]]` : v;
+  return `[[${v}]]`;
 }
