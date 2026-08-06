@@ -509,6 +509,8 @@ var en_default = {
   "options.snapPrimaryDesc": "Dragging or stepping settles on the nearest primary line.",
   "options.snapSecondary": "Snap to secondary lines",
   "options.snapSecondaryDesc": "Settles on the nearest secondary line. With both on, whichever line is nearer wins.",
+  "options.snapFreeHint": "Hold Alt (Option) while dragging or stepping to pass between the lines.",
+  "options.tickUnitsHint": "Write it in the property's own calendar - 1Y, 6M, 3D, 12h, 30m (M months, m minutes) - or as a plain number.",
   "options.showSlider": "Show slider",
   "options.ratingToggle": "Rating icons",
   "options.ratingToggleDesc": "Show the value as clickable icons instead of the slider. The icon count is the Maximum above; a negative Minimum adds its own red icons left of the positives. There is no zero icon - zero is every icon clicked off.",
@@ -4151,14 +4153,14 @@ function onLongPress(el, fn, o = {}) {
   var _a, _b;
   const ms = (_a = o.ms) != null ? _a : 500;
   const tol = (_b = o.moveTol) != null ? _b : 10;
-  let timer = 0;
+  let timer2 = 0;
   let sx = 0;
   let sy = 0;
   let fired = false;
   const clear = () => {
-    if (timer) {
-      window.clearTimeout(timer);
-      timer = 0;
+    if (timer2) {
+      window.clearTimeout(timer2);
+      timer2 = 0;
     }
   };
   const onDown = (e) => {
@@ -4167,18 +4169,18 @@ function onLongPress(el, fn, o = {}) {
     sy = e.clientY;
     fired = false;
     clear();
-    timer = window.setTimeout(() => {
-      timer = 0;
+    timer2 = window.setTimeout(() => {
+      timer2 = 0;
       fired = true;
       fn(sx, sy);
     }, ms);
   };
   const onMove = (e) => {
-    if (timer && (Math.abs(e.clientX - sx) > tol || Math.abs(e.clientY - sy) > tol)) clear();
+    if (timer2 && (Math.abs(e.clientX - sx) > tol || Math.abs(e.clientY - sy) > tol)) clear();
   };
   const onTouchMove = (e) => {
     const t = e.touches[0];
-    if (timer && t && (Math.abs(t.clientX - sx) > tol || Math.abs(t.clientY - sy) > tol)) clear();
+    if (timer2 && t && (Math.abs(t.clientX - sx) > tol || Math.abs(t.clientY - sy) > tol)) clear();
   };
   const onUp = () => clear();
   const onClick = (e) => {
@@ -4367,7 +4369,7 @@ var ColorPickerModal = class extends import_obsidian7.Modal {
     num.value = String(Math.round(val * 1e3) / 1e3);
     num.addClass("ep-edit-input");
     let cur = val;
-    const place = () => {
+    const place2 = () => {
       const t = max > min ? (cur - min) / (max - min) : 0;
       thumb.setCssStyles({ left: clamp(t, 0, 1) * 100 + "%" });
     };
@@ -4377,7 +4379,7 @@ var ColorPickerModal = class extends import_obsidian7.Modal {
     const setVal = (v, fire) => {
       cur = clamp(v, min, max);
       num.value = String(Math.round(cur * 1e3) / 1e3);
-      place();
+      place2();
       if (fire) onInput(cur);
     };
     const fromX = (clientX) => {
@@ -4396,7 +4398,7 @@ var ColorPickerModal = class extends import_obsidian7.Modal {
     });
     num.addEventListener("change", () => setVal(Number(num.value), true));
     update();
-    place();
+    place2();
     return { update, setValue: (v) => setVal(v, false) };
   }
   /** A 2D canvas field (e.g. saturation x lightness) with a draggable cursor. */
@@ -4427,7 +4429,7 @@ var ColorPickerModal = class extends import_obsidian7.Modal {
       }
       ctx2.putImageData(img, 0, 0);
     };
-    const place = () => {
+    const place2 = () => {
       const [x, y] = getXY();
       cursor.setCssStyles({ left: x * 100 + "%" });
       cursor.setCssStyles({ top: y * 100 + "%" });
@@ -4435,7 +4437,7 @@ var ColorPickerModal = class extends import_obsidian7.Modal {
     const fromEv = (e) => {
       const r = canvas.getBoundingClientRect();
       setXY(clamp((e.clientX - r.left) / r.width, 0, 1), clamp((e.clientY - r.top) / r.height, 0, 1));
-      place();
+      place2();
     };
     canvas.addEventListener("pointerdown", (e) => {
       canvas.setPointerCapture(e.pointerId);
@@ -4445,8 +4447,8 @@ var ColorPickerModal = class extends import_obsidian7.Modal {
       if (e.buttons) fromEv(e);
     });
     paint();
-    place();
-    return { paint, place };
+    place2();
+    return { paint, place: place2 };
   }
   /** Rebuild the slider area for the active color space (with slide animation). */
   renderContent() {
@@ -5607,6 +5609,53 @@ function unitsForField(units, fieldUnit) {
   return u ? { ...units != null ? units : {}, [u.quantity]: u.id } : units;
 }
 
+// src/ui/components/hover-label.ts
+var OPEN_DELAY = 90;
+var openEl = null;
+var openOwner = null;
+var watching = null;
+var timer = 0;
+function closeHoverLabel() {
+  window.clearTimeout(timer);
+  if (watching) {
+    watching.removeEventListener("pointerdown", closeHoverLabel, true);
+    watching.removeEventListener("scroll", closeHoverLabel, true);
+    watching = null;
+  }
+  openEl == null ? void 0 : openEl.remove();
+  openEl = null;
+  openOwner == null ? void 0 : openOwner.removeClass("is-focused");
+  openOwner = null;
+}
+function place(pop, el) {
+  const r = el.getBoundingClientRect();
+  const pr = pop.getBoundingClientRect();
+  const left = Math.max(4, Math.min(r.left + r.width / 2 - pr.width / 2, window.innerWidth - pr.width - 4));
+  const top = r.top - pr.height - 4 < 4 ? r.bottom + 4 : r.top - pr.height - 4;
+  pop.setCssStyles({ left: left + "px", top: top + "px" });
+}
+function bindHoverLabel(el, text) {
+  el.addEventListener("mouseenter", () => {
+    closeHoverLabel();
+    openOwner = el;
+    el.addClass("is-focused");
+    const label = text();
+    if (!label) return;
+    timer = window.setTimeout(() => {
+      if (openOwner !== el || !el.isConnected) return;
+      const doc = el.ownerDocument;
+      openEl = doc.body.createDiv({ cls: "ep-popup ep-hover-label", text: label });
+      place(openEl, el);
+      watching = doc;
+      doc.addEventListener("pointerdown", closeHoverLabel, true);
+      doc.addEventListener("scroll", closeHoverLabel, true);
+    }, OPEN_DELAY);
+  });
+  el.addEventListener("mouseleave", () => {
+    if (openOwner === el) closeHoverLabel();
+  });
+}
+
 // src/ui/render/cluster.ts
 function addonsFor(ref) {
   return ref.view.registries.clusterAddons.all().filter((a) => a.appliesTo(ref));
@@ -5710,6 +5759,7 @@ function defaultRange(kind, entry) {
   if (wantsFractions(kind, entry)) return { min: 0, max: 1 };
   return { min: -9999, max: 99999 };
 }
+var isFree = (e) => e.altKey;
 function wantSteppers(kind, entry) {
   return (kind === "number" || kind === "decimal") && entry.steppers !== false;
 }
@@ -5895,42 +5945,48 @@ function render(kind, ctx2) {
     view.registerUpdater(drawRating);
   } else if (entry.slider || isFormula) {
     const slider = ctx2.extra.createDiv({ cls: "ep-slider2" });
+    slider.createDiv({ cls: "ep-slider2-rail" });
     slider.createDiv({ cls: "ep-slider2-track" });
-    const knob = slider.createDiv({ cls: "ep-slider2-knob" });
-    knob.tabIndex = 0;
-    knob.setAttr("role", "slider");
-    knob.setAttr("aria-valuemin", String(min));
-    knob.setAttr("aria-valuemax", String(max));
     const fmt = (v) => wantsFractions(kind, entry) ? v : Math.round(v);
     const pctForValue = (v) => span <= 0 ? 0 : clamp((toPosition(v) - min) / span, 0, 1) * 100;
+    const labelFor = (v) => fmtValue(kind, entry, v * factor) + (unit ? " " + unit : "");
     const ticks = ticksFor(min, max, Number(entry.tickMajor), Number(entry.tickMinor));
     if (ticks.length) {
       const layer2 = slider.createDiv({ cls: "ep-slider2-ticks" });
       for (const tk of ticks) {
         const line = layer2.createDiv({ cls: tk.major ? "ep-tick ep-tick-major" : "ep-tick" });
         line.setCssStyles({ left: pctForValue(tk.value) + "%" });
+        if (!tk.major) continue;
+        line.addClass("ep-tick-hover");
+        line.setAttr("aria-label", labelFor(tk.value));
+        bindHoverLabel(line, () => labelFor(tk.value));
       }
     }
+    const knob = slider.createDiv({ cls: "ep-slider2-knob" });
+    knob.tabIndex = 0;
+    knob.setAttr("role", "slider");
+    knob.setAttr("aria-valuemin", String(min));
+    knob.setAttr("aria-valuemax", String(max));
     const to = { primary: entry.snapPrimary === true, secondary: entry.snapSecondary === true };
     const snapPoints = snapTicks(min, max, Number(entry.tickMajor), Number(entry.tickMinor), to);
     const reach = snapReach(Number(entry.tickMajor), Number(entry.tickMinor), to);
-    const snap = (v) => snapValue(v, snapPoints, reach);
-    const place = (v) => {
+    const snap = (v, free = false) => free ? v : snapValue(v, snapPoints, reach);
+    const place2 = (v) => {
       slider.setCssProps({ "--ep-knob": pctForValue(v) + "%" });
       knob.setAttr("aria-valuenow", String(fmt(v)));
     };
-    syncKnob = () => place(get());
+    syncKnob = () => place2(get());
     syncKnob();
     let active = false;
     let pending2 = get();
-    const drag = (clientX) => {
+    const drag = (clientX, free = false) => {
       var _a2;
       const r = slider.getBoundingClientRect();
       const t = r.width <= 0 ? 0 : clamp((clientX - r.left) / r.width, 0, 1);
-      let out = snap(toValue(min + t * span));
+      let out = snap(toValue(min + t * span), free);
       if (!isFormula && entry.clamp) out = clamp(out, min, max);
       pending2 = fmt(out);
-      place(pending2);
+      place2(pending2);
       setVal(pending2);
       for (const a of addons) (_a2 = a.onPreview) == null ? void 0 : _a2.call(a, ctx2, refs.cells, pending2);
     };
@@ -5947,7 +6003,7 @@ function render(kind, ctx2) {
     });
     knob.addEventListener("pointermove", (e) => {
       if (!active) return;
-      drag(e.clientX);
+      drag(e.clientX, isFree(e));
       e.preventDefault();
     });
     const finish = (e) => {
@@ -5976,7 +6032,7 @@ function render(kind, ctx2) {
       else if (e.key === "ArrowRight" || e.key === "ArrowUp") v += step;
       else return;
       e.preventDefault();
-      v = snap(v);
+      v = snap(v, isFree(e));
       if (entry.clamp) v = clamp(v, min, max);
       view.note.set(file, key, fmt(v));
     });
@@ -5990,23 +6046,29 @@ function render(kind, ctx2) {
     checkValid();
   });
 }
+function plainSpan(text) {
+  const n = Number(text);
+  return text.trim() === "" || !Number.isFinite(n) || n <= 0 ? void 0 : n;
+}
 function renderTickSettings(octx, opts = {}) {
   const { view, entry, container: c, changed, redraw } = octx;
   const t = view.i18n.t.bind(view.i18n);
-  const num = (name, desc, get, set) => new import_obsidian13.Setting(c).setName(name).setDesc(desc).addText((tx) => {
-    tx.inputEl.type = "number";
-    tx.setValue(get() === void 0 ? "" : String(get()));
+  const span = opts.span;
+  const toggles = opts.snap !== false;
+  const num = (name, desc, get, set) => new import_obsidian13.Setting(c).setName(name).setDesc((span == null ? void 0 : span.hint) ? `${desc} ${span.hint}` : desc).addText((tx) => {
+    if (!span) tx.inputEl.type = "number";
+    tx.setValue(span ? span.format(get()) : get() === void 0 ? "" : String(get()));
     tx.onChange((v) => {
-      const n = Number(v);
-      set(v.trim() === "" || !Number.isFinite(n) || n <= 0 ? void 0 : n);
+      const had = get() !== void 0;
+      set(span ? span.parse(v) : plainSpan(v));
       changed();
-      redraw();
+      if (toggles && had !== (get() !== void 0)) redraw();
     });
   });
   num(t("options.tickMajor"), t("options.tickMajorDesc"), () => entry.tickMajor, (n) => entry.tickMajor = n);
   num(t("options.tickMinor"), t("options.tickMinorDesc"), () => entry.tickMinor, (n) => entry.tickMinor = n);
-  if (opts.snap === false) return;
-  const swap = (name, desc, get, set) => new import_obsidian13.Setting(c).setName(name).setDesc(desc).addToggle((tg) => {
+  if (!toggles) return;
+  const swap = (name, desc, get, set) => new import_obsidian13.Setting(c).setName(name).setDesc(`${desc} ${t("options.snapFreeHint")}`).addToggle((tg) => {
     tg.setValue(get()).onChange((v) => {
       set(v);
       changed();
@@ -8091,6 +8153,83 @@ function parseDateFlexible(text, cfg) {
   return null;
 }
 
+// src/utils/date-span.ts
+function spanUnits(cfg) {
+  const sys = systemOf(cfg);
+  const tm = timeOf(cfg);
+  const day = timeOn(cfg) ? tm.hoursPerDay * tm.minutesPerHour : 1;
+  return [
+    { id: "Y", serials: sys.months * sys.daysPerMonth * day },
+    { id: "M", serials: sys.daysPerMonth * day },
+    { id: "D", serials: day },
+    { id: "h", serials: day / tm.hoursPerDay },
+    { id: "m", serials: day / (tm.hoursPerDay * tm.minutesPerHour) },
+    { id: "s", serials: day / (tm.hoursPerDay * tm.minutesPerHour * 60) }
+  ];
+}
+var WORDS = {
+  y: "Y",
+  yr: "Y",
+  yrs: "Y",
+  year: "Y",
+  years: "Y",
+  mo: "M",
+  mos: "M",
+  mon: "M",
+  month: "M",
+  months: "M",
+  d: "D",
+  day: "D",
+  days: "D",
+  h: "h",
+  hr: "h",
+  hrs: "h",
+  hour: "h",
+  hours: "h",
+  min: "m",
+  mins: "m",
+  minute: "m",
+  minutes: "m",
+  s: "s",
+  sec: "s",
+  secs: "s",
+  second: "s",
+  seconds: "s"
+};
+function unitId(word) {
+  if (word === "") return "";
+  if (word === "M") return "M";
+  if (word === "m") return "m";
+  return WORDS[word.toLowerCase()];
+}
+var TERM = /\s*(\d+(?:\.\d+)?)\s*([A-Za-z]*)\s*(?:[+,]\s*)?/y;
+function parseSpan(text, cfg) {
+  var _a;
+  const raw = text.trim();
+  if (!raw) return void 0;
+  const worth = new Map(spanUnits(cfg).map((u) => [u.id, u.serials]));
+  let total = 0;
+  let i = 0;
+  while (i < raw.length) {
+    TERM.lastIndex = i;
+    const m = TERM.exec(raw);
+    if (!m) return void 0;
+    const id = unitId(m[2]);
+    if (id === void 0) return void 0;
+    total += Number(m[1]) * (id === "" ? 1 : (_a = worth.get(id)) != null ? _a : 0);
+    i = TERM.lastIndex;
+  }
+  return total > 0 && Number.isFinite(total) ? total : void 0;
+}
+function formatSpan(n, cfg) {
+  if (n === void 0 || !(n > 0) || !Number.isFinite(n)) return "";
+  for (const u of spanUnits(cfg)) {
+    const q = n / u.serials;
+    if (q >= 1 && Math.abs(q - Math.round(q)) < 1e-9) return `${Math.round(q)}${u.id}`;
+  }
+  return String(n);
+}
+
 // src/ui/overlay.ts
 var current = null;
 var RECLAIM_MS = 80;
@@ -8438,6 +8577,14 @@ function render2(ctx2) {
       for (const g of ticksFor(range.min, range.max, Number(entry.tickMajor), Number(entry.tickMinor))) {
         const line = gridEl.createDiv({ cls: g.major ? "ep-tick ep-tick-major" : "ep-tick" });
         line.setCssStyles({ left: pct(g.value) + "%" });
+        if (!g.major) continue;
+        const when = () => {
+          const p2 = decodeSerial(Math.round(g.value), cfg);
+          return p2 ? formatDate(p2, cfg) : "";
+        };
+        line.addClass("ep-tick-hover");
+        line.setAttr("aria-label", when());
+        bindHoverLabel(line, when);
       }
       const groups = /* @__PURE__ */ new Map();
       for (const { file: file2, value } of view.props.entriesFor(key)) {
@@ -8455,6 +8602,7 @@ function render2(ctx2) {
         tick.setCssStyles({ left: pct(s) + "%" });
         const when = formatDate(g.parts, cfg);
         tick.setAttr("aria-label", when);
+        bindHoverLabel(tick, () => "");
         tick.onmouseenter = () => {
           window.clearTimeout(popTimer);
           popTimer = window.setTimeout(() => openPop(tick, when, g.files), 120);
@@ -8499,7 +8647,15 @@ function renderOptions2(octx) {
       octx.redraw();
     });
   });
-  if (e.slider) renderTickSettings(octx, { snap: false });
+  if (e.slider)
+    renderTickSettings(octx, {
+      snap: false,
+      span: {
+        parse: (v) => parseSpan(v, cfg),
+        format: (n) => formatSpan(n, cfg),
+        hint: t("options.tickUnitsHint")
+      }
+    });
   new import_obsidian20.Setting(c).setName(t("options.minimum")).setDesc(t("options.dateRangeAuto")).addText((tx) => {
     var _a;
     tx.setPlaceholder(cfg.format);
@@ -8972,8 +9128,8 @@ var NoteModel = class {
   async flushFile(file) {
     var _a, _b, _c, _d, _e, _f;
     const path = file.path;
-    const timer = this.writeTimers.get(path);
-    if (timer) window.clearTimeout(timer);
+    const timer2 = this.writeTimers.get(path);
+    if (timer2) window.clearTimeout(timer2);
     this.writeTimers.delete(path);
     const keys = this.pendingKeys.get(path);
     if (!keys || keys.size === 0) {
@@ -9990,7 +10146,7 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
     if (scroll) body.scrollTop = scroll;
   };
   build();
-  const place = () => {
+  const place2 = () => {
     if (sheet) return;
     const w = pop.offsetWidth;
     const h = pop.offsetHeight;
@@ -9998,8 +10154,8 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
     const top = Math.max(8, Math.min(y + 6, window.innerHeight - h - 8));
     pop.setCssStyles({ left: left + "px", top: top + "px" });
   };
-  place();
-  window.requestAnimationFrame(place);
+  place2();
+  window.requestAnimationFrame(place2);
   const first = () => {
     var _a;
     return (_a = bar.querySelector(".ep-entrysettings-tool")) != null ? _a : pop;
@@ -11909,11 +12065,11 @@ var PopupManager = class {
         if (view.hide.isHidden(c.key))
           row.createSpan({ cls: "ep-sug-badge ep-badge-hidden", text: t("add.hiddenBadge") });
         const isList = view.props.obsidianType(c.key) === "list" || Array.isArray(view.note.raw[c.key]);
-        let timer = 0;
+        let timer2 = 0;
         row.onmouseenter = () => {
-          timer = window.setTimeout(() => this.openValueSidePanel(row, file, section, c.key, isList, target2), 450);
+          timer2 = window.setTimeout(() => this.openValueSidePanel(row, file, section, c.key, isList, target2), 450);
         };
-        row.onmouseleave = () => window.clearTimeout(timer);
+        row.onmouseleave = () => window.clearTimeout(timer2);
         row.onclick = () => {
           if (isList && view.note.raw[c.key] === void 0) {
             this.openValueSidePanel(row, file, section, c.key, true, target2);
@@ -13215,7 +13371,7 @@ var SidebarView = class extends import_obsidian33.ItemView {
     input.focus();
     input.select();
     const pop = activeDocument.body.createDiv({ cls: "ep-popup ep-typepick" });
-    const place = () => {
+    const place2 = () => {
       const r = input.getBoundingClientRect();
       pop.setCssStyles({ left: r.left + "px", top: r.bottom + 2 + "px", minWidth: Math.max(140, r.width) + "px" });
     };
@@ -13275,7 +13431,7 @@ var SidebarView = class extends import_obsidian33.ItemView {
       }
       if (!pop.firstElementChild)
         setTypedText(pop.createDiv({ cls: "ep-empty-sub" }), this.i18n, this.settings, "view.noTypesConfigured");
-      place();
+      place2();
     };
     render3();
     input.oninput = render3;
@@ -14816,7 +14972,7 @@ function makeFace(face, ss) {
   const p = [n[0] * d0, n[1] * d0, n[2] * d0];
   const right = norm(sub(face[0], p));
   const up = cross(n, right);
-  const place = `matrix3d(${f3(right[0])},${f3(right[1])},${f3(right[2])},0,${f3(up[0])},${f3(up[1])},${f3(up[2])},0,${f3(n[0])},${f3(n[1])},${f3(n[2])},0,${f3(p[0] * scale)},${f3(p[1] * scale)},${f3(p[2] * scale)},1)`;
+  const place2 = `matrix3d(${f3(right[0])},${f3(right[1])},${f3(right[2])},0,${f3(up[0])},${f3(up[1])},${f3(up[2])},0,${f3(n[0])},${f3(n[1])},${f3(n[2])},0,${f3(p[0] * scale)},${f3(p[1] * scale)},${f3(p[2] * scale)},1)`;
   const land = `matrix3d(${f3(right[0])},${f3(up[0])},${f3(n[0])},0,${f3(right[1])},${f3(up[1])},${f3(n[1])},0,${f3(right[2])},${f3(up[2])},${f3(n[2])},0,0,0,0,1)`;
   const mid = box / 2;
   const px = face.map((v) => {
@@ -14836,7 +14992,7 @@ function makeFace(face, ss) {
   const fy = dot(sub(feat, p), up);
   const numRot = Math.atan2(fx, -fy) * 180 / Math.PI;
   const landUp = -90 - Math.atan2(fy, fx) * 180 / Math.PI;
-  return { place, land, clip: poly(px), clipInner: poly(inner), n, sidesOfFace: face.length, numRot, landUp };
+  return { place: place2, land, clip: poly(px), clipInner: poly(inner), n, sidesOfFace: face.length, numRot, landUp };
 }
 function buildSolid(sides, ss = 1) {
   const def = SOLIDS[sides];
@@ -14877,7 +15033,7 @@ var spin = {
     const ico = el.createDiv({ cls: "ep-roll-die-ico" });
     (0, import_obsidian36.setIcon)(ico, diceIconId(sides));
     const num = el.createDiv({ cls: "ep-roll-die-num", text: String(rnd(sides)) });
-    let timer = 0;
+    let timer2 = 0;
     let done = false;
     let owned = false;
     return {
@@ -14893,13 +15049,13 @@ var spin = {
           num.setText(String(rnd(sides)));
           const p = Math.min(1, (performance.now() - t0) / dur);
           if (p >= 1) return;
-          timer = window.setTimeout(step, 55 + 230 * p * p);
+          timer2 = window.setTimeout(step, 55 + 230 * p * p);
         };
         step();
       },
       settle: (v) => {
         done = true;
-        window.clearTimeout(timer);
+        window.clearTimeout(timer2);
         el.removeClass("ep-spin");
         el.addClass("ep-settled");
         num.setText(String(v));

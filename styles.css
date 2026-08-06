@@ -177,6 +177,9 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
 /* inset by half the knob width so the (idle) knob never overflows the row and
    gets clipped by a column / grid cell at the 0% and 100% extremes */
 .ep-slider2 { position: relative; width: calc(100% - 28px); margin: 0 14px; height: 22px; pointer-events: none; --ep-knob: 0%; }
+/* The rail: one pixel, the full width, always there - the extent the handle
+   travels, visible before anything is dragged. */
+.ep-slider2-rail { position: absolute; left: 0; right: 0; top: 50%; height: 1px; transform: translateY(-50%); background: var(--background-modifier-border); }
 .ep-slider2-track { position: absolute; top: 50%; left: var(--ep-knob); width: 44px; max-width: 100%; height: 4px; border-radius: 999px; background: var(--background-modifier-border); transform: translate(-50%, -50%); transition: left 0.12s ease, width 0.12s ease; }
 .ep-slider2.is-active .ep-slider2-track { left: 50%; width: 100%; }
 .ep-slider2-knob { position: absolute; top: 50%; left: var(--ep-knob); width: 28px; height: 28px; transform: translate(-50%, -50%); pointer-events: auto; cursor: grab; touch-action: none; transition: left 0.08s ease-out; }
@@ -967,10 +970,19 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-sug-link { color: var(--text-accent); }
 
 /* -- skills type deprecation (F5) -------------------------------------------- */
-/* Scale lines on a slider or timeline: hairlines under the controls. */
+/* Scale lines on a slider or timeline: hairlines under the controls. Primary
+   and secondary are the same single-pixel line in the same colour, differing
+   only in how tall and how present they are. */
 .ep-slider2-ticks, .ep-dateplot-grid { position: absolute; inset: 0; pointer-events: none; }
-.ep-tick { position: absolute; top: 50%; width: 1px; height: 7px; transform: translate(-0.5px, -50%); background: var(--background-modifier-border); opacity: .75; }
-.ep-tick-major { height: 12px; background: var(--text-faint); opacity: 1; }
+.ep-tick { position: absolute; top: 50%; width: 1px; height: 6px; transform: translateY(-50%); background: var(--text-faint); opacity: .35; }
+.ep-tick-major { height: 12px; opacity: .8; }
+/* A primary line answers to the pointer, on a target wider than it is drawn. */
+.ep-tick-hover { pointer-events: auto; }
+.ep-tick-hover::after { content: ""; position: absolute; inset: -3px -4px; }
+.ep-tick-hover:hover { opacity: 1; }
+.ep-hover-label { position: fixed; z-index: var(--layer-menu, 25); padding: 2px 6px; font-size: var(--font-ui-smaller); color: var(--text-normal); white-space: nowrap; pointer-events: none; }
+/* Hovering something this small reads as focusing it, ring and all. */
+.ep-tick.is-focused, .ep-dateplot-tick.is-focused { outline: 2px solid var(--interactive-accent); outline-offset: 1px; border-radius: 2px; }
 .ep-mini-list { margin: -6px 0 4px; }
 .ep-mini-list .ep-mini-row { padding: 3px 0; border: none; }
 .ep-mini-list .ep-mini-row .setting-item-info { display: none; }

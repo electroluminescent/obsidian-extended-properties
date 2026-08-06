@@ -15,6 +15,7 @@ import { compileFormula, invertFormula } from "../../../utils/formula";
 import { clamp, fmtFraction, fmtNum } from "../../../utils/misc";
 import { snapReach, snapTicks, snapValue, ticksFor } from "../../../utils/ticks";
 import { evalMeasure, unitsForField } from "../../../utils/measure";
+import { bindHoverLabel } from "../../components/hover-label";
 import { sfx } from "../../../utils/sound";
 import { shouldClamp, clampToConstraints } from "../../../core/validate";
 import { applyValidity } from "../validity";
@@ -74,6 +75,13 @@ function defaultRange(kind: NumericKind, entry: { fractions?: boolean }): { min:
   if (wantsFractions(kind, entry)) return { min: 0, max: 1 };
   return { min: -9999, max: 99999 };
 }
+
+/**
+ * The key held to set a value where it is put rather than on the nearest
+ * line. Alt (Option on macOS) is free of other meaning in the sidebar, and is
+ * the key that means "not that, exactly this" nearly everywhere else.
+ */
+export const isFree = (e: { altKey: boolean }): boolean => e.altKey;
 
 /** Whether the entry shows -/+ steppers (number/decimal, not opted out). */
 function wantSteppers(kind: NumericKind, entry: { steppers?: boolean }): boolean {
@@ -310,33 +318,47 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
     view.registerUpdater(drawRating);
   } else if (entry.slider || isFormula) {
     const slider = ctx.extra.createDiv({ cls: "ep-slider2" });
+    // The rail spans the whole slider whatever the value is, so the extent
+    // being dragged along is visible before anything is dragged. Everything
+    // else sits on top of it, the knob last of all.
+    slider.createDiv({ cls: "ep-slider2-rail" });
     slider.createDiv({ cls: "ep-slider2-track" });
-    const knob = slider.createDiv({ cls: "ep-slider2-knob" });
-    knob.tabIndex = 0;
-    knob.setAttr("role", "slider");
-    knob.setAttr("aria-valuemin", String(min));
-    knob.setAttr("aria-valuemax", String(max));
 
     const fmt = (v: number): number => (wantsFractions(kind, entry) ? v : Math.round(v));
     const pctForValue = (v: number): number => (span <= 0 ? 0 : clamp((toPosition(v) - min) / span, 0, 1) * 100);
+    /** A line's value, read exactly as the value itself reads. */
+    const labelFor = (v: number): string => fmtValue(kind, entry, v * factor) + (unit ? " " + unit : "");
 
-    // Scale lines. Primary and secondary at their own intervals, one pixel
-    // wide, with a secondary dropped wherever a primary lands on it. Drawn
-    // under the knob and never interactive - the knob owns every press.
+    // Scale lines. Primary and secondary at their own intervals, a pixel
+    // across either way, with a secondary dropped wherever a primary lands on
+    // it. A primary line answers what value stands at that position; the knob
+    // still owns every press, so hovering a line never blocks a drag.
     const ticks = ticksFor(min, max, Number(entry.tickMajor), Number(entry.tickMinor));
     if (ticks.length) {
       const layer = slider.createDiv({ cls: "ep-slider2-ticks" });
       for (const tk of ticks) {
         const line = layer.createDiv({ cls: tk.major ? "ep-tick ep-tick-major" : "ep-tick" });
         line.setCssStyles({ left: pctForValue(tk.value) + "%" });
+        if (!tk.major) continue;
+        line.addClass("ep-tick-hover");
+        line.setAttr("aria-label", labelFor(tk.value));
+        bindHoverLabel(line, () => labelFor(tk.value));
       }
     }
+
+    const knob = slider.createDiv({ cls: "ep-slider2-knob" });
+    knob.tabIndex = 0;
+    knob.setAttr("role", "slider");
+    knob.setAttr("aria-valuemin", String(min));
+    knob.setAttr("aria-valuemax", String(max));
     // Which lines a value settles on, and how far it reaches to do so: half
     // the finest interval it snaps to, so every value lands on a line.
     const to = { primary: entry.snapPrimary === true, secondary: entry.snapSecondary === true };
     const snapPoints = snapTicks(min, max, Number(entry.tickMajor), Number(entry.tickMinor), to);
     const reach = snapReach(Number(entry.tickMajor), Number(entry.tickMinor), to);
-    const snap = (v: number): number => snapValue(v, snapPoints, reach);
+    // Holding the free key sets the value where it is put, lines or no lines -
+    // the way out of a scale that is otherwise inescapable.
+    const snap = (v: number, free = false): number => (free ? v : snapValue(v, snapPoints, reach));
     const place = (v: number): void => {
       slider.setCssProps({ "--ep-knob": pctForValue(v) + "%" });
       knob.setAttr("aria-valuenow", String(fmt(v)));
@@ -346,10 +368,10 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
 
     let active = false;
     let pending = get();
-    const drag = (clientX: number): void => {
+    const drag = (clientX: number, free = false): void => {
       const r = slider.getBoundingClientRect();
       const t = r.width <= 0 ? 0 : clamp((clientX - r.left) / r.width, 0, 1);
-      let out = snap(toValue(min + t * span));
+      let out = snap(toValue(min + t * span), free);
       if (!isFormula && entry.clamp) out = clamp(out, min, max);
       pending = fmt(out);
       place(pending); // knob snaps to the (rounded) value's position
@@ -366,7 +388,7 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
     });
     knob.addEventListener("pointermove", (e) => {
       if (!active) return;
-      drag(e.clientX);
+      drag(e.clientX, isFree(e));
       e.preventDefault();
     });
     const finish = (e: PointerEvent): void => {
@@ -392,7 +414,7 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
       else if (e.key === "ArrowRight" || e.key === "ArrowUp") v += step;
       else return;
       e.preventDefault();
-      v = snap(v);
+      v = snap(v, isFree(e));
       if (entry.clamp) v = clamp(v, min, max);
       view.note.set(file, key, fmt(v));
     });
@@ -413,27 +435,57 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
  * Scale lines and snapping, shared by the slider here and the date timeline
  * (which reads the same entry fields, in days).
  */
-export function renderTickSettings(octx: OptionsCtx, opts: { snap?: boolean } = {}): void {
+/** A plain interval: a positive number of units, or nothing at all. */
+function plainSpan(text: string): number | undefined {
+  const n = Number(text);
+  return text.trim() === "" || !Number.isFinite(n) || n <= 0 ? undefined : n;
+}
+
+export interface TickSettingsOptions {
+  /** A scale with nothing to drag has nothing to settle, so no snapping. */
+  snap?: boolean;
+  /**
+   * An interval written in the surface's own units rather than as a plain
+   * number - "1Y", "6M", "12h" on a timeline. The stored field stays a
+   * number either way; this only reads and writes it.
+   */
+  span?: {
+    parse: (text: string) => number | undefined;
+    format: (n: number | undefined) => string;
+    /** Added to both interval descriptions, saying what may be written. */
+    hint?: string;
+  };
+}
+
+export function renderTickSettings(octx: OptionsCtx, opts: TickSettingsOptions = {}): void {
   const { view, entry, container: c, changed, redraw } = octx;
   const t = view.i18n.t.bind(view.i18n);
+  const span = opts.span;
+  // The snap toggles only exist once an interval does, so setting the first
+  // one has to rebuild the modal - but only then, or the field would be
+  // rewritten under a half-typed interval.
+  const toggles = opts.snap !== false;
   const num = (name: string, desc: string, get: () => number | undefined, set: (n: number | undefined) => void) =>
-    new Setting(c).setName(name).setDesc(desc).addText((tx) => {
-      tx.inputEl.type = "number";
-      tx.setValue(get() === undefined ? "" : String(get()));
-      tx.onChange((v) => {
-        const n = Number(v);
-        set(v.trim() === "" || !Number.isFinite(n) || n <= 0 ? undefined : n);
-        changed();
-        redraw();
+    new Setting(c)
+      .setName(name)
+      .setDesc(span?.hint ? `${desc} ${span.hint}` : desc)
+      .addText((tx) => {
+        if (!span) tx.inputEl.type = "number";
+        tx.setValue(span ? span.format(get()) : get() === undefined ? "" : String(get()));
+        tx.onChange((v) => {
+          const had = get() !== undefined;
+          set(span ? span.parse(v) : plainSpan(v));
+          changed();
+          if (toggles && had !== (get() !== undefined)) redraw();
+        });
       });
-    });
   num(t("options.tickMajor"), t("options.tickMajorDesc"), () => entry.tickMajor, (n) => (entry.tickMajor = n));
   num(t("options.tickMinor"), t("options.tickMinorDesc"), () => entry.tickMinor, (n) => (entry.tickMinor = n));
-  if (opts.snap === false) return; // nothing to drag, so nothing to settle
+  if (!toggles) return; // nothing to drag, so nothing to settle
   // No range to set: a value settles on the nearest line of whichever sets
   // are switched on, and the switches are what decide the interval.
   const swap = (name: string, desc: string, get: () => boolean, set: (v: boolean) => void) =>
-    new Setting(c).setName(name).setDesc(desc).addToggle((tg) => {
+    new Setting(c).setName(name).setDesc(`${desc} ${t("options.snapFreeHint")}`).addToggle((tg) => {
       tg.setValue(get()).onChange((v) => {
         set(v);
         changed();

@@ -1,5 +1,31 @@
 # Changelog
 
+## 4.47.0
+
+- **Hold Alt (Option) to pass between the lines.** Dragging a slider or
+  stepping it with the arrow keys settles on the nearest line as before;
+  holding the key sets the value exactly where you put it.
+- **Timeline intervals are written in the property's own calendar**: `1Y`,
+  `6M`, `3D`, `12h`, `30m` - a year being however many days a year holds
+  here, and `M` months against `m` minutes, as in the format strings. Terms
+  add up (`1Y 6M`), a plain number still means what it did, and whatever you
+  type reads back the way you wrote it.
+- **Hover a primary line to read it.** On a slider it names the value at that
+  position, formatted exactly as the value is - fractions, unit and all; on a
+  timeline, the date in the property's format. Hovering a line or a note
+  marker gives it the same focus ring a property gets, and a line beneath a
+  marker never takes the pointer from it.
+- **Thinner scale.** Primary and secondary lines are now the same single pixel
+  in the same colour, differing only in height and how present they are.
+- **Sliders have a rail**: a one-pixel line spanning the whole slider, there
+  before anything is dragged, so the extent the handle travels is visible.
+
+## 4.46.0
+
+- Housekeeping: the readme installs from the community store, the release
+  workflow can be run by hand, and two lint warnings are gone. No change to
+  how anything behaves.
+
 ## 4.45.0
 
 - **Percent reads as the number it stands for**: `50%` is 0.5, `7.5%` is

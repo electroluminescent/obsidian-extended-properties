@@ -29,6 +29,8 @@ import type { EntryRenderCtx, EntryRef, OptionsCtx, ViewCtx } from "../../../cor
 import type { ValueTypeDef } from "../../../core/registry";
 import { ext } from "../../../core/model";
 import { ticksFor } from "../../../utils/ticks";
+import { formatSpan, parseSpan } from "../../../utils/date-span";
+import { bindHoverLabel } from "../../components/hover-label";
 import { renderTickSettings } from "./numeric";
 import {
   DateConfig, DateParts, DEFAULT_DATE_FORMAT, decodeSerial, encodeSerial, formatDate, monthName,
@@ -329,6 +331,17 @@ function render(ctx: EntryRenderCtx): void {
       for (const g of ticksFor(range.min, range.max, Number(entry.tickMajor), Number(entry.tickMinor))) {
         const line = gridEl.createDiv({ cls: g.major ? "ep-tick ep-tick-major" : "ep-tick" });
         line.setCssStyles({ left: pct(g.value) + "%" });
+        if (!g.major) continue;
+        // A primary line says which date stands at its position, in the
+        // property's own format. The note markers are a layer above it, so a
+        // line under one of them never takes the pointer from it.
+        const when = (): string => {
+          const p = decodeSerial(Math.round(g.value), cfg);
+          return p ? formatDate(p, cfg) : "";
+        };
+        line.addClass("ep-tick-hover");
+        line.setAttr("aria-label", when());
+        bindHoverLabel(line, when);
       }
       // Group other notes by their date so shared dates make ONE tick.
       const groups = new Map<number, { parts: DateParts; files: { path: string; basename: string }[] }>();
@@ -347,6 +360,9 @@ function render(ctx: EntryRenderCtx): void {
         tick.setCssStyles({ left: pct(s) + "%" });
         const when = formatDate(g.parts, cfg);
         tick.setAttr("aria-label", when);
+        // The ring only: the marker's own popup already names the date and
+        // the notes behind it.
+        bindHoverLabel(tick, () => "");
         tick.onmouseenter = () => {
           window.clearTimeout(popTimer);
           popTimer = window.setTimeout(() => openPop(tick, when, g.files), 120);
@@ -398,9 +414,18 @@ function renderOptions(octx: OptionsCtx): void {
       octx.redraw();
     });
   });
-  // Scale lines on the timeline, in days - the same fields the slider uses,
-  // minus the snapping, which belongs to something you can drag.
-  if (e.slider) renderTickSettings(octx, { snap: false });
+  // Scale lines on the timeline - the same fields the slider uses, minus the
+  // snapping (which belongs to something you can drag), and written in the
+  // property's own calendar: "1Y" is however long a year is here.
+  if (e.slider)
+    renderTickSettings(octx, {
+      snap: false,
+      span: {
+        parse: (v) => parseSpan(v, cfg),
+        format: (n) => formatSpan(n, cfg),
+        hint: t("options.tickUnitsHint"),
+      },
+    });
   new Setting(c)
     .setName(t("options.minimum"))
     .setDesc(t("options.dateRangeAuto"))
