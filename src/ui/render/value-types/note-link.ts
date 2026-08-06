@@ -11,7 +11,7 @@ import { Setting, TFile } from "obsidian";
 import type { Entry } from "../../../core/model";
 import type { OptionsCtx, ViewCtx } from "../../../core/context";
 import { openLinkInput } from "../../components/inline-edit";
-import { FolderSuggest, inScope } from "../../components/suggest";
+import { FolderSuggest, inScope, linkDisplay, linkStored } from "../../components/suggest";
 import type { NoteScope } from "../../components/suggest";
 
 /** Whether this entry's value is the name of a note. */
@@ -50,7 +50,14 @@ export function linkSpanFor(entry: Entry): HTMLElement | null {
  * the point of the type - flagging on `cell` a link that leads nowhere, or
  * (for a property held to one folder) outside it, which is just as wrong.
  */
-export function drawNoteLink(view: ViewCtx, cell: HTMLElement, span: HTMLElement, entry: Entry, raw: string): void {
+export function drawNoteLink(
+  view: ViewCtx,
+  file: TFile,
+  cell: HTMLElement,
+  span: HTMLElement,
+  entry: Entry,
+  raw: string
+): void {
   spans.set(entry, span);
   span.empty();
   span.removeClass("ep-placeholder");
@@ -65,23 +72,57 @@ export function drawNoteLink(view: ViewCtx, cell: HTMLElement, span: HTMLElement
   if (!dest || (entry.choices?.strict === true && !inScope(dest.path, linkScopeOf(entry)))) {
     cell.addClass("ep-link-unresolved");
   }
+  // A property that draws from one folder makes its notes there: following a
+  // link to a note that does not exist yet should not drop one somewhere else.
+  if (!dest && entry.choices?.folder) {
+    const a = span.querySelector("a");
+    a?.addEventListener(
+      "click",
+      (ev: MouseEvent) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        void createInFolder(view, file, entry, linkTarget(raw));
+      },
+      true
+    );
+  }
+}
+
+/** Make `name` in the entry's folder, link it, and open it. */
+async function createInFolder(view: ViewCtx, file: TFile, entry: Entry, name: string): Promise<void> {
+  const folder = (entry.choices?.folder ?? "").replace(/^\/+|\/+$/g, "");
+  const path = `${folder ? folder + "/" : ""}${name}.md`;
+  try {
+    if (!view.app.vault.getAbstractFileByPath(path)) await view.app.vault.create(path, "");
+    // The value may have been plain text until now; it names a note from here.
+    if (entry.key) view.note.set(file, entry.key, `[[${name}]]`);
+    await view.app.workspace.openLinkText(name, file.path, false);
+  } catch (err) {
+    console.error("Extended Properties: could not create", path, err);
+  }
 }
 
 /** Open the in-place link field over `span`, writing back to the entry's key. */
 export function editNoteLink(view: ViewCtx, file: TFile, entry: Entry, span: HTMLElement): void {
   const key = entry.key as string;
   const c = entry.choices;
+  // The field shows and takes note names; the brackets are how the value is
+  // stored, and are put back on the way out.
+  const isNote = (n: string): boolean => !!view.app.metadataCache.getFirstLinkpathDest(n, view.note.path || "");
   openLinkInput(
     view.app,
     span,
-    view.note.str(key),
+    linkDisplay(view.note.str(key)),
     {
       scope: linkScopeOf(entry),
       strict: c?.strict === true,
       create: c?.create === true,
       rejected: view.i18n.t(c?.folder ? "link.notInFolder" : "link.notANote", { folder: c?.folder ?? "" }),
     },
-    (val) => view.note.set(file, key, val === "" ? undefined : val)
+    (val) => {
+      const stored = linkStored(val, isNote);
+      view.note.set(file, key, stored === "" ? undefined : stored);
+    }
   );
 }
 

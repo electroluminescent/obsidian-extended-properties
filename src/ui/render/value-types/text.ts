@@ -50,7 +50,7 @@ export const textType: ValueTypeDef = {
       // shared field (see `note-link`), which the "link" type is also built on.
       if (linksToNotes(entry) && !isEnvelope(raw)) {
         v.addClass("ep-linkval");
-        drawNoteLink(view, v, s, entry, view.note.str(key));
+        drawNoteLink(view, file, v, s, entry, view.note.str(key));
         applyValidity(v, entry, "text", raw, view.i18n);
         return;
       }

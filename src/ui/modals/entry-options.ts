@@ -23,6 +23,7 @@ import { destructive } from "../components/setting-helpers";
 import { setTypedText } from "../components/type-label";
 import { parseExpr } from "../../core/expr";
 import { setSharedDataType } from "../../core/layout-ops";
+import { poolFor } from "../../core/pool";
 import { restoreFromSnapshot } from "../../utils/misc";
 import { addColorSetting, addIconSetting, ColorHost } from "../components/setting-helpers";
 import { PropSuggest } from "../components/suggest";
@@ -54,7 +55,7 @@ const NUMERIC_CONSTRAINT_TYPES = new Set(["number", "decimal", "formula", "unit"
 
 /** Validation-constraint editors for a prop entry, shown per resolved data type. */
 function renderConstraints(octx: OptionsCtx, type: string): void {
-  const { view, entry, container: c, changed } = octx;
+  const { view, entry, container: c, changed, redraw } = octx;
   const t = view.i18n.t.bind(view.i18n);
   const cn = (): Constraints => ((entry.constraints ??= {}));
   c.createEl("h4", { text: t("options.constraintsHeading") });
@@ -88,14 +89,67 @@ function renderConstraints(octx: OptionsCtx, type: string): void {
         changed();
       });
     });
-    new Setting(c).setName(t("options.constraintAllowed")).setDesc(t("options.constraintAllowedDesc")).addText((tx) => {
-      tx.setValue((entry.constraints?.allowed ?? []).join(", ")).onChange((v) => {
-        const arr = v.split(",").map((x) => x.trim()).filter(Boolean);
-        cn().allowed = arr.length ? arr : undefined;
-        changed();
+    renderAllowedList(octx);
+  }
+  new Setting(c).addButton((b) =>
+    b.setButtonText(t("options.constraintClear")).setWarning().onClick(() => {
+      delete entry.constraints;
+      changed();
+      redraw();
+    })
+  );
+}
+
+/**
+ * The allowed values, as a list that grows rather than one comma-separated
+ * box: a value per row, add and remove, and a button that fills it from what
+ * the vault already holds for this property - which is usually the list the
+ * user was about to type out.
+ */
+function renderAllowedList(octx: OptionsCtx): void {
+  const { view, entry, container: c, changed, redraw } = octx;
+  const t = view.i18n.t.bind(view.i18n);
+  const key = (entry.key as string) ?? "";
+  const list = entry.constraints?.allowed ?? [];
+  const write = (next: string[]): void => {
+    (entry.constraints ??= {}).allowed = next.length ? next : undefined;
+    changed();
+  };
+  new Setting(c).setName(t("options.constraintAllowed")).setDesc(t("options.constraintAllowedDesc"));
+  const rows = c.createDiv({ cls: "ep-allowed-list" });
+  list.forEach((val, i) => {
+    const row = new Setting(rows).setClass("ep-allowed-row");
+    row.addText((tx) => {
+      tx.setValue(val);
+      tx.inputEl.addEventListener("change", () => {
+        const next = [...list];
+        next[i] = tx.getValue().trim();
+        write(next.filter(Boolean));
       });
     });
-  }
+    row.addExtraButton((b) =>
+      b.setIcon("x").setTooltip(t("options.constraintAllowedRemove")).onClick(() => {
+        write(list.filter((_, j) => j !== i));
+        redraw();
+      })
+    );
+  });
+  const foot = new Setting(rows).setClass("ep-allowed-row");
+  foot.addButton((b) =>
+    b.setButtonText(t("options.constraintAllowedAdd")).onClick(() => {
+      write([...list, ""]);
+      redraw();
+    })
+  );
+  if (key)
+    foot.addButton((b) =>
+      b.setButtonText(t("options.constraintFromPool")).setTooltip(t("options.constraintFromPoolDesc")).onClick(() => {
+        const pool = poolFor(view.settings, view.props.valuesFor(key), key);
+        const seen = new Set(list.map((v) => v.trim().toLowerCase()));
+        write([...list, ...pool.filter((v) => v.trim() && !seen.has(v.trim().toLowerCase()))]);
+        redraw();
+      })
+    );
 }
 
 export function renderEntryOptionsBody(

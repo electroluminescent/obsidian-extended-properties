@@ -156,7 +156,7 @@ export const linkType: ValueTypeDef = {
     // The link lives in a span of its own, so the editor can stand in its
     // place without taking the cell (and its classes) with it.
     const s = v.createSpan();
-    const draw = () => drawNoteLink(view, v, s, entry, view.note.str(key));
+    const draw = () => drawNoteLink(view, file, v, s, entry, view.note.str(key));
     draw();
     // No editable marking on the cell: a press on the link itself follows it,
     // as a link should, and the free space beside it opens the editor.

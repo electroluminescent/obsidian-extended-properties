@@ -1,5 +1,23 @@
 # Changelog
 
+## 4.37.0
+
+- **A link field reads and writes note names, not bracket syntax.** Opening one
+  shows "Ada" where the value is `[[Ada]]`, and picking a suggestion puts the
+  name in the box. The brackets are put back when the value is stored, so
+  nothing about the note changes.
+- **A name that comes to mean a note becomes a link.** Type a name before its
+  note exists and it stays plain text; once the note is there - made through
+  the suggestion list, or anywhere else - the next commit stores it as a link.
+  Turning "Links to a note" off leaves the link where it is.
+- **Following an unresolved link makes the note in the property's folder**, not
+  wherever new notes usually go, and links it.
+- **Allowed values are a list you add to**, a value per row with a remove
+  button, rather than one comma-separated box.
+- **Fill them from what the property already holds** across the vault, with one
+  button - usually the list you were about to type out.
+- **Clear all validation** on a property in one go.
+
 ## 4.36.1
 
 - Closed the three ways a link property could come back after the move: a

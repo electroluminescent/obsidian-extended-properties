@@ -325,9 +325,13 @@ export class TextLinkSuggest extends AbstractInputSuggest<LinkOrValue> {
     (this as unknown as { close?: () => void }).close?.();
   }
 
-  /** Put `[[name]]` in the box and hand it on, as though typed in full. */
+  /**
+   * Put the note's name in the box and hand it on. The name, not `[[name]]`:
+   * a link field reads and writes plain names, and the brackets belong to how
+   * the value is stored, not to what the field shows.
+   */
   private commitLink(name: string): void {
-    const val = `[[${name}]]`;
+    const val = name;
     this.setValue(val);
     this.el.value = val;
     this.el.dispatchEvent(new Event("input"));
@@ -352,4 +356,22 @@ export class TextLinkSuggest extends AbstractInputSuggest<LinkOrValue> {
 export function linkNameOf(raw: string): string {
   const m = /\[\[([^\]|#]*)/.exec(raw);
   return (m ? m[1] : raw).trim();
+}
+
+/** A value that is a plain wikilink reads, in a link field, as its name. */
+export function linkDisplay(raw: string): string {
+  return /^\s*\[\[[^[\]|#]+\]\]\s*$/.test(raw) ? linkNameOf(raw) : raw;
+}
+
+/**
+ * What a typed value is stored as. A name that means a note becomes a link, so
+ * a value typed as plain text - or typed before its note existed, and made
+ * since - ends up linked like any other. Anything already carrying a link, or
+ * an address, is stored as written.
+ */
+export function linkStored(text: string, isNote: (name: string) => boolean): string {
+  const v = text.trim();
+  if (!v) return "";
+  if (/\[\[|\]\(|^[a-z][a-z0-9+.-]*:\/\//i.test(v)) return v;
+  return isNote(v) ? `[[${v}]]` : v;
 }

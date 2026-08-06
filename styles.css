@@ -967,6 +967,11 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-sug-link { color: var(--text-accent); }
 
 /* -- skills type deprecation (F5) -------------------------------------------- */
+.ep-allowed-list { margin: -6px 0 4px; }
+.ep-allowed-list .ep-allowed-row { padding: 3px 0; border: none; }
+.ep-allowed-list .ep-allowed-row .setting-item-info { display: none; }
+.ep-allowed-list .ep-allowed-row .setting-item-control { justify-content: flex-start; gap: 4px; }
+.ep-allowed-list .ep-allowed-row input[type='text'] { width: 100%; }
 .ep-moved-note { color: var(--text-muted); border-left: 2px solid var(--background-modifier-border); padding: 2px 0 2px 8px; margin: 0 0 8px; font-size: var(--font-ui-smaller); }
 .ep-skills-deprecated { color: var(--text-warning); border: 1px solid var(--text-warning); border-radius: 6px; padding: 6px 8px; margin: 4px 0 8px; font-size: var(--font-ui-smaller); }
 

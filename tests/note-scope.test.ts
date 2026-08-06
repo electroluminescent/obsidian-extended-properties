@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { inScope, linkNameOf } from "../src/ui/components/suggest";
+import { inScope, linkDisplay, linkNameOf, linkStored } from "../src/ui/components/suggest";
 
 describe("in scope", () => {
   it("takes every note when no folder is named", () => {
@@ -49,5 +49,44 @@ describe("the note a value names", () => {
   it("takes a bare name as the name", () => {
     expect(linkNameOf("Ada")).toBe("Ada");
     expect(linkNameOf("")).toBe("");
+  });
+});
+
+describe("what the field shows", () => {
+  it("shows a plain link as its note name", () => {
+    expect(linkDisplay("[[Ada]]")).toBe("Ada");
+    expect(linkDisplay("  [[Ada]] ")).toBe("Ada");
+  });
+
+  it("leaves anything else as it is written", () => {
+    expect(linkDisplay("Ada")).toBe("Ada");
+    expect(linkDisplay("[[Ada|the smith]]")).toBe("[[Ada|the smith]]");
+    expect(linkDisplay("see [[Ada]] and [[Bo]]")).toBe("see [[Ada]] and [[Bo]]");
+    expect(linkDisplay("")).toBe("");
+  });
+});
+
+describe("what the field stores", () => {
+  const notes = ["Ada", "Bo"];
+  const isNote = (n: string): boolean => notes.includes(n);
+
+  it("links a name that means a note", () => {
+    expect(linkStored("Ada", isNote)).toBe("[[Ada]]");
+    expect(linkStored("  Ada  ", isNote)).toBe("[[Ada]]");
+  });
+
+  it("keeps a name that means nothing yet as it was typed", () => {
+    expect(linkStored("Zeno", isNote)).toBe("Zeno");
+  });
+
+  it("leaves a value that already carries a link alone", () => {
+    expect(linkStored("[[Ada|the smith]]", isNote)).toBe("[[Ada|the smith]]");
+    expect(linkStored("[Ada](Ada.md)", isNote)).toBe("[Ada](Ada.md)");
+    expect(linkStored("https://example.com/Ada", isNote)).toBe("https://example.com/Ada");
+  });
+
+  it("gives back nothing for an emptied field", () => {
+    expect(linkStored("", isNote)).toBe("");
+    expect(linkStored("   ", isNote)).toBe("");
   });
 });

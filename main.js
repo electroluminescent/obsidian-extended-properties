@@ -360,7 +360,12 @@ var en_default = {
   "options.constraintPattern": "Pattern (regex)",
   "options.constraintPatternDesc": "The whole value (each list item) must match this regular expression. Leave blank to skip.",
   "options.constraintAllowed": "Allowed values",
-  "options.constraintAllowedDesc": "Comma-separated accepted values (case-insensitive). Leave blank to allow anything.",
+  "options.constraintAllowedAdd": "Add value",
+  "options.constraintAllowedRemove": "Remove this value",
+  "options.constraintFromPool": "From current values",
+  "options.constraintFromPoolDesc": "Fill the list with the values this property already holds across the vault.",
+  "options.constraintClear": "Clear all validation",
+  "options.constraintAllowedDesc": "The values this property accepts (case-insensitive). Empty = anything goes. A text property can offer these while editing - see its Text settings.",
   "derive.value": "Value as-is",
   "mods.heading": "Modifier",
   "mods.preview": "{denote} = {total}",
@@ -3428,10 +3433,14 @@ var _TextLinkSuggest = class _TextLinkSuggest extends import_obsidian4.AbstractI
     this.setValue(s.text);
     (_d = this.close) == null ? void 0 : _d.call(this);
   }
-  /** Put `[[name]]` in the box and hand it on, as though typed in full. */
+  /**
+   * Put the note's name in the box and hand it on. The name, not `[[name]]`:
+   * a link field reads and writes plain names, and the brackets belong to how
+   * the value is stored, not to what the field shows.
+   */
   commitLink(name) {
     var _a, _b;
-    const val = `[[${name}]]`;
+    const val = name;
     this.setValue(val);
     this.el.value = val;
     this.el.dispatchEvent(new Event("input"));
@@ -3457,6 +3466,15 @@ var TextLinkSuggest = _TextLinkSuggest;
 function linkNameOf(raw) {
   const m = /\[\[([^\]|#]*)/.exec(raw);
   return (m ? m[1] : raw).trim();
+}
+function linkDisplay(raw) {
+  return /^\s*\[\[[^[\]|#]+\]\]\s*$/.test(raw) ? linkNameOf(raw) : raw;
+}
+function linkStored(text, isNote) {
+  const v = text.trim();
+  if (!v) return "";
+  if (/\[\[|\]\(|^[a-z][a-z0-9+.-]*:\/\//i.test(v)) return v;
+  return isNote(v) ? `[[${v}]]` : v;
 }
 
 // src/core/choices.ts
@@ -4865,8 +4883,8 @@ function linkSpanFor(entry) {
   const s = spans.get(entry);
   return (s == null ? void 0 : s.isConnected) ? s : null;
 }
-function drawNoteLink(view, cell, span, entry, raw) {
-  var _a;
+function drawNoteLink(view, file, cell, span, entry, raw) {
+  var _a, _b;
   spans.set(entry, span);
   span.empty();
   span.removeClass("ep-placeholder");
@@ -4881,22 +4899,50 @@ function drawNoteLink(view, cell, span, entry, raw) {
   if (!dest || ((_a = entry.choices) == null ? void 0 : _a.strict) === true && !inScope(dest.path, linkScopeOf(entry))) {
     cell.addClass("ep-link-unresolved");
   }
+  if (!dest && ((_b = entry.choices) == null ? void 0 : _b.folder)) {
+    const a = span.querySelector("a");
+    a == null ? void 0 : a.addEventListener(
+      "click",
+      (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        void createInFolder(view, file, entry, linkTarget2(raw));
+      },
+      true
+    );
+  }
+}
+async function createInFolder(view, file, entry, name) {
+  var _a, _b;
+  const folder = ((_b = (_a = entry.choices) == null ? void 0 : _a.folder) != null ? _b : "").replace(/^\/+|\/+$/g, "");
+  const path = `${folder ? folder + "/" : ""}${name}.md`;
+  try {
+    if (!view.app.vault.getAbstractFileByPath(path)) await view.app.vault.create(path, "");
+    if (entry.key) view.note.set(file, entry.key, `[[${name}]]`);
+    await view.app.workspace.openLinkText(name, file.path, false);
+  } catch (err) {
+    console.error("Extended Properties: could not create", path, err);
+  }
 }
 function editNoteLink(view, file, entry, span) {
   var _a;
   const key = entry.key;
   const c = entry.choices;
+  const isNote = (n) => !!view.app.metadataCache.getFirstLinkpathDest(n, view.note.path || "");
   openLinkInput(
     view.app,
     span,
-    view.note.str(key),
+    linkDisplay(view.note.str(key)),
     {
       scope: linkScopeOf(entry),
       strict: (c == null ? void 0 : c.strict) === true,
       create: (c == null ? void 0 : c.create) === true,
       rejected: view.i18n.t((c == null ? void 0 : c.folder) ? "link.notInFolder" : "link.notANote", { folder: (_a = c == null ? void 0 : c.folder) != null ? _a : "" })
     },
-    (val) => view.note.set(file, key, val === "" ? void 0 : val)
+    (val) => {
+      const stored = linkStored(val, isNote);
+      view.note.set(file, key, stored === "" ? void 0 : stored);
+    }
   );
 }
 function renderNoteChoices(octx) {
@@ -4962,7 +5008,7 @@ var textType = {
       const raw = view.note.raw[key];
       if (linksToNotes(entry) && !isEnvelope(raw)) {
         v.addClass("ep-linkval");
-        drawNoteLink(view, v, s, entry, view.note.str(key));
+        drawNoteLink(view, file, v, s, entry, view.note.str(key));
         applyValidity(v, entry, "text", raw, view.i18n);
         return;
       }
@@ -6871,7 +6917,7 @@ var linkType = {
     const v = ctx2.head.createDiv({ cls: "ep-val-right ep-linkval" });
     if (entry.valueColor) v.setCssStyles({ color: entry.valueColor });
     const s = v.createSpan();
-    const draw = () => drawNoteLink(view, v, s, entry, view.note.str(key));
+    const draw = () => drawNoteLink(view, file, v, s, entry, view.note.str(key));
     draw();
     view.bindOpen(v, () => editNoteLink(view, file, entry, s), false);
     view.registerUpdater(draw);
@@ -8790,7 +8836,7 @@ function viewColorHost(view) {
 }
 var NUMERIC_CONSTRAINT_TYPES = /* @__PURE__ */ new Set(["number", "decimal", "formula", "unit", "rating"]);
 function renderConstraints(octx, type) {
-  const { view, entry, container: c, changed } = octx;
+  const { view, entry, container: c, changed, redraw } = octx;
   const t = view.i18n.t.bind(view.i18n);
   const cn = () => {
     var _a;
@@ -8835,15 +8881,62 @@ function renderConstraints(octx, type) {
         changed();
       });
     });
-    new import_obsidian24.Setting(c).setName(t("options.constraintAllowed")).setDesc(t("options.constraintAllowedDesc")).addText((tx) => {
-      var _a, _b;
-      tx.setValue(((_b = (_a = entry.constraints) == null ? void 0 : _a.allowed) != null ? _b : []).join(", ")).onChange((v) => {
-        const arr = v.split(",").map((x) => x.trim()).filter(Boolean);
-        cn().allowed = arr.length ? arr : void 0;
-        changed();
+    renderAllowedList(octx);
+  }
+  new import_obsidian24.Setting(c).addButton(
+    (b) => b.setButtonText(t("options.constraintClear")).setWarning().onClick(() => {
+      delete entry.constraints;
+      changed();
+      redraw();
+    })
+  );
+}
+function renderAllowedList(octx) {
+  var _a, _b, _c;
+  const { view, entry, container: c, changed, redraw } = octx;
+  const t = view.i18n.t.bind(view.i18n);
+  const key = (_a = entry.key) != null ? _a : "";
+  const list = (_c = (_b = entry.constraints) == null ? void 0 : _b.allowed) != null ? _c : [];
+  const write = (next) => {
+    var _a2;
+    ((_a2 = entry.constraints) != null ? _a2 : entry.constraints = {}).allowed = next.length ? next : void 0;
+    changed();
+  };
+  new import_obsidian24.Setting(c).setName(t("options.constraintAllowed")).setDesc(t("options.constraintAllowedDesc"));
+  const rows = c.createDiv({ cls: "ep-allowed-list" });
+  list.forEach((val, i) => {
+    const row = new import_obsidian24.Setting(rows).setClass("ep-allowed-row");
+    row.addText((tx) => {
+      tx.setValue(val);
+      tx.inputEl.addEventListener("change", () => {
+        const next = [...list];
+        next[i] = tx.getValue().trim();
+        write(next.filter(Boolean));
       });
     });
-  }
+    row.addExtraButton(
+      (b) => b.setIcon("x").setTooltip(t("options.constraintAllowedRemove")).onClick(() => {
+        write(list.filter((_, j) => j !== i));
+        redraw();
+      })
+    );
+  });
+  const foot = new import_obsidian24.Setting(rows).setClass("ep-allowed-row");
+  foot.addButton(
+    (b) => b.setButtonText(t("options.constraintAllowedAdd")).onClick(() => {
+      write([...list, ""]);
+      redraw();
+    })
+  );
+  if (key)
+    foot.addButton(
+      (b) => b.setButtonText(t("options.constraintFromPool")).setTooltip(t("options.constraintFromPoolDesc")).onClick(() => {
+        const pool = poolFor(view.settings, view.props.valuesFor(key), key);
+        const seen = new Set(list.map((v) => v.trim().toLowerCase()));
+        write([...list, ...pool.filter((v) => v.trim() && !seen.has(v.trim().toLowerCase()))]);
+        redraw();
+      })
+    );
 }
 function renderEntryOptionsBody(octx, onDone, onRemoved, opts = {}) {
   var _a, _b, _c, _d;
