@@ -301,7 +301,7 @@ export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EP
 // ---------------------------------------------------------------------------
 
 /** Current settings schema version. Bump when adding a migration step below. */
-export const CURRENT_SCHEMA = 5;
+export const CURRENT_SCHEMA = 6;
 
 /** One ordered migration step: bring settings up to schema `to`. */
 export interface Migration {
@@ -445,6 +445,29 @@ export const SCHEMA_MIGRATIONS: Migration[] = [
       if (!keys.size) return false;
       for (const k of keys) convertDecimalToNumber(s, k);
       return true;
+    },
+  },
+  {
+    to: 6,
+    name: "snap-switch-per-line-kind",
+    run: (s) => {
+      // One "snap to the lines" switch plus a range becomes one switch per
+      // kind of line. The old switch snapped to every line drawn, so both.
+      let changed = false;
+      const each = (e: Entry | undefined): void => {
+        if (!e || e.snapTicks === undefined) return;
+        if (e.snapTicks === true) {
+          if (Number(e.tickMajor) > 0) e.snapPrimary = true;
+          if (Number(e.tickMinor) > 0) e.snapSecondary = true;
+        }
+        e.snapTicks = undefined;
+        e.snapRange = undefined;
+        changed = true;
+      };
+      for (const lk of Object.keys(s.layouts ?? {}))
+        for (const sec of s.layouts[lk].sections ?? []) for (const e of sec.entries ?? []) each(e);
+      for (const k of Object.keys(s.inlineEntries ?? {})) each(s.inlineEntries?.[k]);
+      return changed;
     },
   },
 ];

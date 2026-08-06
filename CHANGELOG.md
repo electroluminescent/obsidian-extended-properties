@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.43.0
+
+- **Snapping is now two switches: to primary lines, to secondary lines, or
+  both.** They decide the interval between them, so there is no range to set -
+  a value settles on the nearest line of whichever sets are on, which is what
+  snapping to a scale means. Each switch appears once its interval does.
+- Snapping to secondary lines includes the places a primary sits on, even
+  though only the primary is drawn there: it is a multiple of that interval
+  either way.
+- A property that had the old switch on gets both new ones, for whichever
+  intervals it has; the range it carried is dropped.
+
 ## 4.42.0
 
 - **Scale lines on a slider and on the date timeline.** A primary and a

@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { maxSnapRange, snapValue, ticksFor, MAX_TICKS } from "../src/utils/ticks";
+import { maxSnapRange, snapReach, snapTicks, snapValue, ticksFor, MAX_TICKS } from "../src/utils/ticks";
 
 const values = (t: { value: number }[]): number[] => t.map((x) => x.value);
 
@@ -54,6 +54,28 @@ describe("how far a value may be pulled", () => {
   it("is nothing when there are no lines", () => {
     expect(maxSnapRange()).toBe(0);
     expect(maxSnapRange(0, 0)).toBe(0);
+  });
+});
+
+describe("which lines a value settles on", () => {
+  it("takes the primary set, the secondary set, or both", () => {
+    expect(values(snapTicks(0, 10, 5, 1, { primary: true }))).toEqual([0, 5, 10]);
+    expect(values(snapTicks(0, 4, 2, 1, { secondary: true }))).toEqual([0, 1, 2, 3, 4]);
+    expect(values(snapTicks(0, 4, 2, 1, { primary: true, secondary: true }))).toEqual([0, 1, 2, 3, 4]);
+    expect(snapTicks(0, 10, 5, 1, {})).toEqual([]);
+  });
+
+  it("counts a secondary that shares a primary's place, unlike the drawn lines", () => {
+    // Drawn, 4 is only a primary; for snapping to secondaries it is still a
+    // multiple of 2, so a value near it settles there.
+    expect(values(snapTicks(0, 4, 4, 2, { secondary: true }))).toEqual([0, 2, 4]);
+  });
+
+  it("reaches half the finest interval it uses", () => {
+    expect(snapReach(10, 2, { primary: true })).toBe(5);
+    expect(snapReach(10, 2, { secondary: true })).toBe(1);
+    expect(snapReach(10, 2, { primary: true, secondary: true })).toBe(1);
+    expect(snapReach(10, 2, {})).toBe(0);
   });
 });
 

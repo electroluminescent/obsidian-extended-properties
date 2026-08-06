@@ -505,10 +505,10 @@ var en_default = {
   "options.tickMajorDesc": "Draw a line every so many units along the scale. Empty = none.",
   "options.tickMinor": "Secondary line interval",
   "options.tickMinorDesc": "A fainter line at its own interval. Where one falls on a primary line, only the primary is drawn.",
-  "options.snapTicks": "Snap to the lines",
-  "options.snapTicksDesc": "Dragging or stepping settles on the nearest line when it is close enough.",
-  "options.snapRange": "Snap within",
-  "options.snapRangeDesc": "How far a value may be pulled onto a line. Default 0.5, and at most {max} here - half the finest interval, beyond which every value is already on a line.",
+  "options.snapPrimary": "Snap to primary lines",
+  "options.snapPrimaryDesc": "Dragging or stepping settles on the nearest primary line.",
+  "options.snapSecondary": "Snap to secondary lines",
+  "options.snapSecondaryDesc": "Settles on the nearest secondary line. With both on, whichever line is nearer wins.",
   "options.showSlider": "Show slider",
   "options.ratingToggle": "Rating icons",
   "options.ratingToggleDesc": "Show the value as clickable icons instead of the slider. The icon count is the Maximum above; a negative Minimum adds its own red icons left of the positives. There is no zero icon - zero is every icon clicked off.",
@@ -2382,7 +2382,7 @@ function normalizeSettings(raw, defaultLayout) {
   }
   return s;
 }
-var CURRENT_SCHEMA = 5;
+var CURRENT_SCHEMA = 6;
 var SCHEMA_MIGRATIONS = [
   {
     to: 1,
@@ -2497,6 +2497,28 @@ var SCHEMA_MIGRATIONS = [
       if (!keys.size) return false;
       for (const k of keys) convertDecimalToNumber(s, k);
       return true;
+    }
+  },
+  {
+    to: 6,
+    name: "snap-switch-per-line-kind",
+    run: (s) => {
+      var _a, _b, _c, _d, _e;
+      let changed = false;
+      const each = (e) => {
+        if (!e || e.snapTicks === void 0) return;
+        if (e.snapTicks === true) {
+          if (Number(e.tickMajor) > 0) e.snapPrimary = true;
+          if (Number(e.tickMinor) > 0) e.snapSecondary = true;
+        }
+        e.snapTicks = void 0;
+        e.snapRange = void 0;
+        changed = true;
+      };
+      for (const lk of Object.keys((_a = s.layouts) != null ? _a : {}))
+        for (const sec of (_b = s.layouts[lk].sections) != null ? _b : []) for (const e of (_c = sec.entries) != null ? _c : []) each(e);
+      for (const k of Object.keys((_d = s.inlineEntries) != null ? _d : {})) each((_e = s.inlineEntries) == null ? void 0 : _e[k]);
+      return changed;
     }
   }
 ];
@@ -5337,6 +5359,19 @@ function maxSnapRange(major, minor) {
   const steps = [Number(major) || 0, Number(minor) || 0].filter((s) => s > 0);
   return steps.length ? Math.min(...steps) / 2 : 0;
 }
+function snapTicks(min, max, major, minor, to) {
+  const out = [];
+  if (to.primary) for (const value of marks(min, max, Number(major) || 0)) out.push({ value, major: true });
+  if (to.secondary)
+    for (const value of marks(min, max, Number(minor) || 0)) {
+      if (out.some((t) => same(t.value, value, max - min))) continue;
+      out.push({ value, major: false });
+    }
+  return out.sort((a, b) => a.value - b.value);
+}
+function snapReach(major, minor, to) {
+  return maxSnapRange(to.primary ? major : 0, to.secondary ? minor : 0);
+}
 function snapValue(v, ticks, range) {
   if (!(range > 0) || !ticks.length) return v;
   let best = null;
@@ -5450,7 +5485,6 @@ function fmtValue(kind, entry, n) {
   });
 }
 var DEFAULT_FRAC_MAX = 8;
-var DEFAULT_SNAP_RANGE = 0.5;
 function defaultRange(kind, entry) {
   if (kind === "formula") return { min: 0, max: 10 };
   if (wantsFractions(kind, entry)) return { min: 0, max: 1 };
@@ -5648,13 +5682,10 @@ function render(kind, ctx2) {
         line.setCssStyles({ left: pctForValue(tk.value) + "%" });
       }
     }
-    const snap = (v) => {
-      if (entry.snapTicks !== true) return v;
-      const cap = maxSnapRange(Number(entry.tickMajor), Number(entry.tickMinor));
-      const want = Number(entry.snapRange);
-      const range = Math.min(cap || 0, Number.isFinite(want) && want > 0 ? want : DEFAULT_SNAP_RANGE);
-      return snapValue(v, ticks, range);
-    };
+    const to = { primary: entry.snapPrimary === true, secondary: entry.snapSecondary === true };
+    const snapPoints = snapTicks(min, max, Number(entry.tickMajor), Number(entry.tickMinor), to);
+    const reach = snapReach(Number(entry.tickMajor), Number(entry.tickMinor), to);
+    const snap = (v) => snapValue(v, snapPoints, reach);
     const place = (v) => {
       slider.setCssProps({ "--ep-knob": pctForValue(v) + "%" });
       knob.setAttr("aria-valuenow", String(fmt(v)));
@@ -5745,24 +5776,20 @@ function renderTickSettings(octx, opts = {}) {
   });
   num(t("options.tickMajor"), t("options.tickMajorDesc"), () => entry.tickMajor, (n) => entry.tickMajor = n);
   num(t("options.tickMinor"), t("options.tickMinorDesc"), () => entry.tickMinor, (n) => entry.tickMinor = n);
-  const cap = maxSnapRange(Number(entry.tickMajor), Number(entry.tickMinor));
-  if (!cap || opts.snap === false) return;
-  new import_obsidian13.Setting(c).setName(t("options.snapTicks")).setDesc(t("options.snapTicksDesc")).addToggle((tg) => {
-    tg.setValue(entry.snapTicks === true).onChange((v) => {
-      entry.snapTicks = v || void 0;
+  if (opts.snap === false) return;
+  const swap = (name, desc, get, set) => new import_obsidian13.Setting(c).setName(name).setDesc(desc).addToggle((tg) => {
+    tg.setValue(get()).onChange((v) => {
+      set(v);
       changed();
-      redraw();
     });
   });
-  if (entry.snapTicks)
-    new import_obsidian13.Setting(c).setName(t("options.snapRange")).setDesc(t("options.snapRangeDesc", { max: String(Math.round(cap * 1e3) / 1e3) })).addText((tx) => {
-      tx.inputEl.type = "number";
-      tx.setValue(String(Number(entry.snapRange) > 0 ? entry.snapRange : DEFAULT_SNAP_RANGE));
-      tx.onChange((v) => {
-        const n = Number(v);
-        entry.snapRange = !Number.isFinite(n) || n <= 0 || n === DEFAULT_SNAP_RANGE ? void 0 : Math.min(cap, n);
-        changed();
-      });
+  if (Number(entry.tickMajor) > 0)
+    swap(t("options.snapPrimary"), t("options.snapPrimaryDesc"), () => entry.snapPrimary === true, (v) => {
+      entry.snapPrimary = v || void 0;
+    });
+  if (Number(entry.tickMinor) > 0)
+    swap(t("options.snapSecondary"), t("options.snapSecondaryDesc"), () => entry.snapSecondary === true, (v) => {
+      entry.snapSecondary = v || void 0;
     });
 }
 function renderOptions(kind, octx) {

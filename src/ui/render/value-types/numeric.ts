@@ -13,7 +13,7 @@ import type { EntryRenderCtx, EntryRef, OptionsCtx } from "../../../core/context
 import type { ClusterNeeds, ValueTypeDef } from "../../../core/registry";
 import { compileFormula, invertFormula } from "../../../utils/formula";
 import { clamp, fmtFraction, fmtNum } from "../../../utils/misc";
-import { maxSnapRange, snapValue, ticksFor } from "../../../utils/ticks";
+import { snapReach, snapTicks, snapValue, ticksFor } from "../../../utils/ticks";
 import { sfx } from "../../../utils/sound";
 import { shouldClamp, clampToConstraints } from "../../../core/validate";
 import { applyValidity } from "../validity";
@@ -62,9 +62,6 @@ interface FractionEntry {
 
 /** The largest denominator a fraction display uses unless told otherwise. */
 export const DEFAULT_FRAC_MAX = 8;
-
-/** How far a value is pulled onto a line unless told otherwise. */
-export const DEFAULT_SNAP_RANGE = 0.5;
 
 /**
  * Range fallbacks, used only where neither the entry nor the vault's own
@@ -326,14 +323,12 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
         line.setCssStyles({ left: pctForValue(tk.value) + "%" });
       }
     }
-    /** Pull a dragged or stepped value onto a line, when asked to. */
-    const snap = (v: number): number => {
-      if (entry.snapTicks !== true) return v;
-      const cap = maxSnapRange(Number(entry.tickMajor), Number(entry.tickMinor));
-      const want = Number(entry.snapRange);
-      const range = Math.min(cap || 0, Number.isFinite(want) && want > 0 ? want : DEFAULT_SNAP_RANGE);
-      return snapValue(v, ticks, range);
-    };
+    // Which lines a value settles on, and how far it reaches to do so: half
+    // the finest interval it snaps to, so every value lands on a line.
+    const to = { primary: entry.snapPrimary === true, secondary: entry.snapSecondary === true };
+    const snapPoints = snapTicks(min, max, Number(entry.tickMajor), Number(entry.tickMinor), to);
+    const reach = snapReach(Number(entry.tickMajor), Number(entry.tickMinor), to);
+    const snap = (v: number): number => snapValue(v, snapPoints, reach);
     const place = (v: number): void => {
       slider.setCssProps({ "--ep-knob": pctForValue(v) + "%" });
       knob.setAttr("aria-valuenow", String(fmt(v)));
@@ -426,34 +421,24 @@ export function renderTickSettings(octx: OptionsCtx, opts: { snap?: boolean } = 
     });
   num(t("options.tickMajor"), t("options.tickMajorDesc"), () => entry.tickMajor, (n) => (entry.tickMajor = n));
   num(t("options.tickMinor"), t("options.tickMinorDesc"), () => entry.tickMinor, (n) => (entry.tickMinor = n));
-  const cap = maxSnapRange(Number(entry.tickMajor), Number(entry.tickMinor));
-  if (!cap || opts.snap === false) return; // nothing to snap to, or nothing to drag
-  new Setting(c)
-    .setName(t("options.snapTicks"))
-    .setDesc(t("options.snapTicksDesc"))
-    .addToggle((tg) => {
-      tg.setValue(entry.snapTicks === true).onChange((v) => {
-        entry.snapTicks = v || undefined;
+  if (opts.snap === false) return; // nothing to drag, so nothing to settle
+  // No range to set: a value settles on the nearest line of whichever sets
+  // are switched on, and the switches are what decide the interval.
+  const swap = (name: string, desc: string, get: () => boolean, set: (v: boolean) => void) =>
+    new Setting(c).setName(name).setDesc(desc).addToggle((tg) => {
+      tg.setValue(get()).onChange((v) => {
+        set(v);
         changed();
-        redraw();
       });
     });
-  if (entry.snapTicks)
-    new Setting(c)
-      .setName(t("options.snapRange"))
-      .setDesc(t("options.snapRangeDesc", { max: String(Math.round(cap * 1000) / 1000) }))
-      .addText((tx) => {
-        tx.inputEl.type = "number";
-        tx.setValue(String(Number(entry.snapRange) > 0 ? entry.snapRange : DEFAULT_SNAP_RANGE));
-        tx.onChange((v) => {
-          const n = Number(v);
-          // Beyond half the interval every value is inside some line's reach,
-          // so the cap is where snapping stops meaning anything.
-          entry.snapRange =
-            !Number.isFinite(n) || n <= 0 || n === DEFAULT_SNAP_RANGE ? undefined : Math.min(cap, n);
-          changed();
-        });
-      });
+  if (Number(entry.tickMajor) > 0)
+    swap(t("options.snapPrimary"), t("options.snapPrimaryDesc"), () => entry.snapPrimary === true, (v) => {
+      entry.snapPrimary = v || undefined;
+    });
+  if (Number(entry.tickMinor) > 0)
+    swap(t("options.snapSecondary"), t("options.snapSecondaryDesc"), () => entry.snapSecondary === true, (v) => {
+      entry.snapSecondary = v || undefined;
+    });
 }
 
 function renderOptions(kind: NumericKind, octx: OptionsCtx): void {

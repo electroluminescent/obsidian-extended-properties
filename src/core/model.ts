@@ -97,10 +97,10 @@ export interface EntryBase {
   tickMajor?: number;
   /** Interval between secondary lines; one under a primary is not drawn. */
   tickMinor?: number;
-  /** Pull a dragged or stepped value onto the nearest line. */
-  snapTicks?: boolean;
-  /** How far a value may be pulled (default 0.5, capped at half the interval). */
-  snapRange?: number;
+  /** Settle a dragged or stepped value on the nearest primary line. */
+  snapPrimary?: boolean;
+  /** Settle it on the nearest secondary line; with both, on whichever is nearer. */
+  snapSecondary?: boolean;
   /** Hide the -/+ stepper buttons when false (default: shown). */
   steppers?: boolean;
   /** Unset min/max default to the property's range across all notes. */
