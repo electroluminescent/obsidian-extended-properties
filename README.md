@@ -6,9 +6,9 @@ The core is domain-agnostic: it renders sections of property entries with rich v
 
 ## Installation
 
-**Community plugins** (once published): in Obsidian, open *Settings -> Community plugins -> Browse*, search for "Extended Properties", install, and enable.
+**Community plugins:** in Obsidian, open *Settings -> Community plugins -> Browse*, search for "Extended Properties", install, and enable. Or open the [plugin's listing](https://obsidian.md/plugins?id=extended-properties) and click *Add to Obsidian*.
 
-**BRAT (beta):** install the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin, then *Add beta plugin* with this repository's URL. BRAT tracks the latest GitHub release.
+**BRAT (beta):** install the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin, then *Add beta plugin* with this repository's URL. BRAT tracks the latest GitHub release, which runs ahead of the store while a version is in review.
 
 **Manual:** download `main.js`, `manifest.json`, and `styles.css` from the [latest release](../../releases/latest) and copy them into `<your vault>/.obsidian/plugins/extended-properties/`, then enable the plugin in *Settings -> Community plugins*.
 
