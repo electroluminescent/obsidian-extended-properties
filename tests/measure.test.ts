@@ -78,6 +78,30 @@ describe("measurements", () => {
   });
 });
 
+describe("percent", () => {
+  it("is the decimal it stands for", () => {
+    expect(evalMeasure("50%")).toBe(0.5);
+    expect(evalMeasure("7.5%")).toBe(0.075);
+    expect(evalMeasure("100%")).toBe(1);
+  });
+
+  it("works inside arithmetic", () => {
+    expect(evalMeasure("50% + 10%")).toBe(0.6);
+    expect(evalMeasure("(25%) * 4")).toBe(1);
+    expect(evalMeasure("200 * 15%")).toBe(30);
+  });
+
+  it("is still the remainder where something follows it", () => {
+    expect(evalMeasure("10 % 3")).toBe(1);
+    expect(evalMeasure("10%3")).toBe(1);
+  });
+
+  it("is the number as written in a field already kept in percent", () => {
+    expect(evalMeasure("50%", undefined, { percentIsUnit: true })).toBe(50);
+    expect(evalMeasure("50", undefined, { percentIsUnit: true })).toBe(50);
+  });
+});
+
 describe("a property with its own unit", () => {
   it("is kept in that unit, whatever the setting says for the quantity", () => {
     const settings = { length: "cm" };

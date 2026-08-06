@@ -15,6 +15,30 @@ import { aliasesByLength, preferredUnit, unitByAlias, type Quantity } from "./un
 /** A number with a unit attached, as it was typed. */
 const NUMBER = /(\d+(?:\.\d+)?|\.\d+)\s*/y;
 
+export interface MeasureOptions {
+  /**
+   * The field is already kept in percent, so a written "%" is the unit it
+   * already has: "50%" is fifty, not a half.
+   */
+  percentIsUnit?: boolean;
+}
+
+/**
+ * Where the percent sign ending the number at `i` leaves off, or -1 if what
+ * follows is the modulo operator instead. A percent is a percent when nothing
+ * follows it that it could divide into: the end of the text, an operator, or a
+ * closing bracket.
+ */
+function percentAt(text: string, i: number): number {
+  let j = i;
+  while (/\s/.test(text[j] ?? "")) j++;
+  if (text[j] !== "%") return -1;
+  let k = j + 1;
+  while (/\s/.test(text[k] ?? "")) k++;
+  const next = text[k] ?? "";
+  return next === "" || /[+\-*/^),%]/.test(next) ? k : -1;
+}
+
 /**
  * Rewrite every measurement in `text` as a plain number in its quantity's
  * preferred unit, leaving operators, brackets and bare numbers alone.
@@ -23,7 +47,7 @@ const NUMBER = /(\d+(?:\.\d+)?|\.\d+)\s*/y;
  * way it is written everywhere, so a unit directly followed by another number
  * is added rather than treated as two terms.
  */
-export function toPlainMath(text: string, units?: Record<string, string>): string {
+export function toPlainMath(text: string, units?: Record<string, string>, o: MeasureOptions = {}): string {
   const aliases = aliasesByLength();
   let out = "";
   let i = 0;
@@ -53,6 +77,17 @@ export function toPlainMath(text: string, units?: Record<string, string>): strin
       break;
     }
     if (!hit) {
+      // A percent sign with nothing to divide into is the unit, not the
+      // modulo operator: "50%" is a half, "10 % 3" is the remainder. In a
+      // field kept in percent, "50%" is the 50 it says - the unit is already
+      // the field's, so writing it changes nothing.
+      const pc = percentAt(text, i);
+      if (pc >= 0) {
+        out += (lastWasMeasure ? " + " : "") + String(o.percentIsUnit ? num : num / 100);
+        i = pc;
+        lastWasMeasure = false;
+        continue;
+      }
       out += (lastWasMeasure ? " + " : "") + String(num);
       lastWasMeasure = false;
       continue;
@@ -72,10 +107,14 @@ export function toPlainMath(text: string, units?: Record<string, string>): strin
  * all. An empty field is nothing rather than zero, so a caller can tell "no
  * value" from "0".
  */
-export function evalMeasure(text: string, units?: Record<string, string>): number | undefined {
+export function evalMeasure(
+  text: string,
+  units?: Record<string, string>,
+  o: MeasureOptions = {}
+): number | undefined {
   const raw = text.trim();
   if (!raw) return undefined;
-  const plain = toPlainMath(raw, units);
+  const plain = toPlainMath(raw, units, o);
   const ast = parseExpr(plain);
   if (!ast) return undefined;
   const n = evalExpr(ast, { resolve: () => undefined });
@@ -88,7 +127,9 @@ export function evalMeasure(text: string, units?: Record<string, string>): numbe
  * that quantity - the number stored belongs to the property, so the property's
  * own unit wins. Every other quantity still follows the settings.
  *
- * A unit the table does not know ("XP", "%") changes nothing.
+ * A unit the table does not know ("XP", "HP") changes nothing. Percent is not
+ * in the table at all - it is a way of writing a number, handled while the
+ * text is read (see {@link MeasureOptions}).
  */
 export function unitsForField(units: Record<string, string> | undefined, fieldUnit?: string): Record<string, string> | undefined {
   const u = fieldUnit ? unitByAlias(fieldUnit) : undefined;

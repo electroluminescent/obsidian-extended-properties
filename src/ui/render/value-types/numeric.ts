@@ -154,7 +154,10 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
     // The field takes arithmetic and measurements, not just digits: what is
     // typed is worked out on the way in (see `utils/measure`), in this
     // property's own unit where it names one the table knows.
-    evaluate: (text) => evalMeasure(text, unitsForField(view.settings.units, entry.unit as string)),
+    evaluate: (text) =>
+      evalMeasure(text, unitsForField(view.settings.units, entry.unit as string), {
+        percentIsUnit: ((entry.unit as string) ?? "").trim() === "%",
+      }),
     commit: (v) => {
       const raw = v / factor;
       view.note.set(file, key, shouldClamp(entry.constraints) ? clampToConstraints(raw, entry.constraints) : raw);
@@ -717,7 +720,10 @@ function menuItems(kind: NumericKind, menu: Menu, ref: EntryRef): void {
         view.i18n.t("prompt.editValue", { name: (entry.alias as string) || key }),
         view.note.str(key),
         (v) => {
-          let n = evalMeasure(v, unitsForField(view.settings.units, entry.unit as string)) ?? NaN;
+          let n =
+            evalMeasure(v, unitsForField(view.settings.units, entry.unit as string), {
+              percentIsUnit: ((entry.unit as string) ?? "").trim() === "%",
+            }) ?? NaN;
           if (!Number.isFinite(n)) return;
           if (!float) n = Math.round(n);
           if (entry.clamp && entry.min !== undefined && entry.max !== undefined)

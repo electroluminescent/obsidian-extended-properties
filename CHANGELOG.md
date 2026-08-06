@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.45.0
+
+- **Percent reads as the number it stands for**: `50%` is 0.5, `7.5%` is
+  0.075, `200 * 15%` is 30. In a property already kept in percent, `50%` is
+  the fifty it says - the unit is the field's own, so writing it changes
+  nothing.
+- `10 % 3` is still the remainder. A percent sign is a percent when nothing
+  follows for it to divide into: the end of the field, an operator, or a
+  closing bracket.
+
 ## 4.44.1
 
 - **A property that names its own unit is kept in that unit.** A field marked

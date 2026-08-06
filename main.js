@@ -5537,7 +5537,17 @@ function preferredUnit(quantity, chosen) {
 
 // src/utils/measure.ts
 var NUMBER = /(\d+(?:\.\d+)?|\.\d+)\s*/y;
-function toPlainMath(text, units) {
+function percentAt(text, i) {
+  var _a, _b, _c;
+  let j = i;
+  while (/\s/.test((_a = text[j]) != null ? _a : "")) j++;
+  if (text[j] !== "%") return -1;
+  let k = j + 1;
+  while (/\s/.test((_b = text[k]) != null ? _b : "")) k++;
+  const next = (_c = text[k]) != null ? _c : "";
+  return next === "" || /[+\-*/^),%]/.test(next) ? k : -1;
+}
+function toPlainMath(text, units, o = {}) {
   var _a;
   const aliases = aliasesByLength();
   let out = "";
@@ -5564,6 +5574,13 @@ function toPlainMath(text, units) {
       break;
     }
     if (!hit) {
+      const pc = percentAt(text, i);
+      if (pc >= 0) {
+        out += (lastWasMeasure ? " + " : "") + String(o.percentIsUnit ? num : num / 100);
+        i = pc;
+        lastWasMeasure = false;
+        continue;
+      }
       out += (lastWasMeasure ? " + " : "") + String(num);
       lastWasMeasure = false;
       continue;
@@ -5576,10 +5593,10 @@ function toPlainMath(text, units) {
   }
   return out;
 }
-function evalMeasure(text, units) {
+function evalMeasure(text, units, o = {}) {
   const raw = text.trim();
   if (!raw) return void 0;
-  const plain = toPlainMath(raw, units);
+  const plain = toPlainMath(raw, units, o);
   const ast = parseExpr(plain);
   if (!ast) return void 0;
   const n = evalExpr(ast, { resolve: () => void 0 });
@@ -5749,7 +5766,12 @@ function render(kind, ctx2) {
     // The field takes arithmetic and measurements, not just digits: what is
     // typed is worked out on the way in (see `utils/measure`), in this
     // property's own unit where it names one the table knows.
-    evaluate: (text) => evalMeasure(text, unitsForField(view.settings.units, entry.unit)),
+    evaluate: (text) => {
+      var _a2;
+      return evalMeasure(text, unitsForField(view.settings.units, entry.unit), {
+        percentIsUnit: ((_a2 = entry.unit) != null ? _a2 : "").trim() === "%"
+      });
+    },
     commit: (v) => {
       const raw = v / factor;
       view.note.set(file, key, shouldClamp(entry.constraints) ? clampToConstraints(raw, entry.constraints) : raw);
@@ -6216,8 +6238,10 @@ function menuItems(kind, menu, ref) {
         view.i18n.t("prompt.editValue", { name: entry.alias || key }),
         view.note.str(key),
         (v) => {
-          var _a;
-          let n = (_a = evalMeasure(v, unitsForField(view.settings.units, entry.unit))) != null ? _a : NaN;
+          var _a, _b;
+          let n = (_b = evalMeasure(v, unitsForField(view.settings.units, entry.unit), {
+            percentIsUnit: ((_a = entry.unit) != null ? _a : "").trim() === "%"
+          })) != null ? _b : NaN;
           if (!Number.isFinite(n)) return;
           if (!float) n = Math.round(n);
           if (entry.clamp && entry.min !== void 0 && entry.max !== void 0)
