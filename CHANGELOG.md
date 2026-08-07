@@ -7,6 +7,10 @@
   justification, direction, axis labels, value labels, card - each with what it
   does written beside it, rather than a line of unlabelled controls. The pixel
   width appears only when the width is set to Custom.
+- Those kind names line up with the rows beneath them, like every other
+  heading in the settings: loose copy takes its indent from a measured row,
+  and sub-headings are now included in that rather than sitting flush against
+  the edge.
 
 ## 4.53.3
 

@@ -1299,7 +1299,7 @@ export class EPSettingTab extends PluginSettingTab {
       const size = sizeOf(kind);
       // The kind names itself, then each of its settings takes a row of its
       // own - a heading here would start a tab of its own (see `tabify`).
-      const head = c.createEl("h5", { cls: "ep-inline-kind", text: t("inline.kind." + kind) });
+      const head = c.createEl("h4", { cls: "ep-inline-kind", text: t("inline.kind." + kind) });
       c.createEl("p", { cls: "setting-item-description ep-inline-kind-desc", text: t("inline.kind." + kind + "Desc") });
       if (kind === this.pendingInline) {
         this.inlineRow = head;

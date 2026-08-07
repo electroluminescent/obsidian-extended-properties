@@ -987,7 +987,7 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-inline-roll.ep-inline-unboxed { border: none; background: none; padding: 0; line-height: inherit; }
 .ep-inline-num { width: 5em; }
 /* Each inline kind names itself above its own settings. */
-.ep-inline-kind { margin: 18px 0 0; font-size: var(--font-ui-medium); font-weight: 600; color: var(--text-normal); }
+.ep-inline-kind { margin: 18px 0 0; }
 .ep-inline-kind-desc { margin: 2px 0 4px; }
 /* A line holding nothing but an inline piece: no paragraph spacing, and no
    leading either, so pieces on consecutive lines stack against each other. */
@@ -1314,6 +1314,7 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-settings-host > input,
 .ep-settings-host > h3,
 .ep-settings-host > h4,
+.ep-settings-host > h5,
 .ep-settings-host > .setting-item-description,
 .ep-settings-host > div > .setting-item-description,
 /* Since the body became tabs, that loose copy sits one level deeper - inside
@@ -1322,6 +1323,7 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-settings-panel > input,
 .ep-settings-panel > h3,
 .ep-settings-panel > h4,
+.ep-settings-panel > h5,
 .ep-settings-panel > .setting-item-description,
 .ep-settings-panel > div > .setting-item-description {
   padding-left: var(--ep-row-pad-l, var(--size-4-3, 12px));

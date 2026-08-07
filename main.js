@@ -16348,7 +16348,7 @@ var EPSettingTab = class extends import_obsidian37.PluginSettingTab {
     };
     for (const kind of INLINE_KINDS) {
       const size = sizeOf(kind);
-      const head = c.createEl("h5", { cls: "ep-inline-kind", text: t("inline.kind." + kind) });
+      const head = c.createEl("h4", { cls: "ep-inline-kind", text: t("inline.kind." + kind) });
       c.createEl("p", { cls: "setting-item-description ep-inline-kind-desc", text: t("inline.kind." + kind + "Desc") });
       if (kind === this.pendingInline) {
         this.inlineRow = head;
