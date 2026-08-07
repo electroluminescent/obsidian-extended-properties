@@ -123,7 +123,7 @@ export function openRollMenu(
   i18n: I18n,
   current: RollMode,
   run: (mode: RollMode, times: number) => void,
-  opts?: { onEdit?: () => void }
+  opts?: { onEdit?: () => void; onAppearance?: () => void }
 ): void {
   const pop = activeDocument.body.createDiv({ cls: "ep-popup ep-rollmenu" });
   pop.setCssStyles({ left: ev.clientX + "px" });
@@ -170,6 +170,17 @@ export function openRollMenu(
     edit.onclick = () => {
       dismiss();
       opts.onEdit?.();
+    };
+  }
+  // An inline roll chip can lead to the settings that shape it.
+  if (opts?.onAppearance) {
+    const look = pop.createEl("button", {
+      cls: "ep-mode-btn ep-rollmenu-edit",
+      text: i18n.t("roll.menu.appearance"),
+    });
+    look.onclick = () => {
+      dismiss();
+      opts.onAppearance?.();
     };
   }
   input.onkeydown = (e: KeyboardEvent) => {

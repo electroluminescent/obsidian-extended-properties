@@ -982,6 +982,9 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-inline-vals.ep-entry.ep-inline-unboxed { border: none; background: none; padding: 0; }
 .ep-inline-roll.ep-inline-unboxed { border: none; background: none; padding: 0; }
 .ep-inline-num { width: 5em; }
+/* The row a note body sent us to, marked just long enough to find it. */
+@keyframes ep-settings-flash { from { background: var(--text-selection); } to { background: transparent; } }
+.ep-settings-flash { animation: ep-settings-flash 1.8s ease-out; border-radius: var(--ep-radius, 6px); }
 .ep-inline-chart .ep-chart-svg { height: 1.15em; width: auto; }
 .ep-chart-svg { display: block; overflow: visible; }
 .ep-chart-line { stroke: var(--ep-accent-default, var(--text-accent)); stroke-width: 1.5; fill: none; stroke-linejoin: round; stroke-linecap: round; }

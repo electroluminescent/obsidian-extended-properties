@@ -713,6 +713,8 @@ var en_default = {
   "settings.inlineAlign.center": "Centre",
   "settings.inlineAlign.right": "Right",
   "settings.inlineBox": "Draw it in a card - a bordered, tinted box around the piece.",
+  "inline.openSettings": "Settings for {kind}...",
+  "roll.menu.appearance": "Appearance",
   "settings.inlineAxisLabels": "Name the property behind each value on the chart.",
   "settings.inlineValueLabels": "Print the values themselves on the chart.",
   "settings.inlineDir.vertical": "Bars stand up",
@@ -15322,6 +15324,10 @@ var EPSettingTab = class extends import_obsidian37.PluginSettingTab {
     this.query = "";
     /** Whether the filter box had focus when the tab last rebuilt. */
     this.queryFocused = false;
+    /** An inline kind to open at, set from a note body and used by the next render. */
+    this.pendingInline = null;
+    /** The row that kind drew into, brought into view once the tab is built. */
+    this.inlineRow = null;
   }
   /**
    * Obsidian 1.13 renders a tab from its setting DEFINITIONS and only falls
@@ -15365,11 +15371,32 @@ var EPSettingTab = class extends import_obsidian37.PluginSettingTab {
     var _a;
     return (_a = this.renderTarget) != null ? _a : this.containerEl;
   }
+  /**
+   * Open on the inline pieces tab at `kind`'s row, brought into view and
+   * marked for a moment - the other half of the "settings for this piece"
+   * action a chip in a note offers.
+   */
+  focusInline(kind) {
+    this.pendingInline = kind;
+    this.query = "";
+    this.activeTab = this.plugin.i18n.t("settings.inlineHeading");
+    if (this.renderTarget) this.render();
+  }
   render() {
     this.renderBody();
     this.tabify();
     this.tint();
     this.alignLooseText();
+    this.showInlineRow();
+  }
+  /** Bring the row a note body asked for into view, and mark it briefly. */
+  showInlineRow() {
+    const row = this.inlineRow;
+    this.inlineRow = null;
+    if (!row) return;
+    row.scrollIntoView({ block: "center" });
+    row.addClass("ep-settings-flash");
+    window.setTimeout(() => row.removeClass("ep-settings-flash"), 1800);
   }
   /**
    * Turn the rendered body into tabs with a filter box.
@@ -16309,6 +16336,10 @@ var EPSettingTab = class extends import_obsidian37.PluginSettingTab {
     for (const kind of INLINE_KINDS) {
       const size = sizeOf(kind);
       const row = new import_obsidian37.Setting(c).setName(t("inline.kind." + kind)).setDesc(t("inline.kind." + kind + "Desc"));
+      if (kind === this.pendingInline) {
+        this.inlineRow = row.settingEl;
+        this.pendingInline = null;
+      }
       row.addText((tx) => {
         tx.inputEl.type = "number";
         tx.inputEl.addClass("ep-inline-num");
@@ -17445,6 +17476,17 @@ function openRollMenu(ev, i18n, current2, run, opts) {
       var _a;
       dismiss();
       (_a = opts.onEdit) == null ? void 0 : _a.call(opts);
+    };
+  }
+  if (opts == null ? void 0 : opts.onAppearance) {
+    const look = pop.createEl("button", {
+      cls: "ep-mode-btn ep-rollmenu-edit",
+      text: i18n.t("roll.menu.appearance")
+    });
+    look.onclick = () => {
+      var _a;
+      dismiss();
+      (_a = opts.onAppearance) == null ? void 0 : _a.call(opts);
     };
   }
   input.onkeydown = (e) => {
@@ -19066,6 +19108,8 @@ function makeValsEl(ctx2, file, body, onEditSource) {
         menu.addSeparator();
         menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
       }
+      menu.addSeparator();
+      addAppearanceItem(menu, ctx2, "vals");
       showMenu(menu, ev);
     };
     if (entry.menuBtn === true) {
@@ -19357,6 +19401,16 @@ function renderProgress(parent, value, max, opts) {
 }
 
 // src/features/inline/inline-render.ts
+function addAppearanceItem(menu, ctx2, kind) {
+  if (!ctx2.openSettings) return;
+  const t = ctx2.i18n.t.bind(ctx2.i18n);
+  menu.addItem(
+    (i) => i.setTitle(t("inline.openSettings", { kind: t("inline.kind." + kind) })).setIcon("settings").onClick(() => {
+      var _a;
+      return (_a = ctx2.openSettings) == null ? void 0 : _a.call(ctx2, kind);
+    })
+  );
+}
 function beingEdited(root) {
   return !!root.querySelector("input:focus, textarea:focus, select:focus");
 }
@@ -19475,7 +19529,10 @@ function makeRollChip(ctx2, file, body, opt, onEdit) {
       ctx2.i18n,
       mode,
       (mo, ti) => runInlineRoll(ctx2, file, body, mo, ti),
-      onEdit ? { onEdit } : void 0
+      { onEdit, onAppearance: ctx2.openSettings ? () => {
+        var _a;
+        return (_a = ctx2.openSettings) == null ? void 0 : _a.call(ctx2, "roll");
+      } : void 0 }
     )
   });
   guardScrollTaps(chip);
@@ -19634,6 +19691,8 @@ function makeValEl(ctx2, file, body, onEditSource) {
       if (editValue && directKey)
         menu.addItem((i) => i.setTitle(t("inline.editValue", { prop: directKey })).setIcon("pencil").onClick(editValue));
       if (onEditSource) menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
+      menu.addSeparator();
+      addAppearanceItem(menu, ctx2, "val");
       showMenu(menu, new MouseEvent("contextmenu", { clientX: x, clientY: y, bubbles: true }));
     };
     wireGestures(chip, ctx2.settings, { menu: openChipMenu });
@@ -19758,6 +19817,14 @@ function makeChartEl(ctx2, file, kind, body) {
     const r = chip.getBoundingClientRect();
     if (r.width > 0 && r.height > 0) draw({ w: r.width, h: r.height });
   });
+  chip.oncontextmenu = (ev) => {
+    if (!ctx2.openSettings) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    const menu = new import_obsidian47.Menu();
+    addAppearanceItem(menu, ctx2, kind);
+    showMenu(menu, ev);
+  };
   return chip;
 }
 var ChartInline = class extends import_obsidian47.MarkdownRenderChild {
@@ -20019,6 +20086,8 @@ var InlineWidget = class extends import_view.WidgetType {
           ev.stopPropagation();
           const menu = new import_obsidian48.Menu();
           menu.addItem((i) => i.setTitle(this.ctx.i18n.t("inline.editSource")).setIcon("pencil").onClick(reveal));
+          menu.addSeparator();
+          addAppearanceItem(menu, this.ctx, "prop");
           showMenu(menu, ev);
         };
         dom = wrap;
@@ -20172,6 +20241,8 @@ var ExtendedPropertiesPlugin = class extends import_obsidian49.Plugin {
     /** Signature of the registered macro set; guards needless re-registration. */
     this.macroSig = "";
     // -- settings & layouts --------------------------------------------------------
+    /** The settings tab, kept so a note body can open it where it belongs. */
+    this.settingTab = null;
     /**
      * Repainted whenever settings are saved. Inline pieces live in note bodies,
      * which nothing else redraws - so a setting that changes how they look would
@@ -20307,7 +20378,8 @@ var ExtendedPropertiesPlugin = class extends import_obsidian49.Plugin {
         new import_obsidian49.Notice(this.i18n.t("notice.hiding", { key: k }));
       }, () => this.props.knownProps()).open()
     });
-    this.addSettingTab(new EPSettingTab(this.app, this));
+    this.settingTab = new EPSettingTab(this.app, this);
+    this.addSettingTab(this.settingTab);
     this.addCommand({
       id: "save-config-snapshot",
       name: this.i18n.t("snapshot.cmd.save"),
@@ -20364,7 +20436,8 @@ var ExtendedPropertiesPlugin = class extends import_obsidian49.Plugin {
       hide: this.hide,
       history: this.history,
       save: () => void this.saveSettings(),
-      onSettings: (cb) => this.onSettingsSaved(cb)
+      onSettings: (cb) => this.onSettingsSaved(cb),
+      openSettings: (kind) => this.openInlineSettings(kind)
     });
     this.registerEvent(this.app.metadataCache.on("changed", (file) => this.props.invalidateFile(file)));
     this.registerEvent(this.app.vault.on("delete", (file) => this.props.invalidatePath(file.path)));
@@ -20557,6 +20630,20 @@ var ExtendedPropertiesPlugin = class extends import_obsidian49.Plugin {
     var _a;
     const preset = (_a = this.registries.layoutPresets.get(this.registries.defaultPresetId)) != null ? _a : this.registries.layoutPresets.get("empty");
     return preset ? preset.build(this.i18n) : { version: 4, sections: [] };
+  }
+  /**
+   * Open the plugin's settings at the inline piece `kind` - the way from a
+   * chip in a note to the switches that shape it.
+   *
+   * `app.setting` is how Obsidian opens its own settings window; it is not in
+   * the published typings, so it is reached through the shape it has.
+   */
+  openInlineSettings(kind) {
+    var _a, _b, _c, _d, _e;
+    (_a = this.settingTab) == null ? void 0 : _a.focusInline(kind);
+    const host = this.app;
+    (_c = (_b = host.setting) == null ? void 0 : _b.open) == null ? void 0 : _c.call(_b);
+    (_e = (_d = host.setting) == null ? void 0 : _d.openTabById) == null ? void 0 : _e.call(_d, this.manifest.id);
   }
   /** Watch for saved settings. Returns the unsubscribe. */
   onSettingsSaved(cb) {

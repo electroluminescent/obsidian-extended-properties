@@ -247,7 +247,8 @@ export default class ExtendedPropertiesPlugin extends Plugin {
           new Notice(this.i18n.t("notice.hiding", { key: k }));
         }, () => this.props.knownProps()).open(),
     });
-    this.addSettingTab(new EPSettingTab(this.app, this));
+    this.settingTab = new EPSettingTab(this.app, this);
+    this.addSettingTab(this.settingTab);
 
     // -- L1: config snapshot + sensitive-value encryption commands ----------
     this.addCommand({
@@ -311,6 +312,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       history: this.history,
       save: () => void this.saveSettings(),
       onSettings: (cb) => this.onSettingsSaved(cb),
+      openSettings: (kind) => this.openInlineSettings(kind),
     });
 
     // Keep the cross-note PropertyIndex cache (perf: avoids a full vault
@@ -530,6 +532,25 @@ export default class ExtendedPropertiesPlugin extends Plugin {
   }
 
   // -- settings & layouts --------------------------------------------------------
+
+  /** The settings tab, kept so a note body can open it where it belongs. */
+  private settingTab: EPSettingTab | null = null;
+
+  /**
+   * Open the plugin's settings at the inline piece `kind` - the way from a
+   * chip in a note to the switches that shape it.
+   *
+   * `app.setting` is how Obsidian opens its own settings window; it is not in
+   * the published typings, so it is reached through the shape it has.
+   */
+  openInlineSettings(kind: string): void {
+    this.settingTab?.focusInline(kind);
+    const host = this.app as unknown as {
+      setting?: { open?: () => void; openTabById?: (id: string) => void };
+    };
+    host.setting?.open?.();
+    host.setting?.openTabById?.(this.manifest.id);
+  }
 
   /**
    * Repainted whenever settings are saved. Inline pieces live in note bodies,

@@ -66,6 +66,23 @@ export interface InlineCtx {
    * note body - so they repaint themselves when the settings change.
    */
   onSettings?: (cb: () => void) => () => void;
+  /** Open the plugin settings at this kind of piece's own row. */
+  openSettings?: (kind: string) => void;
+}
+
+/**
+ * The menu item that leads from a piece in a note to the switches that shape
+ * it - height, width, side, card, labels - in the plugin's settings.
+ */
+export function addAppearanceItem(menu: Menu, ctx: InlineCtx, kind: string): void {
+  if (!ctx.openSettings) return;
+  const t = ctx.i18n.t.bind(ctx.i18n);
+  menu.addItem((i) =>
+    i
+      .setTitle(t("inline.openSettings", { kind: t("inline.kind." + kind) }))
+      .setIcon("settings")
+      .onClick(() => ctx.openSettings?.(kind))
+  );
 }
 
 /**
@@ -241,7 +258,7 @@ export function makeRollChip(ctx: InlineCtx, file: TFile, body: string, opt: str
         ctx.i18n,
         mode,
         (mo, ti) => runInlineRoll(ctx, file, body, mo, ti),
-        onEdit ? { onEdit } : undefined
+        { onEdit, onAppearance: ctx.openSettings ? () => ctx.openSettings?.("roll") : undefined }
       ),
   });
   guardScrollTaps(chip); // don't roll when a scroll ends on the chip
@@ -408,6 +425,8 @@ export function makeValEl(ctx: InlineCtx, file: TFile, body: string, onEditSourc
       if (editValue && directKey)
         menu.addItem((i) => i.setTitle(t("inline.editValue", { prop: directKey })).setIcon("pencil").onClick(editValue));
       if (onEditSource) menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
+      menu.addSeparator();
+      addAppearanceItem(menu, ctx, "val");
       showMenu(menu, new MouseEvent("contextmenu", { clientX: x, clientY: y, bubbles: true }));
     };
     wireGestures(chip, ctx.settings, { menu: openChipMenu });
@@ -573,6 +592,15 @@ export function makeChartEl(ctx: InlineCtx, file: TFile, kind: string, body: str
     const r = chip.getBoundingClientRect();
     if (r.width > 0 && r.height > 0) draw({ w: r.width, h: r.height });
   });
+  // A chart's only settings are how it is drawn, so that is its whole menu.
+  chip.oncontextmenu = (ev) => {
+    if (!ctx.openSettings) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    const menu = new Menu();
+    addAppearanceItem(menu, ctx, kind);
+    showMenu(menu, ev);
+  };
   return chip;
 }
 

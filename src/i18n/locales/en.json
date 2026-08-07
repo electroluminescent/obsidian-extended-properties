@@ -611,6 +611,8 @@
   "settings.inlineAlign.center": "Centre",
   "settings.inlineAlign.right": "Right",
   "settings.inlineBox": "Draw it in a card - a bordered, tinted box around the piece.",
+  "inline.openSettings": "Settings for {kind}...",
+  "roll.menu.appearance": "Appearance",
   "settings.inlineAxisLabels": "Name the property behind each value on the chart.",
   "settings.inlineValueLabels": "Print the values themselves on the chart.",
   "settings.inlineDir.vertical": "Bars stand up",

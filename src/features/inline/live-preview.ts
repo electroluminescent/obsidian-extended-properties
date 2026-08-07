@@ -16,7 +16,9 @@ import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetTy
 import { RangeSetBuilder } from "@codemirror/state";
 import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import { editorInfoField, editorLivePreviewField, Menu, TFile } from "obsidian";
-import { InlineCtx, makeChartEl, makeRollChip, makeValEl, renderPropValue } from "./inline-render";
+import {
+  addAppearanceItem, InlineCtx, makeChartEl, makeRollChip, makeValEl, renderPropValue,
+} from "./inline-render";
 import { makeValsEl } from "./inline-view";
 import { applyInlineSize } from "./size";
 import type { EventRef } from "obsidian";
@@ -113,6 +115,8 @@ class InlineWidget extends WidgetType {
           ev.stopPropagation();
           const menu = new Menu();
           menu.addItem((i) => i.setTitle(this.ctx.i18n.t("inline.editSource")).setIcon("pencil").onClick(reveal));
+          menu.addSeparator();
+          addAppearanceItem(menu, this.ctx, "prop");
           showMenu(menu, ev);
         };
         dom = wrap;

@@ -140,12 +140,39 @@ export class EPSettingTab extends PluginSettingTab {
   private query = "";
   /** Whether the filter box had focus when the tab last rebuilt. */
   private queryFocused = false;
+  /** An inline kind to open at, set from a note body and used by the next render. */
+  private pendingInline: string | null = null;
+  /** The row that kind drew into, brought into view once the tab is built. */
+  private inlineRow: HTMLElement | null = null;
+
+  /**
+   * Open on the inline pieces tab at `kind`'s row, brought into view and
+   * marked for a moment - the other half of the "settings for this piece"
+   * action a chip in a note offers.
+   */
+  focusInline(kind: string): void {
+    this.pendingInline = kind;
+    this.query = "";
+    this.activeTab = this.plugin.i18n.t("settings.inlineHeading");
+    if (this.renderTarget) this.render();
+  }
 
   render(): void {
     this.renderBody();
     this.tabify();
     this.tint();
     this.alignLooseText();
+    this.showInlineRow();
+  }
+
+  /** Bring the row a note body asked for into view, and mark it briefly. */
+  private showInlineRow(): void {
+    const row = this.inlineRow;
+    this.inlineRow = null;
+    if (!row) return;
+    row.scrollIntoView({ block: "center" });
+    row.addClass("ep-settings-flash");
+    window.setTimeout(() => row.removeClass("ep-settings-flash"), 1800);
   }
 
   /**
@@ -1271,6 +1298,10 @@ export class EPSettingTab extends PluginSettingTab {
     for (const kind of INLINE_KINDS) {
       const size = sizeOf(kind);
       const row = new Setting(c).setName(t("inline.kind." + kind)).setDesc(t("inline.kind." + kind + "Desc"));
+      if (kind === this.pendingInline) {
+        this.inlineRow = row.settingEl;
+        this.pendingInline = null;
+      }
       row.addText((tx) => {
         tx.inputEl.type = "number";
         tx.inputEl.addClass("ep-inline-num");

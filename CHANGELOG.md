@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.53.0
+
+- **A piece in a note leads to its own settings.** Right-click a `val:` chip,
+  a `vals:` card, a `prop:` value or any chart and there is a *Settings for
+  ...* item; a roll chip's menu gains an *Appearance* button. It opens the
+  plugin settings on the *Inline pieces* tab, scrolled to that kind's row and
+  marked for a moment, so the switches that shape what you just right-clicked
+  are the ones in front of you.
+- Charts had no menu at all before this - now they have the one thing there is
+  to say about them.
+
 ## 4.52.0
 
 - **Charts can name what they draw.** Two switches per chart - axis labels

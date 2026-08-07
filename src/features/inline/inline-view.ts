@@ -35,7 +35,7 @@ import { keyForShortForm, VaultAccess } from "../../core/influences";
 import { makeVaultAccess, parseNoteRef } from "../../core/note-ref";
 import { PopupManager } from "../../ui/components/popups";
 import type { InlineCtx } from "./inline-render";
-import { makeValEl } from "./inline-render";
+import { addAppearanceItem, makeValEl } from "./inline-render";
 import { applyInlineSize } from "./size";
 import { showMenu } from "../../ui/menus/show";
 
@@ -381,6 +381,8 @@ export function makeValsEl(ctx: InlineCtx, file: TFile, body: string, onEditSour
         menu.addSeparator();
         menu.addItem((i) => i.setTitle(t("inline.editSource")).setIcon("code").onClick(onEditSource));
       }
+      menu.addSeparator();
+      addAppearanceItem(menu, ctx, "vals");
       showMenu(menu, ev);
     };
     // Same four mappable gestures as the sidebar: right click, hold, right
