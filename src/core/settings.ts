@@ -90,6 +90,7 @@ const HANDLED_KEYS: ReadonlySet<string> = new Set([
   "tabOpens",
   "activation",
   "units",
+  "freeKey", "inline",
 ]);
 
 /** Coerce a persisted `types` value to a clean list of non-empty strings. */
@@ -230,6 +231,8 @@ export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EP
     if (typeof data.holdMs === "number" && data.holdMs >= 100) s.holdMs = Math.min(5000, Math.floor(data.holdMs));
     if (data.tabOpens === false) s.tabOpens = false; // on unless turned off
     if (data.units && typeof data.units === "object") s.units = data.units as Record<string, string>;
+    if (typeof data.freeKey === "string" && data.freeKey.trim()) s.freeKey = data.freeKey.trim();
+    if (data.inline && typeof data.inline === "object") s.inline = data.inline as EPSettings["inline"];
     // Activation: only "single" is stored; anything else means the default.
     if (data.activation && typeof data.activation === "object") {
       const act: Record<string, string> = {};

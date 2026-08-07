@@ -18,6 +18,7 @@ import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import { editorInfoField, editorLivePreviewField, Menu, TFile } from "obsidian";
 import { InlineCtx, makeChartEl, makeRollChip, makeValEl, renderPropValue } from "./inline-render";
 import { makeValsEl } from "./inline-view";
+import { applyInlineSize } from "./size";
 import type { EventRef } from "obsidian";
 import { showMenu } from "../../ui/menus/show";
 
@@ -95,6 +96,7 @@ class InlineWidget extends WidgetType {
         dom = makeChartEl(this.ctx, this.file, this.kind, this.body);
       else {
         const wrap = createSpan({ cls: "ep-inline-prop" });
+        applyInlineSize(wrap, this.ctx.settings, "prop");
         wrap.appendChild(renderPropValue(this.ctx, this.file, this.body));
         wrap.oncontextmenu = (ev) => {
           ev.preventDefault();

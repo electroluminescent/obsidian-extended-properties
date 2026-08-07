@@ -27,6 +27,8 @@ import { ImportModal } from "./modals/transfer-modal";
 import { packType } from "../core/transfer";
 import { segsToText, textToSegs } from "../features/rolling/macros";
 import { DICE_STYLES } from "../features/rolling/dice-styles";
+import { FREE_KEYS } from "./render/value-types/numeric";
+import { INLINE_KINDS, MAX_INLINE_LINES, SPAN_SHARES, type InlineSize } from "../utils/inline-size";
 
 /** Max override rows rendered at once (the list is searchable). */
 const OVERRIDE_ROW_LIMIT = 25;
@@ -51,6 +53,7 @@ const TAB_GROUPS: { label: string; sections: string[] }[] = [
   },
   { label: "settings.activationHeading", sections: ["settings.activationHeading"] },
   { label: "settings.unitsHeading", sections: ["settings.unitsHeading"] },
+  { label: "settings.inlineHeading", sections: ["settings.inlineHeading"] },
   {
     label: "settings.tab.interface",
     sections: [
@@ -66,7 +69,8 @@ const TAB_GROUPS: { label: string; sections: string[] }[] = [
 ];
 
 const SEARCH_SECTIONS = [
-  "settings.typesHeading", "settings.defaultsHeading", "settings.unitsHeading", "settings.newSectionHeading",
+  "settings.typesHeading", "settings.defaultsHeading", "settings.unitsHeading", "settings.inlineHeading",
+  "settings.newSectionHeading",
   "settings.derivationsHeading", "settings.abbrHeading", "settings.diceHeading",
   "settings.rollsHeading", "settings.macrosHeading", "settings.typographyHeading",
   "settings.languageHeading", "settings.activationHeading", "settings.obsidianHeading",
@@ -485,6 +489,7 @@ export class EPSettingTab extends PluginSettingTab {
       .addButton((b) => b.setButtonText(t("transfer.importBtn")).setCta().onClick(() => new ImportModal(plugin).open()));
 
     this.renderUnits(c);
+    this.renderInline(c);
 
     // -- defaults --------------------------------------------------------------
     const d = plugin.settings.defaults;
@@ -1125,6 +1130,19 @@ export class EPSettingTab extends PluginSettingTab {
           save();
         });
       });
+    // The key that lets a slider ignore its scale lines - and, held with a
+    // click on one, sends the handle to it.
+    new Setting(c)
+      .setName(t("settings.freeKey"))
+      .setDesc(t("settings.freeKeyDesc"))
+      .addDropdown((d) => {
+        for (const k of FREE_KEYS) d.addOption(k, t("settings.freeKey." + k));
+        d.setValue(plugin.settings.freeKey ?? "alt");
+        d.onChange((v) => {
+          plugin.settings.freeKey = v === "alt" ? undefined : v;
+          save();
+        });
+      });
 
     // -- always-hidden properties ---------------------------------------------------------
     new Setting(c).setName(t("settings.hiddenHeading")).setHeading();
@@ -1211,6 +1229,86 @@ export class EPSettingTab extends PluginSettingTab {
           plugin.settings.units = { ...(plugin.settings.units ?? {}), [q]: v };
           void plugin.saveSettings();
         });
+      });
+    }
+  }
+
+  /**
+   * How each kind of inline piece is drawn in a note body: how tall, how wide
+   * and which side of the column it sits on.
+   *
+   * A chip written into prose gets one line by default, which suits a value
+   * and defeats a radar chart - so every kind carries its own height, and the
+   * ones with a shape of their own carry a width too. A share of the column
+   * that would come out too narrow to read is widened to the next largest
+   * share when it is drawn (see `utils/inline-size`).
+   */
+  private renderInline(c: HTMLElement): void {
+    const plugin = this.plugin;
+    const t = plugin.i18n.t.bind(plugin.i18n);
+    new Setting(c).setName(t("settings.inlineHeading")).setHeading();
+    c.createEl("p", { cls: "setting-item-description", text: t("settings.inlineDesc") });
+    const sizeOf = (kind: string): InlineSize => plugin.settings.inline?.[kind] ?? {};
+    /**
+     * Write one field of a kind's shape. A kind left in its default shape is
+     * dropped rather than stored empty, so opening this tab writes nothing.
+     */
+    const set = (kind: string, patch: InlineSize): void => {
+      const store = (plugin.settings.inline ??= {});
+      const cur: InlineSize = { ...store[kind], ...patch };
+      if (cur.lines === undefined && cur.span === undefined && cur.width === undefined && cur.align === undefined)
+        delete store[kind];
+      else store[kind] = cur;
+      if (!Object.keys(store).length) plugin.settings.inline = undefined;
+      void plugin.saveSettings();
+    };
+    for (const kind of INLINE_KINDS) {
+      const size = sizeOf(kind);
+      const row = new Setting(c).setName(t("inline.kind." + kind)).setDesc(t("inline.kind." + kind + "Desc"));
+      row.addText((tx) => {
+        tx.inputEl.type = "number";
+        tx.inputEl.addClass("ep-inline-num");
+        tx.setPlaceholder(t("settings.inlineLines"));
+        tx.setValue(size.lines ? String(size.lines) : "");
+        tx.onChange((v) => {
+          const n = Math.floor(Number(v));
+          const lines = v.trim() === "" || !Number.isFinite(n) || n <= 1 ? undefined : Math.min(n, MAX_INLINE_LINES);
+          set(kind, { lines });
+        });
+      });
+      // The width field only means anything for a custom width, so it appears
+      // with one and goes away again with the preset.
+      let width: HTMLInputElement | null = null;
+      let span = size.span;
+      const showWidth = (): void => width?.toggleClass("ep-hidden", span !== "custom");
+      row.addDropdown((dd) => {
+        dd.addOption("", t("settings.inlineWidthAuto"));
+        for (const s of SPAN_SHARES) dd.addOption(s.id, t("settings.inlineWidth." + s.id));
+        dd.addOption("custom", t("settings.inlineWidth.custom"));
+        dd.setValue(span ?? "");
+        dd.onChange((v) => {
+          span = v || undefined;
+          showWidth();
+          set(kind, { span });
+        });
+      });
+      row.addText((tx) => {
+        width = tx.inputEl;
+        tx.inputEl.type = "number";
+        tx.inputEl.addClass("ep-inline-num");
+        tx.setPlaceholder(t("settings.inlineWidthPx"));
+        tx.setValue(size.width ? String(size.width) : "");
+        tx.onChange((v) => {
+          const n = Math.floor(Number(v));
+          set(kind, { width: v.trim() === "" || !Number.isFinite(n) || n <= 0 ? undefined : n });
+        });
+        showWidth();
+      });
+      row.addDropdown((dd) => {
+        dd.addOption("", t("settings.inlineAlignFlow"));
+        for (const a of ["left", "center", "right"]) dd.addOption(a, t("settings.inlineAlign." + a));
+        dd.setValue(size.align ?? "");
+        dd.onChange((v) => set(kind, { align: v || undefined }));
       });
     }
   }

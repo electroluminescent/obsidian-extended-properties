@@ -693,6 +693,41 @@ var en_default = {
   "settings.typeExists": "That {typeProp} already exists.",
   "settings.unitsHeading": "Units",
   "settings.unitsDesc": `A numeric field takes arithmetic and measurements - 12*3, '1'2" - 5cm, 3 lb + 12 oz - and works them out when you leave the field. Each quantity is kept in the unit chosen here, so that is what gets stored.`,
+  "settings.freeKey": "Key that ignores the scale",
+  "settings.freeKeyDesc": "Held while dragging or stepping a slider, this key moves the value between the lines instead of onto them; held with a click on a primary line, it sends the handle there.",
+  "settings.freeKey.alt": "Alt / Option",
+  "settings.freeKey.ctrl": "Ctrl",
+  "settings.freeKey.shift": "Shift",
+  "settings.freeKey.meta": "Cmd / Win",
+  "settings.inlineHeading": "Inline pieces",
+  "settings.inlineDesc": "How each kind of inline piece is drawn in a note body. Height is in lines of text - a chart drawn on one line is barely visible. A width given as a share of the column widens to the next largest share when it would be too narrow to read.",
+  "settings.inlineLines": "Lines",
+  "settings.inlineWidthAuto": "Natural width",
+  "settings.inlineWidth.full": "Full width",
+  "settings.inlineWidth.half": "Half width",
+  "settings.inlineWidth.quarter": "Quarter width",
+  "settings.inlineWidth.custom": "Custom",
+  "settings.inlineWidthPx": "px",
+  "settings.inlineAlignFlow": "In the text",
+  "settings.inlineAlign.left": "Left",
+  "settings.inlineAlign.center": "Centre",
+  "settings.inlineAlign.right": "Right",
+  "inline.kind.roll": "Roll chip (roll:)",
+  "inline.kind.rollDesc": "A clickable roll written into the text.",
+  "inline.kind.prop": "Property (prop:)",
+  "inline.kind.propDesc": "The note's live, click-to-edit value.",
+  "inline.kind.val": "Value chip (val:)",
+  "inline.kind.valDesc": "A property's value as a chip.",
+  "inline.kind.vals": "Value card (vals:)",
+  "inline.kind.valsDesc": "The full sidebar card - sliders, steppers and all.",
+  "inline.kind.spark": "Sparkline (spark:)",
+  "inline.kind.sparkDesc": "A line through a set of values.",
+  "inline.kind.bar": "Bars (bar:)",
+  "inline.kind.barDesc": "A bar per value.",
+  "inline.kind.radar": "Radar (radar:)",
+  "inline.kind.radarDesc": "A polygon over several values - give it room; it keeps its proportions whatever width it is given.",
+  "inline.kind.progress": "Progress (progress:)",
+  "inline.kind.progressDesc": "A bar filled to a value out of a maximum.",
   "quantity.length": "Length",
   "quantity.mass": "Weight",
   "quantity.volume": "Volume",
@@ -2235,7 +2270,9 @@ var HANDLED_KEYS = /* @__PURE__ */ new Set([
   "holdMs",
   "tabOpens",
   "activation",
-  "units"
+  "units",
+  "freeKey",
+  "inline"
 ]);
 function cleanTypes(raw) {
   return Array.isArray(raw) ? raw.filter((t) => typeof t === "string" && t.trim() !== "") : [];
@@ -2339,6 +2376,8 @@ function normalizeSettings(raw, defaultLayout) {
     if (typeof data.holdMs === "number" && data.holdMs >= 100) s.holdMs = Math.min(5e3, Math.floor(data.holdMs));
     if (data.tabOpens === false) s.tabOpens = false;
     if (data.units && typeof data.units === "object") s.units = data.units;
+    if (typeof data.freeKey === "string" && data.freeKey.trim()) s.freeKey = data.freeKey.trim();
+    if (data.inline && typeof data.inline === "object") s.inline = data.inline;
     if (data.activation && typeof data.activation === "object") {
       const act = {};
       for (const [k, v] of Object.entries(data.activation))
@@ -5759,7 +5798,19 @@ function defaultRange(kind, entry) {
   if (wantsFractions(kind, entry)) return { min: 0, max: 1 };
   return { min: -9999, max: 99999 };
 }
-var isFree = (e) => e.altKey;
+var FREE_KEYS = ["alt", "ctrl", "shift", "meta"];
+function isFree(e, settings) {
+  switch (settings == null ? void 0 : settings.freeKey) {
+    case "ctrl":
+      return e.ctrlKey;
+    case "shift":
+      return e.shiftKey;
+    case "meta":
+      return e.metaKey;
+    default:
+      return e.altKey;
+  }
+}
 function wantSteppers(kind, entry) {
   return (kind === "number" || kind === "decimal") && entry.steppers !== false;
 }
@@ -5989,7 +6040,7 @@ function render(kind, ctx2) {
     };
     for (const m of majors)
       m.el.addEventListener("pointerdown", (e) => {
-        if (!isFree(e)) return;
+        if (!isFree(e, view.settings)) return;
         e.preventDefault();
         e.stopPropagation();
         jumpTo(m.value);
@@ -6020,7 +6071,7 @@ function render(kind, ctx2) {
     });
     knob.addEventListener("pointermove", (e) => {
       if (!active) return;
-      drag(e.clientX, isFree(e));
+      drag(e.clientX, isFree(e, view.settings));
       e.preventDefault();
     });
     const finish = (e) => {
@@ -6049,7 +6100,7 @@ function render(kind, ctx2) {
       else if (e.key === "ArrowRight" || e.key === "ArrowUp") v += step;
       else return;
       e.preventDefault();
-      v = snap(v, isFree(e));
+      v = snap(v, isFree(e, view.settings));
       if (entry.clamp) v = clamp(v, min, max);
       view.note.set(file, key, fmt(v));
     });
@@ -15160,6 +15211,40 @@ function pickDiceStyle(id) {
   return id !== void 0 && STYLES[id] || classic;
 }
 
+// src/utils/inline-size.ts
+var INLINE_KINDS = ["roll", "prop", "val", "vals", "spark", "bar", "radar", "progress"];
+var SPAN_SHARES = [
+  { id: "full", share: 1 },
+  { id: "half", share: 0.5 },
+  { id: "quarter", share: 0.25 }
+];
+var MIN_INLINE_PX = 150;
+var MAX_INLINE_LINES = 24;
+function resolveWidth(size, columnPx = 0) {
+  const span = size == null ? void 0 : size.span;
+  if (!span || span === "auto") return { stepped: false };
+  if (span === "custom") {
+    const px = Number(size == null ? void 0 : size.width);
+    if (!(px > 0)) return { stepped: false };
+    const used = Math.max(px, MIN_INLINE_PX);
+    return { css: `${used}px`, span: "custom", stepped: used !== px };
+  }
+  let i = SPAN_SHARES.findIndex((s2) => s2.id === span);
+  if (i < 0) return { stepped: false };
+  const asked = i;
+  while (i > 0 && columnPx > 0 && columnPx * SPAN_SHARES[i].share < MIN_INLINE_PX) i--;
+  const s = SPAN_SHARES[i];
+  return { css: `${s.share * 100}%`, span: s.id, stepped: i !== asked };
+}
+function resolveLines(size) {
+  const n = Math.floor(Number(size == null ? void 0 : size.lines));
+  if (!Number.isFinite(n) || n <= 1) return void 0;
+  return Math.min(n, MAX_INLINE_LINES);
+}
+function isShaped(size) {
+  return resolveLines(size) !== void 0 || !!resolveWidth(size).css || !!(size == null ? void 0 : size.align);
+}
+
 // src/ui/settings-tab.ts
 var OVERRIDE_ROW_LIMIT = 25;
 var TAB_GROUPS = [
@@ -15173,6 +15258,7 @@ var TAB_GROUPS = [
   },
   { label: "settings.activationHeading", sections: ["settings.activationHeading"] },
   { label: "settings.unitsHeading", sections: ["settings.unitsHeading"] },
+  { label: "settings.inlineHeading", sections: ["settings.inlineHeading"] },
   {
     label: "settings.tab.interface",
     sections: [
@@ -15190,6 +15276,7 @@ var SEARCH_SECTIONS = [
   "settings.typesHeading",
   "settings.defaultsHeading",
   "settings.unitsHeading",
+  "settings.inlineHeading",
   "settings.newSectionHeading",
   "settings.derivationsHeading",
   "settings.abbrHeading",
@@ -15570,6 +15657,7 @@ var EPSettingTab = class extends import_obsidian37.PluginSettingTab {
     );
     new import_obsidian37.Setting(c).setName(t("transfer.importHeading")).setDesc(t("transfer.importHeadingDesc")).addButton((b) => b.setButtonText(t("transfer.importBtn")).setCta().onClick(() => new ImportModal(plugin).open()));
     this.renderUnits(c);
+    this.renderInline(c);
     const d = plugin.settings.defaults;
     new import_obsidian37.Setting(c).setName(t("settings.defaultsHeading")).setHeading();
     new import_obsidian37.Setting(c).setName(t("settings.defaultDataType")).setDesc(t("settings.defaultDataTypeDesc")).addDropdown((dd) => {
@@ -16082,6 +16170,15 @@ var EPSettingTab = class extends import_obsidian37.PluginSettingTab {
         save();
       });
     });
+    new import_obsidian37.Setting(c).setName(t("settings.freeKey")).setDesc(t("settings.freeKeyDesc")).addDropdown((d2) => {
+      var _a;
+      for (const k of FREE_KEYS) d2.addOption(k, t("settings.freeKey." + k));
+      d2.setValue((_a = plugin.settings.freeKey) != null ? _a : "alt");
+      d2.onChange((v) => {
+        plugin.settings.freeKey = v === "alt" ? void 0 : v;
+        save();
+      });
+    });
     new import_obsidian37.Setting(c).setName(t("settings.hiddenHeading")).setHeading();
     c.createEl("p", { cls: "setting-item-description", text: t("settings.hiddenDesc") });
     for (const k of plugin.settings.manualHide) {
@@ -16160,6 +16257,84 @@ var EPSettingTab = class extends import_obsidian37.PluginSettingTab {
           plugin.settings.units = { ...(_a = plugin.settings.units) != null ? _a : {}, [q]: v };
           void plugin.saveSettings();
         });
+      });
+    }
+  }
+  /**
+   * How each kind of inline piece is drawn in a note body: how tall, how wide
+   * and which side of the column it sits on.
+   *
+   * A chip written into prose gets one line by default, which suits a value
+   * and defeats a radar chart - so every kind carries its own height, and the
+   * ones with a shape of their own carry a width too. A share of the column
+   * that would come out too narrow to read is widened to the next largest
+   * share when it is drawn (see `utils/inline-size`).
+   */
+  renderInline(c) {
+    const plugin = this.plugin;
+    const t = plugin.i18n.t.bind(plugin.i18n);
+    new import_obsidian37.Setting(c).setName(t("settings.inlineHeading")).setHeading();
+    c.createEl("p", { cls: "setting-item-description", text: t("settings.inlineDesc") });
+    const sizeOf = (kind) => {
+      var _a, _b;
+      return (_b = (_a = plugin.settings.inline) == null ? void 0 : _a[kind]) != null ? _b : {};
+    };
+    const set = (kind, patch) => {
+      var _a, _b;
+      const store = (_b = (_a = plugin.settings).inline) != null ? _b : _a.inline = {};
+      const cur = { ...store[kind], ...patch };
+      if (cur.lines === void 0 && cur.span === void 0 && cur.width === void 0 && cur.align === void 0)
+        delete store[kind];
+      else store[kind] = cur;
+      if (!Object.keys(store).length) plugin.settings.inline = void 0;
+      void plugin.saveSettings();
+    };
+    for (const kind of INLINE_KINDS) {
+      const size = sizeOf(kind);
+      const row = new import_obsidian37.Setting(c).setName(t("inline.kind." + kind)).setDesc(t("inline.kind." + kind + "Desc"));
+      row.addText((tx) => {
+        tx.inputEl.type = "number";
+        tx.inputEl.addClass("ep-inline-num");
+        tx.setPlaceholder(t("settings.inlineLines"));
+        tx.setValue(size.lines ? String(size.lines) : "");
+        tx.onChange((v) => {
+          const n = Math.floor(Number(v));
+          const lines = v.trim() === "" || !Number.isFinite(n) || n <= 1 ? void 0 : Math.min(n, MAX_INLINE_LINES);
+          set(kind, { lines });
+        });
+      });
+      let width = null;
+      let span = size.span;
+      const showWidth = () => width == null ? void 0 : width.toggleClass("ep-hidden", span !== "custom");
+      row.addDropdown((dd) => {
+        dd.addOption("", t("settings.inlineWidthAuto"));
+        for (const s of SPAN_SHARES) dd.addOption(s.id, t("settings.inlineWidth." + s.id));
+        dd.addOption("custom", t("settings.inlineWidth.custom"));
+        dd.setValue(span != null ? span : "");
+        dd.onChange((v) => {
+          span = v || void 0;
+          showWidth();
+          set(kind, { span });
+        });
+      });
+      row.addText((tx) => {
+        width = tx.inputEl;
+        tx.inputEl.type = "number";
+        tx.inputEl.addClass("ep-inline-num");
+        tx.setPlaceholder(t("settings.inlineWidthPx"));
+        tx.setValue(size.width ? String(size.width) : "");
+        tx.onChange((v) => {
+          const n = Math.floor(Number(v));
+          set(kind, { width: v.trim() === "" || !Number.isFinite(n) || n <= 0 ? void 0 : n });
+        });
+        showWidth();
+      });
+      row.addDropdown((dd) => {
+        var _a;
+        dd.addOption("", t("settings.inlineAlignFlow"));
+        for (const a of ["left", "center", "right"]) dd.addOption(a, t("settings.inlineAlign." + a));
+        dd.setValue((_a = size.align) != null ? _a : "");
+        dd.onChange((v) => set(kind, { align: v || void 0 }));
       });
     }
   }
@@ -18511,6 +18686,31 @@ var import_obsidian47 = require("obsidian");
 
 // src/features/inline/inline-view.ts
 var import_obsidian46 = require("obsidian");
+
+// src/features/inline/size.ts
+function inlineSizeOf(settings, kind) {
+  var _a;
+  return (_a = settings.inline) == null ? void 0 : _a[kind];
+}
+function applyInlineSize(el, settings, kind) {
+  const size = inlineSizeOf(settings, kind);
+  if (!isShaped(size)) return;
+  el.addClass("ep-inline-sized");
+  const lines = resolveLines(size);
+  if (lines !== void 0) el.setCssProps({ "--ep-inline-lines": String(lines) });
+  if (size == null ? void 0 : size.align) el.addClass(`ep-inline-${size.align}`);
+  const fit = () => {
+    var _a, _b;
+    if (!el.isConnected) return;
+    const column = (_b = (_a = el.parentElement) == null ? void 0 : _a.getBoundingClientRect().width) != null ? _b : 0;
+    const w = resolveWidth(size, column);
+    if (w.css) el.setCssStyles({ width: w.css });
+  };
+  fit();
+  window.requestAnimationFrame(fit);
+}
+
+// src/features/inline/inline-view.ts
 function layoutForFile(ctx2, file) {
   const raw = ctx2.facade.raw(file);
   const tk = Object.keys(raw).find((k) => k.toLowerCase() === "type");
@@ -18716,6 +18916,7 @@ var InlineViewCtx = class {
 function makeValsEl(ctx2, file, body, onEditSource) {
   const wrap = createDiv({ cls: "ep-inline-vals" });
   wrap.setCssStyles({ display: "inline-block", verticalAlign: "middle" });
+  applyInlineSize(wrap, ctx2.settings, "vals");
   const t = ctx2.i18n.t.bind(ctx2.i18n);
   const draw = () => {
     var _a, _b, _c, _d, _e, _f;
@@ -19055,6 +19256,7 @@ function makeRollChip(ctx2, file, body, opt, onEdit) {
     )
   });
   guardScrollTaps(chip);
+  applyInlineSize(chip, ctx2.settings, "roll");
   return chip;
 }
 function renderPropValue(ctx2, file, key) {
@@ -19105,6 +19307,7 @@ var PropInline = class extends import_obsidian47.MarkdownRenderChild {
   }
   onload() {
     this.root.addClass("ep-inline-prop");
+    applyInlineSize(this.root, this.ctx.settings, "prop");
     this.draw();
     this.registerEvent(
       this.ctx.app.metadataCache.on("changed", (f) => {
@@ -19208,6 +19411,7 @@ function makeValEl(ctx2, file, body, onEditSource) {
     wireGestures(chip, ctx2.settings, { menu: openChipMenu });
   }
   guardScrollTaps(chip);
+  applyInlineSize(chip, ctx2.settings, "val");
   return chip;
 }
 var ValInline = class extends import_obsidian47.MarkdownRenderChild {
@@ -19283,6 +19487,7 @@ function renderChartSpec(parent, ctx2, file, spec) {
   else renderRadar(parent, values, labels, { aria, max: resolveMax(spec.max, resolve) });
 }
 function makeChartEl(ctx2, file, kind, body) {
+  var _a;
   const chip = createSpan({ cls: "ep-inline-chart" });
   try {
     let spec;
@@ -19293,6 +19498,9 @@ function makeChartEl(ctx2, file, kind, body) {
       spec = { kind, refs: body.split(",").map((s) => s.trim()).filter(Boolean) };
     }
     renderChartSpec(chip, ctx2, file, spec);
+    applyInlineSize(chip, ctx2.settings, kind);
+    if (chip.hasClass("ep-inline-sized") && kind !== "radar")
+      (_a = chip.querySelector("svg")) == null ? void 0 : _a.setAttribute("preserveAspectRatio", "none");
   } catch (e) {
     console.error("Extended Properties: chart render failed", e);
     chip.empty();
@@ -19543,6 +19751,7 @@ var InlineWidget = class extends import_view.WidgetType {
         dom = makeChartEl(this.ctx, this.file, this.kind, this.body);
       else {
         const wrap = createSpan({ cls: "ep-inline-prop" });
+        applyInlineSize(wrap, this.ctx.settings, "prop");
         wrap.appendChild(renderPropValue(this.ctx, this.file, this.body));
         wrap.oncontextmenu = (ev) => {
           ev.preventDefault();

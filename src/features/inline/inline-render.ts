@@ -29,6 +29,7 @@ import {
 import { makeNoteAwareResolver, makeVaultAccess, parseNoteRef } from "../../core/note-ref";
 import { makeValsEl } from "./inline-view";
 import { guardScrollTaps } from "../../ui/components/long-press";
+import { applyInlineSize } from "./size";
 import { wireGestures } from "../../ui/components/hold-config";
 import { DiceNode, parseRoll, RollAst, serializeRoll } from "../../utils/dice-expr";
 import { parseDiceOrDefault } from "../../utils/dice";
@@ -220,6 +221,7 @@ export function makeRollChip(ctx: InlineCtx, file: TFile, body: string, opt: str
       ),
   });
   guardScrollTaps(chip); // don't roll when a scroll ends on the chip
+  applyInlineSize(chip, ctx.settings, "roll");
   return chip;
 }
 
@@ -273,6 +275,7 @@ class PropInline extends MarkdownRenderChild {
 
   onload(): void {
     this.root.addClass("ep-inline-prop");
+    applyInlineSize(this.root, this.ctx.settings, "prop");
     this.draw();
     this.registerEvent(
       this.ctx.app.metadataCache.on("changed", (f) => {
@@ -381,6 +384,7 @@ export function makeValEl(ctx: InlineCtx, file: TFile, body: string, onEditSourc
     wireGestures(chip, ctx.settings, { menu: openChipMenu });
   }
   guardScrollTaps(chip); // don't edit/navigate when a scroll ends on the chip
+  applyInlineSize(chip, ctx.settings, "val");
   return chip;
 }
 
@@ -494,6 +498,11 @@ export function makeChartEl(ctx: InlineCtx, file: TFile, kind: string, body: str
       spec = { kind: kind as ChartKind, refs: body.split(",").map((s) => s.trim()).filter(Boolean) };
     }
     renderChartSpec(chip, ctx, file, spec);
+    applyInlineSize(chip, ctx.settings, kind);
+    // A sized chart fills the box it was given. Only the radar keeps its
+    // proportions - a stretched one is no longer a radar.
+    if (chip.hasClass("ep-inline-sized") && kind !== "radar")
+      chip.querySelector("svg")?.setAttribute("preserveAspectRatio", "none");
   } catch (e) {
     console.error("Extended Properties: chart render failed", e);
     chip.empty();

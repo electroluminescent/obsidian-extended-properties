@@ -36,6 +36,7 @@ import { makeVaultAccess, parseNoteRef } from "../../core/note-ref";
 import { PopupManager } from "../../ui/components/popups";
 import type { InlineCtx } from "./inline-render";
 import { makeValEl } from "./inline-render";
+import { applyInlineSize } from "./size";
 import { showMenu } from "../../ui/menus/show";
 
 /** The note-type layout for a file (or null when no configured type matches). */
@@ -275,6 +276,7 @@ export function makeValsEl(ctx: InlineCtx, file: TFile, body: string, onEditSour
   // with an explicit inline-block display renders inline on both platforms.
   const wrap = createDiv({ cls: "ep-inline-vals" });
   wrap.setCssStyles({ display: "inline-block", verticalAlign: "middle" });
+  applyInlineSize(wrap, ctx.settings, "vals");
   const t = ctx.i18n.t.bind(ctx.i18n);
 
   const draw = (): void => {

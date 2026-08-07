@@ -952,6 +952,19 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 
 /* -- inline charts (G2) ----------------------------------------------------- */
 .ep-inline-chart { display: inline-flex; align-items: center; vertical-align: middle; line-height: 1; }
+/* An inline piece given a shape of its own (see utils/inline-size): as many
+   lines tall as asked for, as wide as its share of the column comes to, and
+   on the side of the column it was put. Never wider than the column, and
+   never narrower than legible - unless the column itself is. */
+.ep-inline-sized { display: block; width: fit-content; max-width: 100%; min-width: min(150px, 100%); min-height: calc(var(--ep-inline-lines, 1) * var(--line-height-normal, 1.5) * 1em); }
+.ep-inline-sized.ep-inline-left { margin-left: 0; margin-right: auto; }
+.ep-inline-sized.ep-inline-center { margin-left: auto; margin-right: auto; }
+.ep-inline-sized.ep-inline-right { margin-left: auto; margin-right: 0; }
+/* A sized chart fills the box rather than sitting at text height in it. */
+.ep-inline-chart.ep-inline-sized { display: flex; justify-content: center; }
+.ep-inline-chart.ep-inline-sized .ep-chart-svg { width: 100%; height: calc(var(--ep-inline-lines, 1) * var(--line-height-normal, 1.5) * 1em); }
+.ep-inline-roll.ep-inline-sized, .ep-inline-prop.ep-inline-sized { display: flex; align-items: center; }
+.ep-inline-num { width: 5em; }
 .ep-inline-chart .ep-chart-svg { height: 1.15em; width: auto; }
 .ep-chart-svg { display: block; overflow: visible; }
 .ep-chart-line { stroke: var(--ep-accent-default, var(--text-accent)); stroke-width: 1.5; fill: none; stroke-linejoin: round; stroke-linecap: round; }
@@ -974,8 +987,8 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
    and secondary are the same single-pixel line in the same colour, differing
    only in how tall and how present they are. */
 .ep-slider2-ticks, .ep-dateplot-grid { position: absolute; inset: 0; pointer-events: none; }
-.ep-tick { position: absolute; top: 50%; width: 1px; height: 6px; transform: translateY(-50%); background: var(--text-faint); opacity: .35; }
-.ep-tick-major { height: 12px; opacity: .8; }
+.ep-tick { position: absolute; top: 50%; width: 1px; height: 6px; transform: translateY(-50%); background: var(--text-faint); opacity: .18; }
+.ep-tick-major { height: 12px; opacity: .35; }
 /* A primary line answers to the pointer, on a target wider than it is drawn. */
 .ep-tick-hover { pointer-events: auto; }
 .ep-tick-hover::after { content: ""; position: absolute; inset: -3px -4px; }

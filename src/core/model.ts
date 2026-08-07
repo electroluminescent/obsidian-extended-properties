@@ -507,6 +507,18 @@ export interface EPSettings {
    */
   units?: Record<string, string>;
   /**
+   * The key held to move a slider past its scale lines - and, held with a
+   * click on a line, to send the handle there. "alt" (default), "ctrl",
+   * "shift" or "meta".
+   */
+  freeKey?: string;
+  /**
+   * How each kind of inline piece is drawn in a note body - height in lines,
+   * width and justification - keyed by the token that writes it ("vals",
+   * "radar", ...). See `utils/inline-size`.
+   */
+  inline?: Record<string, import("../utils/inline-size").InlineSize>;
+  /**
    * How each surface opens a value outside edit mode, keyed by surface id
    * ("values", "checkboxes", ...): "single" or absent for the double-click
    * default. See `core/activation`.

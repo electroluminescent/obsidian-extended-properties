@@ -76,12 +76,26 @@ function defaultRange(kind: NumericKind, entry: { fractions?: boolean }): { min:
   return { min: -9999, max: 99999 };
 }
 
+/** The keys a scale may be escaped with, in the order the settings offer them. */
+export const FREE_KEYS = ["alt", "ctrl", "shift", "meta"] as const;
+
+/** Which modifier is held in an event, by the id the settings store. */
+type Mods = { altKey: boolean; ctrlKey: boolean; shiftKey: boolean; metaKey: boolean };
+
 /**
- * The key held to set a value where it is put rather than on the nearest
- * line. Alt (Option on macOS) is free of other meaning in the sidebar, and is
- * the key that means "not that, exactly this" nearly everywhere else.
+ * Whether the key that moves a value past the scale lines is held. Alt
+ * (Option on macOS) unless the vault says otherwise: it is free of other
+ * meaning in the sidebar, and is the key that means "not that, exactly this"
+ * nearly everywhere else.
  */
-export const isFree = (e: { altKey: boolean }): boolean => e.altKey;
+export function isFree(e: Mods, settings?: { freeKey?: string }): boolean {
+  switch (settings?.freeKey) {
+    case "ctrl": return e.ctrlKey;
+    case "shift": return e.shiftKey;
+    case "meta": return e.metaKey;
+    default: return e.altKey;
+  }
+}
 
 /** Whether the entry shows -/+ steppers (number/decimal, not opted out). */
 function wantSteppers(kind: NumericKind, entry: { steppers?: boolean }): boolean {
@@ -381,7 +395,7 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
     // which turns the line into the target: hold it and click to go there.
     for (const m of majors)
       m.el.addEventListener("pointerdown", (e) => {
-        if (!isFree(e)) return;
+        if (!isFree(e, view.settings)) return;
         e.preventDefault();
         e.stopPropagation();
         jumpTo(m.value);
@@ -409,7 +423,7 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
     });
     knob.addEventListener("pointermove", (e) => {
       if (!active) return;
-      drag(e.clientX, isFree(e));
+      drag(e.clientX, isFree(e, view.settings));
       e.preventDefault();
     });
     const finish = (e: PointerEvent): void => {
@@ -435,7 +449,7 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
       else if (e.key === "ArrowRight" || e.key === "ArrowUp") v += step;
       else return;
       e.preventDefault();
-      v = snap(v, isFree(e));
+      v = snap(v, isFree(e, view.settings));
       if (entry.clamp) v = clamp(v, min, max);
       view.note.set(file, key, fmt(v));
     });

@@ -1,5 +1,26 @@
 # Changelog
 
+## 4.49.0
+
+- **The key that ignores the scale is yours to choose**: Alt (Option) as
+  before, or Ctrl, Shift or Cmd/Win, under *Activation* in the settings. It
+  governs both dragging between the lines and clicking one to jump to it.
+- **Fainter scale lines.** The primary now sits at about the old secondary's
+  weight, and the secondary at about half that - present when looked for,
+  quiet when not.
+- **Every inline piece can be given a size and a side**, in a new *Inline
+  pieces* settings tab: how many lines tall it is drawn (a radar chart on a
+  single line was never really visible), how wide - full, half or quarter of
+  the text column, or a width in pixels - and whether it sits left, centred,
+  right, or flows in the sentence as it always did.
+- A share of the column that would come out too narrow to read takes the next
+  largest share instead, so a quarter-width card in a narrow pane becomes a
+  half-width one rather than an unreadable sliver. A written width is likewise
+  never taken below what can be read.
+- Charts fill the room they are given; the radar keeps its proportions inside
+  it, since a stretched radar is no longer a radar. A piece nobody has sized
+  is drawn exactly as it was.
+
 ## 4.48.0
 
 - **The whole length of a timeline line answers to the pointer.** The marker
