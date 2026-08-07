@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.53.1
+
+- **A line holding nothing but an inline piece takes no room from the lines
+  around it.** The space between stacked pieces was the paragraph spacing they
+  inherited from prose, plus the leading that centres text in a line; a
+  paragraph containing only a piece now gives up both, so charts and cards
+  written on consecutive lines stack against each other. A piece written
+  inside a sentence leaves that sentence exactly as it was.
+
 ## 4.53.0
 
 - **A piece in a note leads to its own settings.** Right-click a `val:` chip,

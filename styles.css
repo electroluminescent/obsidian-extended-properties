@@ -982,6 +982,10 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-inline-vals.ep-entry.ep-inline-unboxed { border: none; background: none; padding: 0; }
 .ep-inline-roll.ep-inline-unboxed { border: none; background: none; padding: 0; }
 .ep-inline-num { width: 5em; }
+/* A line holding nothing but an inline piece: no paragraph spacing, and no
+   leading either, so pieces on consecutive lines stack against each other. */
+.ep-inline-only { --p-spacing: 0; margin-block: 0; line-height: 1; }
+.markdown-rendered .ep-inline-only, .markdown-preview-view .ep-inline-only { margin-top: 0; margin-bottom: 0; }
 /* The row a note body sent us to, marked just long enough to find it. */
 @keyframes ep-settings-flash { from { background: var(--text-selection); } to { background: transparent; } }
 .ep-settings-flash { animation: ep-settings-flash 1.8s ease-out; border-radius: var(--ep-radius, 6px); }

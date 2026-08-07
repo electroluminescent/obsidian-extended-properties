@@ -18776,6 +18776,14 @@ function inlineSizeOf(settings, kind) {
   var _a;
   return (_a = settings.inline) == null ? void 0 : _a[kind];
 }
+function blockAncestor(el) {
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const cs = getComputedStyle(p);
+    if (cs.display.startsWith("inline") && cs.display !== "inline-block") continue;
+    return p;
+  }
+  return null;
+}
 function columnWidth(el) {
   for (let p = el.parentElement; p; p = p.parentElement) {
     const cs = getComputedStyle(p);
@@ -18785,6 +18793,16 @@ function columnWidth(el) {
     if (w > 0) return w;
   }
   return 0;
+}
+function markAlone(el) {
+  const block = blockAncestor(el);
+  if (!block) return;
+  const meaningful = Array.from(block.childNodes).filter((n) => {
+    var _a;
+    if (n.nodeType === Node.TEXT_NODE) return ((_a = n.textContent) != null ? _a : "").trim() !== "";
+    return !(n instanceof HTMLElement && n.tagName === "BR");
+  });
+  block.toggleClass("ep-inline-only", meaningful.length === 1 && meaningful[0].contains(el));
 }
 function alignHost(el, align) {
   const host = el.parentElement;
@@ -18798,6 +18816,11 @@ function applyInlineSize(el, settings, kind, onFit) {
   const boxed = isBoxed(size, kind);
   if (boxed && !boxedByDefault(kind)) el.addClass("ep-inline-boxed");
   if (!boxed && boxedByDefault(kind)) el.addClass("ep-inline-unboxed");
+  const settle = () => {
+    if (el.isConnected) markAlone(el);
+  };
+  settle();
+  window.requestAnimationFrame(settle);
   if (!isShaped(size)) return;
   el.addClass("ep-inline-sized");
   const lines = resolveLines(size);

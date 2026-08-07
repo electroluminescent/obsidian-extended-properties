@@ -33,6 +33,16 @@ export function inlineBoxed(settings: EPSettings, kind: string): boolean {
   return isBoxed(inlineSizeOf(settings, kind), kind);
 }
 
+/** The first ancestor of `el` that lays out as a block - its text column. */
+function blockAncestor(el: HTMLElement): HTMLElement | null {
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const cs = getComputedStyle(p);
+    if (cs.display.startsWith("inline") && cs.display !== "inline-block") continue;
+    return p;
+  }
+  return null;
+}
+
 /**
  * The width of the text column `el` sits in: the content width of the first
  * ancestor that is not an inline box. Zero when nothing has been laid out yet.
@@ -46,6 +56,25 @@ export function columnWidth(el: HTMLElement): number {
     if (w > 0) return w;
   }
   return 0;
+}
+
+/**
+ * Mark the paragraph that holds nothing but this piece.
+ *
+ * A paragraph is spaced from its neighbours because paragraphs of prose want
+ * air between them; a line holding only a chart wants none, and the leading
+ * that centres text in a line adds more still. Marked, it gives up both - so
+ * pieces written on consecutive lines stack against each other, while a piece
+ * written inside a sentence leaves that sentence exactly as it was.
+ */
+function markAlone(el: HTMLElement): void {
+  const block = blockAncestor(el);
+  if (!block) return;
+  const meaningful = Array.from(block.childNodes).filter((n) => {
+    if (n.nodeType === Node.TEXT_NODE) return (n.textContent ?? "").trim() !== "";
+    return !(n instanceof HTMLElement && n.tagName === "BR");
+  });
+  block.toggleClass("ep-inline-only", meaningful.length === 1 && meaningful[0].contains(el));
 }
 
 /** Justify a piece from its wrapper, so nothing around it is moved. */
@@ -78,6 +107,13 @@ export function applyInlineSize(
   const boxed = isBoxed(size, kind);
   if (boxed && !boxedByDefault(kind)) el.addClass("ep-inline-boxed");
   if (!boxed && boxedByDefault(kind)) el.addClass("ep-inline-unboxed");
+  // A piece on a line of its own takes no room from the lines around it,
+  // sized or not - which can only be told once it is in the document.
+  const settle = (): void => {
+    if (el.isConnected) markAlone(el);
+  };
+  settle();
+  window.requestAnimationFrame(settle);
   if (!isShaped(size)) return;
   el.addClass("ep-inline-sized");
   const lines = resolveLines(size);
