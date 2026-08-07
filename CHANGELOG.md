@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.54.0
+
+- **Every inline setting has a row of its own.** Each kind now names itself and
+  is followed by one row per setting - height, width, width in pixels,
+  justification, direction, axis labels, value labels, card - each with what it
+  does written beside it, rather than a line of unlabelled controls. The pixel
+  width appears only when the width is set to Custom.
+
 ## 4.53.3
 
 - **A justified piece no longer leaves an empty line above and below it.** The

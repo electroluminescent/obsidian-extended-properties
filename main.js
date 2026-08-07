@@ -713,6 +713,19 @@ var en_default = {
   "settings.inlineAlign.center": "Centre",
   "settings.inlineAlign.right": "Right",
   "settings.inlineBox": "Draw it in a card - a bordered, tinted box around the piece.",
+  "settings.inlineLinesName": "Height",
+  "settings.inlineLinesDesc": "How many lines of text tall it is drawn. Blank or 1 = the single line it takes in the text.",
+  "settings.inlineWidthName": "Width",
+  "settings.inlineWidthDesc": "A share of the text column, or a width of your own. A share too narrow to read takes the next largest instead.",
+  "settings.inlineWidthPxName": "Width in pixels",
+  "settings.inlineWidthPxDesc": "Used when the width is Custom. Never taken below what can be read.",
+  "settings.inlineAlignName": "Justification",
+  "settings.inlineAlignDesc": "Which side of the column it sits on. In the text = wherever it was written.",
+  "settings.inlineDirName": "Direction",
+  "settings.inlineDirDesc": "Whether the bars stand up from the bottom or run left to right, one row per value.",
+  "settings.inlineAxisName": "Axis labels",
+  "settings.inlineValuesName": "Value labels",
+  "settings.inlineBoxName": "Card",
   "inline.openSettings": "Settings for {kind}...",
   "roll.menu.appearance": "Appearance",
   "settings.inlineAxisLabels": "Name the property behind each value on the chart.",
@@ -16335,12 +16348,13 @@ var EPSettingTab = class extends import_obsidian37.PluginSettingTab {
     };
     for (const kind of INLINE_KINDS) {
       const size = sizeOf(kind);
-      const row = new import_obsidian37.Setting(c).setName(t("inline.kind." + kind)).setDesc(t("inline.kind." + kind + "Desc"));
+      const head = c.createEl("h5", { cls: "ep-inline-kind", text: t("inline.kind." + kind) });
+      c.createEl("p", { cls: "setting-item-description ep-inline-kind-desc", text: t("inline.kind." + kind + "Desc") });
       if (kind === this.pendingInline) {
-        this.inlineRow = row.settingEl;
+        this.inlineRow = head;
         this.pendingInline = null;
       }
-      row.addText((tx) => {
+      new import_obsidian37.Setting(c).setName(t("settings.inlineLinesName")).setDesc(t("settings.inlineLinesDesc")).addText((tx) => {
         tx.inputEl.type = "number";
         tx.inputEl.addClass("ep-inline-num");
         tx.setPlaceholder(t("settings.inlineLines"));
@@ -16351,12 +16365,12 @@ var EPSettingTab = class extends import_obsidian37.PluginSettingTab {
           set(kind, { lines });
         });
       });
-      let width = null;
+      let widthRow = null;
       let span = size.span;
-      const showWidth = () => width == null ? void 0 : width.toggleClass("ep-hidden", span !== "custom");
-      row.addDropdown((dd) => {
+      const showWidth = () => widthRow == null ? void 0 : widthRow.toggleClass("ep-hidden", span !== "custom");
+      new import_obsidian37.Setting(c).setName(t("settings.inlineWidthName")).setDesc(t("settings.inlineWidthDesc")).addDropdown((dd) => {
         dd.addOption("", t("settings.inlineWidthAuto"));
-        for (const s of SPAN_SHARES) dd.addOption(s.id, t("settings.inlineWidth." + s.id));
+        for (const sh of SPAN_SHARES) dd.addOption(sh.id, t("settings.inlineWidth." + sh.id));
         dd.addOption("custom", t("settings.inlineWidth.custom"));
         dd.setValue(span != null ? span : "");
         dd.onChange((v) => {
@@ -16365,8 +16379,7 @@ var EPSettingTab = class extends import_obsidian37.PluginSettingTab {
           set(kind, { span });
         });
       });
-      row.addText((tx) => {
-        width = tx.inputEl;
+      widthRow = new import_obsidian37.Setting(c).setName(t("settings.inlineWidthPxName")).setDesc(t("settings.inlineWidthPxDesc")).addText((tx) => {
         tx.inputEl.type = "number";
         tx.inputEl.addClass("ep-inline-num");
         tx.setPlaceholder(t("settings.inlineWidthPx"));
@@ -16375,37 +16388,34 @@ var EPSettingTab = class extends import_obsidian37.PluginSettingTab {
           const n = Math.floor(Number(v));
           set(kind, { width: v.trim() === "" || !Number.isFinite(n) || n <= 0 ? void 0 : n });
         });
-        showWidth();
-      });
-      row.addDropdown((dd) => {
+      }).settingEl;
+      showWidth();
+      new import_obsidian37.Setting(c).setName(t("settings.inlineAlignName")).setDesc(t("settings.inlineAlignDesc")).addDropdown((dd) => {
         var _a;
         dd.addOption("", t("settings.inlineAlignFlow"));
         for (const a of ["left", "center", "right"]) dd.addOption(a, t("settings.inlineAlign." + a));
         dd.setValue((_a = size.align) != null ? _a : "");
         dd.onChange((v) => set(kind, { align: v || void 0 }));
       });
-      if (CHART_KINDS.has(kind)) {
-        row.addToggle((tg) => {
-          tg.setTooltip(t("settings.inlineAxisLabels"));
-          tg.setValue(size.axisLabels === true);
-          tg.onChange((v) => set(kind, { axisLabels: v || void 0 }));
-        });
-        row.addToggle((tg) => {
-          tg.setTooltip(t("settings.inlineValueLabels"));
-          tg.setValue(size.valueLabels === true);
-          tg.onChange((v) => set(kind, { valueLabels: v || void 0 }));
-        });
-      }
       if (kind === "bar")
-        row.addDropdown((dd) => {
+        new import_obsidian37.Setting(c).setName(t("settings.inlineDirName")).setDesc(t("settings.inlineDirDesc")).addDropdown((dd) => {
           var _a;
           dd.addOption("", t("settings.inlineDir.vertical"));
           dd.addOption("horizontal", t("settings.inlineDir.horizontal"));
           dd.setValue((_a = size.dir) != null ? _a : "");
           dd.onChange((v) => set(kind, { dir: v || void 0 }));
         });
-      row.addToggle((tg) => {
-        tg.setTooltip(t("settings.inlineBox"));
+      if (CHART_KINDS.has(kind)) {
+        new import_obsidian37.Setting(c).setName(t("settings.inlineAxisName")).setDesc(t("settings.inlineAxisLabels")).addToggle((tg) => {
+          tg.setValue(size.axisLabels === true);
+          tg.onChange((v) => set(kind, { axisLabels: v || void 0 }));
+        });
+        new import_obsidian37.Setting(c).setName(t("settings.inlineValuesName")).setDesc(t("settings.inlineValueLabels")).addToggle((tg) => {
+          tg.setValue(size.valueLabels === true);
+          tg.onChange((v) => set(kind, { valueLabels: v || void 0 }));
+        });
+      }
+      new import_obsidian37.Setting(c).setName(t("settings.inlineBoxName")).setDesc(t("settings.inlineBox")).addToggle((tg) => {
         tg.setValue(isBoxed(size, kind));
         tg.onChange((v) => set(kind, { box: v === boxedByDefault(kind) ? void 0 : v }));
       });

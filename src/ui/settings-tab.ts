@@ -1297,84 +1297,113 @@ export class EPSettingTab extends PluginSettingTab {
     };
     for (const kind of INLINE_KINDS) {
       const size = sizeOf(kind);
-      const row = new Setting(c).setName(t("inline.kind." + kind)).setDesc(t("inline.kind." + kind + "Desc"));
+      // The kind names itself, then each of its settings takes a row of its
+      // own - a heading here would start a tab of its own (see `tabify`).
+      const head = c.createEl("h5", { cls: "ep-inline-kind", text: t("inline.kind." + kind) });
+      c.createEl("p", { cls: "setting-item-description ep-inline-kind-desc", text: t("inline.kind." + kind + "Desc") });
       if (kind === this.pendingInline) {
-        this.inlineRow = row.settingEl;
+        this.inlineRow = head;
         this.pendingInline = null;
       }
-      row.addText((tx) => {
-        tx.inputEl.type = "number";
-        tx.inputEl.addClass("ep-inline-num");
-        tx.setPlaceholder(t("settings.inlineLines"));
-        tx.setValue(size.lines ? String(size.lines) : "");
-        tx.onChange((v) => {
-          const n = Math.floor(Number(v));
-          const lines = v.trim() === "" || !Number.isFinite(n) || n <= 1 ? undefined : Math.min(n, MAX_INLINE_LINES);
-          set(kind, { lines });
+
+      new Setting(c)
+        .setName(t("settings.inlineLinesName"))
+        .setDesc(t("settings.inlineLinesDesc"))
+        .addText((tx) => {
+          tx.inputEl.type = "number";
+          tx.inputEl.addClass("ep-inline-num");
+          tx.setPlaceholder(t("settings.inlineLines"));
+          tx.setValue(size.lines ? String(size.lines) : "");
+          tx.onChange((v) => {
+            const n = Math.floor(Number(v));
+            const lines = v.trim() === "" || !Number.isFinite(n) || n <= 1 ? undefined : Math.min(n, MAX_INLINE_LINES);
+            set(kind, { lines });
+          });
         });
-      });
-      // The width field only means anything for a custom width, so it appears
-      // with one and goes away again with the preset.
-      let width: HTMLInputElement | null = null;
+
+      // The width in pixels only means anything for a custom width, so its
+      // whole row appears with one and goes away again with the preset.
+      let widthRow: HTMLElement | null = null;
       let span = size.span;
-      const showWidth = (): void => width?.toggleClass("ep-hidden", span !== "custom");
-      row.addDropdown((dd) => {
-        dd.addOption("", t("settings.inlineWidthAuto"));
-        for (const s of SPAN_SHARES) dd.addOption(s.id, t("settings.inlineWidth." + s.id));
-        dd.addOption("custom", t("settings.inlineWidth.custom"));
-        dd.setValue(span ?? "");
-        dd.onChange((v) => {
-          span = v || undefined;
-          showWidth();
-          set(kind, { span });
+      const showWidth = (): void => widthRow?.toggleClass("ep-hidden", span !== "custom");
+      new Setting(c)
+        .setName(t("settings.inlineWidthName"))
+        .setDesc(t("settings.inlineWidthDesc"))
+        .addDropdown((dd) => {
+          dd.addOption("", t("settings.inlineWidthAuto"));
+          for (const sh of SPAN_SHARES) dd.addOption(sh.id, t("settings.inlineWidth." + sh.id));
+          dd.addOption("custom", t("settings.inlineWidth.custom"));
+          dd.setValue(span ?? "");
+          dd.onChange((v) => {
+            span = v || undefined;
+            showWidth();
+            set(kind, { span });
+          });
         });
-      });
-      row.addText((tx) => {
-        width = tx.inputEl;
-        tx.inputEl.type = "number";
-        tx.inputEl.addClass("ep-inline-num");
-        tx.setPlaceholder(t("settings.inlineWidthPx"));
-        tx.setValue(size.width ? String(size.width) : "");
-        tx.onChange((v) => {
-          const n = Math.floor(Number(v));
-          set(kind, { width: v.trim() === "" || !Number.isFinite(n) || n <= 0 ? undefined : n });
+      widthRow = new Setting(c)
+        .setName(t("settings.inlineWidthPxName"))
+        .setDesc(t("settings.inlineWidthPxDesc"))
+        .addText((tx) => {
+          tx.inputEl.type = "number";
+          tx.inputEl.addClass("ep-inline-num");
+          tx.setPlaceholder(t("settings.inlineWidthPx"));
+          tx.setValue(size.width ? String(size.width) : "");
+          tx.onChange((v) => {
+            const n = Math.floor(Number(v));
+            set(kind, { width: v.trim() === "" || !Number.isFinite(n) || n <= 0 ? undefined : n });
+          });
+        }).settingEl;
+      showWidth();
+
+      new Setting(c)
+        .setName(t("settings.inlineAlignName"))
+        .setDesc(t("settings.inlineAlignDesc"))
+        .addDropdown((dd) => {
+          dd.addOption("", t("settings.inlineAlignFlow"));
+          for (const a of ["left", "center", "right"]) dd.addOption(a, t("settings.inlineAlign." + a));
+          dd.setValue(size.align ?? "");
+          dd.onChange((v) => set(kind, { align: v || undefined }));
         });
-        showWidth();
-      });
-      row.addDropdown((dd) => {
-        dd.addOption("", t("settings.inlineAlignFlow"));
-        for (const a of ["left", "center", "right"]) dd.addOption(a, t("settings.inlineAlign." + a));
-        dd.setValue(size.align ?? "");
-        dd.onChange((v) => set(kind, { align: v || undefined }));
-      });
-      // A chart can name what it draws: the properties, the numbers, or both.
-      if (CHART_KINDS.has(kind)) {
-        row.addToggle((tg) => {
-          tg.setTooltip(t("settings.inlineAxisLabels"));
-          tg.setValue(size.axisLabels === true);
-          tg.onChange((v) => set(kind, { axisLabels: v || undefined }));
-        });
-        row.addToggle((tg) => {
-          tg.setTooltip(t("settings.inlineValueLabels"));
-          tg.setValue(size.valueLabels === true);
-          tg.onChange((v) => set(kind, { valueLabels: v || undefined }));
-        });
-      }
+
       // Bars are the one piece that can lie down as well as stand up.
       if (kind === "bar")
-        row.addDropdown((dd) => {
-          dd.addOption("", t("settings.inlineDir.vertical"));
-          dd.addOption("horizontal", t("settings.inlineDir.horizontal"));
-          dd.setValue(size.dir ?? "");
-          dd.onChange((v) => set(kind, { dir: v || undefined }));
-        });
+        new Setting(c)
+          .setName(t("settings.inlineDirName"))
+          .setDesc(t("settings.inlineDirDesc"))
+          .addDropdown((dd) => {
+            dd.addOption("", t("settings.inlineDir.vertical"));
+            dd.addOption("horizontal", t("settings.inlineDir.horizontal"));
+            dd.setValue(size.dir ?? "");
+            dd.onChange((v) => set(kind, { dir: v || undefined }));
+          });
+
+      // A chart can name what it draws: the properties, the numbers, or both.
+      if (CHART_KINDS.has(kind)) {
+        new Setting(c)
+          .setName(t("settings.inlineAxisName"))
+          .setDesc(t("settings.inlineAxisLabels"))
+          .addToggle((tg) => {
+            tg.setValue(size.axisLabels === true);
+            tg.onChange((v) => set(kind, { axisLabels: v || undefined }));
+          });
+        new Setting(c)
+          .setName(t("settings.inlineValuesName"))
+          .setDesc(t("settings.inlineValueLabels"))
+          .addToggle((tg) => {
+            tg.setValue(size.valueLabels === true);
+            tg.onChange((v) => set(kind, { valueLabels: v || undefined }));
+          });
+      }
+
       // The card: a border and a fill around the piece. Only a departure from
       // the kind's own habit is stored, so a default card stays a default.
-      row.addToggle((tg) => {
-        tg.setTooltip(t("settings.inlineBox"));
-        tg.setValue(isBoxed(size, kind));
-        tg.onChange((v) => set(kind, { box: v === boxedByDefault(kind) ? undefined : v }));
-      });
+      new Setting(c)
+        .setName(t("settings.inlineBoxName"))
+        .setDesc(t("settings.inlineBox"))
+        .addToggle((tg) => {
+          tg.setValue(isBoxed(size, kind));
+          tg.onChange((v) => set(kind, { box: v === boxedByDefault(kind) ? undefined : v }));
+        });
     }
   }
 
