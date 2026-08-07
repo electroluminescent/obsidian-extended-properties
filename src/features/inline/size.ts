@@ -77,7 +77,7 @@ function markAlone(el: HTMLElement): void {
   if (!block) return;
   const meaningful = Array.from(block.childNodes).filter((n) => {
     if (n.nodeType === Node.TEXT_NODE) return (n.textContent ?? "").trim() !== "";
-    return !(n instanceof HTMLElement && n.tagName === "BR");
+    return !(n.instanceOf(HTMLElement) && n.tagName === "BR");
   });
   block.toggleClass("ep-inline-only", meaningful.length === 1 && meaningful[0].contains(el));
 }

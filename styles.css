@@ -986,9 +986,10 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
    line height of the words around it rather than a pill's. */
 .ep-inline-roll.ep-inline-unboxed { border: none; background: none; padding: 0; line-height: inherit; }
 .ep-inline-num { width: 5em; }
-/* Each inline kind names itself above its own settings. */
-.ep-inline-kind { margin: 18px 0 0; }
-.ep-inline-kind-desc { margin: 2px 0 4px; }
+/* A heading inside a section (each inline kind names itself before its own
+   settings). Obsidian's own heading row gives it its type and padding; this
+   only tells it apart from the headings that start a section. */
+.ep-subheading .setting-item-name { font-size: var(--font-ui-medium); }
 /* A line holding nothing but an inline piece: no paragraph spacing, and no
    leading either, so pieces on consecutive lines stack against each other. */
 .ep-inline-only { --p-spacing: 0; margin-block: 0; line-height: 1; }

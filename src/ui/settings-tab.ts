@@ -191,7 +191,10 @@ export class EPSettingTab extends PluginSettingTab {
     const t = this.plugin.i18n.t.bind(this.plugin.i18n);
     const nodes = Array.from(host.children) as HTMLElement[];
 
-    const first = nodes.findIndex((n) => n.hasClass("setting-item-heading"));
+    /** A section heading - not one of the sub-headings inside a section. */
+    const startsSection = (n: HTMLElement): boolean =>
+      n.hasClass("setting-item-heading") && !n.hasClass("ep-subheading");
+    const first = nodes.findIndex(startsSection);
     if (first < 0) return;
 
     const chrome = host.createDiv({ cls: "ep-settings-chrome" });
@@ -215,7 +218,7 @@ export class EPSettingTab extends PluginSettingTab {
     let group: Group | null = null;
     let sect: Sect | null = null;
     for (const node of nodes.slice(first)) {
-      if (node.hasClass("setting-item-heading")) {
+      if (startsSection(node)) {
         const title = node.textContent?.trim() ?? "";
         group = tabFor(title);
         sect = { title, heading: node, rows: [], loose: [] };
@@ -1298,11 +1301,15 @@ export class EPSettingTab extends PluginSettingTab {
     for (const kind of INLINE_KINDS) {
       const size = sizeOf(kind);
       // The kind names itself, then each of its settings takes a row of its
-      // own - a heading here would start a tab of its own (see `tabify`).
-      const head = c.createEl("h4", { cls: "ep-inline-kind", text: t("inline.kind." + kind) });
-      c.createEl("p", { cls: "setting-item-description ep-inline-kind-desc", text: t("inline.kind." + kind + "Desc") });
+      // own. It is a heading like any other, marked as a sub-heading so it
+      // stays inside this section rather than starting a tab (see `tabify`).
+      const head = new Setting(c)
+        .setName(t("inline.kind." + kind))
+        .setDesc(t("inline.kind." + kind + "Desc"))
+        .setHeading();
+      head.settingEl.addClass("ep-subheading");
       if (kind === this.pendingInline) {
-        this.inlineRow = head;
+        this.inlineRow = head.settingEl;
         this.pendingInline = null;
       }
 

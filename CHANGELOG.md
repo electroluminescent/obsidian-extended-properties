@@ -7,10 +7,10 @@
   justification, direction, axis labels, value labels, card - each with what it
   does written beside it, rather than a line of unlabelled controls. The pixel
   width appears only when the width is set to Custom.
-- Those kind names line up with the rows beneath them, like every other
-  heading in the settings: loose copy takes its indent from a measured row,
-  and sub-headings are now included in that rather than sitting flush against
-  the edge.
+- Those kind names are ordinary settings headings, so they carry the same type
+  and padding as every other heading in the tab. They are marked as
+  sub-headings, which keeps them inside the Inline pieces section instead of
+  each one starting a tab of its own.
 
 ## 4.53.3
 

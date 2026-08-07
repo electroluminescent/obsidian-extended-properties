@@ -15427,7 +15427,8 @@ var EPSettingTab = class extends import_obsidian37.PluginSettingTab {
     const host = this.host;
     const t = this.plugin.i18n.t.bind(this.plugin.i18n);
     const nodes = Array.from(host.children);
-    const first = nodes.findIndex((n) => n.hasClass("setting-item-heading"));
+    const startsSection = (n) => n.hasClass("setting-item-heading") && !n.hasClass("ep-subheading");
+    const first = nodes.findIndex(startsSection);
     if (first < 0) return;
     const chrome = host.createDiv({ cls: "ep-settings-chrome" });
     const body = host.createDiv({ cls: "ep-settings-panels" });
@@ -15444,7 +15445,7 @@ var EPSettingTab = class extends import_obsidian37.PluginSettingTab {
     let group = null;
     let sect = null;
     for (const node of nodes.slice(first)) {
-      if (node.hasClass("setting-item-heading")) {
+      if (startsSection(node)) {
         const title = (_b = (_a = node.textContent) == null ? void 0 : _a.trim()) != null ? _b : "";
         group = tabFor(title);
         sect = { title, heading: node, rows: [], loose: [] };
@@ -16348,10 +16349,10 @@ var EPSettingTab = class extends import_obsidian37.PluginSettingTab {
     };
     for (const kind of INLINE_KINDS) {
       const size = sizeOf(kind);
-      const head = c.createEl("h4", { cls: "ep-inline-kind", text: t("inline.kind." + kind) });
-      c.createEl("p", { cls: "setting-item-description ep-inline-kind-desc", text: t("inline.kind." + kind + "Desc") });
+      const head = new import_obsidian37.Setting(c).setName(t("inline.kind." + kind)).setDesc(t("inline.kind." + kind + "Desc")).setHeading();
+      head.settingEl.addClass("ep-subheading");
       if (kind === this.pendingInline) {
-        this.inlineRow = head;
+        this.inlineRow = head.settingEl;
         this.pendingInline = null;
       }
       new import_obsidian37.Setting(c).setName(t("settings.inlineLinesName")).setDesc(t("settings.inlineLinesDesc")).addText((tx) => {
@@ -18811,7 +18812,7 @@ function markAlone(el) {
   const meaningful = Array.from(block.childNodes).filter((n) => {
     var _a;
     if (n.nodeType === Node.TEXT_NODE) return ((_a = n.textContent) != null ? _a : "").trim() !== "";
-    return !(n instanceof HTMLElement && n.tagName === "BR");
+    return !(n.instanceOf(HTMLElement) && n.tagName === "BR");
   });
   block.toggleClass("ep-inline-only", meaningful.length === 1 && meaningful[0].contains(el));
 }
