@@ -12,7 +12,7 @@
  * default box is the one line of text these started life as.
  */
 
-import { barLayout, clampFrac, pointsAttr, radarPoints, ringPoints, sparklinePath } from "../../utils/chart";
+import { barLayout, barLayoutH, clampFrac, pointsAttr, radarPoints, ringPoints, sparklinePath } from "../../utils/chart";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -66,17 +66,30 @@ export function renderSparkline(parent: HTMLElement, values: number[], opts: { a
   svg.appendChild(svgEl("path", { d: sparklinePath(values, w, h, pad), class: "ep-chart-line", fill: "none" }));
 }
 
-export function renderBars(parent: HTMLElement, values: number[], opts: { aria: string; box?: ChartBox }): void {
+export function renderBars(
+  parent: HTMLElement,
+  values: number[],
+  opts: { aria: string; box?: ChartBox; horizontal?: boolean }
+): void {
   const asked = chartBox("bar", opts.box);
-  // Without a box of its own, the width follows the number of bars.
-  const w = opts.box?.w ? asked.w : Math.max(24, values.length * 8);
+  // Standing up without a box of its own, the width follows the number of bars.
+  const w = opts.box?.w || opts.horizontal ? asked.w : Math.max(24, values.length * 8);
   const h = asked.h;
   const svg = frame(parent, w, h, opts.aria);
   // A gap proportional to the bar, so bars neither merge nor become slivers.
-  const gap = Math.max(1, Math.min(8, w / Math.max(1, values.length) / 6));
-  for (const r of barLayout(values, w, h, gap))
+  const across = opts.horizontal ? h : w;
+  const gap = Math.max(1, Math.min(8, across / Math.max(1, values.length) / 6));
+  const bars = opts.horizontal ? barLayoutH(values, w, h, gap) : barLayout(values, w, h, gap);
+  for (const r of bars)
     svg.appendChild(
-      svgEl("rect", { x: r.x, y: r.y, width: r.w, height: r.h, rx: Math.min(2, r.w / 4), class: "ep-chart-bar" })
+      svgEl("rect", {
+        x: r.x,
+        y: r.y,
+        width: r.w,
+        height: r.h,
+        rx: Math.min(2, Math.min(r.w, r.h) / 4),
+        class: "ep-chart-bar",
+      })
     );
 }
 

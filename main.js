@@ -713,6 +713,8 @@ var en_default = {
   "settings.inlineAlign.center": "Centre",
   "settings.inlineAlign.right": "Right",
   "settings.inlineBox": "Draw it in a card - a bordered, tinted box around the piece.",
+  "settings.inlineDir.vertical": "Bars stand up",
+  "settings.inlineDir.horizontal": "Bars lie down",
   "inline.kind.roll": "Roll chip (roll:)",
   "inline.kind.rollDesc": "A clickable roll written into the text.",
   "inline.kind.prop": "Property (prop:)",
@@ -15221,6 +15223,9 @@ var SPAN_SHARES = [
 ];
 var MIN_INLINE_PX = 150;
 var MAX_INLINE_LINES = 24;
+function isHorizontal(size) {
+  return (size == null ? void 0 : size.dir) === "horizontal";
+}
 var BOXED_BY_DEFAULT = /* @__PURE__ */ new Set(["vals"]);
 function isBoxed(size, kind) {
   var _a;
@@ -16292,7 +16297,7 @@ var EPSettingTab = class extends import_obsidian37.PluginSettingTab {
       var _a, _b;
       const store = (_b = (_a = plugin.settings).inline) != null ? _b : _a.inline = {};
       const cur = { ...store[kind], ...patch };
-      if (cur.lines === void 0 && cur.span === void 0 && cur.width === void 0 && cur.align === void 0 && cur.box === void 0)
+      if (cur.lines === void 0 && cur.span === void 0 && cur.width === void 0 && cur.align === void 0 && cur.box === void 0 && cur.dir === void 0)
         delete store[kind];
       else store[kind] = cur;
       if (!Object.keys(store).length) plugin.settings.inline = void 0;
@@ -16345,6 +16350,14 @@ var EPSettingTab = class extends import_obsidian37.PluginSettingTab {
         dd.setValue((_a = size.align) != null ? _a : "");
         dd.onChange((v) => set(kind, { align: v || void 0 }));
       });
+      if (kind === "bar")
+        row.addDropdown((dd) => {
+          var _a;
+          dd.addOption("", t("settings.inlineDir.vertical"));
+          dd.addOption("horizontal", t("settings.inlineDir.horizontal"));
+          dd.setValue((_a = size.dir) != null ? _a : "");
+          dd.onChange((v) => set(kind, { dir: v || void 0 }));
+        });
       row.addToggle((tg) => {
         tg.setTooltip(t("settings.inlineBox"));
         tg.setValue(isBoxed(size, kind));
@@ -18709,6 +18722,23 @@ function inlineSizeOf(settings, kind) {
 function inlineBoxed(settings, kind) {
   return isBoxed(inlineSizeOf(settings, kind), kind);
 }
+function columnWidth(el) {
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const cs = getComputedStyle(p);
+    if (cs.display.startsWith("inline") && cs.display !== "inline-block") continue;
+    const pad = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    const w = p.clientWidth - (Number.isFinite(pad) ? pad : 0);
+    if (w > 0) return w;
+  }
+  return 0;
+}
+function alignHost(el, align) {
+  const host = el.parentElement;
+  if (!host) return;
+  host.removeClass("ep-inline-host-left", "ep-inline-host-center", "ep-inline-host-right");
+  if (!align) return;
+  host.addClass("ep-inline-host", `ep-inline-host-${align}`);
+}
 function applyInlineSize(el, settings, kind, onFit) {
   const size = inlineSizeOf(settings, kind);
   if (isBoxed(size, kind) && kind !== "vals") el.addClass("ep-inline-boxed");
@@ -18716,12 +18746,10 @@ function applyInlineSize(el, settings, kind, onFit) {
   el.addClass("ep-inline-sized");
   const lines = resolveLines(size);
   if (lines !== void 0) el.setCssProps({ "--ep-inline-lines": String(lines) });
-  if (size == null ? void 0 : size.align) el.addClass(`ep-inline-${size.align}`);
   const fit = () => {
-    var _a, _b;
     if (!el.isConnected) return;
-    const column = (_b = (_a = el.parentElement) == null ? void 0 : _a.getBoundingClientRect().width) != null ? _b : 0;
-    const w = resolveWidth(size, column);
+    alignHost(el, size == null ? void 0 : size.align);
+    const w = resolveWidth(size, columnWidth(el));
     if (w.css) {
       el.setCssStyles({ width: w.css });
       el.addClass("ep-inline-wide");
@@ -19094,6 +19122,9 @@ function barLayout(values, w, h, gap = 1) {
     return { x: i * (bw + gap), y: h - bh, w: bw, h: bh };
   });
 }
+function barLayoutH(values, w, h, gap = 1) {
+  return barLayout(values, h, w, gap).map((r) => ({ x: 0, y: r.x, w: r.h, h: r.w }));
+}
 function radarPoints(values, max, cx, cy, r) {
   const n = values.length;
   return values.map((v, i) => {
@@ -19154,13 +19185,22 @@ function renderSparkline(parent, values, opts) {
 function renderBars(parent, values, opts) {
   var _a;
   const asked = chartBox("bar", opts.box);
-  const w = ((_a = opts.box) == null ? void 0 : _a.w) ? asked.w : Math.max(24, values.length * 8);
+  const w = ((_a = opts.box) == null ? void 0 : _a.w) || opts.horizontal ? asked.w : Math.max(24, values.length * 8);
   const h = asked.h;
   const svg = frame(parent, w, h, opts.aria);
-  const gap = Math.max(1, Math.min(8, w / Math.max(1, values.length) / 6));
-  for (const r of barLayout(values, w, h, gap))
+  const across = opts.horizontal ? h : w;
+  const gap = Math.max(1, Math.min(8, across / Math.max(1, values.length) / 6));
+  const bars = opts.horizontal ? barLayoutH(values, w, h, gap) : barLayout(values, w, h, gap);
+  for (const r of bars)
     svg.appendChild(
-      svgEl("rect", { x: r.x, y: r.y, width: r.w, height: r.h, rx: Math.min(2, r.w / 4), class: "ep-chart-bar" })
+      svgEl("rect", {
+        x: r.x,
+        y: r.y,
+        width: r.w,
+        height: r.h,
+        rx: Math.min(2, Math.min(r.w, r.h) / 4),
+        class: "ep-chart-bar"
+      })
     );
 }
 function renderRadar(parent, values, _labels, opts) {
@@ -19542,7 +19582,8 @@ function renderChartSpec(parent, ctx2, file, spec, box) {
     data: labels.map((l, i) => `${l} ${fmtNum(values[i])}`).join(", ")
   });
   if (spec.kind === "spark") renderSparkline(parent, values, { aria, box });
-  else if (spec.kind === "bar") renderBars(parent, values, { aria, box });
+  else if (spec.kind === "bar")
+    renderBars(parent, values, { aria, box, horizontal: isHorizontal(inlineSizeOf(ctx2.settings, "bar")) });
   else renderRadar(parent, values, labels, { aria, max: resolveMax(spec.max, resolve), box });
 }
 function makeChartEl(ctx2, file, kind, body) {

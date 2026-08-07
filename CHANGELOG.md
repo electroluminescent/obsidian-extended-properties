@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.51.0
+
+- **Bars can lie down.** A dropdown on the bar row draws them standing up (as
+  before) or running left to right, one row per value - the same arithmetic
+  turned on its side, so both read the same.
+- **A width is now a share of the text column**, as it was always meant to be.
+  It was being measured against the piece's own wrapper - a few dozen pixels -
+  so every share came out too narrow and stepped up to the full width, which
+  is why the setting seemed to do nothing on a `vals:` card. The column is now
+  the first ancestor that lays out as a block: the paragraph, the table cell,
+  the callout.
+- **Justification no longer moves the text around the piece.** It belongs to
+  the wrapper now - a text-align rather than margins of the piece's own - so a
+  chip told to sit right stays a chip in the line it was written on.
+
 ## 4.50.0
 
 - **Inline pieces redraw the moment a setting changes.** Nothing else redraws

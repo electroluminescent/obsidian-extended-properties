@@ -29,7 +29,8 @@ import {
 import { makeNoteAwareResolver, makeVaultAccess, parseNoteRef } from "../../core/note-ref";
 import { makeValsEl } from "./inline-view";
 import { guardScrollTaps } from "../../ui/components/long-press";
-import { applyInlineSize } from "./size";
+import { applyInlineSize, inlineSizeOf } from "./size";
+import { isHorizontal } from "../../utils/inline-size";
 import { wireGestures } from "../../ui/components/hold-config";
 import { DiceNode, parseRoll, RollAst, serializeRoll } from "../../utils/dice-expr";
 import { parseDiceOrDefault } from "../../utils/dice";
@@ -516,7 +517,8 @@ function renderChartSpec(parent: HTMLElement, ctx: InlineCtx, file: TFile, spec:
     data: labels.map((l, i) => `${l} ${fmtNum(values[i])}`).join(", "),
   });
   if (spec.kind === "spark") renderSparkline(parent, values, { aria, box });
-  else if (spec.kind === "bar") renderBars(parent, values, { aria, box });
+  else if (spec.kind === "bar")
+    renderBars(parent, values, { aria, box, horizontal: isHorizontal(inlineSizeOf(ctx.settings, "bar")) });
   else renderRadar(parent, values, labels, { aria, max: resolveMax(spec.max, resolve), box });
 }
 

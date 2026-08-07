@@ -1260,7 +1260,7 @@ export class EPSettingTab extends PluginSettingTab {
       const cur: InlineSize = { ...store[kind], ...patch };
       if (
         cur.lines === undefined && cur.span === undefined && cur.width === undefined &&
-        cur.align === undefined && cur.box === undefined
+        cur.align === undefined && cur.box === undefined && cur.dir === undefined
       )
         delete store[kind];
       else store[kind] = cur;
@@ -1315,6 +1315,14 @@ export class EPSettingTab extends PluginSettingTab {
         dd.setValue(size.align ?? "");
         dd.onChange((v) => set(kind, { align: v || undefined }));
       });
+      // Bars are the one piece that can lie down as well as stand up.
+      if (kind === "bar")
+        row.addDropdown((dd) => {
+          dd.addOption("", t("settings.inlineDir.vertical"));
+          dd.addOption("horizontal", t("settings.inlineDir.horizontal"));
+          dd.setValue(size.dir ?? "");
+          dd.onChange((v) => set(kind, { dir: v || undefined }));
+        });
       // The card: a border and a fill around the piece. Only a departure from
       // the kind's own habit is stored, so a default card stays a default.
       row.addToggle((tg) => {

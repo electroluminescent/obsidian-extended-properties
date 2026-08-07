@@ -611,6 +611,8 @@
   "settings.inlineAlign.center": "Centre",
   "settings.inlineAlign.right": "Right",
   "settings.inlineBox": "Draw it in a card - a bordered, tinted box around the piece.",
+  "settings.inlineDir.vertical": "Bars stand up",
+  "settings.inlineDir.horizontal": "Bars lie down",
   "inline.kind.roll": "Roll chip (roll:)",
   "inline.kind.rollDesc": "A clickable roll written into the text.",
   "inline.kind.prop": "Property (prop:)",

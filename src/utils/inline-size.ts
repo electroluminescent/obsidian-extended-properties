@@ -48,6 +48,16 @@ export interface InlineSize {
    * always had. Unset means the kind's own habit (see {@link isBoxed}).
    */
   box?: boolean;
+  /**
+   * Which way the piece runs, where that means anything: bars stand up
+   * ("vertical", the default) or lie down ("horizontal").
+   */
+  dir?: string;
+}
+
+/** Whether this piece is drawn lying down. */
+export function isHorizontal(size: InlineSize | undefined): boolean {
+  return size?.dir === "horizontal";
 }
 
 /** The kinds drawn in a card unless told otherwise. */

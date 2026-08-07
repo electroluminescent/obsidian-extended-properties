@@ -66,6 +66,16 @@ export function barLayout(values: number[], w: number, h: number, gap = 1): Rect
   });
 }
 
+/**
+ * The same bars lying down: one row per value, each growing rightwards from
+ * the left edge. It is {@link barLayout} over a box turned on its side, with
+ * the rectangles turned back - so both directions share one piece of
+ * arithmetic and cannot drift apart.
+ */
+export function barLayoutH(values: number[], w: number, h: number, gap = 1): Rect[] {
+  return barLayout(values, h, w, gap).map((r) => ({ x: 0, y: r.x, w: r.h, h: r.w }));
+}
+
 export interface Pt {
   x: number;
   y: number;
