@@ -53,15 +53,27 @@ export interface InlineSize {
    * ("vertical", the default) or lie down ("horizontal").
    */
   dir?: string;
+  /** Name the property behind each value along the chart's axis. */
+  axisLabels?: boolean;
+  /** Print the values themselves on the chart. */
+  valueLabels?: boolean;
 }
+
+/** The pieces that draw data, and so can name what they draw. */
+export const CHART_KINDS: ReadonlySet<string> = new Set(["spark", "bar", "radar", "progress"]);
 
 /** Whether this piece is drawn lying down. */
 export function isHorizontal(size: InlineSize | undefined): boolean {
   return size?.dir === "horizontal";
 }
 
-/** The kinds drawn in a card unless told otherwise. */
-const BOXED_BY_DEFAULT: ReadonlySet<string> = new Set(["vals"]);
+/**
+ * The kinds drawn in a box of their own unless told otherwise: the value
+ * card's border and fill, and the pill a roll or value chip has always worn.
+ * Turning the switch off takes the box away; turning it on gives one to a
+ * kind that never had one.
+ */
+const BOXED_BY_DEFAULT: ReadonlySet<string> = new Set(["vals", "roll", "val"]);
 
 /** Whether this kind is drawn in a card, its own habit unless overridden. */
 export function isBoxed(size: InlineSize | undefined, kind: string): boolean {

@@ -19,7 +19,9 @@
  */
 
 import type { EPSettings } from "../../core/model";
-import { isBoxed, isShaped, resolveLines, resolveWidth, type InlineSize } from "../../utils/inline-size";
+import {
+  boxedByDefault, isBoxed, isShaped, resolveLines, resolveWidth, type InlineSize,
+} from "../../utils/inline-size";
 
 /** How this kind of piece is set to be drawn, if it is set at all. */
 export function inlineSizeOf(settings: EPSettings, kind: string): InlineSize | undefined {
@@ -71,11 +73,20 @@ export function applyInlineSize(
   onFit?: () => void
 ): void {
   const size = inlineSizeOf(settings, kind);
-  if (isBoxed(size, kind) && kind !== "vals") el.addClass("ep-inline-boxed");
+  // A box is either given to a piece that has none, or taken off one that
+  // comes with its own (a card's border, a chip's pill).
+  const boxed = isBoxed(size, kind);
+  if (boxed && !boxedByDefault(kind)) el.addClass("ep-inline-boxed");
+  if (!boxed && boxedByDefault(kind)) el.addClass("ep-inline-unboxed");
   if (!isShaped(size)) return;
   el.addClass("ep-inline-sized");
   const lines = resolveLines(size);
-  if (lines !== undefined) el.setCssProps({ "--ep-inline-lines": String(lines) });
+  if (lines !== undefined) {
+    // Only a piece actually given a height takes any: a chip left at one line
+    // keeps the line it was written on, with nothing added around it.
+    el.setCssProps({ "--ep-inline-lines": String(lines) });
+    el.addClass("ep-inline-tall");
+  }
   const fit = (): void => {
     if (!el.isConnected) return;
     alignHost(el, size?.align);

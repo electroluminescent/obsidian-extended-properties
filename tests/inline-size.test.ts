@@ -67,15 +67,18 @@ describe("height", () => {
 });
 
 describe("the card around a piece", () => {
-  it("is the value card's habit and nobody else's", () => {
+  it("is the habit of the pieces that came with one: the card and the chips", () => {
     expect(boxedByDefault("vals")).toBe(true);
+    expect(boxedByDefault("roll")).toBe(true);
+    expect(boxedByDefault("val")).toBe(true);
     expect(boxedByDefault("radar")).toBe(false);
     expect(isBoxed(undefined, "vals")).toBe(true);
     expect(isBoxed(undefined, "progress")).toBe(false);
   });
 
   it("is whatever it has been told, either way", () => {
-    expect(isBoxed({ box: false }, "vals")).toBe(false);
+    expect(isBoxed({ box: false }, "vals")).toBe(false); // the card loses its border
+    expect(isBoxed({ box: false }, "roll")).toBe(false); // the chip loses its pill
     expect(isBoxed({ box: true }, "progress")).toBe(true);
   });
 });

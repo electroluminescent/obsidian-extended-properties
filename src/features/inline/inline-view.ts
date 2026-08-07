@@ -36,7 +36,7 @@ import { makeVaultAccess, parseNoteRef } from "../../core/note-ref";
 import { PopupManager } from "../../ui/components/popups";
 import type { InlineCtx } from "./inline-render";
 import { makeValEl } from "./inline-render";
-import { applyInlineSize, inlineBoxed } from "./size";
+import { applyInlineSize } from "./size";
 import { showMenu } from "../../ui/menus/show";
 
 /** The note-type layout for a file (or null when no configured type matches). */
@@ -324,9 +324,9 @@ export function makeValsEl(ctx: InlineCtx, file: TFile, body: string, onEditSour
     const def = view.registries.valueTypes.get(view.resolveType(entry)) ?? view.registries.valueTypes.get("text");
     const wide = entry.kind === "prop" && !!def?.wide;
     // The card's border and fill are the "bounding box" every kind can be
-    // given; a card told not to have one still lays out as an entry.
+    // given (applyInlineSize marks it); a card without one still lays out as
+    // an entry.
     wrap.addClass("ep-entry");
-    wrap.toggleClass("ep-inline-unboxed", !inlineBoxed(ctx.settings, "vals"));
     wrap.toggleClass("ep-entry-block", wide);
     const head = wrap.createDiv({ cls: "ep-entry-head" });
     if (entry.icon) {

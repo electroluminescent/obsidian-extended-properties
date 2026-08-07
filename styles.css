@@ -956,9 +956,11 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
    lines tall as asked for, as wide as its share of the column comes to, and
    on the side of the column it was put. Never wider than the column, and
    never narrower than legible - unless the column itself is. */
-.ep-inline-sized { display: inline-block; vertical-align: middle; max-width: 100%; min-height: calc(var(--ep-inline-lines, 1) * var(--line-height-normal, 1.5) * 1em); }
-/* Only a piece given a width of its own gets the legibility floor: a chip
-   merely told which side to sit on stays chip-sized. */
+.ep-inline-sized { display: inline-block; vertical-align: middle; max-width: 100%; }
+/* Height and the legibility floor apply only to a piece actually given one:
+   a chip merely told which side to sit on keeps the line it was written on,
+   with no room taken above or below it. */
+.ep-inline-sized.ep-inline-tall { min-height: calc(var(--ep-inline-lines, 1) * var(--line-height-normal, 1.5) * 1em); }
 .ep-inline-sized.ep-inline-wide { min-width: min(150px, 100%); }
 /* Justification belongs to the wrapper: the piece keeps its own box, so
    nothing around it is pushed by margins it does not have. */
@@ -968,13 +970,17 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-inline-host-right { text-align: right; }
 /* A sized chart fills the box rather than sitting at text height in it. */
 .ep-inline-chart.ep-inline-sized { display: inline-flex; justify-content: center; }
-.ep-inline-chart.ep-inline-sized .ep-chart-svg { width: 100%; height: calc(var(--ep-inline-lines, 1) * var(--line-height-normal, 1.5) * 1em); }
+.ep-inline-chart.ep-inline-wide .ep-chart-svg { width: 100%; }
+.ep-inline-chart.ep-inline-tall .ep-chart-svg { height: calc(var(--ep-inline-lines, 1) * var(--line-height-normal, 1.5) * 1em); }
 .ep-inline-roll.ep-inline-sized, .ep-inline-prop.ep-inline-sized { display: inline-flex; align-items: center; }
 /* The card any inline piece can be given - the box a vals: card always had. */
 .ep-inline-boxed { border: 1px solid var(--background-modifier-border); border-radius: var(--ep-radius, 6px); background: var(--background-secondary); padding: 2px 8px; }
 .ep-inline-chart.ep-inline-boxed { padding: 4px 8px; }
-/* ...and a vals: card told to go without one. */
+/* ...and a piece told to go without the box it comes with: the card's border
+   and fill, or the pill a chip wears - leaving the value in the sentence with
+   nothing drawn around it. */
 .ep-inline-vals.ep-entry.ep-inline-unboxed { border: none; background: none; padding: 0; }
+.ep-inline-roll.ep-inline-unboxed { border: none; background: none; padding: 0; }
 .ep-inline-num { width: 5em; }
 .ep-inline-chart .ep-chart-svg { height: 1.15em; width: auto; }
 .ep-chart-svg { display: block; overflow: visible; }
@@ -984,6 +990,9 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-chart-area { fill: var(--ep-accent-default, var(--text-accent)); fill-opacity: 0.25; stroke: var(--ep-accent-default, var(--text-accent)); stroke-width: 1.25; stroke-linejoin: round; }
 .ep-chart-track { fill: var(--background-modifier-border); }
 .ep-chart-fill { fill: var(--ep-accent-default, var(--text-accent)); }
+/* Chart text: the property behind a value, and the value itself. */
+.ep-chart-axis { fill: var(--text-muted); font-family: var(--font-interface); }
+.ep-chart-num { fill: var(--text-normal); font-family: var(--font-interface); font-variant-numeric: tabular-nums; }
 .ep-chart-err { color: var(--text-error); font-size: var(--font-ui-smaller); }
 .ep-chart-block { margin: 0.6em 0; }
 .ep-chart-block .ep-chart-svg { width: min(260px, 92%); height: auto; }

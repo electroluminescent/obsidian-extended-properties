@@ -713,6 +713,8 @@ var en_default = {
   "settings.inlineAlign.center": "Centre",
   "settings.inlineAlign.right": "Right",
   "settings.inlineBox": "Draw it in a card - a bordered, tinted box around the piece.",
+  "settings.inlineAxisLabels": "Name the property behind each value on the chart.",
+  "settings.inlineValueLabels": "Print the values themselves on the chart.",
   "settings.inlineDir.vertical": "Bars stand up",
   "settings.inlineDir.horizontal": "Bars lie down",
   "inline.kind.roll": "Roll chip (roll:)",
@@ -4395,10 +4397,10 @@ var ColorPickerModal = class extends import_obsidian7.Modal {
     if (this.hexInput) this.hexInput.value = hex;
   }
   /** One labelled gradient slider with a numeric input. */
-  gslider(parent, label, min, max, step, val, grad, onInput) {
+  gslider(parent, label2, min, max, step, val, grad, onInput) {
     const row = parent.createDiv({ cls: "ep-cp-channel" });
-    const lbl = row.createSpan({ cls: "ep-cp-label", text: label });
-    const nameKey = CHANNEL_NAMES[label];
+    const lbl = row.createSpan({ cls: "ep-cp-label", text: label2 });
+    const nameKey = CHANNEL_NAMES[label2];
     if (nameKey) lbl.setAttr("title", this.host.i18n.t(nameKey));
     const sw = row.createDiv({ cls: "ep-gslider" });
     const track = sw.createDiv({ cls: "ep-gtrack" });
@@ -5451,7 +5453,7 @@ function snapValue(v, ticks, range) {
 }
 
 // src/utils/units.ts
-var U = (id, label, quantity, system, factor, aliases) => ({ id, label, quantity, system, factor, aliases });
+var U = (id, label2, quantity, system, factor, aliases) => ({ id, label: label2, quantity, system, factor, aliases });
 var UNITS = [
   // -- length (base: metre) --------------------------------------------------
   U("m", "Metre (m)", "length", "metric", 1, ["m", "meter", "meters", "metre", "metres"]),
@@ -5681,12 +5683,12 @@ function bindHoverLabel(el, text) {
     closeHoverLabel();
     openOwner = el;
     el.addClass("is-focused");
-    const label = text();
-    if (!label) return;
+    const label2 = text();
+    if (!label2) return;
     timer = window.setTimeout(() => {
       if (openOwner !== el || !el.isConnected) return;
       const doc = el.ownerDocument;
-      openEl = doc.body.createDiv({ cls: "ep-popup ep-hover-label", text: label });
+      openEl = doc.body.createDiv({ cls: "ep-popup ep-hover-label", text: label2 });
       place(openEl, el);
       watching = doc;
       doc.addEventListener("pointerdown", closeHoverLabel, true);
@@ -5852,13 +5854,13 @@ function render(kind, ctx2) {
   const isFormula = kind === "formula";
   const vault = entry.min === void 0 || entry.max === void 0 ? view.props.numberRange(key) : null;
   const { min, max } = effectiveRange(kind, entry, vault);
-  const label = (_a = entry.alias) != null ? _a : key;
+  const label2 = (_a = entry.alias) != null ? _a : key;
   const f = isFormula ? compileFormula(entry.formula || "x") || ((x) => x) : null;
   const get = () => view.note.num(key, 0);
   const factor = Number(entry.unitFactor) > 0 ? Number(entry.unitFactor) : 1;
   const addons = addonsFor(ctx2);
   const slots = {};
-  for (const a of addons) Object.assign(slots, a.fillSlots(ctx2, { get, label }));
+  for (const a of addons) Object.assign(slots, a.fillSlots(ctx2, { get, label: label2 }));
   const refs = view.buildCluster(ctx2.head, ctx2.flags, {
     get: () => get() * factor,
     display: fmtValue(kind, entry, get() * factor),
@@ -6886,7 +6888,7 @@ var derivedType = {
   render(ctx2) {
     const { view, entry } = ctx2;
     const compute = () => modifierTotal(view, entry);
-    const label = entry.alias || entry.key || "";
+    const label2 = entry.alias || entry.key || "";
     const slots = {
       den: (cell) => {
         const paint = () => {
@@ -6898,7 +6900,7 @@ var derivedType = {
         view.registerUpdater(paint);
       }
     };
-    for (const a of addonsFor(ctx2)) Object.assign(slots, a.fillSlots(ctx2, { get: compute, label }));
+    for (const a of addonsFor(ctx2)) Object.assign(slots, a.fillSlots(ctx2, { get: compute, label: label2 }));
     const disp = () => {
       const r = modifierInfo(view, entry);
       return r.value === void 0 ? "-" : fmtMod(r.value);
@@ -10123,11 +10125,11 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
     closeSettingsPopup();
   });
   const bar = pop.createDiv({ cls: "ep-entrysettings-bar" });
-  const tool = (icon, label, run) => {
+  const tool = (icon, label2, run) => {
     const b = bar.createEl("button", { cls: "ep-entrysettings-tool" });
     (0, import_obsidian25.setIcon)(b, icon);
-    b.setAttr("aria-label", label);
-    b.setAttr("title", label);
+    b.setAttr("aria-label", label2);
+    b.setAttr("title", label2);
     b.onclick = (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
@@ -10171,7 +10173,7 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
     const cols = section.columns || 1;
     const idx = section.entries.indexOf(entry);
     if (idx >= 0) {
-      const structural = (icon, label, act) => tool(icon, label, () => {
+      const structural = (icon, label2, act) => tool(icon, label2, () => {
         act();
         view.saveLayout();
         view.rerender();
@@ -10732,8 +10734,8 @@ var SectionOptionsModal = class extends import_obsidian27.Modal {
       const [lo, hi] = i < j ? [i, j] : [j, i];
       return order.slice(lo, hi + 1);
     };
-    const mk = (parent, id, label) => {
-      const chip = parent.createDiv({ cls: "ep-tab", text: label });
+    const mk = (parent, id, label2) => {
+      const chip = parent.createDiv({ cls: "ep-tab", text: label2 });
       chips.set(id, chip);
       if (this.selected.has(id)) chip.addClass("is-active");
       chip.addEventListener("pointerdown", (ev) => {
@@ -10871,11 +10873,11 @@ var SectionOptionsModal = class extends import_obsidian27.Modal {
     } else {
       const byType = /* @__PURE__ */ new Map();
       for (const e of visible2(all)) {
-        const label = e.kind === "prop" ? (_b = (_a = this.view.registries.valueTypes.get(this.view.resolveType(e))) == null ? void 0 : _a.name(this.view.i18n)) != null ? _b : this.view.resolveType(e) : this.view.defaultLabelFor(e);
-        if (!byType.has(label)) byType.set(label, []);
-        byType.get(label).push(e);
+        const label2 = e.kind === "prop" ? (_b = (_a = this.view.registries.valueTypes.get(this.view.resolveType(e))) == null ? void 0 : _a.name(this.view.i18n)) != null ? _b : this.view.resolveType(e) : this.view.defaultLabelFor(e);
+        if (!byType.has(label2)) byType.set(label2, []);
+        byType.get(label2).push(e);
       }
-      for (const [label, ents] of byType) out.push({ label, ents });
+      for (const [label2, ents] of byType) out.push({ label: label2, ents });
     }
     return out.filter((g) => g.ents.length);
   }
@@ -12470,11 +12472,11 @@ function renderLinkedText(app, el, text, sourcePath) {
     if (m[2] !== void 0) {
       const parts = m[2].split("|");
       const target2 = parts[0].trim();
-      const label = ((_a = parts[1]) != null ? _a : parts[0]).trim();
+      const label2 = ((_a = parts[1]) != null ? _a : parts[0]).trim();
       if (m[1] === "!") {
         el.appendText(m[0]);
       } else {
-        const a = el.createEl("a", { cls: "internal-link", text: label });
+        const a = el.createEl("a", { cls: "internal-link", text: label2 });
         a.onclick = (ev) => {
           ev.preventDefault();
           ev.stopPropagation();
@@ -14356,10 +14358,10 @@ var TableView = class extends import_obsidian34.ItemView {
     return af instanceof import_obsidian34.TFile ? this.app.vault.getResourcePath(af) : "";
   }
   // -- header (sort + resize) ------------------------------------------------
-  headerCell(tr, key, label, layout, meta) {
+  headerCell(tr, key, label2, layout, meta) {
     var _a, _b;
     const th = tr.createEl("th", { cls: "ep-table-col ep-sortable" });
-    th.createEl("button", { cls: "ep-th-label", text: label });
+    th.createEl("button", { cls: "ep-th-label", text: label2 });
     if (meta) {
       const w = (_a = layout.widths) == null ? void 0 : _a[key];
       if (w && w > 0) {
@@ -15223,10 +15225,11 @@ var SPAN_SHARES = [
 ];
 var MIN_INLINE_PX = 150;
 var MAX_INLINE_LINES = 24;
+var CHART_KINDS = /* @__PURE__ */ new Set(["spark", "bar", "radar", "progress"]);
 function isHorizontal(size) {
   return (size == null ? void 0 : size.dir) === "horizontal";
 }
-var BOXED_BY_DEFAULT = /* @__PURE__ */ new Set(["vals"]);
+var BOXED_BY_DEFAULT = /* @__PURE__ */ new Set(["vals", "roll", "val"]);
 function isBoxed(size, kind) {
   var _a;
   return (_a = size == null ? void 0 : size.box) != null ? _a : BOXED_BY_DEFAULT.has(kind);
@@ -15391,10 +15394,10 @@ var EPSettingTab = class extends import_obsidian37.PluginSettingTab {
     const groups = [];
     const tabFor = (title) => {
       const spec = TAB_GROUPS.find((g) => g.sections.some((k) => t(k) === title));
-      const label = spec ? t(spec.label) : title;
-      const found = groups.find((g) => g.title === label);
+      const label2 = spec ? t(spec.label) : title;
+      const found = groups.find((g) => g.title === label2);
       if (found) return found;
-      const made = { title: label, panel: body.createDiv({ cls: "ep-settings-panel" }), sects: [] };
+      const made = { title: label2, panel: body.createDiv({ cls: "ep-settings-panel" }), sects: [] };
       groups.push(made);
       return made;
     };
@@ -16297,7 +16300,7 @@ var EPSettingTab = class extends import_obsidian37.PluginSettingTab {
       var _a, _b;
       const store = (_b = (_a = plugin.settings).inline) != null ? _b : _a.inline = {};
       const cur = { ...store[kind], ...patch };
-      if (cur.lines === void 0 && cur.span === void 0 && cur.width === void 0 && cur.align === void 0 && cur.box === void 0 && cur.dir === void 0)
+      if (cur.lines === void 0 && cur.span === void 0 && cur.width === void 0 && cur.align === void 0 && cur.box === void 0 && cur.dir === void 0 && cur.axisLabels === void 0 && cur.valueLabels === void 0)
         delete store[kind];
       else store[kind] = cur;
       if (!Object.keys(store).length) plugin.settings.inline = void 0;
@@ -16350,6 +16353,18 @@ var EPSettingTab = class extends import_obsidian37.PluginSettingTab {
         dd.setValue((_a = size.align) != null ? _a : "");
         dd.onChange((v) => set(kind, { align: v || void 0 }));
       });
+      if (CHART_KINDS.has(kind)) {
+        row.addToggle((tg) => {
+          tg.setTooltip(t("settings.inlineAxisLabels"));
+          tg.setValue(size.axisLabels === true);
+          tg.onChange((v) => set(kind, { axisLabels: v || void 0 }));
+        });
+        row.addToggle((tg) => {
+          tg.setTooltip(t("settings.inlineValueLabels"));
+          tg.setValue(size.valueLabels === true);
+          tg.onChange((v) => set(kind, { valueLabels: v || void 0 }));
+        });
+      }
       if (kind === "bar")
         row.addDropdown((dd) => {
           var _a;
@@ -17171,7 +17186,7 @@ var RollService = class {
    * extra pools become extra dice terms, the modifier a number term.
    * @param spec dice pool to roll (defaults to a single d20)
    */
-  roll(label, modifier, spec = { ...DEFAULT_DICE }, opts = {}) {
+  roll(label2, modifier, spec = { ...DEFAULT_DICE }, opts = {}) {
     var _a, _b;
     const mode = (_a = opts.mode) != null ? _a : this.mode;
     const primary = {
@@ -17184,16 +17199,16 @@ var RollService = class {
     for (const ex of (_b = opts.extra) != null ? _b : [])
       terms.push({ neg: false, node: { kind: "dice", count: Math.max(1, ex.count), sides: ex.sides, ops: [] } });
     if (modifier) terms.push({ neg: modifier < 0, node: { kind: "num", value: Math.abs(modifier) } });
-    this.rollAst(label, { terms }, {
+    this.rollAst(label2, { terms }, {
       parts: opts.parts,
       stay: opts.stay,
       tag: this.modeTag(mode),
       mode,
-      reroll: () => this.roll(label, modifier, spec, opts)
+      reroll: () => this.roll(label2, modifier, spec, opts)
     });
   }
   /** Evaluate and resolve a full roll AST: animate, toast, and record it. */
-  rollAst(label, ast, opts = {}) {
+  rollAst(label2, ast, opts = {}) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _i;
     const karmic = ((_a = this.settings) == null ? void 0 : _a.karmicRolls) === true;
     const env = {
@@ -17207,8 +17222,8 @@ var RollService = class {
     const groups = res.groups.map((g) => ({ sides: g.sides, faces: g.faces, dropped: g.dropped }));
     const parts = (_d = opts.parts) != null ? _d : res.parts.filter((p) => p.ref !== void 0 || p.value !== 0).map((p) => ({ label: p.ref ? this.refLabel(p.ref) : this.i18n.t("roll.partMod"), value: p.value }));
     const notation = serializeRoll(ast);
-    const brief = `${label}${tag}: ${total}`;
-    const redo = (_e = opts.reroll) != null ? _e : () => this.rollAst(label, ast, opts);
+    const brief = `${label2}${tag}: ${total}`;
+    const redo = (_e = opts.reroll) != null ? _e : () => this.rollAst(label2, ast, opts);
     const commit2 = (silent = false) => {
       var _a2, _b2, _c2, _d2;
       const file = (_a2 = this.app) == null ? void 0 : _a2.workspace.getActiveFile();
@@ -17217,7 +17232,7 @@ var RollService = class {
         time: Date.now(),
         note: (_b2 = file == null ? void 0 : file.path) != null ? _b2 : null,
         noteName: file == null ? void 0 : file.basename,
-        label: `${label}${tag}`,
+        label: `${label2}${tag}`,
         text: `${brief}   (${this.detailText(res)})`,
         brief,
         total,
@@ -17232,7 +17247,7 @@ var RollService = class {
     if ((_f = this.settings) == null ? void 0 : _f.diceAnim) {
       playRollAnimation(
         {
-          label: `${label}${tag}`,
+          label: `${label2}${tag}`,
           groups,
           parts,
           total,
@@ -17516,8 +17531,8 @@ var rollerKind = {
       }
     };
     const fnBar = wrap.createDiv({ cls: "ep-roller-fns" });
-    const fnBtn = (label, title, onClick) => {
-      const b = fnBar.createEl("button", { cls: "ep-roller-fn", text: label });
+    const fnBtn = (label2, title, onClick) => {
+      const b = fnBar.createEl("button", { cls: "ep-roller-fn", text: label2 });
       b.setAttr("title", title);
       b.onmousedown = (ev) => ev.preventDefault();
       b.onclick = onClick;
@@ -17562,8 +17577,8 @@ var rollerKind = {
         if (idx > 0) chainEl.createSpan({ cls: "ep-roll-op", text: seg.neg ? "-" : "+" });
         else if (seg.neg) chainEl.createSpan({ cls: "ep-roll-op", text: "-" });
         const chip = chainEl.createSpan({ cls: "ep-roller-chip" });
-        const label = seg.dice !== void 0 ? seg.dice : seg.ref !== void 0 ? seg.ref : String((_a2 = seg.add) != null ? _a2 : 0);
-        chip.createSpan({ cls: "ep-roller-chiplab", text: label });
+        const label2 = seg.dice !== void 0 ? seg.dice : seg.ref !== void 0 ? seg.ref : String((_a2 = seg.add) != null ? _a2 : 0);
+        chip.createSpan({ cls: "ep-roller-chiplab", text: label2 });
         chip.setAttr("title", t("roller.chipHint"));
         chip.onclick = (ev) => {
           var _a3, _b;
@@ -17660,12 +17675,12 @@ var rollerKind = {
     const go = ctl.createEl("button", { cls: "ep-roll-btn ep-roller-go", text: t("roll.roll") });
     go.onclick = () => {
       var _a2, _b;
-      const label = ctx2.entry.alias || t("roller.title");
+      const label2 = ctx2.entry.alias || t("roller.title");
       runRoll(svc(view), view.i18n, {
         segs: segs(),
         mode: curMode(),
         times: (_a2 = e.rollerTimes) != null ? _a2 : 1,
-        label,
+        label: label2,
         resolve: makeNoteAwareResolver(view.app, view.settings, view.registries, view, (_b = view.note.path) != null ? _b : "")
       });
     };
@@ -18719,9 +18734,6 @@ function inlineSizeOf(settings, kind) {
   var _a;
   return (_a = settings.inline) == null ? void 0 : _a[kind];
 }
-function inlineBoxed(settings, kind) {
-  return isBoxed(inlineSizeOf(settings, kind), kind);
-}
 function columnWidth(el) {
   for (let p = el.parentElement; p; p = p.parentElement) {
     const cs = getComputedStyle(p);
@@ -18741,11 +18753,16 @@ function alignHost(el, align) {
 }
 function applyInlineSize(el, settings, kind, onFit) {
   const size = inlineSizeOf(settings, kind);
-  if (isBoxed(size, kind) && kind !== "vals") el.addClass("ep-inline-boxed");
+  const boxed = isBoxed(size, kind);
+  if (boxed && !boxedByDefault(kind)) el.addClass("ep-inline-boxed");
+  if (!boxed && boxedByDefault(kind)) el.addClass("ep-inline-unboxed");
   if (!isShaped(size)) return;
   el.addClass("ep-inline-sized");
   const lines = resolveLines(size);
-  if (lines !== void 0) el.setCssProps({ "--ep-inline-lines": String(lines) });
+  if (lines !== void 0) {
+    el.setCssProps({ "--ep-inline-lines": String(lines) });
+    el.addClass("ep-inline-tall");
+  }
   const fit = () => {
     if (!el.isConnected) return;
     alignHost(el, size == null ? void 0 : size.align);
@@ -19006,7 +19023,6 @@ function makeValsEl(ctx2, file, body, onEditSource) {
     const def = (_e = view.registries.valueTypes.get(view.resolveType(entry))) != null ? _e : view.registries.valueTypes.get("text");
     const wide = entry.kind === "prop" && !!(def == null ? void 0 : def.wide);
     wrap.addClass("ep-entry");
-    wrap.toggleClass("ep-inline-unboxed", !inlineBoxed(ctx2.settings, "vals"));
     wrap.toggleClass("ep-entry-block", wide);
     const head = wrap.createDiv({ cls: "ep-entry-head" });
     if (entry.icon) {
@@ -19139,6 +19155,15 @@ function ringPoints(n, cx, cy, r) {
 function pointsAttr(pts) {
   return pts.map((p) => p.x.toFixed(2) + "," + p.y.toFixed(2)).join(" ");
 }
+function textWidth(text, fs) {
+  return text.length * fs * 0.55;
+}
+function fitText(text, max, fs) {
+  if (max <= 0) return "";
+  if (textWidth(text, fs) <= max) return text;
+  const room = Math.floor(max / (fs * 0.55)) - 1;
+  return room > 0 ? text.slice(0, room) + "\u2026" : "";
+}
 function clampFrac(value, max) {
   if (!(max > 0) || !Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(1, value / max));
@@ -19159,10 +19184,26 @@ function chartBox(kind, box) {
   const h = Math.round((_c = box == null ? void 0 : box.h) != null ? _c : 0);
   return { w: w > 0 ? w : def.w, h: h > 0 ? h : def.h };
 }
+function labelSize(box) {
+  return Math.max(5, Math.min(13, Math.min(box.h * 0.28, box.w * 0.09)));
+}
 function svgEl(tag, attrs) {
   const e = activeDocument.createElementNS(NS, tag);
   for (const k in attrs) e.setAttribute(k, String(attrs[k]));
   return e;
+}
+function label(svg, text, o) {
+  var _a;
+  if (!text) return;
+  const t = svgEl("text", {
+    x: o.x,
+    y: o.y,
+    class: o.cls,
+    "font-size": o.fs,
+    "text-anchor": (_a = o.anchor) != null ? _a : "middle"
+  });
+  t.textContent = text;
+  svg.appendChild(t);
 }
 function frame(parent, w, h, aria) {
   const svg = svgEl("svg", {
@@ -19176,53 +19217,143 @@ function frame(parent, w, h, aria) {
   parent.createSpan({ cls: "ep-sr-only", text: aria });
   return svg;
 }
+var nameAt = (o, i) => {
+  var _a, _b;
+  return o.axis ? (_b = (_a = o.labels) == null ? void 0 : _a[i]) != null ? _b : "" : "";
+};
 function renderSparkline(parent, values, opts) {
-  const { w, h } = chartBox("spark", opts.box);
-  const svg = frame(parent, w, h, opts.aria);
+  const box = chartBox("spark", opts.box);
+  const { w } = box;
+  const fs = labelSize(box);
+  const top = opts.nums ? fs * 1.3 : 0;
+  const bottom = opts.axis ? fs * 1.3 : 0;
+  const h = Math.max(4, box.h - top - bottom);
+  const svg = frame(parent, w, box.h, opts.aria);
   const pad = Math.max(2, Math.min(w, h) * 0.06);
-  svg.appendChild(svgEl("path", { d: sparklinePath(values, w, h, pad), class: "ep-chart-line", fill: "none" }));
+  const path = svgEl("path", { d: sparklinePath(values, w, h, pad), class: "ep-chart-line", fill: "none" });
+  if (top) path.setAttribute("transform", `translate(0 ${top})`);
+  svg.appendChild(path);
+  if (!opts.nums && !opts.axis) return;
+  const n = values.length;
+  const step = n > 1 ? (w - 2 * pad) / (n - 1) : 0;
+  const room = n > 1 ? step : w;
+  values.forEach((v, i) => {
+    const x = n === 1 ? w / 2 : pad + i * step;
+    if (opts.nums) label(svg, fitText(fmtNum(v), room, fs), { x, y: top - fs * 0.35, fs, cls: "ep-chart-num" });
+    if (opts.axis)
+      label(svg, fitText(nameAt(opts, i), room, fs), { x, y: box.h - fs * 0.3, fs, cls: "ep-chart-axis" });
+  });
 }
 function renderBars(parent, values, opts) {
   var _a;
   const asked = chartBox("bar", opts.box);
   const w = ((_a = opts.box) == null ? void 0 : _a.w) || opts.horizontal ? asked.w : Math.max(24, values.length * 8);
   const h = asked.h;
+  const fs = labelSize({ w, h });
   const svg = frame(parent, w, h, opts.aria);
-  const across = opts.horizontal ? h : w;
-  const gap = Math.max(1, Math.min(8, across / Math.max(1, values.length) / 6));
-  const bars = opts.horizontal ? barLayoutH(values, w, h, gap) : barLayout(values, w, h, gap);
-  for (const r of bars)
+  const names = values.map((_, i) => nameAt(opts, i));
+  if (opts.horizontal) {
+    const widest = Math.max(0, ...names.map((s) => textWidth(s, fs)));
+    const left = opts.axis ? Math.min(w * 0.35, widest + fs * 0.4) : 0;
+    const right = opts.nums ? Math.min(w * 0.25, fs * 2.6) : 0;
+    const inner2 = Math.max(4, w - left - right);
+    const gap2 = Math.max(1, Math.min(8, h / Math.max(1, values.length) / 6));
+    barLayoutH(values, inner2, h, gap2).forEach((r, i) => {
+      svg.appendChild(
+        svgEl("rect", {
+          x: left,
+          y: r.y,
+          width: r.w,
+          height: r.h,
+          rx: Math.min(2, Math.min(r.w, r.h) / 4),
+          class: "ep-chart-bar"
+        })
+      );
+      const mid = r.y + r.h / 2 + fs * 0.35;
+      if (opts.axis) label(svg, fitText(names[i], left - fs * 0.3, fs), { x: left - fs * 0.3, y: mid, fs, cls: "ep-chart-axis", anchor: "end" });
+      if (opts.nums)
+        label(svg, fmtNum(values[i]), { x: left + r.w + fs * 0.3, y: mid, fs, cls: "ep-chart-num", anchor: "start" });
+    });
+    return;
+  }
+  const top = opts.nums ? fs * 1.3 : 0;
+  const bottom = opts.axis ? fs * 1.3 : 0;
+  const inner = Math.max(4, h - top - bottom);
+  const gap = Math.max(1, Math.min(8, w / Math.max(1, values.length) / 6));
+  barLayout(values, w, inner, gap).forEach((r, i) => {
     svg.appendChild(
       svgEl("rect", {
         x: r.x,
-        y: r.y,
+        y: r.y + top,
         width: r.w,
         height: r.h,
         rx: Math.min(2, Math.min(r.w, r.h) / 4),
         class: "ep-chart-bar"
       })
     );
+    const mid = r.x + r.w / 2;
+    if (opts.nums) label(svg, fitText(fmtNum(values[i]), r.w + gap, fs), { x: mid, y: top - fs * 0.35, fs, cls: "ep-chart-num" });
+    if (opts.axis) label(svg, fitText(names[i], r.w + gap, fs), { x: mid, y: h - fs * 0.3, fs, cls: "ep-chart-axis" });
+  });
 }
-function renderRadar(parent, values, _labels, opts) {
+function renderRadar(parent, values, labels, opts) {
   const box = chartBox("radar", opts.box);
   const s = Math.max(24, Math.min(box.w, box.h));
   const c = s / 2;
-  const r = c * 0.82;
+  const fs = labelSize({ w: s, h: s });
+  const named = opts.axis || opts.nums;
+  const r = c * (named ? 0.66 : 0.82);
   const max = opts.max && opts.max > 0 ? opts.max : Math.max(1, ...values);
   const svg = frame(parent, s, s, opts.aria);
   const ring = ringPoints(values.length, c, c, r);
   svg.appendChild(svgEl("polygon", { points: pointsAttr(ring), class: "ep-chart-grid", fill: "none" }));
   for (const p of ring) svg.appendChild(svgEl("line", { x1: c, y1: c, x2: p.x, y2: p.y, class: "ep-chart-grid" }));
   svg.appendChild(svgEl("polygon", { points: pointsAttr(radarPoints(values, max, c, c, r)), class: "ep-chart-area" }));
+  if (!named) return;
+  ring.forEach((p, i) => {
+    var _a;
+    const dx = p.x - c;
+    const dy = p.y - c;
+    const out = 1 + fs * 0.7 / Math.max(1, r);
+    const x = c + dx * out;
+    const y = c + dy * out + fs * 0.35;
+    const anchor = Math.abs(dx) < r * 0.25 ? "middle" : dx > 0 ? "start" : "end";
+    const room = anchor === "middle" ? s * 0.4 : Math.max(fs * 2, (anchor === "start" ? s - x : x) - fs * 0.2);
+    const name = opts.axis ? fitText((_a = labels[i]) != null ? _a : "", room, fs) : "";
+    const num = opts.nums ? fmtNum(values[i]) : "";
+    const both = name && num ? `${name} ${num}` : name || num;
+    label(svg, fitText(both, room, fs), { x, y, fs, cls: opts.axis ? "ep-chart-axis" : "ep-chart-num", anchor });
+  });
 }
 function renderProgress(parent, value, max, opts) {
-  const { w, h } = chartBox("progress", opts.box);
-  const svg = frame(parent, w, h, opts.label);
+  var _a, _b, _c;
+  const box = chartBox("progress", opts.box);
+  const { w } = box;
+  const fs = labelSize({ w, h: Math.max(box.h, 12) });
+  const named = opts.axis || opts.nums;
+  const top = named ? fs * 1.35 : 0;
+  const h = Math.max(3, box.h - top);
+  const svg = frame(parent, w, box.h, opts.label);
   const r = h / 2;
-  svg.appendChild(svgEl("rect", { x: 0, y: 0, width: w, height: h, rx: r, class: "ep-chart-track" }));
+  const track = svgEl("rect", { x: 0, y: top, width: w, height: h, rx: r, class: "ep-chart-track" });
+  svg.appendChild(track);
   const fw = clampFrac(value, max) * w;
   if (fw > 0)
-    svg.appendChild(svgEl("rect", { x: 0, y: 0, width: Math.max(fw, r), height: h, rx: r, class: "ep-chart-fill" }));
+    svg.appendChild(
+      svgEl("rect", { x: 0, y: top, width: Math.max(fw, r), height: h, rx: r, class: "ep-chart-fill" })
+    );
+  if (!named) return;
+  const reading = `${fmtNum(value)} / ${fmtNum(max)}`;
+  const numW = opts.nums ? textWidth(reading, fs) : 0;
+  if (opts.axis)
+    label(svg, fitText((_c = (_b = opts.name) != null ? _b : (_a = opts.labels) == null ? void 0 : _a[0]) != null ? _c : "", w - numW - fs * 0.6, fs), {
+      x: 0,
+      y: top - fs * 0.4,
+      fs,
+      cls: "ep-chart-axis",
+      anchor: "start"
+    });
+  if (opts.nums) label(svg, reading, { x: w, y: top - fs * 0.4, fs, cls: "ep-chart-num", anchor: "end" });
 }
 
 // src/features/inline/inline-render.ts
@@ -19565,12 +19696,21 @@ function renderChartSpec(parent, ctx2, file, spec, box) {
   const t = ctx2.i18n.t.bind(ctx2.i18n);
   const resolve = refResolver(ctx2, file);
   const err = () => void parent.createSpan({ cls: "ep-chart-err", text: t("inline.chartInvalid") });
+  const say = (kind) => {
+    const size = inlineSizeOf(ctx2.settings, kind);
+    return { axis: (size == null ? void 0 : size.axisLabels) === true, nums: (size == null ? void 0 : size.valueLabels) === true };
+  };
   if (spec.kind === "progress") {
     const ref = (_b = (_a = spec.value) != null ? _a : spec.refs[0]) != null ? _b : "";
     const value = resolve(ref);
     const max = resolveMax(spec.max, resolve);
     if (value === void 0 || max === void 0 || max <= 0) return err();
-    renderProgress(parent, value, max, { label: `${ref} ${fmtNum(value)} / ${fmtNum(max)}`, box });
+    renderProgress(parent, value, max, {
+      label: `${ref} ${fmtNum(value)} / ${fmtNum(max)}`,
+      box,
+      name: ref,
+      ...say("progress")
+    });
     return;
   }
   const valid = spec.refs.map((r) => ({ name: r, v: resolve(r) })).filter((p) => p.v !== void 0);
@@ -19581,10 +19721,16 @@ function renderChartSpec(parent, ctx2, file, spec, box) {
     kind: spec.kind,
     data: labels.map((l, i) => `${l} ${fmtNum(values[i])}`).join(", ")
   });
-  if (spec.kind === "spark") renderSparkline(parent, values, { aria, box });
+  if (spec.kind === "spark") renderSparkline(parent, values, { aria, box, labels, ...say("spark") });
   else if (spec.kind === "bar")
-    renderBars(parent, values, { aria, box, horizontal: isHorizontal(inlineSizeOf(ctx2.settings, "bar")) });
-  else renderRadar(parent, values, labels, { aria, max: resolveMax(spec.max, resolve), box });
+    renderBars(parent, values, {
+      aria,
+      box,
+      labels,
+      horizontal: isHorizontal(inlineSizeOf(ctx2.settings, "bar")),
+      ...say("bar")
+    });
+  else renderRadar(parent, values, labels, { aria, max: resolveMax(spec.max, resolve), box, ...say("radar") });
 }
 function makeChartEl(ctx2, file, kind, body) {
   const chip = createSpan({ cls: "ep-inline-chart" });
@@ -19637,7 +19783,7 @@ var ChartInline = class extends import_obsidian47.MarkdownRenderChild {
     this.root.appendChild(makeChartEl(this.ctx, this.file, this.kind, this.body));
   }
 };
-var CHART_KINDS = /* @__PURE__ */ new Set(["spark", "bar", "radar", "progress"]);
+var CHART_KINDS2 = /* @__PURE__ */ new Set(["spark", "bar", "radar", "progress"]);
 function parseChartConfig(src) {
   const spec = { kind: "bar", refs: [] };
   for (const line of src.split("\n")) {
@@ -19645,7 +19791,7 @@ function parseChartConfig(src) {
     if (!m) continue;
     const k = m[1].toLowerCase();
     const v = m[2].trim();
-    if (k === "type") spec.kind = CHART_KINDS.has(v.toLowerCase()) ? v.toLowerCase() : "bar";
+    if (k === "type") spec.kind = CHART_KINDS2.has(v.toLowerCase()) ? v.toLowerCase() : "bar";
     else if (k === "props" || k === "properties") spec.refs = v.split(",").map((s) => s.trim()).filter(Boolean);
     else if (k === "value") spec.value = v;
     else if (k === "max" || k === "of") spec.max = v;
@@ -19783,12 +19929,12 @@ var SheetInline = class extends import_obsidian47.MarkdownRenderChild {
       const ic = chip.createSpan({ cls: "ep-inline-roll-ico" });
       (0, import_obsidian47.setIcon)(ic, diceIconId(spec.sides));
       chip.createSpan({ cls: "ep-inline-roll-lab", text: t("roll.roll") });
-      const label = entry.alias || entry.key || t("roll.roll");
-      chip.setAttr("title", t("inline.rollHint", { expr: label }));
+      const label2 = entry.alias || entry.key || t("roll.roll");
+      chip.setAttr("title", t("inline.rollHint", { expr: label2 }));
       chip.onclick = (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
-        this.ctx.roll.roll(label, modifierTotal(env, entry), spec, {});
+        this.ctx.roll.roll(label2, modifierTotal(env, entry), spec, {});
       };
     }
   }

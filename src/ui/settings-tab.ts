@@ -29,7 +29,7 @@ import { segsToText, textToSegs } from "../features/rolling/macros";
 import { DICE_STYLES } from "../features/rolling/dice-styles";
 import { FREE_KEYS } from "./render/value-types/numeric";
 import {
-  boxedByDefault, INLINE_KINDS, isBoxed, MAX_INLINE_LINES, SPAN_SHARES, type InlineSize,
+  boxedByDefault, CHART_KINDS, INLINE_KINDS, isBoxed, MAX_INLINE_LINES, SPAN_SHARES, type InlineSize,
 } from "../utils/inline-size";
 
 /** Max override rows rendered at once (the list is searchable). */
@@ -1260,7 +1260,8 @@ export class EPSettingTab extends PluginSettingTab {
       const cur: InlineSize = { ...store[kind], ...patch };
       if (
         cur.lines === undefined && cur.span === undefined && cur.width === undefined &&
-        cur.align === undefined && cur.box === undefined && cur.dir === undefined
+        cur.align === undefined && cur.box === undefined && cur.dir === undefined &&
+        cur.axisLabels === undefined && cur.valueLabels === undefined
       )
         delete store[kind];
       else store[kind] = cur;
@@ -1315,6 +1316,19 @@ export class EPSettingTab extends PluginSettingTab {
         dd.setValue(size.align ?? "");
         dd.onChange((v) => set(kind, { align: v || undefined }));
       });
+      // A chart can name what it draws: the properties, the numbers, or both.
+      if (CHART_KINDS.has(kind)) {
+        row.addToggle((tg) => {
+          tg.setTooltip(t("settings.inlineAxisLabels"));
+          tg.setValue(size.axisLabels === true);
+          tg.onChange((v) => set(kind, { axisLabels: v || undefined }));
+        });
+        row.addToggle((tg) => {
+          tg.setTooltip(t("settings.inlineValueLabels"));
+          tg.setValue(size.valueLabels === true);
+          tg.onChange((v) => set(kind, { valueLabels: v || undefined }));
+        });
+      }
       // Bars are the one piece that can lie down as well as stand up.
       if (kind === "bar")
         row.addDropdown((dd) => {

@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from "vitest";
 import { chartBox } from "../src/ui/render/charts";
-import { barLayout, barLayoutH } from "../src/utils/chart";
+import { barLayout, barLayoutH, fitText, textWidth } from "../src/utils/chart";
 
 describe("the box a chart draws in", () => {
   it("is a line of text where nobody has given it one", () => {
@@ -52,5 +52,26 @@ describe("bars lying down", () => {
     expect(along.map((r) => r.h)).toEqual(up.map((r) => r.w)); // row thickness
     expect(along.map((r) => r.w)).toEqual(up.map((r) => r.h)); // bar length
     expect(along.map((r) => r.y)).toEqual(up.map((r) => r.x)); // position
+  });
+});
+
+describe("label text", () => {
+  it("is left alone when it fits", () => {
+    expect(fitText("STR", 100, 10)).toBe("STR");
+  });
+
+  it("is cut short with an ellipsis when it does not", () => {
+    const cut = fitText("Constitution", 30, 10);
+    expect(cut.endsWith("…")).toBe(true);
+    expect(cut.length).toBeLessThan("Constitution".length);
+  });
+
+  it("says nothing at all where there is no room", () => {
+    expect(fitText("Dexterity", 4, 10)).toBe("");
+    expect(fitText("Dexterity", 0, 10)).toBe("");
+  });
+
+  it("grows with the font size", () => {
+    expect(textWidth("abc", 20)).toBeGreaterThan(textWidth("abc", 10));
   });
 });

@@ -104,6 +104,24 @@ export function pointsAttr(pts: Pt[]): string {
   return pts.map((p) => p.x.toFixed(2) + "," + p.y.toFixed(2)).join(" ");
 }
 
+/**
+ * Roughly how wide `text` draws at font size `fs`, in the same units as the
+ * chart's geometry. SVG cannot be measured before it is in the document, and a
+ * label only needs to know whether it will fit - half a character either way
+ * changes nothing.
+ */
+export function textWidth(text: string, fs: number): number {
+  return text.length * fs * 0.55;
+}
+
+/** `text` cut down until it fits `max` units at `fs`, with an ellipsis for what went. */
+export function fitText(text: string, max: number, fs: number): string {
+  if (max <= 0) return "";
+  if (textWidth(text, fs) <= max) return text;
+  const room = Math.floor(max / (fs * 0.55)) - 1;
+  return room > 0 ? text.slice(0, room) + "…" : "";
+}
+
 /** Fraction of `max` filled by `value`, clamped to `[0,1]` (0 when max <= 0). */
 export function clampFrac(value: number, max: number): number {
   if (!(max > 0) || !Number.isFinite(value)) return 0;

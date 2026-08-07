@@ -1,5 +1,23 @@
 # Changelog
 
+## 4.52.0
+
+- **Charts can name what they draw.** Two switches per chart - axis labels
+  (the property behind each value) and value labels (the number itself) - on
+  sparklines, bars, radars and progress bars. Labels take their room out of
+  the box before the geometry is worked out, so nothing is drawn over, and a
+  name too long for its space is cut short rather than overlapping the next.
+  Bars carry theirs overhead and underfoot standing up, in a gutter and past
+  the end lying down; the radar's sit around the ring; a progress bar names
+  itself on the left and reads out on the right.
+- **Nothing is added around a piece that was not given a height.** A sized
+  piece was reserving a line's worth of room whether or not it had been given
+  one, which read as padding above and below every chip.
+- **The box switch works both ways.** It gave a card to pieces that had none;
+  it now also takes one off a piece that comes with its own - a `vals:` card's
+  border and fill, or the pill a `roll:` / `val:` chip has always worn - so a
+  value can sit in a sentence with nothing drawn around it at all.
+
 ## 4.51.0
 
 - **Bars can lie down.** A dropdown on the bar row draws them standing up (as

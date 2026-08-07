@@ -496,12 +496,23 @@ function renderChartSpec(parent: HTMLElement, ctx: InlineCtx, file: TFile, spec:
   const resolve = refResolver(ctx, file);
   const err = (): void => void parent.createSpan({ cls: "ep-chart-err", text: t("inline.chartInvalid") });
 
+  // What each chart is allowed to say about itself, per kind.
+  const say = (kind: string): { axis: boolean; nums: boolean } => {
+    const size = inlineSizeOf(ctx.settings, kind);
+    return { axis: size?.axisLabels === true, nums: size?.valueLabels === true };
+  };
+
   if (spec.kind === "progress") {
     const ref = spec.value ?? spec.refs[0] ?? "";
     const value = resolve(ref);
     const max = resolveMax(spec.max, resolve);
     if (value === undefined || max === undefined || max <= 0) return err();
-    renderProgress(parent, value, max, { label: `${ref} ${fmtNum(value)} / ${fmtNum(max)}`, box });
+    renderProgress(parent, value, max, {
+      label: `${ref} ${fmtNum(value)} / ${fmtNum(max)}`,
+      box,
+      name: ref,
+      ...say("progress"),
+    });
     return;
   }
 
@@ -516,10 +527,16 @@ function renderChartSpec(parent: HTMLElement, ctx: InlineCtx, file: TFile, spec:
     kind: spec.kind,
     data: labels.map((l, i) => `${l} ${fmtNum(values[i])}`).join(", "),
   });
-  if (spec.kind === "spark") renderSparkline(parent, values, { aria, box });
+  if (spec.kind === "spark") renderSparkline(parent, values, { aria, box, labels, ...say("spark") });
   else if (spec.kind === "bar")
-    renderBars(parent, values, { aria, box, horizontal: isHorizontal(inlineSizeOf(ctx.settings, "bar")) });
-  else renderRadar(parent, values, labels, { aria, max: resolveMax(spec.max, resolve), box });
+    renderBars(parent, values, {
+      aria,
+      box,
+      labels,
+      horizontal: isHorizontal(inlineSizeOf(ctx.settings, "bar")),
+      ...say("bar"),
+    });
+  else renderRadar(parent, values, labels, { aria, max: resolveMax(spec.max, resolve), box, ...say("radar") });
 }
 
 /**
