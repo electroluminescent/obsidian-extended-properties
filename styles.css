@@ -956,7 +956,10 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
    lines tall as asked for, as wide as its share of the column comes to, and
    on the side of the column it was put. Never wider than the column, and
    never narrower than legible - unless the column itself is. */
-.ep-inline-sized { display: block; width: fit-content; max-width: 100%; min-width: min(150px, 100%); min-height: calc(var(--ep-inline-lines, 1) * var(--line-height-normal, 1.5) * 1em); }
+.ep-inline-sized { display: block; width: fit-content; max-width: 100%; min-height: calc(var(--ep-inline-lines, 1) * var(--line-height-normal, 1.5) * 1em); }
+/* Only a piece given a width of its own gets the legibility floor: a chip
+   merely told which side to sit on stays chip-sized. */
+.ep-inline-sized.ep-inline-wide { min-width: min(150px, 100%); }
 .ep-inline-sized.ep-inline-left { margin-left: 0; margin-right: auto; }
 .ep-inline-sized.ep-inline-center { margin-left: auto; margin-right: auto; }
 .ep-inline-sized.ep-inline-right { margin-left: auto; margin-right: 0; }
@@ -964,6 +967,11 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-inline-chart.ep-inline-sized { display: flex; justify-content: center; }
 .ep-inline-chart.ep-inline-sized .ep-chart-svg { width: 100%; height: calc(var(--ep-inline-lines, 1) * var(--line-height-normal, 1.5) * 1em); }
 .ep-inline-roll.ep-inline-sized, .ep-inline-prop.ep-inline-sized { display: flex; align-items: center; }
+/* The card any inline piece can be given - the box a vals: card always had. */
+.ep-inline-boxed { border: 1px solid var(--background-modifier-border); border-radius: var(--ep-radius, 6px); background: var(--background-secondary); padding: 2px 8px; }
+.ep-inline-chart.ep-inline-boxed { padding: 4px 8px; }
+/* ...and a vals: card told to go without one. */
+.ep-inline-vals.ep-entry.ep-inline-unboxed { border: none; background: none; padding: 0; }
 .ep-inline-num { width: 5em; }
 .ep-inline-chart .ep-chart-svg { height: 1.15em; width: auto; }
 .ep-chart-svg { display: block; overflow: visible; }

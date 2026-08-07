@@ -712,6 +712,7 @@ var en_default = {
   "settings.inlineAlign.left": "Left",
   "settings.inlineAlign.center": "Centre",
   "settings.inlineAlign.right": "Right",
+  "settings.inlineBox": "Draw it in a card - a bordered, tinted box around the piece.",
   "inline.kind.roll": "Roll chip (roll:)",
   "inline.kind.rollDesc": "A clickable roll written into the text.",
   "inline.kind.prop": "Property (prop:)",
@@ -15220,6 +15221,14 @@ var SPAN_SHARES = [
 ];
 var MIN_INLINE_PX = 150;
 var MAX_INLINE_LINES = 24;
+var BOXED_BY_DEFAULT = /* @__PURE__ */ new Set(["vals"]);
+function isBoxed(size, kind) {
+  var _a;
+  return (_a = size == null ? void 0 : size.box) != null ? _a : BOXED_BY_DEFAULT.has(kind);
+}
+function boxedByDefault(kind) {
+  return BOXED_BY_DEFAULT.has(kind);
+}
 function resolveWidth(size, columnPx = 0) {
   const span = size == null ? void 0 : size.span;
   if (!span || span === "auto") return { stepped: false };
@@ -16283,7 +16292,7 @@ var EPSettingTab = class extends import_obsidian37.PluginSettingTab {
       var _a, _b;
       const store = (_b = (_a = plugin.settings).inline) != null ? _b : _a.inline = {};
       const cur = { ...store[kind], ...patch };
-      if (cur.lines === void 0 && cur.span === void 0 && cur.width === void 0 && cur.align === void 0)
+      if (cur.lines === void 0 && cur.span === void 0 && cur.width === void 0 && cur.align === void 0 && cur.box === void 0)
         delete store[kind];
       else store[kind] = cur;
       if (!Object.keys(store).length) plugin.settings.inline = void 0;
@@ -16335,6 +16344,11 @@ var EPSettingTab = class extends import_obsidian37.PluginSettingTab {
         for (const a of ["left", "center", "right"]) dd.addOption(a, t("settings.inlineAlign." + a));
         dd.setValue((_a = size.align) != null ? _a : "");
         dd.onChange((v) => set(kind, { align: v || void 0 }));
+      });
+      row.addToggle((tg) => {
+        tg.setTooltip(t("settings.inlineBox"));
+        tg.setValue(isBoxed(size, kind));
+        tg.onChange((v) => set(kind, { box: v === boxedByDefault(kind) ? void 0 : v }));
       });
     }
   }
@@ -18692,8 +18706,12 @@ function inlineSizeOf(settings, kind) {
   var _a;
   return (_a = settings.inline) == null ? void 0 : _a[kind];
 }
-function applyInlineSize(el, settings, kind) {
+function inlineBoxed(settings, kind) {
+  return isBoxed(inlineSizeOf(settings, kind), kind);
+}
+function applyInlineSize(el, settings, kind, onFit) {
   const size = inlineSizeOf(settings, kind);
+  if (isBoxed(size, kind) && kind !== "vals") el.addClass("ep-inline-boxed");
   if (!isShaped(size)) return;
   el.addClass("ep-inline-sized");
   const lines = resolveLines(size);
@@ -18704,7 +18722,11 @@ function applyInlineSize(el, settings, kind) {
     if (!el.isConnected) return;
     const column = (_b = (_a = el.parentElement) == null ? void 0 : _a.getBoundingClientRect().width) != null ? _b : 0;
     const w = resolveWidth(size, column);
-    if (w.css) el.setCssStyles({ width: w.css });
+    if (w.css) {
+      el.setCssStyles({ width: w.css });
+      el.addClass("ep-inline-wide");
+    }
+    onFit == null ? void 0 : onFit();
   };
   fit();
   window.requestAnimationFrame(fit);
@@ -18956,6 +18978,7 @@ function makeValsEl(ctx2, file, body, onEditSource) {
     const def = (_e = view.registries.valueTypes.get(view.resolveType(entry))) != null ? _e : view.registries.valueTypes.get("text");
     const wide = entry.kind === "prop" && !!(def == null ? void 0 : def.wide);
     wrap.addClass("ep-entry");
+    wrap.toggleClass("ep-inline-unboxed", !inlineBoxed(ctx2.settings, "vals"));
     wrap.toggleClass("ep-entry-block", wide);
     const head = wrap.createDiv({ cls: "ep-entry-head" });
     if (entry.icon) {
@@ -19092,6 +19115,19 @@ function clampFrac(value, max) {
 
 // src/ui/render/charts.ts
 var NS = "http://www.w3.org/2000/svg";
+var DEFAULTS2 = {
+  spark: { w: 64, h: 16 },
+  bar: { w: 64, h: 16 },
+  radar: { w: 64, h: 64 },
+  progress: { w: 64, h: 10 }
+};
+function chartBox(kind, box) {
+  var _a, _b, _c;
+  const def = (_a = DEFAULTS2[kind]) != null ? _a : DEFAULTS2.spark;
+  const w = Math.round((_b = box == null ? void 0 : box.w) != null ? _b : 0);
+  const h = Math.round((_c = box == null ? void 0 : box.h) != null ? _c : 0);
+  return { w: w > 0 ? w : def.w, h: h > 0 ? h : def.h };
+}
 function svgEl(tag, attrs) {
   const e = activeDocument.createElementNS(NS, tag);
   for (const k in attrs) e.setAttribute(k, String(attrs[k]));
@@ -19110,22 +19146,28 @@ function frame(parent, w, h, aria) {
   return svg;
 }
 function renderSparkline(parent, values, opts) {
-  const w = 64;
-  const h = 16;
+  const { w, h } = chartBox("spark", opts.box);
   const svg = frame(parent, w, h, opts.aria);
-  svg.appendChild(svgEl("path", { d: sparklinePath(values, w, h, 2), class: "ep-chart-line", fill: "none" }));
+  const pad = Math.max(2, Math.min(w, h) * 0.06);
+  svg.appendChild(svgEl("path", { d: sparklinePath(values, w, h, pad), class: "ep-chart-line", fill: "none" }));
 }
 function renderBars(parent, values, opts) {
-  const w = Math.max(24, values.length * 8);
-  const h = 16;
+  var _a;
+  const asked = chartBox("bar", opts.box);
+  const w = ((_a = opts.box) == null ? void 0 : _a.w) ? asked.w : Math.max(24, values.length * 8);
+  const h = asked.h;
   const svg = frame(parent, w, h, opts.aria);
-  for (const r of barLayout(values, w, h, 1.5))
-    svg.appendChild(svgEl("rect", { x: r.x, y: r.y, width: r.w, height: r.h, rx: 1, class: "ep-chart-bar" }));
+  const gap = Math.max(1, Math.min(8, w / Math.max(1, values.length) / 6));
+  for (const r of barLayout(values, w, h, gap))
+    svg.appendChild(
+      svgEl("rect", { x: r.x, y: r.y, width: r.w, height: r.h, rx: Math.min(2, r.w / 4), class: "ep-chart-bar" })
+    );
 }
 function renderRadar(parent, values, _labels, opts) {
-  const s = 64;
+  const box = chartBox("radar", opts.box);
+  const s = Math.max(24, Math.min(box.w, box.h));
   const c = s / 2;
-  const r = 26;
+  const r = c * 0.82;
   const max = opts.max && opts.max > 0 ? opts.max : Math.max(1, ...values);
   const svg = frame(parent, s, s, opts.aria);
   const ring = ringPoints(values.length, c, c, r);
@@ -19134,16 +19176,26 @@ function renderRadar(parent, values, _labels, opts) {
   svg.appendChild(svgEl("polygon", { points: pointsAttr(radarPoints(values, max, c, c, r)), class: "ep-chart-area" }));
 }
 function renderProgress(parent, value, max, opts) {
-  const w = 64;
-  const h = 10;
+  const { w, h } = chartBox("progress", opts.box);
   const svg = frame(parent, w, h, opts.label);
-  svg.appendChild(svgEl("rect", { x: 0, y: 0, width: w, height: h, rx: h / 2, class: "ep-chart-track" }));
+  const r = h / 2;
+  svg.appendChild(svgEl("rect", { x: 0, y: 0, width: w, height: h, rx: r, class: "ep-chart-track" }));
   const fw = clampFrac(value, max) * w;
   if (fw > 0)
-    svg.appendChild(svgEl("rect", { x: 0, y: 0, width: Math.max(fw, h / 2), height: h, rx: h / 2, class: "ep-chart-fill" }));
+    svg.appendChild(svgEl("rect", { x: 0, y: 0, width: Math.max(fw, r), height: h, rx: r, class: "ep-chart-fill" }));
 }
 
 // src/features/inline/inline-render.ts
+function beingEdited(root) {
+  return !!root.querySelector("input:focus, textarea:focus, select:focus");
+}
+function watchSettings(child, ctx2, root, repaint) {
+  var _a;
+  const off = (_a = ctx2.onSettings) == null ? void 0 : _a.call(ctx2, () => {
+    if (!beingEdited(root)) repaint();
+  });
+  if (off) child.register(off);
+}
 var enabled2 = (ctx2) => ctx2.settings.features["inline"] !== false;
 function processInline(el, mdctx, ctx2) {
   var _a, _b;
@@ -19314,6 +19366,11 @@ var PropInline = class extends import_obsidian47.MarkdownRenderChild {
         if (f.path === this.file.path) this.draw();
       })
     );
+    watchSettings(this, this.ctx, this.root, () => {
+      this.root.removeClass("ep-inline-sized ep-inline-boxed ep-inline-left ep-inline-center ep-inline-right");
+      applyInlineSize(this.root, this.ctx.settings, "prop");
+      this.draw();
+    });
   }
   draw() {
     this.root.empty();
@@ -19429,6 +19486,7 @@ var ValInline = class extends import_obsidian47.MarkdownRenderChild {
         if (f.path === this.file.path) this.draw();
       })
     );
+    watchSettings(this, this.ctx, this.root, () => this.draw());
   }
   draw() {
     this.root.empty();
@@ -19450,6 +19508,7 @@ var ValsInline = class extends import_obsidian47.MarkdownRenderChild {
         if (f.path === this.file.path) this.draw();
       })
     );
+    watchSettings(this, this.ctx, this.root, () => this.draw());
   }
   draw() {
     this.root.empty();
@@ -19461,7 +19520,7 @@ function resolveMax(max, resolve) {
   const n = Number(max);
   return Number.isFinite(n) ? n : resolve(max);
 }
-function renderChartSpec(parent, ctx2, file, spec) {
+function renderChartSpec(parent, ctx2, file, spec, box) {
   var _a, _b;
   const t = ctx2.i18n.t.bind(ctx2.i18n);
   const resolve = refResolver(ctx2, file);
@@ -19471,7 +19530,7 @@ function renderChartSpec(parent, ctx2, file, spec) {
     const value = resolve(ref);
     const max = resolveMax(spec.max, resolve);
     if (value === void 0 || max === void 0 || max <= 0) return err();
-    renderProgress(parent, value, max, { label: `${ref} ${fmtNum(value)} / ${fmtNum(max)}` });
+    renderProgress(parent, value, max, { label: `${ref} ${fmtNum(value)} / ${fmtNum(max)}`, box });
     return;
   }
   const valid = spec.refs.map((r) => ({ name: r, v: resolve(r) })).filter((p) => p.v !== void 0);
@@ -19482,31 +19541,36 @@ function renderChartSpec(parent, ctx2, file, spec) {
     kind: spec.kind,
     data: labels.map((l, i) => `${l} ${fmtNum(values[i])}`).join(", ")
   });
-  if (spec.kind === "spark") renderSparkline(parent, values, { aria });
-  else if (spec.kind === "bar") renderBars(parent, values, { aria });
-  else renderRadar(parent, values, labels, { aria, max: resolveMax(spec.max, resolve) });
+  if (spec.kind === "spark") renderSparkline(parent, values, { aria, box });
+  else if (spec.kind === "bar") renderBars(parent, values, { aria, box });
+  else renderRadar(parent, values, labels, { aria, max: resolveMax(spec.max, resolve), box });
 }
 function makeChartEl(ctx2, file, kind, body) {
-  var _a;
   const chip = createSpan({ cls: "ep-inline-chart" });
-  try {
-    let spec;
-    if (kind === "progress") {
-      const [v, m] = body.split("/").map((s) => s.trim());
-      spec = { kind: "progress", refs: [], value: v, max: m };
-    } else {
-      spec = { kind, refs: body.split(",").map((s) => s.trim()).filter(Boolean) };
-    }
-    renderChartSpec(chip, ctx2, file, spec);
-    applyInlineSize(chip, ctx2.settings, kind);
-    if (chip.hasClass("ep-inline-sized") && kind !== "radar")
-      (_a = chip.querySelector("svg")) == null ? void 0 : _a.setAttribute("preserveAspectRatio", "none");
-  } catch (e) {
-    console.error("Extended Properties: chart render failed", e);
-    chip.empty();
-    chip.addClass("ep-chart-err");
-    chip.setText(ctx2.i18n.t("inline.chartInvalid"));
+  let spec;
+  if (kind === "progress") {
+    const [v, m] = body.split("/").map((s) => s.trim());
+    spec = { kind: "progress", refs: [], value: v, max: m };
+  } else {
+    spec = { kind, refs: body.split(",").map((s) => s.trim()).filter(Boolean) };
   }
+  const draw = (box) => {
+    try {
+      chip.empty();
+      chip.removeClass("ep-chart-err");
+      renderChartSpec(chip, ctx2, file, spec, box);
+    } catch (e) {
+      console.error("Extended Properties: chart render failed", e);
+      chip.empty();
+      chip.addClass("ep-chart-err");
+      chip.setText(ctx2.i18n.t("inline.chartInvalid"));
+    }
+  };
+  draw();
+  applyInlineSize(chip, ctx2.settings, kind, () => {
+    const r = chip.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) draw({ w: r.width, h: r.height });
+  });
   return chip;
 }
 var ChartInline = class extends import_obsidian47.MarkdownRenderChild {
@@ -19525,6 +19589,7 @@ var ChartInline = class extends import_obsidian47.MarkdownRenderChild {
         if (f.path === this.file.path) this.draw();
       })
     );
+    watchSettings(this, this.ctx, this.root, () => this.draw());
   }
   draw() {
     this.root.empty();
@@ -19711,6 +19776,8 @@ var InlineWidget = class extends import_view.WidgetType {
     this.body = body;
     /** Live metadata subscriptions per mounted DOM (cleared in destroy). */
     this.evtRefs = /* @__PURE__ */ new Map();
+    /** Settings subscriptions per mounted DOM (likewise). */
+    this.settingsOff = /* @__PURE__ */ new Map();
   }
   /**
    * Position is deliberately NOT part of equality. An edit *above* a widget
@@ -19723,6 +19790,7 @@ var InlineWidget = class extends import_view.WidgetType {
     return o.kind === this.kind && o.opt === this.opt && o.body === this.body && o.file.path === this.file.path;
   }
   toDOM(view) {
+    var _a, _b;
     const holder = createSpan({ cls: "ep-inline-holder" });
     const reveal = () => {
       const pos = view.posAtDOM(holder);
@@ -19738,6 +19806,12 @@ var InlineWidget = class extends import_view.WidgetType {
       holder.appendChild(this.render(reveal));
     });
     this.evtRefs.set(holder, ref);
+    const off = (_b = (_a = this.ctx).onSettings) == null ? void 0 : _b.call(_a, () => {
+      if (holder.querySelector("input:focus, textarea:focus, select:focus")) return;
+      holder.empty();
+      holder.appendChild(this.render(reveal));
+    });
+    if (off) this.settingsOff.set(holder, off);
     return holder;
   }
   /** Render the widget content (one attempt; the holder owns the result). */
@@ -19771,11 +19845,14 @@ var InlineWidget = class extends import_view.WidgetType {
     }
   }
   destroy(dom) {
+    var _a;
     const ref = this.evtRefs.get(dom);
     if (ref) {
       this.ctx.app.metadataCache.offref(ref);
       this.evtRefs.delete(dom);
     }
+    (_a = this.settingsOff.get(dom)) == null ? void 0 : _a();
+    this.settingsOff.delete(dom);
     super.destroy(dom);
   }
   ignoreEvent() {
@@ -19907,6 +19984,13 @@ var ExtendedPropertiesPlugin = class extends import_obsidian49.Plugin {
     this.macroCmdIds = [];
     /** Signature of the registered macro set; guards needless re-registration. */
     this.macroSig = "";
+    // -- settings & layouts --------------------------------------------------------
+    /**
+     * Repainted whenever settings are saved. Inline pieces live in note bodies,
+     * which nothing else redraws - so a setting that changes how they look would
+     * otherwise only take effect the next time the note happened to re-render.
+     */
+    this.settingsWatchers = /* @__PURE__ */ new Set();
   }
   /** All known feature modules (enabled or not) - the settings tab lists them. */
   get featureModules() {
@@ -20092,7 +20176,8 @@ var ExtendedPropertiesPlugin = class extends import_obsidian49.Plugin {
       props: this.props,
       hide: this.hide,
       history: this.history,
-      save: () => void this.saveSettings()
+      save: () => void this.saveSettings(),
+      onSettings: (cb) => this.onSettingsSaved(cb)
     });
     this.registerEvent(this.app.metadataCache.on("changed", (file) => this.props.invalidateFile(file)));
     this.registerEvent(this.app.vault.on("delete", (file) => this.props.invalidatePath(file.path)));
@@ -20286,7 +20371,13 @@ var ExtendedPropertiesPlugin = class extends import_obsidian49.Plugin {
     const preset = (_a = this.registries.layoutPresets.get(this.registries.defaultPresetId)) != null ? _a : this.registries.layoutPresets.get("empty");
     return preset ? preset.build(this.i18n) : { version: 4, sections: [] };
   }
-  // -- settings & layouts --------------------------------------------------------
+  /** Watch for saved settings. Returns the unsubscribe. */
+  onSettingsSaved(cb) {
+    this.settingsWatchers.add(cb);
+    return () => {
+      this.settingsWatchers.delete(cb);
+    };
+  }
   async saveSettings() {
     var _a;
     await this.saveData(this.settings);
@@ -20299,6 +20390,13 @@ var ExtendedPropertiesPlugin = class extends import_obsidian49.Plugin {
     this.syncMacroCommands();
     if (this.settings.layoutVault === true && this.layoutStore)
       for (const t of this.settings.types) this.layoutStore.write(t);
+    for (const cb of [...this.settingsWatchers]) {
+      try {
+        cb();
+      } catch (e) {
+        console.error("Extended Properties: refresh failed", e);
+      }
+    }
   }
   /**
    * Snapshot the pre-migration `data.json` to the plugin's `backups/` folder,

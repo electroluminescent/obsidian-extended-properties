@@ -1,5 +1,23 @@
 # Changelog
 
+## 4.50.0
+
+- **Inline pieces redraw the moment a setting changes.** Nothing else redraws
+  a note body, so a size, width or side used to wait for the note to render
+  again on its own. Every piece now repaints when the settings are saved - in
+  reading mode and Live Preview - unless it is being typed into.
+- **A card can be drawn around any inline piece**, per kind: the bordered,
+  tinted box a `vals:` card has always had, now a toggle. The value card keeps
+  its card by default and can be told to go without one.
+- **Charts draw at the size they are given** rather than being stretched to
+  it. Bars keep their gaps and corners at any width (a wide bar chart was
+  coming out as blobs), a sparkline keeps its weight, a progress bar keeps its
+  round ends and now fills the height it was given - which is why `progress:`
+  appeared to ignore its size. The radar takes the largest square its box
+  holds.
+- The legibility floor now applies only to a piece given a width of its own,
+  so a chip merely told which side to sit on stays chip-sized.
+
 ## 4.49.0
 
 - **The key that ignores the scale is yours to choose**: Alt (Option) as

@@ -37,7 +37,7 @@ import { fmtMod, fmtNum, getList, getNum } from "../../utils/misc";
 import { diceIconId } from "../../ui/render/dice-icons";
 import { openNumberInput, openTextInput } from "../../ui/components/inline-edit";
 import { renderLinkedText } from "../../ui/components/links";
-import { renderBars, renderProgress, renderRadar, renderSparkline } from "../../ui/render/charts";
+import { renderBars, renderProgress, renderRadar, renderSparkline, type ChartBox } from "../../ui/render/charts";
 import { openRollMenu } from "../rolling/dice-ui";
 import type { RollMode, RollService } from "../rolling/roll-service";
 import { showMenu } from "../../ui/menus/show";
@@ -59,6 +59,29 @@ export interface InlineCtx {
   history: HistoryService;
   /** Persist settings (e.g. after editing an inline `vals:` card's options). */
   save: () => void;
+  /**
+   * Watch for saved settings, returning the unsubscribe. Inline pieces read
+   * their size, shape and side from the settings, and nothing else redraws a
+   * note body - so they repaint themselves when the settings change.
+   */
+  onSettings?: (cb: () => void) => () => void;
+}
+
+/**
+ * Whether something inside `root` is being typed into. A repaint would take
+ * the field away mid-edit, so a piece holding the caret is left alone until
+ * the next time it redraws.
+ */
+export function beingEdited(root: HTMLElement): boolean {
+  return !!root.querySelector("input:focus, textarea:focus, select:focus");
+}
+
+/** Repaint `child` whenever the settings are saved, unless it is being typed into. */
+function watchSettings(child: MarkdownRenderChild, ctx: InlineCtx, root: HTMLElement, repaint: () => void): void {
+  const off = ctx.onSettings?.(() => {
+    if (!beingEdited(root)) repaint();
+  });
+  if (off) child.register(off);
 }
 
 const enabled = (ctx: InlineCtx): boolean => ctx.settings.features["inline"] !== false;
@@ -282,6 +305,11 @@ class PropInline extends MarkdownRenderChild {
         if (f.path === this.file.path) this.draw();
       })
     );
+    watchSettings(this, this.ctx, this.root, () => {
+      this.root.removeClass("ep-inline-sized ep-inline-boxed ep-inline-left ep-inline-center ep-inline-right");
+      applyInlineSize(this.root, this.ctx.settings, "prop");
+      this.draw();
+    });
   }
 
   private draw(): void {
@@ -401,6 +429,7 @@ class ValInline extends MarkdownRenderChild {
         if (f.path === this.file.path) this.draw();
       })
     );
+    watchSettings(this, this.ctx, this.root, () => this.draw());
   }
 
   private draw(): void {
@@ -422,6 +451,7 @@ class ValsInline extends MarkdownRenderChild {
         if (f.path === this.file.path) this.draw();
       })
     );
+    watchSettings(this, this.ctx, this.root, () => this.draw());
   }
 
   private draw(): void {
@@ -455,8 +485,12 @@ function resolveMax(max: string | undefined, resolve: (n: string) => number | un
   return Number.isFinite(n) ? n : resolve(max);
 }
 
-/** Render a chart spec into `parent` (an inline chip or a block container). */
-function renderChartSpec(parent: HTMLElement, ctx: InlineCtx, file: TFile, spec: ChartSpec): void {
+/**
+ * Render a chart spec into `parent` (an inline chip or a block container), at
+ * `box` where one is known - a chart draws its geometry at the size it is
+ * given rather than being stretched to it.
+ */
+function renderChartSpec(parent: HTMLElement, ctx: InlineCtx, file: TFile, spec: ChartSpec, box?: ChartBox): void {
   const t = ctx.i18n.t.bind(ctx.i18n);
   const resolve = refResolver(ctx, file);
   const err = (): void => void parent.createSpan({ cls: "ep-chart-err", text: t("inline.chartInvalid") });
@@ -466,7 +500,7 @@ function renderChartSpec(parent: HTMLElement, ctx: InlineCtx, file: TFile, spec:
     const value = resolve(ref);
     const max = resolveMax(spec.max, resolve);
     if (value === undefined || max === undefined || max <= 0) return err();
-    renderProgress(parent, value, max, { label: `${ref} ${fmtNum(value)} / ${fmtNum(max)}` });
+    renderProgress(parent, value, max, { label: `${ref} ${fmtNum(value)} / ${fmtNum(max)}`, box });
     return;
   }
 
@@ -481,34 +515,45 @@ function renderChartSpec(parent: HTMLElement, ctx: InlineCtx, file: TFile, spec:
     kind: spec.kind,
     data: labels.map((l, i) => `${l} ${fmtNum(values[i])}`).join(", "),
   });
-  if (spec.kind === "spark") renderSparkline(parent, values, { aria });
-  else if (spec.kind === "bar") renderBars(parent, values, { aria });
-  else renderRadar(parent, values, labels, { aria, max: resolveMax(spec.max, resolve) });
+  if (spec.kind === "spark") renderSparkline(parent, values, { aria, box });
+  else if (spec.kind === "bar") renderBars(parent, values, { aria, box });
+  else renderRadar(parent, values, labels, { aria, max: resolveMax(spec.max, resolve), box });
 }
 
-/** Build an inline chart chip from a token kind + body. */
+/**
+ * Build an inline chart chip from a token kind + body.
+ *
+ * A chart that has been given a size is drawn twice: once at its usual size,
+ * and again on the next frame once the box it landed in can be measured - so
+ * the geometry is worked out at the size it is actually drawn rather than
+ * stretched to fit, which is what turned a wide bar chart into blobs.
+ */
 export function makeChartEl(ctx: InlineCtx, file: TFile, kind: string, body: string): HTMLElement {
   const chip = createSpan({ cls: "ep-inline-chart" });
-  try {
-    let spec: ChartSpec;
-    if (kind === "progress") {
-      const [v, m] = body.split("/").map((s) => s.trim());
-      spec = { kind: "progress", refs: [], value: v, max: m };
-    } else {
-      spec = { kind: kind as ChartKind, refs: body.split(",").map((s) => s.trim()).filter(Boolean) };
-    }
-    renderChartSpec(chip, ctx, file, spec);
-    applyInlineSize(chip, ctx.settings, kind);
-    // A sized chart fills the box it was given. Only the radar keeps its
-    // proportions - a stretched one is no longer a radar.
-    if (chip.hasClass("ep-inline-sized") && kind !== "radar")
-      chip.querySelector("svg")?.setAttribute("preserveAspectRatio", "none");
-  } catch (e) {
-    console.error("Extended Properties: chart render failed", e);
-    chip.empty();
-    chip.addClass("ep-chart-err");
-    chip.setText(ctx.i18n.t("inline.chartInvalid"));
+  let spec: ChartSpec;
+  if (kind === "progress") {
+    const [v, m] = body.split("/").map((s) => s.trim());
+    spec = { kind: "progress", refs: [], value: v, max: m };
+  } else {
+    spec = { kind: kind as ChartKind, refs: body.split(",").map((s) => s.trim()).filter(Boolean) };
   }
+  const draw = (box?: ChartBox): void => {
+    try {
+      chip.empty();
+      chip.removeClass("ep-chart-err");
+      renderChartSpec(chip, ctx, file, spec, box);
+    } catch (e) {
+      console.error("Extended Properties: chart render failed", e);
+      chip.empty();
+      chip.addClass("ep-chart-err");
+      chip.setText(ctx.i18n.t("inline.chartInvalid"));
+    }
+  };
+  draw();
+  applyInlineSize(chip, ctx.settings, kind, () => {
+    const r = chip.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) draw({ w: r.width, h: r.height });
+  });
   return chip;
 }
 
@@ -524,6 +569,7 @@ class ChartInline extends MarkdownRenderChild {
         if (f.path === this.file.path) this.draw();
       })
     );
+    watchSettings(this, this.ctx, this.root, () => this.draw());
   }
   private draw(): void {
     this.root.empty();

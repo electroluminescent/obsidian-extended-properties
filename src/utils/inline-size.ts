@@ -43,6 +43,24 @@ export interface InlineSize {
   width?: number;
   /** "left" | "center" | "right", or unset to sit in the text as it falls. */
   align?: string;
+  /**
+   * Draw the piece in a card - the bordered, tinted box a `vals:` card has
+   * always had. Unset means the kind's own habit (see {@link isBoxed}).
+   */
+  box?: boolean;
+}
+
+/** The kinds drawn in a card unless told otherwise. */
+const BOXED_BY_DEFAULT: ReadonlySet<string> = new Set(["vals"]);
+
+/** Whether this kind is drawn in a card, its own habit unless overridden. */
+export function isBoxed(size: InlineSize | undefined, kind: string): boolean {
+  return size?.box ?? BOXED_BY_DEFAULT.has(kind);
+}
+
+/** Whether a card is this kind's habit, so only a change need be stored. */
+export function boxedByDefault(kind: string): boolean {
+  return BOXED_BY_DEFAULT.has(kind);
 }
 
 /** A width worked out for a particular column, ready to put on an element. */

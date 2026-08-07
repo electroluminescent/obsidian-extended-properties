@@ -5,11 +5,38 @@
  * `createElementNS` (no `innerHTML`), themed entirely through `--ep-*` CSS
  * classes, and accessible: every chart is `role="img"` with an `aria-label`
  * and a visually-hidden text fallback listing the data.
+ *
+ * Every chart takes the box it is drawn into. A chart given more room draws
+ * its geometry at that size rather than being stretched to it: bars keep their
+ * gaps and corners, a line keeps its weight, a bar keeps its round ends. The
+ * default box is the one line of text these started life as.
  */
 
 import { barLayout, clampFrac, pointsAttr, radarPoints, ringPoints, sparklinePath } from "../../utils/chart";
 
 const NS = "http://www.w3.org/2000/svg";
+
+/** The box a chart is drawn into, in the units its geometry is worked out in. */
+export interface ChartBox {
+  w: number;
+  h: number;
+}
+
+/** What each chart is drawn at when nobody has given it a size. */
+const DEFAULTS: Record<string, ChartBox> = {
+  spark: { w: 64, h: 16 },
+  bar: { w: 64, h: 16 },
+  radar: { w: 64, h: 64 },
+  progress: { w: 64, h: 10 },
+};
+
+/** The box to draw `kind` in: what was asked for, else its usual size. */
+export function chartBox(kind: string, box?: ChartBox): ChartBox {
+  const def = DEFAULTS[kind] ?? DEFAULTS.spark;
+  const w = Math.round(box?.w ?? 0);
+  const h = Math.round(box?.h ?? 0);
+  return { w: w > 0 ? w : def.w, h: h > 0 ? h : def.h };
+}
 
 function svgEl(tag: string, attrs: Record<string, string | number>): SVGElement {
   const e = activeDocument.createElementNS(NS, tag);
@@ -31,25 +58,39 @@ function frame(parent: HTMLElement, w: number, h: number, aria: string): SVGElem
   return svg;
 }
 
-export function renderSparkline(parent: HTMLElement, values: number[], opts: { aria: string }): void {
-  const w = 64;
-  const h = 16;
+export function renderSparkline(parent: HTMLElement, values: number[], opts: { aria: string; box?: ChartBox }): void {
+  const { w, h } = chartBox("spark", opts.box);
   const svg = frame(parent, w, h, opts.aria);
-  svg.appendChild(svgEl("path", { d: sparklinePath(values, w, h, 2), class: "ep-chart-line", fill: "none" }));
+  // The line keeps its weight whatever the box, so a tall chart is not a fat one.
+  const pad = Math.max(2, Math.min(w, h) * 0.06);
+  svg.appendChild(svgEl("path", { d: sparklinePath(values, w, h, pad), class: "ep-chart-line", fill: "none" }));
 }
 
-export function renderBars(parent: HTMLElement, values: number[], opts: { aria: string }): void {
-  const w = Math.max(24, values.length * 8);
-  const h = 16;
+export function renderBars(parent: HTMLElement, values: number[], opts: { aria: string; box?: ChartBox }): void {
+  const asked = chartBox("bar", opts.box);
+  // Without a box of its own, the width follows the number of bars.
+  const w = opts.box?.w ? asked.w : Math.max(24, values.length * 8);
+  const h = asked.h;
   const svg = frame(parent, w, h, opts.aria);
-  for (const r of barLayout(values, w, h, 1.5))
-    svg.appendChild(svgEl("rect", { x: r.x, y: r.y, width: r.w, height: r.h, rx: 1, class: "ep-chart-bar" }));
+  // A gap proportional to the bar, so bars neither merge nor become slivers.
+  const gap = Math.max(1, Math.min(8, w / Math.max(1, values.length) / 6));
+  for (const r of barLayout(values, w, h, gap))
+    svg.appendChild(
+      svgEl("rect", { x: r.x, y: r.y, width: r.w, height: r.h, rx: Math.min(2, r.w / 4), class: "ep-chart-bar" })
+    );
 }
 
-export function renderRadar(parent: HTMLElement, values: number[], _labels: string[], opts: { aria: string; max?: number }): void {
-  const s = 64;
+export function renderRadar(
+  parent: HTMLElement,
+  values: number[],
+  _labels: string[],
+  opts: { aria: string; max?: number; box?: ChartBox }
+): void {
+  const box = chartBox("radar", opts.box);
+  // A radar is round: it takes the largest square the box holds.
+  const s = Math.max(24, Math.min(box.w, box.h));
   const c = s / 2;
-  const r = 26;
+  const r = c * 0.82;
   const max = opts.max && opts.max > 0 ? opts.max : Math.max(1, ...values);
   const svg = frame(parent, s, s, opts.aria);
   // outer ring + axes
@@ -60,12 +101,17 @@ export function renderRadar(parent: HTMLElement, values: number[], _labels: stri
   svg.appendChild(svgEl("polygon", { points: pointsAttr(radarPoints(values, max, c, c, r)), class: "ep-chart-area" }));
 }
 
-export function renderProgress(parent: HTMLElement, value: number, max: number, opts: { label: string }): void {
-  const w = 64;
-  const h = 10;
+export function renderProgress(
+  parent: HTMLElement,
+  value: number,
+  max: number,
+  opts: { label: string; box?: ChartBox }
+): void {
+  const { w, h } = chartBox("progress", opts.box);
   const svg = frame(parent, w, h, opts.label);
-  svg.appendChild(svgEl("rect", { x: 0, y: 0, width: w, height: h, rx: h / 2, class: "ep-chart-track" }));
+  const r = h / 2;
+  svg.appendChild(svgEl("rect", { x: 0, y: 0, width: w, height: h, rx: r, class: "ep-chart-track" }));
   const fw = clampFrac(value, max) * w;
   if (fw > 0)
-    svg.appendChild(svgEl("rect", { x: 0, y: 0, width: Math.max(fw, h / 2), height: h, rx: h / 2, class: "ep-chart-fill" }));
+    svg.appendChild(svgEl("rect", { x: 0, y: 0, width: Math.max(fw, r), height: h, rx: r, class: "ep-chart-fill" }));
 }

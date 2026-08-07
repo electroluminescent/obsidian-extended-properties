@@ -310,6 +310,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       hide: this.hide,
       history: this.history,
       save: () => void this.saveSettings(),
+      onSettings: (cb) => this.onSettingsSaved(cb),
     });
 
     // Keep the cross-note PropertyIndex cache (perf: avoids a full vault
@@ -530,6 +531,21 @@ export default class ExtendedPropertiesPlugin extends Plugin {
 
   // -- settings & layouts --------------------------------------------------------
 
+  /**
+   * Repainted whenever settings are saved. Inline pieces live in note bodies,
+   * which nothing else redraws - so a setting that changes how they look would
+   * otherwise only take effect the next time the note happened to re-render.
+   */
+  private readonly settingsWatchers = new Set<() => void>();
+
+  /** Watch for saved settings. Returns the unsubscribe. */
+  onSettingsSaved(cb: () => void): () => void {
+    this.settingsWatchers.add(cb);
+    return () => {
+      this.settingsWatchers.delete(cb);
+    };
+  }
+
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
     configureSound(this.settings.sound !== false, this.settings.soundVolume ?? 0.3, {
@@ -541,6 +557,10 @@ export default class ExtendedPropertiesPlugin extends Plugin {
     this.syncMacroCommands();
     if (this.settings.layoutVault === true && this.layoutStore)
       for (const t of this.settings.types) this.layoutStore.write(t);
+    for (const cb of [...this.settingsWatchers]) {
+      // One inline piece throwing must not stop the rest repainting.
+      try { cb(); } catch (e) { console.error("Extended Properties: refresh failed", e); }
+    }
   }
 
   /**

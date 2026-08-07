@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  isShaped, MIN_INLINE_PX, resolveLines, resolveWidth, MAX_INLINE_LINES,
+  boxedByDefault, isBoxed, isShaped, MIN_INLINE_PX, resolveLines, resolveWidth, MAX_INLINE_LINES,
 } from "../src/utils/inline-size";
 
 describe("width", () => {
@@ -63,6 +63,20 @@ describe("height", () => {
 
   it("stops at a screenful", () => {
     expect(resolveLines({ lines: 500 })).toBe(MAX_INLINE_LINES);
+  });
+});
+
+describe("the card around a piece", () => {
+  it("is the value card's habit and nobody else's", () => {
+    expect(boxedByDefault("vals")).toBe(true);
+    expect(boxedByDefault("radar")).toBe(false);
+    expect(isBoxed(undefined, "vals")).toBe(true);
+    expect(isBoxed(undefined, "progress")).toBe(false);
+  });
+
+  it("is whatever it has been told, either way", () => {
+    expect(isBoxed({ box: false }, "vals")).toBe(false);
+    expect(isBoxed({ box: true }, "progress")).toBe(true);
   });
 });
 

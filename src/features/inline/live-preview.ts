@@ -36,6 +36,8 @@ function backtickSpan(doc: { sliceString(a: number, b: number): string; length: 
 class InlineWidget extends WidgetType {
   /** Live metadata subscriptions per mounted DOM (cleared in destroy). */
   private evtRefs = new Map<HTMLElement, EventRef>();
+  /** Settings subscriptions per mounted DOM (likewise). */
+  private settingsOff = new Map<HTMLElement, () => void>();
 
   constructor(
     private ctx: InlineCtx,
@@ -82,6 +84,14 @@ class InlineWidget extends WidgetType {
       holder.appendChild(this.render(reveal));
     });
     this.evtRefs.set(holder, ref);
+    // How a piece is drawn is a setting, and nothing else redraws a note body:
+    // repaint when the settings are saved, unless it is being typed into.
+    const off = this.ctx.onSettings?.(() => {
+      if (holder.querySelector("input:focus, textarea:focus, select:focus")) return;
+      holder.empty();
+      holder.appendChild(this.render(reveal));
+    });
+    if (off) this.settingsOff.set(holder, off);
     return holder;
   }
 
@@ -125,6 +135,8 @@ class InlineWidget extends WidgetType {
       this.ctx.app.metadataCache.offref(ref);
       this.evtRefs.delete(dom);
     }
+    this.settingsOff.get(dom)?.();
+    this.settingsOff.delete(dom);
     super.destroy(dom);
   }
 

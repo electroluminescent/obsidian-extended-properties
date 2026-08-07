@@ -28,7 +28,9 @@ import { packType } from "../core/transfer";
 import { segsToText, textToSegs } from "../features/rolling/macros";
 import { DICE_STYLES } from "../features/rolling/dice-styles";
 import { FREE_KEYS } from "./render/value-types/numeric";
-import { INLINE_KINDS, MAX_INLINE_LINES, SPAN_SHARES, type InlineSize } from "../utils/inline-size";
+import {
+  boxedByDefault, INLINE_KINDS, isBoxed, MAX_INLINE_LINES, SPAN_SHARES, type InlineSize,
+} from "../utils/inline-size";
 
 /** Max override rows rendered at once (the list is searchable). */
 const OVERRIDE_ROW_LIMIT = 25;
@@ -1256,7 +1258,10 @@ export class EPSettingTab extends PluginSettingTab {
     const set = (kind: string, patch: InlineSize): void => {
       const store = (plugin.settings.inline ??= {});
       const cur: InlineSize = { ...store[kind], ...patch };
-      if (cur.lines === undefined && cur.span === undefined && cur.width === undefined && cur.align === undefined)
+      if (
+        cur.lines === undefined && cur.span === undefined && cur.width === undefined &&
+        cur.align === undefined && cur.box === undefined
+      )
         delete store[kind];
       else store[kind] = cur;
       if (!Object.keys(store).length) plugin.settings.inline = undefined;
@@ -1309,6 +1314,13 @@ export class EPSettingTab extends PluginSettingTab {
         for (const a of ["left", "center", "right"]) dd.addOption(a, t("settings.inlineAlign." + a));
         dd.setValue(size.align ?? "");
         dd.onChange((v) => set(kind, { align: v || undefined }));
+      });
+      // The card: a border and a fill around the piece. Only a departure from
+      // the kind's own habit is stored, so a default card stays a default.
+      row.addToggle((tg) => {
+        tg.setTooltip(t("settings.inlineBox"));
+        tg.setValue(isBoxed(size, kind));
+        tg.onChange((v) => set(kind, { box: v === boxedByDefault(kind) ? undefined : v }));
       });
     }
   }
