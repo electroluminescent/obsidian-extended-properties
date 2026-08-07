@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.53.3
+
+- **A justified piece no longer leaves an empty line above and below it.** The
+  wrapper that carries the justification was a block, and a block inside a
+  line of text splits it in three - the piece in the middle, an empty line's
+  worth of space on either side. Measured in a note: a value card's line was
+  141px tall around a 93px card, a roll chip's 84px around a 36px chip, a bar
+  chart's 154px around a 106px chart. The wrapper is now an inline box that
+  takes the whole line, and every one of those lines is exactly as tall as the
+  piece in it. Only justified pieces were affected, which is why it looked
+  like `vals:`, `roll:` and `bar:` had margins the others did not.
+
 ## 4.53.2
 
 - **A chart in a card fills it.** The chart measured the whole chip, card

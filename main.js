@@ -18778,6 +18778,7 @@ function inlineSizeOf(settings, kind) {
 }
 function blockAncestor(el) {
   for (let p = el.parentElement; p; p = p.parentElement) {
+    if (p.hasClass("ep-inline-host")) continue;
     const cs = getComputedStyle(p);
     if (cs.display.startsWith("inline") && cs.display !== "inline-block") continue;
     return p;

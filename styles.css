@@ -963,8 +963,10 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-inline-sized.ep-inline-tall { min-height: calc(var(--ep-inline-lines, 1) * var(--line-height-normal, 1.5) * 1em); }
 .ep-inline-sized.ep-inline-wide { min-width: min(150px, 100%); }
 /* Justification belongs to the wrapper: the piece keeps its own box, so
-   nothing around it is pushed by margins it does not have. */
-.ep-inline-host { display: block; }
+   nothing around it is pushed by margins it does not have. The wrapper takes
+   the whole line but stays an inline box - a block here would split the line
+   it sits in and leave an empty line's worth of space above and below it. */
+.ep-inline-host { display: inline-block; width: 100%; }
 .ep-inline-host-left { text-align: left; }
 .ep-inline-host-center { text-align: center; }
 .ep-inline-host-right { text-align: right; }

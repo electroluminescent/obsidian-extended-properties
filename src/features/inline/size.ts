@@ -33,9 +33,14 @@ export function inlineBoxed(settings: EPSettings, kind: string): boolean {
   return isBoxed(inlineSizeOf(settings, kind), kind);
 }
 
-/** The first ancestor of `el` that lays out as a block - its text column. */
+/**
+ * The first ancestor of `el` that lays out as a block - its text column. The
+ * wrapper a piece is justified in is skipped: it is our own doing, and takes
+ * the whole line either way.
+ */
 function blockAncestor(el: HTMLElement): HTMLElement | null {
   for (let p = el.parentElement; p; p = p.parentElement) {
+    if (p.hasClass("ep-inline-host")) continue;
     const cs = getComputedStyle(p);
     if (cs.display.startsWith("inline") && cs.display !== "inline-block") continue;
     return p;
