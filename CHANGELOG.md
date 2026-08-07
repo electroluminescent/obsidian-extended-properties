@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.53.2
+
+- **A chart in a card fills it.** The chart measured the whole chip, card
+  border and padding included, so its drawing was scaled down to fit and
+  centred - leaving a rim of empty space inside the box that read as margin.
+  It now measures the room actually inside the card.
+- **A chip without its pill is text.** Turning the card off a `roll:` or
+  `val:` chip already took away its border, fill and padding; it now also
+  gives up the taller line a pill needs, so the value sits at the height of
+  the words around it. A `vals:` card without its border likewise draws
+  tighter.
+- Anything still drawn around a piece is the card itself - the switch at the
+  end of its row in *Inline pieces* turns it off.
+
 ## 4.53.1
 
 - **A line holding nothing but an inline piece takes no room from the lines

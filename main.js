@@ -19837,8 +19837,11 @@ function makeChartEl(ctx2, file, kind, body) {
   };
   draw();
   applyInlineSize(chip, ctx2.settings, kind, () => {
-    const r = chip.getBoundingClientRect();
-    if (r.width > 0 && r.height > 0) draw({ w: r.width, h: r.height });
+    const cs = getComputedStyle(chip);
+    const px = (v) => parseFloat(v) || 0;
+    const w = chip.clientWidth - px(cs.paddingLeft) - px(cs.paddingRight);
+    const h = chip.clientHeight - px(cs.paddingTop) - px(cs.paddingBottom);
+    if (w > 0 && h > 0) draw({ w, h });
   });
   chip.oncontextmenu = (ev) => {
     if (!ctx2.openSettings) return;

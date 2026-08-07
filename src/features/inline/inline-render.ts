@@ -589,8 +589,14 @@ export function makeChartEl(ctx: InlineCtx, file: TFile, kind: string, body: str
   };
   draw();
   applyInlineSize(chip, ctx.settings, kind, () => {
-    const r = chip.getBoundingClientRect();
-    if (r.width > 0 && r.height > 0) draw({ w: r.width, h: r.height });
+    // The room INSIDE the chip: its border box less whatever a card's border
+    // and padding take. Measured any wider, the drawing would be scaled down
+    // to fit and centred, leaving a margin of its own inside the box.
+    const cs = getComputedStyle(chip);
+    const px = (v: string): number => parseFloat(v) || 0;
+    const w = chip.clientWidth - px(cs.paddingLeft) - px(cs.paddingRight);
+    const h = chip.clientHeight - px(cs.paddingTop) - px(cs.paddingBottom);
+    if (w > 0 && h > 0) draw({ w, h });
   });
   // A chart's only settings are how it is drawn, so that is its whole menu.
   chip.oncontextmenu = (ev) => {

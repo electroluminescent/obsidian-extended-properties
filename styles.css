@@ -979,8 +979,10 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 /* ...and a piece told to go without the box it comes with: the card's border
    and fill, or the pill a chip wears - leaving the value in the sentence with
    nothing drawn around it. */
-.ep-inline-vals.ep-entry.ep-inline-unboxed { border: none; background: none; padding: 0; }
-.ep-inline-roll.ep-inline-unboxed { border: none; background: none; padding: 0; }
+.ep-inline-vals.ep-entry.ep-inline-unboxed { border: none; background: none; padding: 0; gap: 2px; }
+/* A chip without its pill is text: no border, no fill, no padding, and the
+   line height of the words around it rather than a pill's. */
+.ep-inline-roll.ep-inline-unboxed { border: none; background: none; padding: 0; line-height: inherit; }
 .ep-inline-num { width: 5em; }
 /* A line holding nothing but an inline piece: no paragraph spacing, and no
    leading either, so pieces on consecutive lines stack against each other. */
