@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.48.0
+
+- **The whole length of a timeline line answers to the pointer.** The marker
+  layer sat over the plot and swallowed every hover meant for the scale
+  beneath it, leaving only the sliver above and below the plot to hover. It
+  now lets the pointer through everywhere except on a marker itself.
+- **Hold Alt (Option) and click a primary line to send the handle there.**
+  Without the key a press still belongs to the handle, exactly as before.
+
 ## 4.47.0
 
 - **Hold Alt (Option) to pass between the lines.** Dragging a slider or

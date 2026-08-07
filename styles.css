@@ -1043,7 +1043,11 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-dateplot-pop { position: fixed; z-index: var(--layer-menu, 25); min-width: 140px; max-width: 260px; padding: 4px; }
 .ep-dateplot-pop .ep-dateplot-pop-when { padding: 2px 8px 4px; font-size: var(--font-ui-smaller); color: var(--text-muted); border-bottom: 1px solid var(--background-modifier-border); margin-bottom: 2px; }
 .ep-dateplot-pop .ep-pop-row { cursor: pointer; }
-.ep-dateplot-ticks { position: absolute; inset: 0; }
+/* The marker layer covers the whole plot, so it lets the pointer through
+   everywhere except on a marker itself - otherwise it would swallow every
+   hover meant for the scale lines beneath it. */
+.ep-dateplot-ticks { position: absolute; inset: 0; pointer-events: none; }
+.ep-dateplot-tick { pointer-events: auto; }
 .ep-dateplot-marker { position: absolute; top: 1px; width: 6px; height: 12px; margin-left: -3px; border-radius: 3px; background: var(--interactive-accent); z-index: 1; pointer-events: none; }
 /* Rows created by responsive column flow get a clear divide (both modes). */
 /* A flow divide marks where COLUMNS mode wrapped - a plain top border on

@@ -334,6 +334,7 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
     // it. A primary line answers what value stands at that position; the knob
     // still owns every press, so hovering a line never blocks a drag.
     const ticks = ticksFor(min, max, Number(entry.tickMajor), Number(entry.tickMinor));
+    const majors: { el: HTMLElement; value: number }[] = [];
     if (ticks.length) {
       const layer = slider.createDiv({ cls: "ep-slider2-ticks" });
       for (const tk of ticks) {
@@ -343,6 +344,7 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
         line.addClass("ep-tick-hover");
         line.setAttr("aria-label", labelFor(tk.value));
         bindHoverLabel(line, () => labelFor(tk.value));
+        majors.push({ el: line, value: tk.value });
       }
     }
 
@@ -365,6 +367,25 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
     };
     syncKnob = () => place(get());
     syncKnob();
+
+    /** Put the value on a line outright, as clicking one does. */
+    const jumpTo = (v: number): void => {
+      let out = fmt(v);
+      if (!isFormula && entry.clamp) out = clamp(out, min, max);
+      place(out);
+      setVal(out);
+      view.note.set(file, key, shouldClamp(entry.constraints) ? clampToConstraints(out, entry.constraints) : out);
+      sfx.tick();
+    };
+    // A press on a line belongs to the knob - unless the free key is held,
+    // which turns the line into the target: hold it and click to go there.
+    for (const m of majors)
+      m.el.addEventListener("pointerdown", (e) => {
+        if (!isFree(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        jumpTo(m.value);
+      });
 
     let active = false;
     let pending = get();

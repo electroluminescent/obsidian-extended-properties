@@ -407,7 +407,7 @@
   "options.snapPrimaryDesc": "Dragging or stepping settles on the nearest primary line.",
   "options.snapSecondary": "Snap to secondary lines",
   "options.snapSecondaryDesc": "Settles on the nearest secondary line. With both on, whichever line is nearer wins.",
-  "options.snapFreeHint": "Hold Alt (Option) while dragging or stepping to pass between the lines.",
+  "options.snapFreeHint": "Hold Alt (Option) while dragging or stepping to pass between the lines, or to click a primary line and go straight to it.",
   "options.tickUnitsHint": "Write it in the property's own calendar - 1Y, 6M, 3D, 12h, 30m (M months, m minutes) - or as a plain number.",
   "options.showSlider": "Show slider",
   "options.ratingToggle": "Rating icons",

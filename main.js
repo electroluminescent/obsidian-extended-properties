@@ -509,7 +509,7 @@ var en_default = {
   "options.snapPrimaryDesc": "Dragging or stepping settles on the nearest primary line.",
   "options.snapSecondary": "Snap to secondary lines",
   "options.snapSecondaryDesc": "Settles on the nearest secondary line. With both on, whichever line is nearer wins.",
-  "options.snapFreeHint": "Hold Alt (Option) while dragging or stepping to pass between the lines.",
+  "options.snapFreeHint": "Hold Alt (Option) while dragging or stepping to pass between the lines, or to click a primary line and go straight to it.",
   "options.tickUnitsHint": "Write it in the property's own calendar - 1Y, 6M, 3D, 12h, 30m (M months, m minutes) - or as a plain number.",
   "options.showSlider": "Show slider",
   "options.ratingToggle": "Rating icons",
@@ -5951,6 +5951,7 @@ function render(kind, ctx2) {
     const pctForValue = (v) => span <= 0 ? 0 : clamp((toPosition(v) - min) / span, 0, 1) * 100;
     const labelFor = (v) => fmtValue(kind, entry, v * factor) + (unit ? " " + unit : "");
     const ticks = ticksFor(min, max, Number(entry.tickMajor), Number(entry.tickMinor));
+    const majors = [];
     if (ticks.length) {
       const layer2 = slider.createDiv({ cls: "ep-slider2-ticks" });
       for (const tk of ticks) {
@@ -5960,6 +5961,7 @@ function render(kind, ctx2) {
         line.addClass("ep-tick-hover");
         line.setAttr("aria-label", labelFor(tk.value));
         bindHoverLabel(line, () => labelFor(tk.value));
+        majors.push({ el: line, value: tk.value });
       }
     }
     const knob = slider.createDiv({ cls: "ep-slider2-knob" });
@@ -5977,6 +5979,21 @@ function render(kind, ctx2) {
     };
     syncKnob = () => place2(get());
     syncKnob();
+    const jumpTo = (v) => {
+      let out = fmt(v);
+      if (!isFormula && entry.clamp) out = clamp(out, min, max);
+      place2(out);
+      setVal(out);
+      view.note.set(file, key, shouldClamp(entry.constraints) ? clampToConstraints(out, entry.constraints) : out);
+      sfx.tick();
+    };
+    for (const m of majors)
+      m.el.addEventListener("pointerdown", (e) => {
+        if (!isFree(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        jumpTo(m.value);
+      });
     let active = false;
     let pending2 = get();
     const drag = (clientX, free = false) => {
