@@ -1,13 +1,7 @@
 # Changelog
 
-## 4.56.0
+## 4.56.1
 
-- **A section will hand you all of its properties at once.** Right-click a
-  section title and *Set a property...* opens a panel where the pointer is,
-  listing every property the section holds - the empty ones first, then the
-  ones with a value. Fifty blank skills no longer mean a trip into edit mode
-  to start the one you want, and a property hidden for being empty is
-  reachable for the first time.
 - **The -/+ buttons stop disappearing from rows that have room for them.** In
   a Columns or Grid section the steppers were dropped for the whole section as
   soon as its *widest* row ran out of room, so one row carrying a roll button
@@ -21,6 +15,15 @@
   compacted row, which is nowhere to see what you are typing. Editors now take
   the place of the value they replace, in every field: numbers, text, links
   and the long-form box.
+
+## 4.56.0
+
+- **A section will hand you all of its properties at once.** Right-click a
+  section title and *Set a property...* opens a panel where the pointer is,
+  listing every property the section holds - the empty ones first, then the
+  ones with a value. Fifty blank skills no longer mean a trip into edit mode
+  to start the one you want, and a property hidden for being empty is
+  reachable for the first time.
 - **The rows in it are the sidebar's own rows**, drawn by the same renderers:
   a number keeps its steppers and slider, a rating its pips, a colour its
   swatch, a link its note autocomplete, a roll its button. Editing one is
