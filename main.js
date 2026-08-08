@@ -355,6 +355,7 @@ var en_default = {
   "options.linkHeading": "Link",
   "options.linkFolder": "Source folder",
   "options.linkFolderAdd": "Add folder",
+  "options.linkFolderPlaceholder": "Folder path",
   "options.linkFolderRemove": "Remove this folder",
   "options.linkFolderDesc": "Offer only the notes in these folders while editing. Empty = the whole vault. A new note is made in the first one.",
   "options.linkSubfolders": "Include subfolders",
@@ -5195,43 +5196,51 @@ function folderList(entry) {
   return foldersOf(entry).join(", ");
 }
 function renderFolderList(octx) {
-  const { view, entry, container: c, changed, redraw } = octx;
+  const { view, entry, container: c, changed } = octx;
   const t = view.i18n.t.bind(view.i18n);
-  const list = foldersOf(entry);
-  const write = (next) => {
+  const items = foldersOf(entry).map((value) => ({ value }));
+  const write = () => {
     var _a;
     const ch = (_a = entry.choices) != null ? _a : entry.choices = {};
-    ch.folders = next.length ? next : void 0;
+    const named = items.map((r) => r.value.trim()).filter(Boolean);
+    ch.folders = named.length ? named : void 0;
     ch.folder = void 0;
     changed();
   };
   new import_obsidian11.Setting(c).setName(t("options.linkFolder")).setDesc(t("options.linkFolderDesc"));
   const rows = c.createDiv({ cls: "ep-mini-list" });
-  list.forEach((val, i) => {
+  let addRowEl = null;
+  const drawRow = (item, focus) => {
     const row = new import_obsidian11.Setting(rows).setClass("ep-mini-row");
     row.addText((tx) => {
-      tx.setValue(val);
+      tx.setValue(item.value);
+      tx.setPlaceholder(t("options.linkFolderPlaceholder"));
       const save = (v) => {
-        const next = [...list];
-        next[i] = v.trim();
-        write(next.filter(Boolean));
+        item.value = v.trim();
+        write();
       };
       new FolderSuggest(view.app, tx.inputEl, save);
       tx.inputEl.addEventListener("change", () => save(tx.getValue()));
+      if (focus) window.setTimeout(() => tx.inputEl.focus(), 0);
     });
     row.addExtraButton(
       (b) => b.setIcon("x").setTooltip(t("options.linkFolderRemove")).onClick(() => {
-        write(list.filter((_, j) => j !== i));
-        redraw();
+        const i = items.indexOf(item);
+        if (i >= 0) items.splice(i, 1);
+        row.settingEl.remove();
+        write();
       })
     );
-  });
-  new import_obsidian11.Setting(rows).setClass("ep-mini-row").addButton(
+    if (addRowEl) rows.insertBefore(row.settingEl, addRowEl);
+  };
+  for (const item of items) drawRow(item, false);
+  addRowEl = new import_obsidian11.Setting(rows).setClass("ep-mini-row").addButton(
     (b) => b.setButtonText(t("options.linkFolderAdd")).onClick(() => {
-      write([...list, ""]);
-      redraw();
+      const item = { value: "" };
+      items.push(item);
+      drawRow(item, true);
     })
-  );
+  ).settingEl;
 }
 function renderNoteChoices(octx) {
   const { view, entry, container: c, changed } = octx;

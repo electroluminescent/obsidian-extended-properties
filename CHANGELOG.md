@@ -11,6 +11,12 @@
   and padding as every other heading in the tab. They are marked as
   sub-headings, which keeps them inside the Inline pieces section instead of
   each one starting a tab of its own.
+- **Add folder gives you a folder field.** It was writing a blank folder into
+  the settings and rebuilding the options to show it - but a blank is not a
+  folder, so it was dropped on the way back and the rebuild sent the editor to
+  the top. The list now grows and shrinks in place: the new field appears
+  under the last one with the cursor already in it, nothing is stored until a
+  folder is actually named, and removing a row no longer moves the page.
 
 ## 4.53.3
 

@@ -148,42 +148,57 @@ function folderList(entry: Entry): string {
  * the first one is where a new note is made.
  */
 function renderFolderList(octx: OptionsCtx): void {
-  const { view, entry, container: c, changed, redraw } = octx;
+  const { view, entry, container: c, changed } = octx;
   const t = view.i18n.t.bind(view.i18n);
-  const list = foldersOf(entry);
-  const write = (next: string[]): void => {
+  // The rows on screen, which may include a blank one waiting to be filled in.
+  // What is STORED is only the folders actually named - so a row cannot be
+  // kept in the settings, and the list of rows is kept here instead. Rows are
+  // added and removed in place: rebuilding the options to grow a list would
+  // throw away the blank row (it is not a folder yet) and send the editor
+  // back to the top.
+  const items = foldersOf(entry).map((value) => ({ value }));
+  const write = (): void => {
     const ch = (entry.choices ??= {});
-    ch.folders = next.length ? next : undefined;
+    const named = items.map((r) => r.value.trim()).filter(Boolean);
+    ch.folders = named.length ? named : undefined;
     ch.folder = undefined; // the single-folder field is superseded
     changed();
   };
   new Setting(c).setName(t("options.linkFolder")).setDesc(t("options.linkFolderDesc"));
   const rows = c.createDiv({ cls: "ep-mini-list" });
-  list.forEach((val, i) => {
+  /** Where new rows go: above the add button, once there is one. */
+  let addRowEl: HTMLElement | null = null;
+  const drawRow = (item: { value: string }, focus: boolean): void => {
     const row = new Setting(rows).setClass("ep-mini-row");
     row.addText((tx) => {
-      tx.setValue(val);
+      tx.setValue(item.value);
+      tx.setPlaceholder(t("options.linkFolderPlaceholder"));
       const save = (v: string): void => {
-        const next = [...list];
-        next[i] = v.trim();
-        write(next.filter(Boolean));
+        item.value = v.trim();
+        write();
       };
       new FolderSuggest(view.app, tx.inputEl, save);
       tx.inputEl.addEventListener("change", () => save(tx.getValue()));
+      if (focus) window.setTimeout(() => tx.inputEl.focus(), 0);
     });
     row.addExtraButton((b) =>
       b.setIcon("x").setTooltip(t("options.linkFolderRemove")).onClick(() => {
-        write(list.filter((_, j) => j !== i));
-        redraw();
+        const i = items.indexOf(item);
+        if (i >= 0) items.splice(i, 1);
+        row.settingEl.remove();
+        write();
       })
     );
-  });
-  new Setting(rows).setClass("ep-mini-row").addButton((b) =>
+    if (addRowEl) rows.insertBefore(row.settingEl, addRowEl);
+  };
+  for (const item of items) drawRow(item, false);
+  addRowEl = new Setting(rows).setClass("ep-mini-row").addButton((b) =>
     b.setButtonText(t("options.linkFolderAdd")).onClick(() => {
-      write([...list, ""]);
-      redraw();
+      const item = { value: "" };
+      items.push(item);
+      drawRow(item, true);
     })
-  );
+  ).settingEl;
 }
 
 /** The settings a note-linking field carries: where its notes come from. */

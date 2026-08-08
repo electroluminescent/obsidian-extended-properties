@@ -253,6 +253,7 @@
   "options.linkHeading": "Link",
   "options.linkFolder": "Source folder",
   "options.linkFolderAdd": "Add folder",
+  "options.linkFolderPlaceholder": "Folder path",
   "options.linkFolderRemove": "Remove this folder",
   "options.linkFolderDesc": "Offer only the notes in these folders while editing. Empty = the whole vault. A new note is made in the first one.",
   "options.linkSubfolders": "Include subfolders",
