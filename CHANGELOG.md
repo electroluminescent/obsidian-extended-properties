@@ -4,9 +4,12 @@
 
 - **A section can hand you the properties it is hiding.** Right-click a
   section title outside edit mode and, where it holds properties hidden for
-  being empty, the menu offers *Set a hidden property...*: a searchable list
-  of them by name, then a box for the first value. Fifty skills that are all
-  blank no longer mean a trip into edit mode to start the one you want.
+  being empty, the menu offers *Set a hidden property...*. It opens a small
+  panel where the pointer is: a list to pick from and a field to type in, side
+  by side. Enter saves and takes the property just filled off the list, so six
+  skills are six picks and six numbers without a dialog in sight; Escape or a
+  click elsewhere puts it away. Fifty blank skills no longer mean a trip into
+  edit mode to start the one you want.
 - The value is read the way that property's own field would read it, so a
   number takes arithmetic and measurements, a checkbox takes "yes", and a list
   takes a comma-separated line. Once it has a value the row appears in the

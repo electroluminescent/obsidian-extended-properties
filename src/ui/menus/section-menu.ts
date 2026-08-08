@@ -4,14 +4,13 @@
  * delete.
  */
 
-import { FuzzySuggestModal, Menu, Notice, TFile } from "obsidian";
+import { Menu, Notice, TFile } from "obsidian";
 import type { ViewCtx } from "../../core/context";
 import type { Entry, Section } from "../../core/model";
 import { genId } from "../../utils/misc";
 import { packSection } from "../../core/transfer";
 import * as ops from "../../core/layout-ops";
 import { SectionOptionsModal } from "../modals/section-options";
-import { TextPromptModal } from "../modals/dialogs";
 import { isHiddenEntry } from "../render/entry-renderer";
 import { evalMeasure, unitsForField } from "../../utils/measure";
 import { flipMove } from "../drag";
@@ -23,22 +22,8 @@ function emptyEntries(view: ViewCtx, section: Section): Entry[] {
   return section.entries.filter((e) => e.kind === "prop" && !!e.key && isHiddenEntry(view, e));
 }
 
-/** Pick one of the properties a section is hiding, by the name it shows. */
-class EmptyPropModal extends FuzzySuggestModal<Entry> {
-  constructor(view: ViewCtx, private entries: Entry[], private onPick: (e: Entry) => void) {
-    super(view.app);
-    this.setPlaceholder(view.i18n.t("section.menu.fillPick"));
-  }
-  getItems(): Entry[] {
-    return this.entries;
-  }
-  getItemText(e: Entry): string {
-    return (e.alias as string) || (e.key as string) || "";
-  }
-  onChooseItem(e: Entry): void {
-    this.onPick(e);
-  }
-}
+/** The name a property shows in the sidebar. */
+const nameOf = (e: Entry): string => (e.alias as string) || (e.key as string) || "";
 
 /**
  * What a typed value means for this property. A numeric field reads what was
@@ -57,24 +42,82 @@ function coerce(view: ViewCtx, entry: Entry, text: string): unknown {
   return text;
 }
 
-/** Ask for a first value for `entry`, and give the property one. */
-function fillEntry(view: ViewCtx, file: TFile, entry: Entry): void {
+/**
+ * Give a value to one of the properties a section is hiding: a list to pick
+ * from and a field to type in, side by side, where the pointer already is.
+ *
+ * It stays open after each value, with the property just filled taken off the
+ * list - filling in six skills is six picks and six numbers, not six trips
+ * through a dialog. Escape or a click elsewhere puts it away.
+ */
+function openFillPopup(ev: MouseEvent, view: ViewCtx, file: TFile, entries: Entry[]): void {
   const t = view.i18n.t.bind(view.i18n);
-  const key = entry.key as string;
-  const name = (entry.alias as string) || key;
-  new TextPromptModal(
-    view.app,
-    view.i18n,
-    t("section.menu.fillValue", { name }),
-    "",
-    (v) => {
-      const text = v.trim();
-      if (!text) return;
-      view.note.set(file, key, coerce(view, entry, text));
-      view.rerender(); // it was hidden for being empty; now it is neither
-    },
-    () => view.props.valuesFor(key)
-  ).open();
+  const left = [...entries];
+  const pop = activeDocument.body.createDiv({ cls: "ep-popup ep-fillpop" });
+  pop.setCssStyles({ left: ev.clientX + "px", top: ev.clientY + 2 + "px" });
+
+  const row = pop.createDiv({ cls: "ep-fillpop-row" });
+  const sel = row.createEl("select", { cls: "dropdown ep-fillpop-pick" });
+  const input = row.createEl("input", { cls: "ep-edit-input ep-fillpop-val" });
+  input.type = "text";
+  input.placeholder = t("section.menu.fillPlaceholder");
+  const go = row.createEl("button", { cls: "mod-cta", text: t("common.save") });
+  pop.createDiv({ cls: "ep-fillpop-note", text: t("section.menu.fillHint") });
+
+  const dismiss = (): void => {
+    pop.remove();
+    activeDocument.removeEventListener("mousedown", outside);
+  };
+  const outside = (e: MouseEvent): void => {
+    if (!pop.contains(e.target as Node)) dismiss();
+  };
+  const list = (): void => {
+    sel.empty();
+    for (const e of left) sel.createEl("option", { value: e.id, text: nameOf(e) });
+  };
+  const commit = (): void => {
+    const entry = left.find((e) => e.id === sel.value);
+    const text = input.value.trim();
+    if (!entry || !text) return;
+    view.note.set(file, entry.key as string, coerce(view, entry, text));
+    left.splice(left.indexOf(entry), 1);
+    input.value = "";
+    view.rerender(); // it was hidden for being empty; now it is neither
+    if (!left.length) {
+      dismiss();
+      return;
+    }
+    list();
+    input.focus();
+  };
+  list();
+  go.onclick = commit;
+  input.onkeydown = (e: KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commit();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      dismiss();
+    }
+  };
+  sel.onkeydown = (e: KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      input.focus();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      dismiss();
+    }
+  };
+  window.setTimeout(() => activeDocument.addEventListener("mousedown", outside), 0);
+  window.setTimeout(() => sel.focus(), 0);
+
+  // Keep within the window.
+  const w = pop.offsetWidth;
+  const h = pop.offsetHeight;
+  if (ev.clientX + w > window.innerWidth - 4) pop.setCssStyles({ left: Math.max(4, window.innerWidth - w - 4) + "px" });
+  if (ev.clientY + h > window.innerHeight - 4) pop.setCssStyles({ top: Math.max(4, ev.clientY - h - 2) + "px" });
 }
 
 export function openSectionMenu(e: MouseEvent, view: ViewCtx, file: TFile, section: Section): void {
@@ -90,7 +133,7 @@ export function openSectionMenu(e: MouseEvent, view: ViewCtx, file: TFile, secti
       i
         .setTitle(t("section.menu.fillEmpty", { n: String(empties.length) }))
         .setIcon("plus")
-        .onClick(() => new EmptyPropModal(view, empties, (entry) => fillEntry(view, file, entry)).open())
+        .onClick(() => openFillPopup(e, view, file, empties))
     );
     menu.addSeparator();
   }

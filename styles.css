@@ -687,6 +687,12 @@ body.is-mobile .ep-roll-cards { margin: 0; width: 100%; max-height: 100%; flex-w
 .ep-roll-chain .ep-roll-totalcell .ep-roll-cellval { font-size: 1.35em; }
 /* roll-options popup (right-click on a roll button) */
 .ep-rollmenu { display: flex; flex-direction: column; gap: 8px; padding: 8px; }
+/* Filling in a property a section is hiding: pick, type, Enter. */
+.ep-fillpop { padding: 8px; }
+.ep-fillpop-row { display: flex; align-items: center; gap: 6px; }
+.ep-fillpop-pick { max-width: 14em; }
+.ep-fillpop-val { width: 8em; }
+.ep-fillpop-note { margin-top: 6px; color: var(--text-muted); font-size: var(--font-ui-smaller); }
 .ep-rollmenu-count { display: flex; align-items: center; gap: 8px; font-size: var(--font-ui-smaller); }
 .ep-rollmenu-count .ep-edit-input { width: 4.5em; }
 /* decorations fade out (label and value always keep their room) */

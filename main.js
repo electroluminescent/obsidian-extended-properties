@@ -194,8 +194,8 @@ var en_default = {
   "layout.grid": "grid",
   "section.menu.configure": 'Configure "{name}" section...',
   "section.menu.fillEmpty": "Set a hidden property... ({n})",
-  "section.menu.fillPick": "Which property?",
-  "section.menu.fillValue": "Value for {name}",
+  "section.menu.fillPlaceholder": "Value",
+  "section.menu.fillHint": "Enter saves and moves to the next; Escape closes.",
   "section.menu.showDividers": "Show horizontal dividers",
   "section.menu.hideDividers": "Hide horizontal dividers",
   "section.menu.showVDividers": "Show vertical dividers",
@@ -11561,23 +11561,7 @@ function emptyEntries(view, section) {
   if (view.editMode) return [];
   return section.entries.filter((e) => e.kind === "prop" && !!e.key && isHiddenEntry(view, e));
 }
-var EmptyPropModal = class extends import_obsidian28.FuzzySuggestModal {
-  constructor(view, entries, onPick) {
-    super(view.app);
-    this.entries = entries;
-    this.onPick = onPick;
-    this.setPlaceholder(view.i18n.t("section.menu.fillPick"));
-  }
-  getItems() {
-    return this.entries;
-  }
-  getItemText(e) {
-    return e.alias || e.key || "";
-  }
-  onChooseItem(e) {
-    this.onPick(e);
-  }
-};
+var nameOf = (e) => e.alias || e.key || "";
 function coerce(view, entry, text) {
   var _a;
   const type = view.resolveType(entry);
@@ -11590,23 +11574,70 @@ function coerce(view, entry, text) {
   }
   return text;
 }
-function fillEntry(view, file, entry) {
+function openFillPopup(ev, view, file, entries) {
   const t = view.i18n.t.bind(view.i18n);
-  const key = entry.key;
-  const name = entry.alias || key;
-  new TextPromptModal(
-    view.app,
-    view.i18n,
-    t("section.menu.fillValue", { name }),
-    "",
-    (v) => {
-      const text = v.trim();
-      if (!text) return;
-      view.note.set(file, key, coerce(view, entry, text));
-      view.rerender();
-    },
-    () => view.props.valuesFor(key)
-  ).open();
+  const left = [...entries];
+  const pop = activeDocument.body.createDiv({ cls: "ep-popup ep-fillpop" });
+  pop.setCssStyles({ left: ev.clientX + "px", top: ev.clientY + 2 + "px" });
+  const row = pop.createDiv({ cls: "ep-fillpop-row" });
+  const sel = row.createEl("select", { cls: "dropdown ep-fillpop-pick" });
+  const input = row.createEl("input", { cls: "ep-edit-input ep-fillpop-val" });
+  input.type = "text";
+  input.placeholder = t("section.menu.fillPlaceholder");
+  const go = row.createEl("button", { cls: "mod-cta", text: t("common.save") });
+  pop.createDiv({ cls: "ep-fillpop-note", text: t("section.menu.fillHint") });
+  const dismiss = () => {
+    pop.remove();
+    activeDocument.removeEventListener("mousedown", outside);
+  };
+  const outside = (e) => {
+    if (!pop.contains(e.target)) dismiss();
+  };
+  const list = () => {
+    sel.empty();
+    for (const e of left) sel.createEl("option", { value: e.id, text: nameOf(e) });
+  };
+  const commit2 = () => {
+    const entry = left.find((e) => e.id === sel.value);
+    const text = input.value.trim();
+    if (!entry || !text) return;
+    view.note.set(file, entry.key, coerce(view, entry, text));
+    left.splice(left.indexOf(entry), 1);
+    input.value = "";
+    view.rerender();
+    if (!left.length) {
+      dismiss();
+      return;
+    }
+    list();
+    input.focus();
+  };
+  list();
+  go.onclick = commit2;
+  input.onkeydown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commit2();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      dismiss();
+    }
+  };
+  sel.onkeydown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      input.focus();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      dismiss();
+    }
+  };
+  window.setTimeout(() => activeDocument.addEventListener("mousedown", outside), 0);
+  window.setTimeout(() => sel.focus(), 0);
+  const w = pop.offsetWidth;
+  const h = pop.offsetHeight;
+  if (ev.clientX + w > window.innerWidth - 4) pop.setCssStyles({ left: Math.max(4, window.innerWidth - w - 4) + "px" });
+  if (ev.clientY + h > window.innerHeight - 4) pop.setCssStyles({ top: Math.max(4, ev.clientY - h - 2) + "px" });
 }
 function openSectionMenu(e, view, file, section) {
   const t = view.i18n.t.bind(view.i18n);
@@ -11614,7 +11645,7 @@ function openSectionMenu(e, view, file, section) {
   const empties = emptyEntries(view, section);
   if (empties.length) {
     menu.addItem(
-      (i) => i.setTitle(t("section.menu.fillEmpty", { n: String(empties.length) })).setIcon("plus").onClick(() => new EmptyPropModal(view, empties, (entry) => fillEntry(view, file, entry)).open())
+      (i) => i.setTitle(t("section.menu.fillEmpty", { n: String(empties.length) })).setIcon("plus").onClick(() => openFillPopup(e, view, file, empties))
     );
     menu.addSeparator();
   }
