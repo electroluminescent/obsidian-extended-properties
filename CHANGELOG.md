@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.56.0
+
+- **A section can hand you the properties it is hiding.** Right-click a
+  section title outside edit mode and, where it holds properties hidden for
+  being empty, the menu offers *Set a hidden property...*: a searchable list
+  of them by name, then a box for the first value. Fifty skills that are all
+  blank no longer mean a trip into edit mode to start the one you want.
+- The value is read the way that property's own field would read it, so a
+  number takes arithmetic and measurements, a checkbox takes "yes", and a list
+  takes a comma-separated line. Once it has a value the row appears in the
+  sidebar and behaves as it always has.
+
 ## 4.55.0
 
 - **Add folder gives you a folder field.** It was writing a blank folder into

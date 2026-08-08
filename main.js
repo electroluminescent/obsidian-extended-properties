@@ -193,6 +193,9 @@ var en_default = {
   "layout.columns": "columns",
   "layout.grid": "grid",
   "section.menu.configure": 'Configure "{name}" section...',
+  "section.menu.fillEmpty": "Set a hidden property... ({n})",
+  "section.menu.fillPick": "Which property?",
+  "section.menu.fillValue": "Value for {name}",
   "section.menu.showDividers": "Show horizontal dividers",
   "section.menu.hideDividers": "Hide horizontal dividers",
   "section.menu.showVDividers": "Show vertical dividers",
@@ -11546,9 +11549,67 @@ var DragController = class {
 };
 
 // src/ui/menus/section-menu.ts
-function openSectionMenu(e, view, section) {
+function emptyEntries(view, section) {
+  if (view.editMode) return [];
+  return section.entries.filter((e) => e.kind === "prop" && !!e.key && isHiddenEntry(view, e));
+}
+var EmptyPropModal = class extends import_obsidian28.FuzzySuggestModal {
+  constructor(view, entries, onPick) {
+    super(view.app);
+    this.entries = entries;
+    this.onPick = onPick;
+    this.setPlaceholder(view.i18n.t("section.menu.fillPick"));
+  }
+  getItems() {
+    return this.entries;
+  }
+  getItemText(e) {
+    return e.alias || e.key || "";
+  }
+  onChooseItem(e) {
+    this.onPick(e);
+  }
+};
+function coerce(view, entry, text) {
+  var _a;
+  const type = view.resolveType(entry);
+  if (type === "checkbox") return /^(y|yes|true|on|1)$/i.test(text);
+  if (type === "list") return text.split(",").map((v) => v.trim()).filter(Boolean);
+  if (type === "number" || type === "decimal" || type === "formula" || type === "unit" || type === "rating") {
+    const unit = ((_a = entry.unit) != null ? _a : "").trim();
+    const n = evalMeasure(text, unitsForField(view.settings.units, entry.unit), { percentIsUnit: unit === "%" });
+    return n === void 0 ? text : n;
+  }
+  return text;
+}
+function fillEntry(view, file, entry) {
+  const t = view.i18n.t.bind(view.i18n);
+  const key = entry.key;
+  const name = entry.alias || key;
+  new TextPromptModal(
+    view.app,
+    view.i18n,
+    t("section.menu.fillValue", { name }),
+    "",
+    (v) => {
+      const text = v.trim();
+      if (!text) return;
+      view.note.set(file, key, coerce(view, entry, text));
+      view.rerender();
+    },
+    () => view.props.valuesFor(key)
+  ).open();
+}
+function openSectionMenu(e, view, file, section) {
   const t = view.i18n.t.bind(view.i18n);
   const menu = new import_obsidian28.Menu();
+  const empties = emptyEntries(view, section);
+  if (empties.length) {
+    menu.addItem(
+      (i) => i.setTitle(t("section.menu.fillEmpty", { n: String(empties.length) })).setIcon("plus").onClick(() => new EmptyPropModal(view, empties, (entry) => fillEntry(view, file, entry)).open())
+    );
+    menu.addSeparator();
+  }
   menu.addItem(
     (i) => i.setTitle(t("section.menu.configure", { name: section.title })).setIcon("settings").onClick(() => new SectionOptionsModal(view, section).open())
   );
@@ -11773,12 +11834,12 @@ function renderSection(parent, view, file, section, drag, host) {
     menuBtn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      openSectionMenu(e, view, section);
+      openSectionMenu(e, view, file, section);
     };
   }
   sum.addEventListener("contextmenu", (e) => {
     e.preventDefault();
-    openSectionMenu(e, view, section);
+    openSectionMenu(e, view, file, section);
   });
   const collapseWrap = det.createDiv({ cls: "ep-collapse" });
   const body = collapseWrap.createDiv({ cls: "ep-section-body" });

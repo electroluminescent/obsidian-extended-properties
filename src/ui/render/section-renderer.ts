@@ -219,12 +219,12 @@ export function renderSection(
     menuBtn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      openSectionMenu(e, view, section);
+      openSectionMenu(e, view, file, section);
     };
   }
   sum.addEventListener("contextmenu", (e) => {
     e.preventDefault();
-    openSectionMenu(e, view, section);
+    openSectionMenu(e, view, file, section);
   });
 
   // -- body --------------------------------------------------------------
