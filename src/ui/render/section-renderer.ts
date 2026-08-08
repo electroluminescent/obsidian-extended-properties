@@ -340,12 +340,28 @@ export function renderSection(
     }
   }
 
+  // Properties held out while the section is shut: drawn again outside the
+  // fold, and shown by CSS only when the section is collapsed. They are drawn
+  // AFTER the body so a value type that remembers where it put itself
+  // remembers the copy on show, not the folded one.
+  const kept = view.editMode ? [] : section.entries.filter((e) => e.showCollapsed === true && !isHiddenEntry(view, e));
+  if (kept.length && collapsible) {
+    const keep = det.createDiv({ cls: "ep-section-kept" });
+    const keepGrid = keep.createDiv({ cls: "ep-grid ep-mode-list" });
+    for (const entry of kept) renderEntry(keepGrid, view, file, section, entry, flags, drag);
+    alignClusters(keep);
+  }
+
   alignClusters(det);
   if (colRail || rowRail) renderRails(view, section, grid, colRail, rowRail);
   if (view.editMode) drag.attachSection(det, grid, section);
   if (collapsible) {
     collapseWrap.setCssStyles({ overflow: "hidden" });
+    det.toggleClass("is-collapsed", !!section.collapsed);
     if (section.collapsed) collapseWrap.setCssStyles({ height: "0px" });
+    // What is folded away is not reachable by keyboard either - which also
+    // keeps the folded copy of a held-out property out of the tab order.
+    collapseWrap.toggleAttribute("inert", !!section.collapsed);
     // Accessible disclosure (M1): the title bar is a keyboard-operable button
     // that reports its expanded/collapsed state.
     sum.setAttr("role", "button");
@@ -376,6 +392,8 @@ function toggleSection(
 ): void {
   section.collapsed = !section.collapsed;
   view.saveLayout();
+  det.toggleClass("is-collapsed", !!section.collapsed);
+  wrap.toggleAttribute("inert", !!section.collapsed);
   const chev = det.querySelector(".ep-chev");
   if (chev) (chev as HTMLElement).toggleClass("ep-open", !section.collapsed);
   if (section.collapsed) {

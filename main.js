@@ -546,6 +546,8 @@ var en_default = {
   "options.showLabelDesc": "On = the label is visible outside edit mode",
   "options.showWhenEmpty": "Show when empty",
   "options.showWhenEmptyDesc": "On = stays visible outside edit mode even without a value",
+  "options.showCollapsed": "Show while the section is collapsed",
+  "options.showCollapsedDesc": "Keep this property on show when its section is folded away, under the section title. The rest of the section stays collapsed.",
   "options.showWhen": "Show when",
   "options.showWhenDesc": `Condition over the note's values - e.g. Class == "Wizard" or Level >= 5. Empty = always shown; edit mode shows it dimmed.`,
   "options.showWhenActive": "Shown when: {expr}",
@@ -9936,6 +9938,12 @@ function renderEntryOptionsBody(octx, onDone, onRemoved, opts = {}) {
       changed();
     });
   });
+  new import_obsidian24.Setting(c).setName(t("options.showCollapsed")).setDesc(t("options.showCollapsedDesc")).addToggle((tg) => {
+    tg.setValue(e.showCollapsed === true).onChange((v) => {
+      e.showCollapsed = v || void 0;
+      changed();
+    });
+  });
   new import_obsidian24.Setting(c).setName(t("options.showWhen")).setDesc(t("options.showWhenDesc")).addText((tx) => {
     var _a2;
     const mark = () => {
@@ -11934,12 +11942,21 @@ function renderSection(parent, view, file, section, drag, host) {
       ab.onclick = () => view.openAddMenu(ab, section, { index: section.entries.length });
     }
   }
+  const kept = view.editMode ? [] : section.entries.filter((e) => e.showCollapsed === true && !isHiddenEntry(view, e));
+  if (kept.length && collapsible) {
+    const keep = det.createDiv({ cls: "ep-section-kept" });
+    const keepGrid = keep.createDiv({ cls: "ep-grid ep-mode-list" });
+    for (const entry of kept) renderEntry(keepGrid, view, file, section, entry, flags, drag);
+    alignClusters(keep);
+  }
   alignClusters(det);
   if (colRail || rowRail) renderRails(view, section, grid, colRail, rowRail);
   if (view.editMode) drag.attachSection(det, grid, section);
   if (collapsible) {
     collapseWrap.setCssStyles({ overflow: "hidden" });
+    det.toggleClass("is-collapsed", !!section.collapsed);
     if (section.collapsed) collapseWrap.setCssStyles({ height: "0px" });
+    collapseWrap.toggleAttribute("inert", !!section.collapsed);
     sum.setAttr("role", "button");
     sum.tabIndex = 0;
     sum.setAttr("aria-label", t("a11y.toggleSection", { name: section.title }));
@@ -11960,6 +11977,8 @@ function renderSection(parent, view, file, section, drag, host) {
 function toggleSection(view, section, det, wrap, host) {
   section.collapsed = !section.collapsed;
   view.saveLayout();
+  det.toggleClass("is-collapsed", !!section.collapsed);
+  wrap.toggleAttribute("inert", !!section.collapsed);
   const chev = det.querySelector(".ep-chev");
   if (chev) chev.toggleClass("ep-open", !section.collapsed);
   if (section.collapsed) {

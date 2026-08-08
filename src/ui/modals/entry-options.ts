@@ -277,6 +277,15 @@ export function renderEntryOptionsBody(
       });
     });
   new Setting(c)
+    .setName(t("options.showCollapsed"))
+    .setDesc(t("options.showCollapsedDesc"))
+    .addToggle((tg) => {
+      tg.setValue(e.showCollapsed === true).onChange((v) => {
+        e.showCollapsed = v || undefined;
+        changed();
+      });
+    });
+  new Setting(c)
     .setName(t("options.showWhen"))
     .setDesc(t("options.showWhenDesc"))
     .addText((tx) => {

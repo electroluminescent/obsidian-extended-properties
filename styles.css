@@ -133,6 +133,11 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
 .ep-menu-btn svg { width: 15px; height: 15px; }
 .ep-dim { opacity: 0.5; }
 .ep-collapse { transition: height .2s ease; }
+/* Properties held out of the fold: drawn always, shown only while the
+   section is collapsed (the folded copy is inert, so neither is a
+   second stop on the way round with the keyboard). */
+.ep-section-kept { display: none; padding: 0 var(--ep-section-pad-x, 8px) 6px; }
+.ep-section.is-collapsed .ep-section-kept { display: block; }
 
 .ep-grip { cursor: grab; color: var(--text-faint); user-select: none; padding: 0 1px; transition: color .2s ease; }
 .ep-grip:hover { color: var(--text-normal); }

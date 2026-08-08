@@ -71,6 +71,12 @@ export interface EntryBase {
   hideLabel?: boolean;
   /** Hide the whole entry outside edit mode when the value is empty (default true). */
   hideIfEmpty?: boolean;
+  /**
+   * Keep this property on show while its section is collapsed. A section shut
+   * away for room can still put its few important values on the title bar's
+   * doorstep - the rest of it stays folded.
+   */
+  showCollapsed?: boolean;
   /** Show the data-type tag beside the label (default true; space permitting). */
   showType?: boolean;
   /** Show the modifier chain denotation, e.g. INT + DEX (default true). */

@@ -11,6 +11,11 @@
   number takes arithmetic and measurements, a checkbox takes "yes", and a list
   takes a comma-separated line. Once it has a value the row appears in the
   sidebar and behaves as it always has.
+- **A property can stay on show while its section is collapsed**, under
+  Appearance. Hit points and armour class remain under the title of a folded
+  Vitals; the rest of the section stays away. The property is fully live
+  there - steppers, sliders, rolls - and a folded section is now out of the
+  keyboard's way entirely, so nothing is visited twice on the way round.
 
 ## 4.55.0
 

@@ -444,6 +444,8 @@
   "options.showLabelDesc": "On = the label is visible outside edit mode",
   "options.showWhenEmpty": "Show when empty",
   "options.showWhenEmptyDesc": "On = stays visible outside edit mode even without a value",
+  "options.showCollapsed": "Show while the section is collapsed",
+  "options.showCollapsedDesc": "Keep this property on show when its section is folded away, under the section title. The rest of the section stays collapsed.",
   "options.showWhen": "Show when",
   "options.showWhenDesc": "Condition over the note's values - e.g. Class == \"Wizard\" or Level >= 5. Empty = always shown; edit mode shows it dimmed.",
   "options.showWhenActive": "Shown when: {expr}",
