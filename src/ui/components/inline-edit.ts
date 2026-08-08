@@ -35,6 +35,21 @@ function focusEditableFrom(span: HTMLElement, backwards: boolean): void {
   stepField(scope, span, backwards);
 }
 
+/**
+ * An editor takes the place of the value it replaces - its track in the
+ * cluster grid included. Every cell there is pinned to a column of its own
+ * (see `render/cluster`), so a field with no placement of its own is
+ * auto-placed into the first free track: on a row whose steppers are hidden
+ * that track is zero pixels wide, and the value being typed is nowhere to be
+ * seen.
+ */
+function takePlace(from: HTMLElement, to: HTMLElement): void {
+  const col = from.style.gridColumn;
+  const row = from.style.gridRow;
+  if (col) to.setCssStyles({ gridColumn: col });
+  if (row) to.setCssStyles({ gridRow: row });
+}
+
 /** Swap `span` for a number input; commit the parsed (and clamped) value. */
 export function openNumberInput(
   span: HTMLElement,
@@ -54,6 +69,7 @@ export function openNumberInput(
     if (o.float) input.step = "any";
   }
   input.value = fmtNum(value);
+  takePlace(span, input);
   span.replaceWith(input);
   input.focus();
   input.select();
@@ -101,6 +117,7 @@ export function openTextInput(
   const input = createEl("input", { cls: "ep-edit-input" });
   input.type = "text";
   input.value = value;
+  takePlace(span, input);
   span.replaceWith(input);
   input.focus();
   input.select();
@@ -167,6 +184,7 @@ export function openLinkInput(
   const input = createEl("input", { cls: "ep-edit-input" });
   input.type = "text";
   input.value = value;
+  takePlace(span, input);
   span.replaceWith(input);
   input.focus();
   input.select();
@@ -225,6 +243,7 @@ export function openTextArea(span: HTMLElement, value: string, commit: (v: strin
   const area = createEl("textarea", { cls: "ep-edit-input ep-edit-area" });
   area.value = value;
   area.rows = 1;
+  takePlace(span, area);
   span.replaceWith(area);
 
   /** Height follows the content, up to a cap - then it scrolls. */

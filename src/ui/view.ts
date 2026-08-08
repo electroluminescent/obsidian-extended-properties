@@ -1021,6 +1021,10 @@ export class SidebarView extends ItemView implements ViewCtx {
       if (cgrid) {
         cgrid.removeClass("ep-compact");
         cgrid.removeClass("ep-compact-steppers");
+        for (const row of cgrid.findAll(".ep-entry")) {
+          row.removeClass("ep-compact");
+          row.removeClass("ep-compact-steppers");
+        }
         cgrid.setCssStyles({ gridTemplateColumns: `repeat(${ncol}, minmax(0, 1fr))` });
       }
 
@@ -1037,14 +1041,6 @@ export class SidebarView extends ItemView implements ViewCtx {
       if (cgrid && !this.editMode) {
         const cheads = cgrid.findAll(".ep-entry-head").filter((h) => h.clientWidth > 0);
         if (cheads.length) {
-          const maxCluster = (): number => {
-            let m = 0;
-            for (const h of cheads) {
-              const c = h.querySelector<HTMLElement>(".ep-cluster");
-              if (c) m = Math.max(m, c.offsetWidth);
-            }
-            return m;
-          };
           const gridW = cgrid.clientWidth;
           // Real geometry, not assumptions: the actual grid gap, and the
           // entry's horizontal padding (the head's content box is that much
@@ -1070,19 +1066,30 @@ export class SidebarView extends ItemView implements ViewCtx {
           const numW = maxOf(".ep-cluster .ep-num");
           const labelMin = (rollW || 2.6 * fs) + 5; // + the label/cluster gap
           const floorNeed = labelMin + numW + (numW && rollW ? 2 : 0) + rollW;
-          const fullNeed = labelMin + maxCluster(); // room with all controls
-          // Staged compaction: the -/+ steppers are the first thing to go -
-          // always before the number could clip - then the toggle boxes.
-          cgrid.addClass("ep-compact-steppers");
-          const noStepNeed = labelMin + maxCluster(); // steppers hidden
-          cgrid.addClass("ep-compact");
+          // What each row needs with everything on show, measured before
+          // anything is taken away.
+          const needs = new Map<HTMLElement, number>();
+          for (const h of cheads) {
+            const c = h.querySelector<HTMLElement>(".ep-cluster");
+            needs.set(h, labelMin + (c ? c.offsetWidth : 0));
+          }
+          const stepPx = parseFloat(window.getComputedStyle(cgrid).getPropertyValue("--ep-step-col")) || 20;
           let cols = ncol;
           while (cols > 1 && colW(cols) < floorNeed) cols--;
-          if (colW(cols) >= fullNeed) {
-            cgrid.removeClass("ep-compact");
-            cgrid.removeClass("ep-compact-steppers");
-          } else if (colW(cols) >= noStepNeed) {
-            cgrid.removeClass("ep-compact"); // steppers stay hidden, toggles return
+          const room = colW(cols);
+          // Staged compaction, ROW BY ROW: the -/+ steppers are the first
+          // thing to go - always before the number could clip - then the
+          // toggle boxes. It used to be all or nothing for the whole section,
+          // so one wide row (a roll button and a badge, say) took the
+          // steppers off every other row in it, however much room they had.
+          for (const h of cheads) {
+            const row = h.closest<HTMLElement>(".ep-entry");
+            if (!row) continue;
+            const need = needs.get(h) ?? 0;
+            if (need <= room) continue;
+            row.addClass("ep-compact-steppers");
+            const steppers = h.findAll(".ep-step-btn").length ? 2 * stepPx : 0;
+            if (need - steppers > room) row.addClass("ep-compact");
           }
           cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
           // Safety net against a real clip, run AFTER the decoration squeeze

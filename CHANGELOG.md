@@ -8,6 +8,19 @@
   ones with a value. Fifty blank skills no longer mean a trip into edit mode
   to start the one you want, and a property hidden for being empty is
   reachable for the first time.
+- **The -/+ buttons stop disappearing from rows that have room for them.** In
+  a Columns or Grid section the steppers were dropped for the whole section as
+  soon as its *widest* row ran out of room, so one row carrying a roll button
+  and a badge took the steppers off every other row - in a 444px sidebar with
+  a 214px column, a row needing 217px. The decision is made row by row now:
+  only the rows that genuinely cannot fit lose their steppers, and then their
+  toggles.
+- **What you type shows up again.** Every cell in a value's control cluster is
+  pinned to a column of its own; the editor that stands in for a value was not,
+  so it was auto-placed into whatever track was free - 17 pixels wide on a
+  compacted row, which is nowhere to see what you are typing. Editors now take
+  the place of the value they replace, in every field: numbers, text, links
+  and the long-form box.
 - **The rows in it are the sidebar's own rows**, drawn by the same renderers:
   a number keeps its steppers and slider, a rating its pips, a colour its
   swatch, a link its note autocomplete, a roll its button. Editing one is

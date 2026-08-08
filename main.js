@@ -3851,6 +3851,12 @@ function focusEditableFrom(span, backwards) {
   const scope = (_a = span.closest(".view-content")) != null ? _a : span.ownerDocument.body;
   stepField(scope, span, backwards);
 }
+function takePlace(from, to) {
+  const col = from.style.gridColumn;
+  const row = from.style.gridRow;
+  if (col) to.setCssStyles({ gridColumn: col });
+  if (row) to.setCssStyles({ gridRow: row });
+}
 function openNumberInput(span, value, commit2, o) {
   const input = createEl("input", { cls: "ep-edit-input" });
   if (o.evaluate) {
@@ -3862,6 +3868,7 @@ function openNumberInput(span, value, commit2, o) {
     if (o.float) input.step = "any";
   }
   input.value = fmtNum(value);
+  takePlace(span, input);
   span.replaceWith(input);
   input.focus();
   input.select();
@@ -3903,6 +3910,7 @@ function openTextInput(app, span, key, value, valuesFor, commit2, opts = {}) {
   const input = createEl("input", { cls: "ep-edit-input" });
   input.type = "text";
   input.value = value;
+  takePlace(span, input);
   span.replaceWith(input);
   input.focus();
   input.select();
@@ -3954,6 +3962,7 @@ function openLinkInput(app, span, value, opts, commit2) {
   const input = createEl("input", { cls: "ep-edit-input" });
   input.type = "text";
   input.value = value;
+  takePlace(span, input);
   span.replaceWith(input);
   input.focus();
   input.select();
@@ -4008,6 +4017,7 @@ function openTextArea(span, value, commit2) {
   const area = createEl("textarea", { cls: "ep-edit-input ep-edit-area" });
   area.value = value;
   area.rows = 1;
+  takePlace(span, area);
   span.replaceWith(area);
   const grow = () => {
     area.setCssStyles({ height: "auto" });
@@ -13666,7 +13676,7 @@ var SidebarView = class extends import_obsidian33.ItemView {
     if (cramped()) header.addClass("ep-header-tight3");
   }
   responsivePass() {
-    var _a, _b;
+    var _a, _b, _c;
     this.headerFit();
     window.requestAnimationFrame(() => this.markDividers());
     const fs = parseFloat(getComputedStyle(this.content).fontSize) || 16;
@@ -13687,6 +13697,10 @@ var SidebarView = class extends import_obsidian33.ItemView {
       if (cgrid) {
         cgrid.removeClass("ep-compact");
         cgrid.removeClass("ep-compact-steppers");
+        for (const row of cgrid.findAll(".ep-entry")) {
+          row.removeClass("ep-compact");
+          row.removeClass("ep-compact-steppers");
+        }
         cgrid.setCssStyles({ gridTemplateColumns: `repeat(${ncol}, minmax(0, 1fr))` });
       }
       alignClustersNow(sec);
@@ -13694,14 +13708,6 @@ var SidebarView = class extends import_obsidian33.ItemView {
       if (cgrid && !this.editMode) {
         const cheads = cgrid.findAll(".ep-entry-head").filter((h) => h.clientWidth > 0);
         if (cheads.length) {
-          const maxCluster = () => {
-            let m = 0;
-            for (const h of cheads) {
-              const c = h.querySelector(".ep-cluster");
-              if (c) m = Math.max(m, c.offsetWidth);
-            }
-            return m;
-          };
           const gridW = cgrid.clientWidth;
           const gapPx = parseFloat(window.getComputedStyle(cgrid).columnGap || "0") || 0;
           const inset = 8;
@@ -13718,17 +13724,23 @@ var SidebarView = class extends import_obsidian33.ItemView {
           const numW = maxOf(".ep-cluster .ep-num");
           const labelMin = (rollW || 2.6 * fs) + 5;
           const floorNeed = labelMin + numW + (numW && rollW ? 2 : 0) + rollW;
-          const fullNeed = labelMin + maxCluster();
-          cgrid.addClass("ep-compact-steppers");
-          const noStepNeed = labelMin + maxCluster();
-          cgrid.addClass("ep-compact");
+          const needs = /* @__PURE__ */ new Map();
+          for (const h of cheads) {
+            const c = h.querySelector(".ep-cluster");
+            needs.set(h, labelMin + (c ? c.offsetWidth : 0));
+          }
+          const stepPx = parseFloat(window.getComputedStyle(cgrid).getPropertyValue("--ep-step-col")) || 20;
           let cols = ncol;
           while (cols > 1 && colW(cols) < floorNeed) cols--;
-          if (colW(cols) >= fullNeed) {
-            cgrid.removeClass("ep-compact");
-            cgrid.removeClass("ep-compact-steppers");
-          } else if (colW(cols) >= noStepNeed) {
-            cgrid.removeClass("ep-compact");
+          const room = colW(cols);
+          for (const h of cheads) {
+            const row = h.closest(".ep-entry");
+            if (!row) continue;
+            const need = (_c = needs.get(h)) != null ? _c : 0;
+            if (need <= room) continue;
+            row.addClass("ep-compact-steppers");
+            const steppers = h.findAll(".ep-step-btn").length ? 2 * stepPx : 0;
+            if (need - steppers > room) row.addClass("ep-compact");
           }
           cgrid.setCssStyles({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` });
           safetyNet = () => {
