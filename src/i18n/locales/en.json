@@ -282,6 +282,7 @@
   "options.constraintPatternDesc": "The whole value (each list item) must match this regular expression. Leave blank to skip.",
   "options.constraintAllowed": "Allowed values",
   "options.constraintAllowedAdd": "Add value",
+  "options.constraintAllowedPlaceholder": "Allowed value",
   "options.constraintAllowedRemove": "Remove this value",
   "options.constraintFromPool": "From current values",
   "options.constraintFromPoolDesc": "Fill the list with the values this property already holds across the vault.",

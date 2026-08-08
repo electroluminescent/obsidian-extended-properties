@@ -17,6 +17,10 @@
   the top. The list now grows and shrinks in place: the new field appears
   under the last one with the cursor already in it, nothing is stored until a
   folder is actually named, and removing a row no longer moves the page.
+- **Allowed values behaves the same way**, for the same reasons: it was
+  storing the blank row as an allowed value (a rule nothing could satisfy),
+  and every add, remove and *From pool* rebuilt the editor. Both lists are now
+  one piece of code, so they cannot drift apart again.
 
 ## 4.53.3
 

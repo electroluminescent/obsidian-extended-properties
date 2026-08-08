@@ -384,6 +384,7 @@ var en_default = {
   "options.constraintPatternDesc": "The whole value (each list item) must match this regular expression. Leave blank to skip.",
   "options.constraintAllowed": "Allowed values",
   "options.constraintAllowedAdd": "Add value",
+  "options.constraintAllowedPlaceholder": "Allowed value",
   "options.constraintAllowedRemove": "Remove this value",
   "options.constraintFromPool": "From current values",
   "options.constraintFromPoolDesc": "Fill the list with the values this property already holds across the vault.",
@@ -4789,6 +4790,56 @@ function destructive(b) {
   else (_a = anyB.setWarning) == null ? void 0 : _a.call(anyB);
   return b;
 }
+function mountTextList(host, o) {
+  var _a;
+  const items = o.values.map((value) => ({ value }));
+  const write = () => o.save(items.map((r) => r.value.trim()).filter(Boolean));
+  const rows = host.createDiv({ cls: "ep-mini-list" });
+  let footEl = null;
+  const drawRow = (item, focus) => {
+    const row = new import_obsidian9.Setting(rows).setClass("ep-mini-row");
+    row.addText((tx) => {
+      var _a2;
+      tx.setValue(item.value);
+      if (o.placeholder) tx.setPlaceholder(o.placeholder);
+      const save = (v) => {
+        item.value = v.trim();
+        write();
+      };
+      (_a2 = o.suggest) == null ? void 0 : _a2.call(o, tx.inputEl, save);
+      tx.inputEl.addEventListener("change", () => save(tx.getValue()));
+      if (focus) window.setTimeout(() => tx.inputEl.focus(), 0);
+    });
+    row.addExtraButton(
+      (b) => b.setIcon("x").setTooltip(o.removeTip).onClick(() => {
+        const i = items.indexOf(item);
+        if (i >= 0) items.splice(i, 1);
+        row.settingEl.remove();
+        write();
+      })
+    );
+    if (footEl) rows.insertBefore(row.settingEl, footEl);
+  };
+  const append = (values) => {
+    for (const value of values) {
+      const item = { value };
+      items.push(item);
+      drawRow(item, false);
+    }
+    write();
+  };
+  for (const item of items) drawRow(item, false);
+  const foot = new import_obsidian9.Setting(rows).setClass("ep-mini-row");
+  foot.addButton(
+    (b) => b.setButtonText(o.addLabel).onClick(() => {
+      const item = { value: "" };
+      items.push(item);
+      drawRow(item, true);
+    })
+  );
+  footEl = foot.settingEl;
+  (_a = o.extra) == null ? void 0 : _a.call(o, foot, append);
+}
 function addColorSetting(host, container, name, desc, get, set) {
   const setting = new import_obsidian9.Setting(container).setName(name);
   if (desc) setting.setDesc(desc);
@@ -5198,49 +5249,23 @@ function folderList(entry) {
 function renderFolderList(octx) {
   const { view, entry, container: c, changed } = octx;
   const t = view.i18n.t.bind(view.i18n);
-  const items = foldersOf(entry).map((value) => ({ value }));
-  const write = () => {
-    var _a;
-    const ch = (_a = entry.choices) != null ? _a : entry.choices = {};
-    const named = items.map((r) => r.value.trim()).filter(Boolean);
-    ch.folders = named.length ? named : void 0;
-    ch.folder = void 0;
-    changed();
-  };
   new import_obsidian11.Setting(c).setName(t("options.linkFolder")).setDesc(t("options.linkFolderDesc"));
-  const rows = c.createDiv({ cls: "ep-mini-list" });
-  let addRowEl = null;
-  const drawRow = (item, focus) => {
-    const row = new import_obsidian11.Setting(rows).setClass("ep-mini-row");
-    row.addText((tx) => {
-      tx.setValue(item.value);
-      tx.setPlaceholder(t("options.linkFolderPlaceholder"));
-      const save = (v) => {
-        item.value = v.trim();
-        write();
-      };
-      new FolderSuggest(view.app, tx.inputEl, save);
-      tx.inputEl.addEventListener("change", () => save(tx.getValue()));
-      if (focus) window.setTimeout(() => tx.inputEl.focus(), 0);
-    });
-    row.addExtraButton(
-      (b) => b.setIcon("x").setTooltip(t("options.linkFolderRemove")).onClick(() => {
-        const i = items.indexOf(item);
-        if (i >= 0) items.splice(i, 1);
-        row.settingEl.remove();
-        write();
-      })
-    );
-    if (addRowEl) rows.insertBefore(row.settingEl, addRowEl);
-  };
-  for (const item of items) drawRow(item, false);
-  addRowEl = new import_obsidian11.Setting(rows).setClass("ep-mini-row").addButton(
-    (b) => b.setButtonText(t("options.linkFolderAdd")).onClick(() => {
-      const item = { value: "" };
-      items.push(item);
-      drawRow(item, true);
-    })
-  ).settingEl;
+  mountTextList(c, {
+    values: foldersOf(entry),
+    addLabel: t("options.linkFolderAdd"),
+    removeTip: t("options.linkFolderRemove"),
+    placeholder: t("options.linkFolderPlaceholder"),
+    suggest: (input, save) => {
+      new FolderSuggest(view.app, input, save);
+    },
+    save: (folders) => {
+      var _a;
+      const ch = (_a = entry.choices) != null ? _a : entry.choices = {};
+      ch.folders = folders.length ? folders : void 0;
+      ch.folder = void 0;
+      changed();
+    }
+  });
 }
 function renderNoteChoices(octx) {
   const { view, entry, container: c, changed } = octx;
@@ -9783,50 +9808,33 @@ function renderConstraints(octx, type) {
 }
 function renderAllowedList(octx) {
   var _a, _b, _c;
-  const { view, entry, container: c, changed, redraw } = octx;
+  const { view, entry, container: c, changed } = octx;
   const t = view.i18n.t.bind(view.i18n);
   const key = (_a = entry.key) != null ? _a : "";
-  const list = (_c = (_b = entry.constraints) == null ? void 0 : _b.allowed) != null ? _c : [];
-  const write = (next) => {
-    var _a2;
-    ((_a2 = entry.constraints) != null ? _a2 : entry.constraints = {}).allowed = next.length ? next : void 0;
-    changed();
-  };
   new import_obsidian24.Setting(c).setName(t("options.constraintAllowed")).setDesc(t("options.constraintAllowedDesc"));
-  const rows = c.createDiv({ cls: "ep-mini-list" });
-  list.forEach((val, i) => {
-    const row = new import_obsidian24.Setting(rows).setClass("ep-mini-row");
-    row.addText((tx) => {
-      tx.setValue(val);
-      tx.inputEl.addEventListener("change", () => {
-        const next = [...list];
-        next[i] = tx.getValue().trim();
-        write(next.filter(Boolean));
-      });
-    });
-    row.addExtraButton(
-      (b) => b.setIcon("x").setTooltip(t("options.constraintAllowedRemove")).onClick(() => {
-        write(list.filter((_, j) => j !== i));
-        redraw();
-      })
-    );
+  mountTextList(c, {
+    values: (_c = (_b = entry.constraints) == null ? void 0 : _b.allowed) != null ? _c : [],
+    addLabel: t("options.constraintAllowedAdd"),
+    removeTip: t("options.constraintAllowedRemove"),
+    placeholder: t("options.constraintAllowedPlaceholder"),
+    save: (values) => {
+      var _a2;
+      ((_a2 = entry.constraints) != null ? _a2 : entry.constraints = {}).allowed = values.length ? values : void 0;
+      changed();
+    },
+    // What the vault already holds for this property is usually the list the
+    // user was about to type out.
+    extra: key ? (foot, append) => {
+      foot.addButton(
+        (b) => b.setButtonText(t("options.constraintFromPool")).setTooltip(t("options.constraintFromPoolDesc")).onClick(() => {
+          var _a2, _b2;
+          const have = new Set(((_b2 = (_a2 = entry.constraints) == null ? void 0 : _a2.allowed) != null ? _b2 : []).map((v) => v.trim().toLowerCase()));
+          const pool = poolFor(view.settings, view.props.valuesFor(key), key);
+          append(pool.filter((v) => v.trim() && !have.has(v.trim().toLowerCase())));
+        })
+      );
+    } : void 0
   });
-  const foot = new import_obsidian24.Setting(rows).setClass("ep-mini-row");
-  foot.addButton(
-    (b) => b.setButtonText(t("options.constraintAllowedAdd")).onClick(() => {
-      write([...list, ""]);
-      redraw();
-    })
-  );
-  if (key)
-    foot.addButton(
-      (b) => b.setButtonText(t("options.constraintFromPool")).setTooltip(t("options.constraintFromPoolDesc")).onClick(() => {
-        const pool = poolFor(view.settings, view.props.valuesFor(key), key);
-        const seen = new Set(list.map((v) => v.trim().toLowerCase()));
-        write([...list, ...pool.filter((v) => v.trim() && !seen.has(v.trim().toLowerCase()))]);
-        redraw();
-      })
-    );
 }
 function renderEntryOptionsBody(octx, onDone, onRemoved, opts = {}) {
   var _a, _b, _c, _d;

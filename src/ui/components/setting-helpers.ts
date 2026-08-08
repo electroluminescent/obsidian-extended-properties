@@ -18,6 +18,87 @@ export function destructive(b: ButtonComponent): ButtonComponent {
 }
 
 
+/** How a growing list of text values is drawn and written back. */
+export interface TextListOptions {
+  /** The values as they stand. */
+  values: string[];
+  /** Label of the button that adds a row. */
+  addLabel: string;
+  /** Tooltip of a row's remove button. */
+  removeTip: string;
+  /** Placeholder for an empty field. */
+  placeholder?: string;
+  /** Attach a suggester to a row's field (folders, pooled values, ...). */
+  suggest?: (input: HTMLInputElement, save: (v: string) => void) => void;
+  /** Called with the values actually named, whenever a row changes. */
+  save: (values: string[]) => void;
+  /** Extra buttons beside Add, given a way to append rows of their own. */
+  extra?: (foot: Setting, append: (values: string[]) => void) => void;
+}
+
+/**
+ * A list of text values that grows and shrinks in place: source folders,
+ * allowed values, anything of that shape.
+ *
+ * The rows on screen may include blank ones waiting to be filled in, while
+ * what is SAVED is only the values actually named. That distinction is the
+ * whole point of this helper: writing a blank into the settings and rebuilding
+ * the editor to show it loses the blank (it is not a value yet) and throws the
+ * reader back to the top of the page. Nothing here rebuilds anything - a new
+ * field appears under the last one with the cursor in it, and a removed row
+ * takes only itself away.
+ */
+export function mountTextList(host: HTMLElement, o: TextListOptions): void {
+  const items = o.values.map((value) => ({ value }));
+  const write = (): void => o.save(items.map((r) => r.value.trim()).filter(Boolean));
+  const rows = host.createDiv({ cls: "ep-mini-list" });
+  /** Where new rows go: above the add button, once there is one. */
+  let footEl: HTMLElement | null = null;
+  const drawRow = (item: { value: string }, focus: boolean): void => {
+    const row = new Setting(rows).setClass("ep-mini-row");
+    row.addText((tx) => {
+      tx.setValue(item.value);
+      if (o.placeholder) tx.setPlaceholder(o.placeholder);
+      const save = (v: string): void => {
+        item.value = v.trim();
+        write();
+      };
+      o.suggest?.(tx.inputEl, save);
+      tx.inputEl.addEventListener("change", () => save(tx.getValue()));
+      if (focus) window.setTimeout(() => tx.inputEl.focus(), 0);
+    });
+    row.addExtraButton((b) =>
+      b.setIcon("x").setTooltip(o.removeTip).onClick(() => {
+        const i = items.indexOf(item);
+        if (i >= 0) items.splice(i, 1);
+        row.settingEl.remove();
+        write();
+      })
+    );
+    if (footEl) rows.insertBefore(row.settingEl, footEl);
+  };
+  /** Append rows for values found elsewhere (a pool, a paste). */
+  const append = (values: string[]): void => {
+    for (const value of values) {
+      const item = { value };
+      items.push(item);
+      drawRow(item, false);
+    }
+    write();
+  };
+  for (const item of items) drawRow(item, false);
+  const foot = new Setting(rows).setClass("ep-mini-row");
+  foot.addButton((b) =>
+    b.setButtonText(o.addLabel).onClick(() => {
+      const item = { value: "" };
+      items.push(item);
+      drawRow(item, true);
+    })
+  );
+  footEl = foot.settingEl;
+  o.extra?.(foot, append);
+}
+
 /** Host for color settings: where the picker reads/writes its color space. */
 export interface ColorHost {
   app: App;

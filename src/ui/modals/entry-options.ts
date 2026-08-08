@@ -25,7 +25,7 @@ import { parseExpr } from "../../core/expr";
 import { setSharedDataType } from "../../core/layout-ops";
 import { poolFor } from "../../core/pool";
 import { restoreFromSnapshot } from "../../utils/misc";
-import { addColorSetting, addIconSetting, ColorHost } from "../components/setting-helpers";
+import { addColorSetting, addIconSetting, ColorHost, mountTextList } from "../components/setting-helpers";
 import { PropSuggest } from "../components/suggest";
 import { asMobileSheet } from "../components/long-press";
 import { ConfirmChangesModal } from "./dialogs";
@@ -107,49 +107,36 @@ function renderConstraints(octx: OptionsCtx, type: string): void {
  * user was about to type out.
  */
 function renderAllowedList(octx: OptionsCtx): void {
-  const { view, entry, container: c, changed, redraw } = octx;
+  const { view, entry, container: c, changed } = octx;
   const t = view.i18n.t.bind(view.i18n);
   const key = (entry.key as string) ?? "";
-  const list = entry.constraints?.allowed ?? [];
-  const write = (next: string[]): void => {
-    (entry.constraints ??= {}).allowed = next.length ? next : undefined;
-    changed();
-  };
   new Setting(c).setName(t("options.constraintAllowed")).setDesc(t("options.constraintAllowedDesc"));
-  const rows = c.createDiv({ cls: "ep-mini-list" });
-  list.forEach((val, i) => {
-    const row = new Setting(rows).setClass("ep-mini-row");
-    row.addText((tx) => {
-      tx.setValue(val);
-      tx.inputEl.addEventListener("change", () => {
-        const next = [...list];
-        next[i] = tx.getValue().trim();
-        write(next.filter(Boolean));
-      });
-    });
-    row.addExtraButton((b) =>
-      b.setIcon("x").setTooltip(t("options.constraintAllowedRemove")).onClick(() => {
-        write(list.filter((_, j) => j !== i));
-        redraw();
-      })
-    );
+  mountTextList(c, {
+    values: entry.constraints?.allowed ?? [],
+    addLabel: t("options.constraintAllowedAdd"),
+    removeTip: t("options.constraintAllowedRemove"),
+    placeholder: t("options.constraintAllowedPlaceholder"),
+    save: (values) => {
+      (entry.constraints ??= {}).allowed = values.length ? values : undefined;
+      changed();
+    },
+    // What the vault already holds for this property is usually the list the
+    // user was about to type out.
+    extra: key
+      ? (foot, append) => {
+          foot.addButton((b) =>
+            b
+              .setButtonText(t("options.constraintFromPool"))
+              .setTooltip(t("options.constraintFromPoolDesc"))
+              .onClick(() => {
+                const have = new Set((entry.constraints?.allowed ?? []).map((v) => v.trim().toLowerCase()));
+                const pool = poolFor(view.settings, view.props.valuesFor(key), key);
+                append(pool.filter((v) => v.trim() && !have.has(v.trim().toLowerCase())));
+              })
+          );
+        }
+      : undefined,
   });
-  const foot = new Setting(rows).setClass("ep-mini-row");
-  foot.addButton((b) =>
-    b.setButtonText(t("options.constraintAllowedAdd")).onClick(() => {
-      write([...list, ""]);
-      redraw();
-    })
-  );
-  if (key)
-    foot.addButton((b) =>
-      b.setButtonText(t("options.constraintFromPool")).setTooltip(t("options.constraintFromPoolDesc")).onClick(() => {
-        const pool = poolFor(view.settings, view.props.valuesFor(key), key);
-        const seen = new Set(list.map((v) => v.trim().toLowerCase()));
-        write([...list, ...pool.filter((v) => v.trim() && !seen.has(v.trim().toLowerCase()))]);
-        redraw();
-      })
-    );
 }
 
 export function renderEntryOptionsBody(

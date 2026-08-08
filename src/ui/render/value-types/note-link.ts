@@ -12,6 +12,7 @@ import type { Entry } from "../../../core/model";
 import type { OptionsCtx, ViewCtx } from "../../../core/context";
 import { openLinkInput } from "../../components/inline-edit";
 import { FolderSuggest, inScope, linkDisplay, linkStored } from "../../components/suggest";
+import { mountTextList } from "../../components/setting-helpers";
 import type { NoteScope } from "../../components/suggest";
 
 /** Whether this entry's value is the name of a note. */
@@ -150,55 +151,22 @@ function folderList(entry: Entry): string {
 function renderFolderList(octx: OptionsCtx): void {
   const { view, entry, container: c, changed } = octx;
   const t = view.i18n.t.bind(view.i18n);
-  // The rows on screen, which may include a blank one waiting to be filled in.
-  // What is STORED is only the folders actually named - so a row cannot be
-  // kept in the settings, and the list of rows is kept here instead. Rows are
-  // added and removed in place: rebuilding the options to grow a list would
-  // throw away the blank row (it is not a folder yet) and send the editor
-  // back to the top.
-  const items = foldersOf(entry).map((value) => ({ value }));
-  const write = (): void => {
-    const ch = (entry.choices ??= {});
-    const named = items.map((r) => r.value.trim()).filter(Boolean);
-    ch.folders = named.length ? named : undefined;
-    ch.folder = undefined; // the single-folder field is superseded
-    changed();
-  };
   new Setting(c).setName(t("options.linkFolder")).setDesc(t("options.linkFolderDesc"));
-  const rows = c.createDiv({ cls: "ep-mini-list" });
-  /** Where new rows go: above the add button, once there is one. */
-  let addRowEl: HTMLElement | null = null;
-  const drawRow = (item: { value: string }, focus: boolean): void => {
-    const row = new Setting(rows).setClass("ep-mini-row");
-    row.addText((tx) => {
-      tx.setValue(item.value);
-      tx.setPlaceholder(t("options.linkFolderPlaceholder"));
-      const save = (v: string): void => {
-        item.value = v.trim();
-        write();
-      };
-      new FolderSuggest(view.app, tx.inputEl, save);
-      tx.inputEl.addEventListener("change", () => save(tx.getValue()));
-      if (focus) window.setTimeout(() => tx.inputEl.focus(), 0);
-    });
-    row.addExtraButton((b) =>
-      b.setIcon("x").setTooltip(t("options.linkFolderRemove")).onClick(() => {
-        const i = items.indexOf(item);
-        if (i >= 0) items.splice(i, 1);
-        row.settingEl.remove();
-        write();
-      })
-    );
-    if (addRowEl) rows.insertBefore(row.settingEl, addRowEl);
-  };
-  for (const item of items) drawRow(item, false);
-  addRowEl = new Setting(rows).setClass("ep-mini-row").addButton((b) =>
-    b.setButtonText(t("options.linkFolderAdd")).onClick(() => {
-      const item = { value: "" };
-      items.push(item);
-      drawRow(item, true);
-    })
-  ).settingEl;
+  mountTextList(c, {
+    values: foldersOf(entry),
+    addLabel: t("options.linkFolderAdd"),
+    removeTip: t("options.linkFolderRemove"),
+    placeholder: t("options.linkFolderPlaceholder"),
+    suggest: (input, save) => {
+      new FolderSuggest(view.app, input, save);
+    },
+    save: (folders) => {
+      const ch = (entry.choices ??= {});
+      ch.folders = folders.length ? folders : undefined;
+      ch.folder = undefined; // the single-folder field is superseded
+      changed();
+    },
+  });
 }
 
 /** The settings a note-linking field carries: where its notes come from. */
