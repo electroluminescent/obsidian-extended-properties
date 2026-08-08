@@ -11,15 +11,13 @@ import { genId } from "../../utils/misc";
 import { packSection } from "../../core/transfer";
 import * as ops from "../../core/layout-ops";
 import { SectionOptionsModal } from "../modals/section-options";
-import { isHiddenEntry } from "../render/entry-renderer";
 import { evalMeasure, unitsForField } from "../../utils/measure";
 import { flipMove } from "../drag";
 import { showMenu } from "./show";
 
-/** The section's properties that are hidden right now for having no value. */
-function emptyEntries(view: ViewCtx, section: Section): Entry[] {
-  if (view.editMode) return []; // nothing is hidden in edit mode
-  return section.entries.filter((e) => e.kind === "prop" && !!e.key && isHiddenEntry(view, e));
+/** The section's properties, in the order it shows them. */
+function propEntries(section: Section): Entry[] {
+  return section.entries.filter((e) => e.kind === "prop" && !!e.key);
 }
 
 /** The name a property shows in the sidebar. */
@@ -27,12 +25,11 @@ const nameOf = (e: Entry): string => (e.alias as string) || (e.key as string) ||
 
 /**
  * What a typed value means for this property. A numeric field reads what was
- * typed the way its own field would - arithmetic, measurements and all - so
- * the first value goes in exactly as the fifth one will.
+ * typed the way its own field would - arithmetic, measurements and all - so a
+ * value set from here goes in exactly as one typed into the row will.
  */
 function coerce(view: ViewCtx, entry: Entry, text: string): unknown {
   const type = view.resolveType(entry);
-  if (type === "checkbox") return /^(y|yes|true|on|1)$/i.test(text);
   if (type === "list") return text.split(",").map((v) => v.trim()).filter(Boolean);
   if (type === "number" || type === "decimal" || type === "formula" || type === "unit" || type === "rating") {
     const unit = (entry.unit ?? "").trim();
@@ -42,27 +39,27 @@ function coerce(view: ViewCtx, entry: Entry, text: string): unknown {
   return text;
 }
 
+/** The property's value as a field would show it: a line of text. */
+function asText(view: ViewCtx, entry: Entry): string {
+  const raw = view.note.raw[entry.key as string];
+  if (raw === undefined || raw === null) return "";
+  return Array.isArray(raw) ? raw.map((v) => String(v)).join(", ") : String(raw);
+}
+
 /**
- * Give a value to one of the properties a section is hiding: a list to pick
- * from and a field to type in, side by side, where the pointer already is.
+ * Every property in the section, with the field to set it beside its name -
+ * the ones with no value first, since those are the ones the sidebar is not
+ * showing and the reason to come here at all.
  *
- * It stays open after each value, with the property just filled taken off the
- * list - filling in six skills is six picks and six numbers, not six trips
- * through a dialog. Escape or a click elsewhere puts it away.
+ * A panel rather than a dialog: it opens where the pointer is, each row
+ * commits on its own (Enter or leaving the field), and it stays open while a
+ * run of values goes in. Clearing a field takes the value off the note, which
+ * is how a property goes back to being hidden.
  */
-function openFillPopup(ev: MouseEvent, view: ViewCtx, file: TFile, entries: Entry[]): void {
+function openSetPanel(ev: MouseEvent, view: ViewCtx, file: TFile, section: Section): void {
   const t = view.i18n.t.bind(view.i18n);
-  const left = [...entries];
   const pop = activeDocument.body.createDiv({ cls: "ep-popup ep-fillpop" });
   pop.setCssStyles({ left: ev.clientX + "px", top: ev.clientY + 2 + "px" });
-
-  const row = pop.createDiv({ cls: "ep-fillpop-row" });
-  const sel = row.createEl("select", { cls: "dropdown ep-fillpop-pick" });
-  const input = row.createEl("input", { cls: "ep-edit-input ep-fillpop-val" });
-  input.type = "text";
-  input.placeholder = t("section.menu.fillPlaceholder");
-  const go = row.createEl("button", { cls: "mod-cta", text: t("common.save") });
-  pop.createDiv({ cls: "ep-fillpop-note", text: t("section.menu.fillHint") });
 
   const dismiss = (): void => {
     pop.remove();
@@ -71,69 +68,81 @@ function openFillPopup(ev: MouseEvent, view: ViewCtx, file: TFile, entries: Entr
   const outside = (e: MouseEvent): void => {
     if (!pop.contains(e.target as Node)) dismiss();
   };
-  const list = (): void => {
-    sel.empty();
-    for (const e of left) sel.createEl("option", { value: e.id, text: nameOf(e) });
-  };
-  const commit = (): void => {
-    const entry = left.find((e) => e.id === sel.value);
-    const text = input.value.trim();
-    if (!entry || !text) return;
-    view.note.set(file, entry.key as string, coerce(view, entry, text));
-    left.splice(left.indexOf(entry), 1);
-    input.value = "";
-    view.rerender(); // it was hidden for being empty; now it is neither
-    if (!left.length) {
-      dismiss();
+
+  /** One property: its name, and the control its type asks for. */
+  const drawRow = (host: HTMLElement, entry: Entry): void => {
+    const key = entry.key as string;
+    const row = host.createDiv({ cls: "ep-fillpop-row" });
+    row.createSpan({ cls: "ep-fillpop-name", text: nameOf(entry) });
+    const commit = (value: unknown): void => {
+      view.note.set(file, key, value);
+      view.rerender(); // a property with a value is no longer a hidden one
+    };
+    if (view.resolveType(entry) === "checkbox") {
+      const box = row.createEl("input", { cls: "ep-fillpop-check" });
+      box.type = "checkbox";
+      box.checked = view.note.raw[key] === true;
+      box.onchange = () => commit(box.checked);
       return;
     }
-    list();
-    input.focus();
+    const input = row.createEl("input", { cls: "ep-edit-input ep-fillpop-val" });
+    input.type = "text";
+    input.value = asText(view, entry);
+    input.placeholder = t("section.menu.setPlaceholder");
+    const save = (): void => {
+      const text = input.value.trim();
+      if (text === asText(view, entry)) return; // nothing was typed
+      commit(text === "" ? undefined : coerce(view, entry, text));
+    };
+    input.addEventListener("change", save);
+    input.onkeydown = (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        save();
+        input.blur();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        dismiss();
+      }
+    };
   };
-  list();
-  go.onclick = commit;
-  input.onkeydown = (e: KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      commit();
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      dismiss();
-    }
-  };
-  sel.onkeydown = (e: KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      input.focus();
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      dismiss();
-    }
-  };
+
+  const props = propEntries(section);
+  const empty = props.filter((e) => view.note.isEmpty(e.key));
+  const set = props.filter((e) => !view.note.isEmpty(e.key));
+  for (const [label, group] of [
+    [t("section.menu.setEmpty"), empty],
+    [t("section.menu.setFilled"), set],
+  ] as [string, Entry[]][]) {
+    if (!group.length) continue;
+    pop.createDiv({ cls: "ep-fillpop-group", text: label });
+    for (const entry of group) drawRow(pop, entry);
+  }
+  pop.createDiv({ cls: "ep-fillpop-note", text: t("section.menu.setHint") });
+
   window.setTimeout(() => activeDocument.addEventListener("mousedown", outside), 0);
-  window.setTimeout(() => sel.focus(), 0);
+  window.setTimeout(() => pop.querySelector<HTMLElement>("input")?.focus(), 0);
 
   // Keep within the window.
   const w = pop.offsetWidth;
   const h = pop.offsetHeight;
   if (ev.clientX + w > window.innerWidth - 4) pop.setCssStyles({ left: Math.max(4, window.innerWidth - w - 4) + "px" });
-  if (ev.clientY + h > window.innerHeight - 4) pop.setCssStyles({ top: Math.max(4, ev.clientY - h - 2) + "px" });
+  if (ev.clientY + h > window.innerHeight - 4) pop.setCssStyles({ top: Math.max(4, window.innerHeight - h - 4) + "px" });
 }
 
 export function openSectionMenu(e: MouseEvent, view: ViewCtx, file: TFile, section: Section): void {
   const t = view.i18n.t.bind(view.i18n);
   const menu = new Menu();
 
-  // A property hidden for being empty cannot be reached outside edit mode -
-  // which is the point of hiding it, right up until the day you want to fill
-  // one in. The section it belongs to can still offer them.
-  const empties = emptyEntries(view, section);
-  if (empties.length) {
+  // Every property the section holds, with somewhere to type each value -
+  // including the ones hidden for being empty, which the sidebar itself gives
+  // no way to reach outside edit mode.
+  if (propEntries(section).length) {
     menu.addItem((i) =>
       i
-        .setTitle(t("section.menu.fillEmpty", { n: String(empties.length) }))
+        .setTitle(t("section.menu.setProp"))
         .setIcon("plus")
-        .onClick(() => openFillPopup(e, view, file, empties))
+        .onClick(() => openSetPanel(e, view, file, section))
     );
     menu.addSeparator();
   }

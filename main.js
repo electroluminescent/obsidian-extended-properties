@@ -193,9 +193,11 @@ var en_default = {
   "layout.columns": "columns",
   "layout.grid": "grid",
   "section.menu.configure": 'Configure "{name}" section...',
-  "section.menu.fillEmpty": "Set a hidden property... ({n})",
-  "section.menu.fillPlaceholder": "Value",
-  "section.menu.fillHint": "Enter saves and moves to the next; Escape closes.",
+  "section.menu.setProp": "Set a property...",
+  "section.menu.setEmpty": "Empty",
+  "section.menu.setFilled": "With a value",
+  "section.menu.setPlaceholder": "Value",
+  "section.menu.setHint": "Enter saves. Clearing a field removes the value; Escape closes.",
   "section.menu.showDividers": "Show horizontal dividers",
   "section.menu.hideDividers": "Hide horizontal dividers",
   "section.menu.showVDividers": "Show vertical dividers",
@@ -11557,15 +11559,13 @@ var DragController = class {
 };
 
 // src/ui/menus/section-menu.ts
-function emptyEntries(view, section) {
-  if (view.editMode) return [];
-  return section.entries.filter((e) => e.kind === "prop" && !!e.key && isHiddenEntry(view, e));
+function propEntries(section) {
+  return section.entries.filter((e) => e.kind === "prop" && !!e.key);
 }
 var nameOf = (e) => e.alias || e.key || "";
 function coerce(view, entry, text) {
   var _a;
   const type = view.resolveType(entry);
-  if (type === "checkbox") return /^(y|yes|true|on|1)$/i.test(text);
   if (type === "list") return text.split(",").map((v) => v.trim()).filter(Boolean);
   if (type === "number" || type === "decimal" || type === "formula" || type === "unit" || type === "rating") {
     const unit = ((_a = entry.unit) != null ? _a : "").trim();
@@ -11574,18 +11574,15 @@ function coerce(view, entry, text) {
   }
   return text;
 }
-function openFillPopup(ev, view, file, entries) {
+function asText(view, entry) {
+  const raw = view.note.raw[entry.key];
+  if (raw === void 0 || raw === null) return "";
+  return Array.isArray(raw) ? raw.map((v) => String(v)).join(", ") : String(raw);
+}
+function openSetPanel(ev, view, file, section) {
   const t = view.i18n.t.bind(view.i18n);
-  const left = [...entries];
   const pop = activeDocument.body.createDiv({ cls: "ep-popup ep-fillpop" });
   pop.setCssStyles({ left: ev.clientX + "px", top: ev.clientY + 2 + "px" });
-  const row = pop.createDiv({ cls: "ep-fillpop-row" });
-  const sel = row.createEl("select", { cls: "dropdown ep-fillpop-pick" });
-  const input = row.createEl("input", { cls: "ep-edit-input ep-fillpop-val" });
-  input.type = "text";
-  input.placeholder = t("section.menu.fillPlaceholder");
-  const go = row.createEl("button", { cls: "mod-cta", text: t("common.save") });
-  pop.createDiv({ cls: "ep-fillpop-note", text: t("section.menu.fillHint") });
   const dismiss = () => {
     pop.remove();
     activeDocument.removeEventListener("mousedown", outside);
@@ -11593,59 +11590,70 @@ function openFillPopup(ev, view, file, entries) {
   const outside = (e) => {
     if (!pop.contains(e.target)) dismiss();
   };
-  const list = () => {
-    sel.empty();
-    for (const e of left) sel.createEl("option", { value: e.id, text: nameOf(e) });
-  };
-  const commit2 = () => {
-    const entry = left.find((e) => e.id === sel.value);
-    const text = input.value.trim();
-    if (!entry || !text) return;
-    view.note.set(file, entry.key, coerce(view, entry, text));
-    left.splice(left.indexOf(entry), 1);
-    input.value = "";
-    view.rerender();
-    if (!left.length) {
-      dismiss();
+  const drawRow = (host, entry) => {
+    const key = entry.key;
+    const row = host.createDiv({ cls: "ep-fillpop-row" });
+    row.createSpan({ cls: "ep-fillpop-name", text: nameOf(entry) });
+    const commit2 = (value) => {
+      view.note.set(file, key, value);
+      view.rerender();
+    };
+    if (view.resolveType(entry) === "checkbox") {
+      const box = row.createEl("input", { cls: "ep-fillpop-check" });
+      box.type = "checkbox";
+      box.checked = view.note.raw[key] === true;
+      box.onchange = () => commit2(box.checked);
       return;
     }
-    list();
-    input.focus();
+    const input = row.createEl("input", { cls: "ep-edit-input ep-fillpop-val" });
+    input.type = "text";
+    input.value = asText(view, entry);
+    input.placeholder = t("section.menu.setPlaceholder");
+    const save = () => {
+      const text = input.value.trim();
+      if (text === asText(view, entry)) return;
+      commit2(text === "" ? void 0 : coerce(view, entry, text));
+    };
+    input.addEventListener("change", save);
+    input.onkeydown = (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        save();
+        input.blur();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        dismiss();
+      }
+    };
   };
-  list();
-  go.onclick = commit2;
-  input.onkeydown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      commit2();
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      dismiss();
-    }
-  };
-  sel.onkeydown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      input.focus();
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      dismiss();
-    }
-  };
+  const props = propEntries(section);
+  const empty = props.filter((e) => view.note.isEmpty(e.key));
+  const set = props.filter((e) => !view.note.isEmpty(e.key));
+  for (const [label2, group] of [
+    [t("section.menu.setEmpty"), empty],
+    [t("section.menu.setFilled"), set]
+  ]) {
+    if (!group.length) continue;
+    pop.createDiv({ cls: "ep-fillpop-group", text: label2 });
+    for (const entry of group) drawRow(pop, entry);
+  }
+  pop.createDiv({ cls: "ep-fillpop-note", text: t("section.menu.setHint") });
   window.setTimeout(() => activeDocument.addEventListener("mousedown", outside), 0);
-  window.setTimeout(() => sel.focus(), 0);
+  window.setTimeout(() => {
+    var _a;
+    return (_a = pop.querySelector("input")) == null ? void 0 : _a.focus();
+  }, 0);
   const w = pop.offsetWidth;
   const h = pop.offsetHeight;
   if (ev.clientX + w > window.innerWidth - 4) pop.setCssStyles({ left: Math.max(4, window.innerWidth - w - 4) + "px" });
-  if (ev.clientY + h > window.innerHeight - 4) pop.setCssStyles({ top: Math.max(4, ev.clientY - h - 2) + "px" });
+  if (ev.clientY + h > window.innerHeight - 4) pop.setCssStyles({ top: Math.max(4, window.innerHeight - h - 4) + "px" });
 }
 function openSectionMenu(e, view, file, section) {
   const t = view.i18n.t.bind(view.i18n);
   const menu = new import_obsidian28.Menu();
-  const empties = emptyEntries(view, section);
-  if (empties.length) {
+  if (propEntries(section).length) {
     menu.addItem(
-      (i) => i.setTitle(t("section.menu.fillEmpty", { n: String(empties.length) })).setIcon("plus").onClick(() => openFillPopup(e, view, file, empties))
+      (i) => i.setTitle(t("section.menu.setProp")).setIcon("plus").onClick(() => openSetPanel(e, view, file, section))
     );
     menu.addSeparator();
   }
