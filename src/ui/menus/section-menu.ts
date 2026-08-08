@@ -11,7 +11,9 @@ import { genId } from "../../utils/misc";
 import { packSection } from "../../core/transfer";
 import * as ops from "../../core/layout-ops";
 import { SectionOptionsModal } from "../modals/section-options";
-import { evalMeasure, unitsForField } from "../../utils/measure";
+import { renderEntry } from "../render/entry-renderer";
+import { alignClusters, entryFlags } from "../render/section-renderer";
+import type { DragController } from "../drag";
 import { flipMove } from "../drag";
 import { showMenu } from "./show";
 
@@ -20,108 +22,62 @@ function propEntries(section: Section): Entry[] {
   return section.entries.filter((e) => e.kind === "prop" && !!e.key);
 }
 
-/** The name a property shows in the sidebar. */
-const nameOf = (e: Entry): string => (e.alias as string) || (e.key as string) || "";
-
 /**
- * What a typed value means for this property. A numeric field reads what was
- * typed the way its own field would - arithmetic, measurements and all - so a
- * value set from here goes in exactly as one typed into the row will.
- */
-function coerce(view: ViewCtx, entry: Entry, text: string): unknown {
-  const type = view.resolveType(entry);
-  if (type === "list") return text.split(",").map((v) => v.trim()).filter(Boolean);
-  if (type === "number" || type === "decimal" || type === "formula" || type === "unit" || type === "rating") {
-    const unit = (entry.unit ?? "").trim();
-    const n = evalMeasure(text, unitsForField(view.settings.units, entry.unit), { percentIsUnit: unit === "%" });
-    return n === undefined ? text : n;
-  }
-  return text;
-}
-
-/** The property's value as a field would show it: a line of text. */
-function asText(view: ViewCtx, entry: Entry): string {
-  const raw = view.note.raw[entry.key as string];
-  if (raw === undefined || raw === null) return "";
-  return Array.isArray(raw) ? raw.map((v) => String(v)).join(", ") : String(raw);
-}
-
-/**
- * Every property in the section, with the field to set it beside its name -
- * the ones with no value first, since those are the ones the sidebar is not
- * showing and the reason to come here at all.
+ * Every property in the section, drawn as the sidebar draws it - the ones
+ * with no value first, since those are the ones the sidebar is not showing
+ * and the reason to come here at all.
  *
- * A panel rather than a dialog: it opens where the pointer is, each row
- * commits on its own (Enter or leaving the field), and it stays open while a
- * run of values goes in. Clearing a field takes the value off the note, which
- * is how a property goes back to being hidden.
+ * The rows ARE sidebar rows: the same renderers, so a number keeps its
+ * steppers and slider, a rating its pips, a colour its swatch, a link its
+ * autocomplete. Nothing here reimplements a field, which is what made the
+ * first attempt at this feel like a different program. The panel opens where
+ * the pointer is and stays open while a run of values goes in; a property
+ * given a value quietly stops being one of the hidden ones.
  */
-function openSetPanel(ev: MouseEvent, view: ViewCtx, file: TFile, section: Section): void {
+function openSetPanel(
+  ev: MouseEvent,
+  view: ViewCtx,
+  file: TFile,
+  section: Section,
+  drag: DragController
+): void {
   const t = view.i18n.t.bind(view.i18n);
-  const pop = activeDocument.body.createDiv({ cls: "ep-popup ep-fillpop" });
+  const pop = activeDocument.body.createDiv({ cls: "ep-popup ep-setpop ep-sidebar" });
   pop.setCssStyles({ left: ev.clientX + "px", top: ev.clientY + 2 + "px" });
 
   const dismiss = (): void => {
     pop.remove();
-    activeDocument.removeEventListener("mousedown", outside);
+    activeDocument.removeEventListener("mousedown", outside, true);
+    activeDocument.removeEventListener("keydown", onKey, true);
   };
   const outside = (e: MouseEvent): void => {
-    if (!pop.contains(e.target as Node)) dismiss();
+    // A value type may put its own popup (a colour picker, a suggestion list)
+    // over this one; a press in there is not a press outside.
+    const el = e.target instanceof HTMLElement ? e.target : null;
+    if (pop.contains(e.target as Node) || el?.closest(".ep-popup, .menu, .suggestion-container")) return;
+    dismiss();
+  };
+  const onKey = (e: KeyboardEvent): void => {
+    if (e.key === "Escape" && !pop.querySelector("input:focus, textarea:focus")) dismiss();
   };
 
-  /** One property: its name, and the control its type asks for. */
-  const drawRow = (host: HTMLElement, entry: Entry): void => {
-    const key = entry.key as string;
-    const row = host.createDiv({ cls: "ep-fillpop-row" });
-    row.createSpan({ cls: "ep-fillpop-name", text: nameOf(entry) });
-    const commit = (value: unknown): void => {
-      view.note.set(file, key, value);
-      view.rerender(); // a property with a value is no longer a hidden one
-    };
-    if (view.resolveType(entry) === "checkbox") {
-      const box = row.createEl("input", { cls: "ep-fillpop-check" });
-      box.type = "checkbox";
-      box.checked = view.note.raw[key] === true;
-      box.onchange = () => commit(box.checked);
-      return;
-    }
-    const input = row.createEl("input", { cls: "ep-edit-input ep-fillpop-val" });
-    input.type = "text";
-    input.value = asText(view, entry);
-    input.placeholder = t("section.menu.setPlaceholder");
-    const save = (): void => {
-      const text = input.value.trim();
-      if (text === asText(view, entry)) return; // nothing was typed
-      commit(text === "" ? undefined : coerce(view, entry, text));
-    };
-    input.addEventListener("change", save);
-    input.onkeydown = (e: KeyboardEvent) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        save();
-        input.blur();
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        dismiss();
-      }
-    };
-  };
-
-  const props = propEntries(section);
-  const empty = props.filter((e) => view.note.isEmpty(e.key));
-  const set = props.filter((e) => !view.note.isEmpty(e.key));
+  const empty = propEntries(section).filter((e) => view.note.isEmpty(e.key));
+  const filled = propEntries(section).filter((e) => !view.note.isEmpty(e.key));
   for (const [label, group] of [
     [t("section.menu.setEmpty"), empty],
-    [t("section.menu.setFilled"), set],
+    [t("section.menu.setFilled"), filled],
   ] as [string, Entry[]][]) {
     if (!group.length) continue;
-    pop.createDiv({ cls: "ep-fillpop-group", text: label });
-    for (const entry of group) drawRow(pop, entry);
+    pop.createDiv({ cls: "ep-setpop-group", text: label });
+    const grid = pop.createDiv({ cls: "ep-grid ep-mode-list" });
+    for (const entry of group)
+      renderEntry(grid, view, file, section, entry, entryFlags(view, file, section, entry), drag, { force: true });
+    alignClusters(grid);
   }
-  pop.createDiv({ cls: "ep-fillpop-note", text: t("section.menu.setHint") });
+  pop.createDiv({ cls: "ep-setpop-note", text: t("section.menu.setHint") });
 
-  window.setTimeout(() => activeDocument.addEventListener("mousedown", outside), 0);
-  window.setTimeout(() => pop.querySelector<HTMLElement>("input")?.focus(), 0);
+  window.setTimeout(() => activeDocument.addEventListener("mousedown", outside, true), 0);
+  activeDocument.addEventListener("keydown", onKey, true);
 
   // Keep within the window.
   const w = pop.offsetWidth;
@@ -130,7 +86,13 @@ function openSetPanel(ev: MouseEvent, view: ViewCtx, file: TFile, section: Secti
   if (ev.clientY + h > window.innerHeight - 4) pop.setCssStyles({ top: Math.max(4, window.innerHeight - h - 4) + "px" });
 }
 
-export function openSectionMenu(e: MouseEvent, view: ViewCtx, file: TFile, section: Section): void {
+export function openSectionMenu(
+  e: MouseEvent,
+  view: ViewCtx,
+  file: TFile,
+  section: Section,
+  drag: DragController
+): void {
   const t = view.i18n.t.bind(view.i18n);
   const menu = new Menu();
 
@@ -142,7 +104,7 @@ export function openSectionMenu(e: MouseEvent, view: ViewCtx, file: TFile, secti
       i
         .setTitle(t("section.menu.setProp"))
         .setIcon("plus")
-        .onClick(() => openSetPanel(e, view, file, section))
+        .onClick(() => openSetPanel(e, view, file, section, drag))
     );
     menu.addSeparator();
   }

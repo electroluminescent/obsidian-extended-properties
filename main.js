@@ -196,8 +196,7 @@ var en_default = {
   "section.menu.setProp": "Set a property...",
   "section.menu.setEmpty": "Empty",
   "section.menu.setFilled": "With a value",
-  "section.menu.setPlaceholder": "Value",
-  "section.menu.setHint": "Enter saves. Clearing a field removes the value; Escape closes.",
+  "section.menu.setHint": "These are the sidebar's own rows: edit a value as you would there. Escape closes.",
   "section.menu.showDividers": "Show horizontal dividers",
   "section.menu.hideDividers": "Hide horizontal dividers",
   "section.menu.showVDividers": "Show vertical dividers",
@@ -10564,8 +10563,8 @@ function isWide(view, entry) {
   if (entry.kind === "prop") return !!((_b = view.registries.valueTypes.get(view.resolveType(entry))) == null ? void 0 : _b.wide);
   return false;
 }
-function renderEntry(grid, view, file, section, entry, flags, drag) {
-  if (isHiddenEntry(view, entry)) return;
+function renderEntry(grid, view, file, section, entry, flags, drag, opts = {}) {
+  if (!opts.force && isHiddenEntry(view, entry)) return;
   const kind = view.registries.entryKinds.get(entry.kind);
   const condOff = view.editMode && !!entry.showWhen && !view.condVisible(entry.showWhen);
   if (kind == null ? void 0 : kind.bare) {
@@ -11562,98 +11561,50 @@ var DragController = class {
 function propEntries(section) {
   return section.entries.filter((e) => e.kind === "prop" && !!e.key);
 }
-var nameOf = (e) => e.alias || e.key || "";
-function coerce(view, entry, text) {
-  var _a;
-  const type = view.resolveType(entry);
-  if (type === "list") return text.split(",").map((v) => v.trim()).filter(Boolean);
-  if (type === "number" || type === "decimal" || type === "formula" || type === "unit" || type === "rating") {
-    const unit = ((_a = entry.unit) != null ? _a : "").trim();
-    const n = evalMeasure(text, unitsForField(view.settings.units, entry.unit), { percentIsUnit: unit === "%" });
-    return n === void 0 ? text : n;
-  }
-  return text;
-}
-function asText(view, entry) {
-  const raw = view.note.raw[entry.key];
-  if (raw === void 0 || raw === null) return "";
-  return Array.isArray(raw) ? raw.map((v) => String(v)).join(", ") : String(raw);
-}
-function openSetPanel(ev, view, file, section) {
+function openSetPanel(ev, view, file, section, drag) {
   const t = view.i18n.t.bind(view.i18n);
-  const pop = activeDocument.body.createDiv({ cls: "ep-popup ep-fillpop" });
+  const pop = activeDocument.body.createDiv({ cls: "ep-popup ep-setpop ep-sidebar" });
   pop.setCssStyles({ left: ev.clientX + "px", top: ev.clientY + 2 + "px" });
   const dismiss = () => {
     pop.remove();
-    activeDocument.removeEventListener("mousedown", outside);
+    activeDocument.removeEventListener("mousedown", outside, true);
+    activeDocument.removeEventListener("keydown", onKey, true);
   };
   const outside = (e) => {
-    if (!pop.contains(e.target)) dismiss();
+    const el = e.target instanceof HTMLElement ? e.target : null;
+    if (pop.contains(e.target) || (el == null ? void 0 : el.closest(".ep-popup, .menu, .suggestion-container"))) return;
+    dismiss();
   };
-  const drawRow = (host, entry) => {
-    const key = entry.key;
-    const row = host.createDiv({ cls: "ep-fillpop-row" });
-    row.createSpan({ cls: "ep-fillpop-name", text: nameOf(entry) });
-    const commit2 = (value) => {
-      view.note.set(file, key, value);
-      view.rerender();
-    };
-    if (view.resolveType(entry) === "checkbox") {
-      const box = row.createEl("input", { cls: "ep-fillpop-check" });
-      box.type = "checkbox";
-      box.checked = view.note.raw[key] === true;
-      box.onchange = () => commit2(box.checked);
-      return;
-    }
-    const input = row.createEl("input", { cls: "ep-edit-input ep-fillpop-val" });
-    input.type = "text";
-    input.value = asText(view, entry);
-    input.placeholder = t("section.menu.setPlaceholder");
-    const save = () => {
-      const text = input.value.trim();
-      if (text === asText(view, entry)) return;
-      commit2(text === "" ? void 0 : coerce(view, entry, text));
-    };
-    input.addEventListener("change", save);
-    input.onkeydown = (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        save();
-        input.blur();
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        dismiss();
-      }
-    };
+  const onKey = (e) => {
+    if (e.key === "Escape" && !pop.querySelector("input:focus, textarea:focus")) dismiss();
   };
-  const props = propEntries(section);
-  const empty = props.filter((e) => view.note.isEmpty(e.key));
-  const set = props.filter((e) => !view.note.isEmpty(e.key));
+  const empty = propEntries(section).filter((e) => view.note.isEmpty(e.key));
+  const filled = propEntries(section).filter((e) => !view.note.isEmpty(e.key));
   for (const [label2, group] of [
     [t("section.menu.setEmpty"), empty],
-    [t("section.menu.setFilled"), set]
+    [t("section.menu.setFilled"), filled]
   ]) {
     if (!group.length) continue;
-    pop.createDiv({ cls: "ep-fillpop-group", text: label2 });
-    for (const entry of group) drawRow(pop, entry);
+    pop.createDiv({ cls: "ep-setpop-group", text: label2 });
+    const grid = pop.createDiv({ cls: "ep-grid ep-mode-list" });
+    for (const entry of group)
+      renderEntry(grid, view, file, section, entry, entryFlags(view, file, section, entry), drag, { force: true });
+    alignClusters(grid);
   }
-  pop.createDiv({ cls: "ep-fillpop-note", text: t("section.menu.setHint") });
-  window.setTimeout(() => activeDocument.addEventListener("mousedown", outside), 0);
-  window.setTimeout(() => {
-    var _a;
-    return (_a = pop.querySelector("input")) == null ? void 0 : _a.focus();
-  }, 0);
+  pop.createDiv({ cls: "ep-setpop-note", text: t("section.menu.setHint") });
+  window.setTimeout(() => activeDocument.addEventListener("mousedown", outside, true), 0);
+  activeDocument.addEventListener("keydown", onKey, true);
   const w = pop.offsetWidth;
   const h = pop.offsetHeight;
   if (ev.clientX + w > window.innerWidth - 4) pop.setCssStyles({ left: Math.max(4, window.innerWidth - w - 4) + "px" });
   if (ev.clientY + h > window.innerHeight - 4) pop.setCssStyles({ top: Math.max(4, window.innerHeight - h - 4) + "px" });
 }
-function openSectionMenu(e, view, file, section) {
+function openSectionMenu(e, view, file, section, drag) {
   const t = view.i18n.t.bind(view.i18n);
   const menu = new import_obsidian28.Menu();
   if (propEntries(section).length) {
     menu.addItem(
-      (i) => i.setTitle(t("section.menu.setProp")).setIcon("plus").onClick(() => openSetPanel(e, view, file, section))
+      (i) => i.setTitle(t("section.menu.setProp")).setIcon("plus").onClick(() => openSetPanel(e, view, file, section, drag))
     );
     menu.addSeparator();
   }
@@ -11881,12 +11832,12 @@ function renderSection(parent, view, file, section, drag, host) {
     menuBtn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      openSectionMenu(e, view, file, section);
+      openSectionMenu(e, view, file, section, drag);
     };
   }
   sum.addEventListener("contextmenu", (e) => {
     e.preventDefault();
-    openSectionMenu(e, view, file, section);
+    openSectionMenu(e, view, file, section, drag);
   });
   const collapseWrap = det.createDiv({ cls: "ep-collapse" });
   const body = collapseWrap.createDiv({ cls: "ep-section-body" });

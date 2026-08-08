@@ -35,6 +35,15 @@ function isWide(view: ViewCtx, entry: Entry): boolean {
   return false;
 }
 
+export interface RenderEntryOptions {
+  /**
+   * Draw the entry even where the sidebar would be hiding it (empty, or a
+   * condition unmet). The section's "Set a property" panel lists everything
+   * the section holds, which is the whole point of going there.
+   */
+  force?: boolean;
+}
+
 export function renderEntry(
   grid: HTMLElement,
   view: ViewCtx,
@@ -42,9 +51,10 @@ export function renderEntry(
   section: Section,
   entry: Entry,
   flags: ClusterFlags,
-  drag: DragController
+  drag: DragController,
+  opts: RenderEntryOptions = {}
 ): void {
-  if (isHiddenEntry(view, entry)) return;
+  if (!opts.force && isHiddenEntry(view, entry)) return;
   const kind = view.registries.entryKinds.get(entry.kind);
   // Edit mode shows conditionally-hidden entries dimmed (so they stay reachable).
   const condOff = view.editMode && !!entry.showWhen && !view.condVisible(entry.showWhen);

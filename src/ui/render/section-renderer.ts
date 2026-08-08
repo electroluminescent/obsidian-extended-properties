@@ -26,7 +26,7 @@ const SIZE_ROWS: Record<string, number> = { s: 4, m: 8, l: 12 };
 const ROW_PX = 32;
 
 /** Union of cluster needs over all entries of the section. */
-function computeFlags(view: ViewCtx, file: TFile, section: Section): ClusterFlags {
+export function computeFlags(view: ViewCtx, file: TFile, section: Section): ClusterFlags {
   const flags = emptyFlags();
   for (const entry of section.entries) {
     const kind = view.registries.entryKinds.get(entry.kind);
@@ -42,7 +42,7 @@ function computeFlags(view: ViewCtx, file: TFile, section: Section): ClusterFlag
  * showed as a margin beside the modifier and pushed the roll button off the
  * cluster's true edge.
  */
-function entryFlags(view: ViewCtx, file: TFile, section: Section, entry: Section["entries"][number]): ClusterFlags {
+export function entryFlags(view: ViewCtx, file: TFile, section: Section, entry: Section["entries"][number]): ClusterFlags {
   const flags = emptyFlags();
   const kind = view.registries.entryKinds.get(entry.kind);
   mergeNeeds(flags, kind?.clusterNeeds?.({ view, file, section, entry }));
@@ -104,7 +104,7 @@ export function alignClustersNow(det: HTMLElement): void {
   }
 }
 
-function alignClusters(det: HTMLElement): void {
+export function alignClusters(det: HTMLElement): void {
   window.requestAnimationFrame(() => alignClustersNow(det));
 }
 
@@ -219,12 +219,12 @@ export function renderSection(
     menuBtn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      openSectionMenu(e, view, file, section);
+      openSectionMenu(e, view, file, section, drag);
     };
   }
   sum.addEventListener("contextmenu", (e) => {
     e.preventDefault();
-    openSectionMenu(e, view, file, section);
+    openSectionMenu(e, view, file, section, drag);
   });
 
   // -- body --------------------------------------------------------------

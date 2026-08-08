@@ -687,15 +687,11 @@ body.is-mobile .ep-roll-cards { margin: 0; width: 100%; max-height: 100%; flex-w
 .ep-roll-chain .ep-roll-totalcell .ep-roll-cellval { font-size: 1.35em; }
 /* roll-options popup (right-click on a roll button) */
 .ep-rollmenu { display: flex; flex-direction: column; gap: 8px; padding: 8px; }
-/* Setting a section's properties: every one of them, name and field. */
-.ep-fillpop { padding: 8px; min-width: 15em; }
-.ep-fillpop-group { margin: 6px 0 2px; color: var(--text-muted); font-size: var(--font-ui-smaller); text-transform: uppercase; letter-spacing: .04em; }
-.ep-fillpop-group:first-child { margin-top: 0; }
-.ep-fillpop-row { display: flex; align-items: center; gap: 8px; padding: 1px 0; }
-.ep-fillpop-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ep-fillpop-val { flex: 0 0 auto; width: 7em; }
-.ep-fillpop-check { flex: 0 0 auto; }
-.ep-fillpop-note { margin-top: 8px; color: var(--text-muted); font-size: var(--font-ui-smaller); }
+/* Setting a section's properties: the sidebar's own rows, in a panel. */
+.ep-setpop { padding: 8px; min-width: 20em; max-width: min(28em, 90vw); }
+.ep-setpop-group { margin: 8px 0 2px; color: var(--text-muted); font-size: var(--font-ui-smaller); text-transform: uppercase; letter-spacing: .04em; }
+.ep-setpop-group:first-child { margin-top: 0; }
+.ep-setpop-note { margin-top: 8px; color: var(--text-muted); font-size: var(--font-ui-smaller); }
 .ep-rollmenu-count { display: flex; align-items: center; gap: 8px; font-size: var(--font-ui-smaller); }
 .ep-rollmenu-count .ep-edit-input { width: 4.5em; }
 /* decorations fade out (label and value always keep their room) */

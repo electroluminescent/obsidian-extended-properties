@@ -5,14 +5,14 @@
 - **A section will hand you all of its properties at once.** Right-click a
   section title and *Set a property...* opens a panel where the pointer is,
   listing every property the section holds - the empty ones first, then the
-  ones with a value - each with the field for its own type beside its name.
-  Type, press Enter, move on; a checkbox is a checkbox. Fifty blank skills no
-  longer mean a trip into edit mode to start the one you want, and a property
-  hidden for being empty is reachable for the first time.
-- Values are read the way each property's own field reads them, so a number
-  takes arithmetic and measurements and a list takes a comma-separated line.
-  Emptying a field takes the value off the note, which is how a property goes
-  back to being hidden.
+  ones with a value. Fifty blank skills no longer mean a trip into edit mode
+  to start the one you want, and a property hidden for being empty is
+  reachable for the first time.
+- **The rows in it are the sidebar's own rows**, drawn by the same renderers:
+  a number keeps its steppers and slider, a rating its pips, a colour its
+  swatch, a link its note autocomplete, a roll its button. Editing one is
+  editing the property - there is no second way of entering a value to learn
+  or to get wrong.
 - **A property can stay on show while its section is collapsed**, under
   Appearance. Hit points and armour class remain under the title of a folded
   Vitals; the rest of the section stays away. The property is fully live
