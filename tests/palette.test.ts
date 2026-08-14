@@ -5,8 +5,8 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  blendColors, colorAt, colorForText, defaultWheel, mixColors, moveEdge, rangesValid, readableOn,
-  setDominant, toOklch, type ColorRange, type Palette,
+  blendColors, colorAt, colorForText, defaultWheel, ensureDominance, mixColors, moveEdge,
+  rangesValid, readableOn, setDominant, toOklch, type ColorRange, type Palette,
 } from "../src/utils/palette";
 import { formatEdge, parseEdge } from "../src/utils/palette-date";
 import type { DateConfig } from "../src/core/calendar";
@@ -116,6 +116,62 @@ describe("bands", () => {
     expect(colorAt(lower, 10)).toBe("#ff0000"); // the lower band, by default
     const upper = bands({ ranges: setDominant(touching, 1, "from", true) });
     expect(colorAt(upper, 10)).toBe("#0000ff");
+  });
+});
+
+describe("who owns a shared edge", () => {
+  const touching = (): ColorRange[] => [
+    { from: 0, to: 10, color: "#f00" },
+    { from: 10, to: 20, color: "#00f" },
+  ];
+
+  it("gives an unclaimed meeting point to the band that starts there", () => {
+    const rs = ensureDominance(touching());
+    expect(rs[1].domFrom).toBe(true);
+    expect(rs[0].domTo).toBeUndefined();
+    expect(colorAt({ id: "r", name: "R", mode: "ranges", ranges: rs }, 10)).toBe("#00f");
+  });
+
+  it("leaves a claim where the user put it", () => {
+    const rs = ensureDominance([{ ...touching()[0], domTo: true }, touching()[1]]);
+    expect(rs[0].domTo).toBe(true);
+    expect(rs[1].domFrom).toBeUndefined();
+  });
+
+  it("never leaves two edges claiming the same value", () => {
+    const rs = ensureDominance([
+      { from: 0, to: 10, color: "#f00", domTo: true },
+      { from: 10, to: 20, color: "#00f", domFrom: true },
+    ]);
+    expect([rs[0].domTo === true, rs[1].domFrom === true].filter(Boolean)).toHaveLength(1);
+  });
+
+  it("drops a claim on an edge that meets nothing", () => {
+    const rs = ensureDominance([
+      { from: 0, to: 10, color: "#f00", domFrom: true, domTo: true },
+      { from: 20, to: 30, color: "#00f" },
+    ]);
+    expect(rs[0].domFrom).toBeUndefined();
+    expect(rs[0].domTo).toBeUndefined();
+  });
+
+  it("moves the claim when another edge is picked, and keeps exactly one", () => {
+    const first = ensureDominance(touching());
+    const moved = setDominant(first, 0, "to", true);
+    expect(moved[0].domTo).toBe(true);
+    expect(moved[1].domFrom).toBeUndefined();
+  });
+
+  it("settles every meeting point of three bands at once", () => {
+    const rs = ensureDominance([
+      { from: 0, to: 10, color: "#f00" },
+      { from: 10, to: 20, color: "#0f0" },
+      { from: 20, to: 30, color: "#00f" },
+    ]);
+    expect(rs[1].domFrom).toBe(true);
+    expect(rs[2].domFrom).toBe(true);
+    expect(rs[0].domTo).toBeUndefined();
+    expect(rs[1].domTo).toBeUndefined();
   });
 });
 

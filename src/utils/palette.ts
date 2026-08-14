@@ -328,6 +328,47 @@ export function moveEdge(
   return rs;
 }
 
+/** Read/write one edge's dominance flag. */
+function domOf(r: ColorRange, edge: "from" | "to"): boolean {
+  return (edge === "from" ? r.domFrom : r.domTo) === true;
+}
+function setDom(r: ColorRange, edge: "from" | "to", on: boolean): void {
+  if (edge === "from") r.domFrom = on || undefined;
+  else r.domTo = on || undefined;
+}
+
+/**
+ * Settle the dominance flags: wherever two or more edges meet on the same
+ * number, exactly one of them owns it - never none, never two.
+ *
+ * A shared edge with nobody marked is a value with no answer, so one is
+ * chosen: whichever was already marked, else the band that STARTS there, on
+ * the reading that a boundary belongs to the band beginning at it. Flags left
+ * behind on edges that no longer share a value are dropped, since an edge
+ * nothing meets has nothing to win.
+ */
+export function ensureDominance(ranges: ColorRange[]): ColorRange[] {
+  const rs = ranges.map((r) => ({ ...r }));
+  const edges = new Map<number, { i: number; edge: "from" | "to" }[]>();
+  rs.forEach((r, i) => {
+    for (const edge of ["from", "to"] as const) {
+      const at = edge === "from" ? r.from : r.to;
+      const at2 = edges.get(at) ?? [];
+      at2.push({ i, edge });
+      edges.set(at, at2);
+    }
+  });
+  for (const met of edges.values()) {
+    if (met.length < 2) {
+      for (const e of met) setDom(rs[e.i], e.edge, false);
+      continue;
+    }
+    const keep = met.find((e) => domOf(rs[e.i], e.edge)) ?? met.find((e) => e.edge === "from") ?? met[0];
+    for (const e of met) setDom(rs[e.i], e.edge, e === keep);
+  }
+  return rs;
+}
+
 /**
  * Mark one edge dominant, clearing the edge it shares its value with: two
  * edges at the same number cannot both win.
@@ -342,13 +383,13 @@ export function setDominant(
   const me = rs[index];
   if (!me) return rs;
   const at = edge === "from" ? me.from : me.to;
-  if (edge === "from") me.domFrom = on || undefined;
-  else me.domTo = on || undefined;
-  if (!on) return rs;
-  rs.forEach((other, i) => {
-    if (i === index) return;
-    if (other.from === at) other.domFrom = undefined;
-    if (other.to === at) other.domTo = undefined;
-  });
-  return rs;
+  setDom(me, edge, on);
+  if (on)
+    rs.forEach((other, i) => {
+      if (i === index) return;
+      if (other.from === at) other.domFrom = undefined;
+      if (other.to === at) other.domTo = undefined;
+    });
+  // Never leave a shared edge with nobody speaking for it.
+  return ensureDominance(rs);
 }

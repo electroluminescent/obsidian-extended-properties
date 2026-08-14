@@ -68,6 +68,8 @@ export interface InlineCtx {
   onSettings?: (cb: () => void) => () => void;
   /** Open the plugin settings at this kind of piece's own row. */
   openSettings?: (kind: string) => void;
+  /** Open the plugin settings at one palette (from a card's Formatting block). */
+  openPalette?: (id: string) => void;
 }
 
 /**

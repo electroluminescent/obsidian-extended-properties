@@ -317,6 +317,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       save: () => void this.saveSettings(),
       onSettings: (cb) => this.onSettingsSaved(cb),
       openSettings: (kind) => this.openInlineSettings(kind),
+      openPalette: (id) => this.openPaletteSettings(id),
     });
 
     // Keep the cross-note PropertyIndex cache (perf: avoids a full vault
@@ -599,6 +600,17 @@ export default class ExtendedPropertiesPlugin extends Plugin {
    */
   openInlineSettings(kind: string): void {
     this.settingTab?.focusInline(kind);
+    this.openOwnSettings();
+  }
+
+  /** Open the plugin's settings at one palette's own heading. */
+  openPaletteSettings(id: string): void {
+    this.settingTab?.focusPalette(id);
+    this.openOwnSettings();
+  }
+
+  /** Bring Obsidian's settings window up on this plugin's tab. */
+  private openOwnSettings(): void {
     const host = this.app as unknown as {
       setting?: { open?: () => void; openTabById?: (id: string) => void };
     };

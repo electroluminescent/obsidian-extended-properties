@@ -11,6 +11,7 @@
 import { Menu, Notice, setIcon, Setting } from "obsidian";
 import type { EntryRenderCtx, EntryRef, OptionsCtx } from "../../../core/context";
 import type { ClusterNeeds, ValueTypeDef } from "../../../core/registry";
+import { previewValue } from "../format";
 import { compileFormula, invertFormula } from "../../../utils/formula";
 import { clamp, fmtFraction, fmtNum } from "../../../utils/misc";
 import { snapReach, snapTicks, snapValue, ticksFor } from "../../../utils/ticks";
@@ -411,6 +412,8 @@ function render(kind: NumericKind, ctx: EntryRenderCtx): void {
       pending = fmt(out);
       place(pending); // knob snaps to the (rounded) value's position
       setVal(pending);
+      // Conditional formatting follows the knob rather than the note.
+      previewValue(slider, pending);
       for (const a of addons) a.onPreview?.(ctx, refs.cells, pending);
     };
     knob.addEventListener("pointerdown", (e) => {

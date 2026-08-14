@@ -171,15 +171,39 @@ function renderFormatting(octx: OptionsCtx): void {
   };
 
   c.createEl("h4", { text: t("options.formatHeading") });
-  new Setting(c)
+  const palRow = new Setting(c)
     .setName(t("options.formatPalette"))
     .setDesc(t("options.formatPaletteDesc"))
     .addDropdown((dd) => {
-      dd.addOption("", t("options.formatNone"));
-      for (const p of view.settings.palettes ?? []) dd.addOption(p.id, p.name || p.id);
-      dd.setValue(rule().palette ?? "");
+      const fill = (): void => {
+        const cur = rule().palette ?? "";
+        dd.selectEl.empty();
+        dd.addOption("", t("options.formatNone"));
+        for (const p of view.settings.palettes ?? []) dd.addOption(p.id, p.name || p.id);
+        dd.setValue(cur);
+      };
+      fill();
       dd.onChange((v) => write({ palette: v || undefined }));
+      // A palette renamed in the settings has to show up here while this is
+      // open, not only the next time it is opened. The watch lets go as soon
+      // as the row it belongs to has gone.
+      let off: (() => void) | undefined;
+      off = view.onSettingsSaved(() => {
+        if (!dd.selectEl.isConnected) {
+          off?.();
+          return;
+        }
+        fill();
+      });
     });
+  // Straight from the property to the palette it uses.
+  if (rule().palette)
+    palRow.addExtraButton((b) =>
+      b
+        .setIcon("pencil")
+        .setTooltip(t("options.formatPaletteEdit"))
+        .onClick(() => view.openPaletteSettings(rule().palette as string))
+    );
   if (!rule().palette) return; // nothing else means anything yet
   new Setting(c)
     .setName(t("options.formatTarget"))

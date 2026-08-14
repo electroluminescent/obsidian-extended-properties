@@ -516,6 +516,14 @@ export class SidebarView extends ItemView implements ViewCtx {
     new SectionOptionsModal(this, section, entry.id).open();
   }
 
+  openPaletteSettings(id: string): void {
+    this.plugin.openPaletteSettings(id);
+  }
+
+  onSettingsSaved(cb: () => void): () => void {
+    return this.plugin.onSettingsSaved(cb);
+  }
+
   openAddMenu(anchor: HTMLElement, section: Section, o?: { index?: number; replaceId?: string }): void {
     const file = this.app.workspace.getActiveFile();
     if (!file) return;

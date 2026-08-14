@@ -775,6 +775,7 @@ var en_default = {
   "options.formatHeading": "Formatting",
   "options.formatPalette": "Palette",
   "options.formatPaletteDesc": "Which palette colours this property. Palettes are made in the plugin settings.",
+  "options.formatPaletteEdit": "Edit this palette",
   "options.formatNone": "None",
   "options.formatTarget": "What it colours",
   "options.formatTargetDesc": "The value's text, the value in a tinted pill, or the whole row. A list colours each of its chips.",
@@ -3958,6 +3959,592 @@ var sfx = {
   }
 };
 
+// src/utils/color.ts
+var COLOR_SPACES = ["RGB", "HSL", "OKLCH", "OKLab"];
+function hexToRgb(hex) {
+  let h = (hex || "").trim().replace(/^#/, "");
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+  return { r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16) };
+}
+function rgbToHex(r, g, b) {
+  const h = (n) => Math.round(clamp(n, 0, 255)).toString(16).padStart(2, "0");
+  return "#" + h(r) + h(g) + h(b);
+}
+function rgbToHsl(r, g, b) {
+  r /= 255;
+  g /= 255;
+  b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0;
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (d) {
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+  }
+  return { h, s: s * 100, l: l * 100 };
+}
+function hslToRgb(h, s, l) {
+  h = (h % 360 + 360) % 360;
+  s = clamp(s, 0, 100) / 100;
+  l = clamp(l, 0, 100) / 100;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(h / 60 % 2 - 1));
+  const m = l - c / 2;
+  let r = 0, g = 0, b = 0;
+  if (h < 60) [r, g, b] = [c, x, 0];
+  else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x];
+  else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+  return { r: (r + m) * 255, g: (g + m) * 255, b: (b + m) * 255 };
+}
+function srgbToLin(c) {
+  c /= 255;
+  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+}
+function linToSrgb(c) {
+  const v = c <= 31308e-7 ? c * 12.92 : 1.055 * Math.pow(Math.max(c, 0), 1 / 2.4) - 0.055;
+  return clamp(v * 255, 0, 255);
+}
+function rgbToOklab(r, g, b) {
+  const lr = srgbToLin(r), lg = srgbToLin(g), lb = srgbToLin(b);
+  const l = 0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb;
+  const m = 0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb;
+  const s = 0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb;
+  const l_ = Math.cbrt(l), m_ = Math.cbrt(m), s_ = Math.cbrt(s);
+  return {
+    L: 0.2104542553 * l_ + 0.793617785 * m_ - 0.0040720468 * s_,
+    a: 1.9779984951 * l_ - 2.428592205 * m_ + 0.4505937099 * s_,
+    b: 0.0259040371 * l_ + 0.7827717662 * m_ - 0.808675766 * s_
+  };
+}
+function oklabToLin(L, a, b) {
+  const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+  const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+  const s_ = L - 0.0894841775 * a - 1.291485548 * b;
+  const l = l_ ** 3, m = m_ ** 3, s = s_ ** 3;
+  return {
+    lr: 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    lg: -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    lb: -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s
+  };
+}
+function oklabToRgb(L, a, b) {
+  const c = oklabToLin(L, a, b);
+  return { r: linToSrgb(c.lr), g: linToSrgb(c.lg), b: linToSrgb(c.lb) };
+}
+function rgbToOklch(r, g, b) {
+  const o = rgbToOklab(r, g, b);
+  const C = Math.sqrt(o.a * o.a + o.b * o.b);
+  let H = Math.atan2(o.b, o.a) * 180 / Math.PI;
+  if (H < 0) H += 360;
+  return { L: o.L, C, H };
+}
+function oklchToLin(L, C, H) {
+  const hr = H * Math.PI / 180;
+  return oklabToLin(L, C * Math.cos(hr), C * Math.sin(hr));
+}
+function oklchToRgb(L, C, H) {
+  const c = oklchToLin(L, C, H);
+  return { r: linToSrgb(c.lr), g: linToSrgb(c.lg), b: linToSrgb(c.lb) };
+}
+function inGamutLin(c) {
+  const e = 15e-4;
+  return c.lr >= -e && c.lr <= 1 + e && c.lg >= -e && c.lg <= 1 + e && c.lb >= -e && c.lb <= 1 + e;
+}
+function gradientStops(samples, at) {
+  const stops = [];
+  for (let i = 0; i <= samples; i++) {
+    const t = i / samples;
+    const { rgb, oog } = at(t);
+    const pct = Math.round(t * 100);
+    const r = Math.round(rgb.r), g = Math.round(rgb.g), b = Math.round(rgb.b);
+    stops.push((oog ? `rgba(${r},${g},${b},0.15)` : `rgb(${r},${g},${b})`) + ` ${pct}%`);
+  }
+  return `linear-gradient(to right, ${stops.join(", ")})`;
+}
+
+// src/utils/semantic-anchors.ts
+var ANCHORS = (
+  // colours
+  "red:e02020,crimson:c81e3a,scarlet:e03a2f,maroon:7b1b26,ruby:c41e4a,cherry:d42a4a,orange:f08a24,amber:f0a830,tangerine:f07d1a,peach:f4b189,apricot:eda15c,yellow:f2ce2b,gold:d9a441,golden:d9a441,lemon:eddb3a,honey:d8a63a,mustard:c9a227,lime:9fd13a,green:3fa34d,emerald:2fa36b,jade:36a186,forest:2c6e4a,olive:6b7a3a,moss:6f8f4a,mint:88d8b0,sage:9bb08a,teal:2a9d8f,cyan:31c4d6,turquoise:3ec9c0,aqua:53c9d6,sky:6cb8e6,blue:2f6fd0,azure:2f8fd0,cobalt:2a4fd0,navy:23386b,sapphire:2b5fbf,indigo:4a3fbf,denim:3a5f9f,purple:8a4fd0,violet:8a5fd6,lavender:b6a6e6,lilac:c0a6dd,plum:7a3f6b,magenta:d13fa8,orchid:c06fd0,pink:e88bb0,rose:e0728c,blush:eaa2ae,fuchsia:e04fa8,salmon:ee9080,coral:ef7f6a,brown:8a5a34,chocolate:6b432a,coffee:5c4033,tan:c19a6b,beige:d9c3a1,sand:d8c295,khaki:bfae7a,rust:9c4a24,copper:b06a3a,bronze:9c7b3a,grey:8f8f8f,gray:8f8f8f,silver:b8bcc0,slate:6e7b87,charcoal:4a4f55,graphite:53585e,black:2b2b2b,ink:23262b,shadow:32323c,white:f2f2f0,ivory:eee6d5,snow:f5f7fa,pearl:eae6de,cream:eee0c4,fire:e04b1f,flame:e85c22,ember:c8471f,burn:d4451c,heat:e0602a,lava:d43a1c,magma:c8341a,ice:8fd4ea,frost:aee0ef,snowy:e8f3f8,cold:7fc3e0,chill:8ec9e4,glacier:9fd6e8,water:3f8fd0,sea:2f7fa8,ocean:24608f,river:3f92c0,rain:6f9fc0,storm:5a6b7a,thunder:6b6f8a,lightning:e6d24a,wind:9fb8c4,air:a8c4d0,sky2:6cb8e6,cloud:c2cdd6,fog:aeb6bb,mist:bfc7cc,earth:8a6a44,stone:8d8d84,rock:7f7f76,sand2:d8c295,clay:a86a4a,mud:6b5236,dust:b5a893,wood:8a6034,tree:3f7a44,leaf:5aa04a,grass:6aa84a,flower:e07fa8,bloom:e88fb0,root:6b4a2a,vine:5a8a3a,metal:9aa2a8,iron:6f757a,steel:8792a0,rusted:9c4a24,lead:6a6f75,tin:aab0b5,sun:f0b429,solar:f0a41a,star:f2e07a,moon:c9cfd8,lunar:c2c9d4,night:2f3550,day:8fc4e6,dawn:f0a58a,dusk:6a5a8a,poison:6ab04a,toxic:7ac04a,venom:5aa03a,acid:9fd13a,corrosion:7a8a3a,holy:f0e0a4,divine:f2e6b0,sacred:eee0b4,light:f4efd8,radiant:f6e8b8,bless:f0e6c0,dark:3a3646,evil:4a2a3a,curse:5a2a4a,unholy:4a2436,void:2a2836,doom:3a2430,blood:9c1f2a,wound:a8323a,injury:a04048,pain:8a2a34,death:4a4048,decay:6a5a3a,rot:6a5f34,life:4aa06a,health:4fae6a,heal:5ab87a,vital:56b072,growth:6aba6a,fresh:7ac47a,magic:8a5fd0,arcane:7a4fc0,spell:8f6fd6,mystic:7a5fc6,psychic:c06fd0,ether:9f8fe0,energy:e6c235,power:e0a82a,force:d09a2a,speed:39c0d0,swift:44c8d8,slow:8a8a8a,calm:8fc4c0,peace:9fd0c4,quiet:a8c8c8,serene:9fd0d4,rest:a4c0c8,anger:d03a2a,rage:c42f24,fury:cf3428,wrath:b82a24,fear:5a4a6a,terror:4a3a5a,dread:52425e,joy:f2c14a,happy:f4c85a,cheer:f6cf62,sad:5a7a9a,sorrow:526f8f,grief:4a6484,melancholy:60789a,love:e0607a,heart:d9556f,passion:d63a4a,desire:cf4a5a,hope:8fd0c4,despair:4a4a5a,pride:c0a03a,shame:9a6a5a,guilt:8a5a4a,honor:d0b04a,honour:d0b04a,good:4fae6a,great:3fa860,best:2fa060,excellent:34a866,fine:6fb87a,ok:9fb08a,average:9a9a8a,bad:d0602a,poor:c05a2a,worst:b02a24,fail:b83228,failure:b02a24,success:3fa860,win:34a860,lose:b03a2a,high:3fa860,low:c05a2a,max:2fa060,min:c0502a,full:3fa860,empty:8a8a8a,none:8a8a8a,new:4fa8d0,old:8a7a6a,ancient:7a6a52,modern:5fb0d0,rare:8a5fd0,common:8a8a8a,epic:b04fd0,legendary:e0a82a,mythic:d04fb0,unique:c06fd0,easy:5fb87a,hard:c05a3a,medium:d0a83a,simple:7ac07a,complex:8a5fd0,safe:4fae6a,danger:d0502a,warning:e0a02a,alert:e08a2a,critical:c42f24,stable:5fa8b0,broken:9a5a4a,active:3fa860,inactive:8a8a8a,done:4fae6a,todo:d0a83a,pending:c8a83a,progress:4fa8d0,blocked:c04a3a,paused:9a9a8a,dragon:c04a2a,beast:8a5a3a,wolf:7a7f86,bear:7a5a3a,snake:5a8a4a,spider:4a4a52,bird:6fb0d0,fish:4a9fc0,human:d0a48a,elf:7ab08a,dwarf:9a6a4a,orc:6a8a4a,undead:6a7a6a,ghost:c0c8d4,demon:a02a3a,angel:f0e6b8,fae:b08fd0,warrior:9a4a3a,fighter:a0503a,rogue:4a4a5a,thief:52525f,wizard:6a4fc0,mage:7a5fd0,cleric:e0d09a,priest:e6d8a8,bard:c06fa8,ranger:4a7a4a,druid:5a8a4a,monk:c08a4a,paladin:e0c86a,sorcerer:b04fc0,warlock:7a3f8a,barbarian:a0432a"
+);
+var table = null;
+function anchors() {
+  if (table) return table;
+  const m = /* @__PURE__ */ new Map();
+  for (const pair of ANCHORS.split(",")) {
+    const i = pair.indexOf(":");
+    if (i <= 0) continue;
+    m.set(pair.slice(0, i), "#" + pair.slice(i + 1));
+  }
+  table = m;
+  return m;
+}
+
+// src/utils/semantic.ts
+var wide = null;
+function setSemanticTable(words) {
+  wide = words ? new Map(Object.entries(words)) : null;
+}
+function semanticTableSize() {
+  var _a;
+  return (_a = wide == null ? void 0 : wide.size) != null ? _a : 0;
+}
+function stem(word) {
+  const w = word.toLowerCase().trim();
+  const out = [];
+  const add = (s) => {
+    if (s.length > 2 && s !== w && !out.includes(s)) out.push(s);
+  };
+  if (w.endsWith("ies")) add(w.slice(0, -3) + "y");
+  if (w.endsWith("es")) add(w.slice(0, -2));
+  if (w.endsWith("s")) add(w.slice(0, -1));
+  if (w.endsWith("ing")) {
+    add(w.slice(0, -3));
+    add(w.slice(0, -3) + "e");
+  }
+  if (w.endsWith("ed")) {
+    add(w.slice(0, -2));
+    add(w.slice(0, -1));
+  }
+  if (w.endsWith("ly")) add(w.slice(0, -2));
+  if (w.endsWith("ness")) add(w.slice(0, -4));
+  if (w.endsWith("ful")) add(w.slice(0, -3));
+  return out;
+}
+function wordHash(word) {
+  let h = 2166136261;
+  const w = word.toLowerCase();
+  for (let i = 0; i < w.length; i++) {
+    h ^= w.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h);
+}
+function hashColor(word, lightness = 0.72, chroma = 0.13) {
+  return fromOklch(lightness, chroma, wordHash(word) % 360);
+}
+function semanticColor(word, o = {}) {
+  var _a;
+  const w = word.toLowerCase().trim();
+  if (!w) return void 0;
+  const known = anchors();
+  const look = (k) => {
+    var _a2;
+    return (_a2 = known.get(k)) != null ? _a2 : wide == null ? void 0 : wide.get(k);
+  };
+  const direct = look(w);
+  if (direct) return direct;
+  for (const s of stem(w)) {
+    const hit = look(s);
+    if (hit) return hit;
+  }
+  if (/\s/.test(w)) {
+    for (const part of w.split(/\s+/)) {
+      const hit = (_a = look(part)) != null ? _a : stem(part).map(look).find(Boolean);
+      if (hit) return hit;
+    }
+  }
+  return o.fallback === "hash" ? hashColor(w, o.lightness, o.chroma) : void 0;
+}
+
+// src/utils/palette.ts
+function defaultWheel() {
+  return { start: 250, spread: 250, lightness: 0.72, chroma: 0.13 };
+}
+var clamp01 = (n) => n < 0 ? 0 : n > 1 ? 1 : n;
+function toOklch(hex) {
+  const rgb = hexToRgb(hex);
+  return rgb ? rgbToOklch(rgb.r, rgb.g, rgb.b) : null;
+}
+function fromOklch(L, C, H) {
+  const { r, g, b } = oklchToRgb(clamp01(L), Math.max(0, C), (H % 360 + 360) % 360);
+  return rgbToHex(r, g, b);
+}
+function mixHue(a, b, t, arc) {
+  if (a.C < 1e-4) return b.H;
+  if (b.C < 1e-4) return a.H;
+  let d = ((b.H - a.H) % 360 + 360) % 360;
+  if (arc === "short" ? d > 180 : d <= 180) d -= 360;
+  return a.H + d * t;
+}
+function mixColors(a, b, t, arc = "short") {
+  const ca = toOklch(a);
+  const cb = toOklch(b);
+  if (!ca || !cb) return ca ? a : b;
+  const u = clamp01(t);
+  return fromOklch(ca.L + (cb.L - ca.L) * u, ca.C + (cb.C - ca.C) * u, mixHue(ca, cb, u, arc));
+}
+function blendColors(colors) {
+  let n = 0;
+  let L = 0;
+  let a = 0;
+  let b = 0;
+  for (const hex of colors) {
+    const rgb = hexToRgb(hex);
+    if (!rgb) continue;
+    const lab = rgbToOklab(rgb.r, rgb.g, rgb.b);
+    L += lab.L;
+    a += lab.a;
+    b += lab.b;
+    n++;
+  }
+  if (!n) return void 0;
+  const c = oklabToRgb(L / n, a / n, b / n);
+  return rgbToHex(c.r, c.g, c.b);
+}
+function luminance(hex) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return 1;
+  const ch = (v) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * ch(rgb.r) + 0.7152 * ch(rgb.g) + 0.0722 * ch(rgb.b);
+}
+function readableOn(bg) {
+  const l = luminance(bg);
+  const onWhite = 1.05 / (l + 0.05);
+  const onBlack = (l + 0.05) / 0.05;
+  return onBlack >= onWhite ? "#000000" : "#ffffff";
+}
+function sortedPoints(p) {
+  var _a;
+  return ((_a = p.points) != null ? _a : []).filter((x) => Number.isFinite(x.at) && !!x.color).sort((a, b) => a.at - b.at);
+}
+function sortedRanges(p) {
+  var _a;
+  return ((_a = p.ranges) != null ? _a : []).filter((r) => Number.isFinite(r.from) && Number.isFinite(r.to) && !!r.color).sort((a, b) => a.from - b.from || a.to - b.to);
+}
+function wheelColor(w, v, span) {
+  const width = span.max - span.min;
+  const t = width > 0 ? clamp01((v - span.min) / width) : 0;
+  const hue = w.start + (w.reverse ? -1 : 1) * t * w.spread;
+  return fromOklch(w.lightness, w.chroma, hue);
+}
+function pointColor(p, v) {
+  var _a;
+  const pts = sortedPoints(p);
+  if (!pts.length) return void 0;
+  if (v <= pts[0].at) return pts[0].color;
+  const last = pts[pts.length - 1];
+  if (v >= last.at) return last.color;
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1];
+    const b = pts[i];
+    if (v > b.at) continue;
+    const width = b.at - a.at;
+    return width <= 0 ? b.color : mixColors(a.color, b.color, (v - a.at) / width, (_a = p.arc) != null ? _a : "short");
+  }
+  return last.color;
+}
+function rangeColor(p, v) {
+  var _a;
+  const rs = sortedRanges(p);
+  if (!rs.length) return void 0;
+  const hits = rs.filter((r) => v >= Math.min(r.from, r.to) && v <= Math.max(r.from, r.to));
+  if (hits.length === 1) return hits[0].color;
+  if (hits.length > 1) {
+    const dominant = hits.find((r) => v === r.from && r.domFrom || v === r.to && r.domTo);
+    return (dominant != null ? dominant : hits[0]).color;
+  }
+  const first = rs[0];
+  const last = rs[rs.length - 1];
+  if (v < first.from || v > last.to) return p.outside === "clamp" ? v < first.from ? first.color : last.color : void 0;
+  if (p.gaps !== "blend") return void 0;
+  for (let i = 1; i < rs.length; i++) {
+    const a = rs[i - 1];
+    const b = rs[i];
+    if (v <= a.to || v >= b.from) continue;
+    const width = b.from - a.to;
+    return width <= 0 ? b.color : mixColors(a.color, b.color, (v - a.to) / width, (_a = p.arc) != null ? _a : "short");
+  }
+  return void 0;
+}
+function colorAt(palette, v, span) {
+  var _a;
+  if (!Number.isFinite(v)) return void 0;
+  switch (palette.mode) {
+    case "wheel":
+      return span ? wheelColor((_a = palette.wheel) != null ? _a : defaultWheel(), v, span) : void 0;
+    case "points":
+      return pointColor(palette, v);
+    case "ranges":
+      return rangeColor(palette, v);
+    default:
+      return void 0;
+  }
+}
+function colorForText(palette, text, allowed) {
+  var _a;
+  const v = text.trim();
+  if (!v) return void 0;
+  const own = ((_a = palette.words) != null ? _a : []).find((w) => w.word.trim().toLowerCase() === v.toLowerCase());
+  if (own) return own.color;
+  if (palette.mode === "semantic") {
+    const w = palette.wheel;
+    return semanticColor(v, { fallback: palette.fallback, lightness: w == null ? void 0 : w.lightness, chroma: w == null ? void 0 : w.chroma });
+  }
+  const list = (allowed != null ? allowed : []).map((s) => s.trim().toLowerCase());
+  const i = list.indexOf(v.toLowerCase());
+  if (i < 0) return void 0;
+  return colorAt(palette, i, { min: 0, max: Math.max(1, list.length - 1) });
+}
+function rangesValid(ranges) {
+  const rs = [...ranges].sort((a, b) => a.from - b.from);
+  for (let i = 0; i < rs.length; i++) {
+    if (rs[i].to < rs[i].from) return false;
+    if (i > 0 && rs[i].from < rs[i - 1].to) return false;
+  }
+  return true;
+}
+function moveEdge(ranges, index, edge, value, linked) {
+  const rs = ranges.map((r2) => ({ ...r2 }));
+  const r = rs[index];
+  if (!r || !Number.isFinite(value)) return rs;
+  if (edge === "from") {
+    r.from = Math.min(value, r.to);
+    if (linked && rs[index - 1]) rs[index - 1].to = r.from;
+  } else {
+    r.to = Math.max(value, r.from);
+    if (linked && rs[index + 1]) rs[index + 1].from = r.to;
+  }
+  return rs;
+}
+function domOf(r, edge) {
+  return (edge === "from" ? r.domFrom : r.domTo) === true;
+}
+function setDom(r, edge, on) {
+  if (edge === "from") r.domFrom = on || void 0;
+  else r.domTo = on || void 0;
+}
+function ensureDominance(ranges) {
+  var _a, _b;
+  const rs = ranges.map((r) => ({ ...r }));
+  const edges = /* @__PURE__ */ new Map();
+  rs.forEach((r, i) => {
+    var _a2;
+    for (const edge of ["from", "to"]) {
+      const at = edge === "from" ? r.from : r.to;
+      const at2 = (_a2 = edges.get(at)) != null ? _a2 : [];
+      at2.push({ i, edge });
+      edges.set(at, at2);
+    }
+  });
+  for (const met of edges.values()) {
+    if (met.length < 2) {
+      for (const e of met) setDom(rs[e.i], e.edge, false);
+      continue;
+    }
+    const keep = (_b = (_a = met.find((e) => domOf(rs[e.i], e.edge))) != null ? _a : met.find((e) => e.edge === "from")) != null ? _b : met[0];
+    for (const e of met) setDom(rs[e.i], e.edge, e === keep);
+  }
+  return rs;
+}
+function setDominant(ranges, index, edge, on) {
+  const rs = ranges.map((r) => ({ ...r }));
+  const me = rs[index];
+  if (!me) return rs;
+  const at = edge === "from" ? me.from : me.to;
+  setDom(me, edge, on);
+  if (on)
+    rs.forEach((other, i) => {
+      if (i === index) return;
+      if (other.from === at) other.domFrom = void 0;
+      if (other.to === at) other.domTo = void 0;
+    });
+  return ensureDominance(rs);
+}
+
+// src/utils/finish.ts
+function asText(value) {
+  if (value === void 0 || value === null) return "";
+  return Array.isArray(value) ? value.map((v) => String(v)).join(", ") : String(value);
+}
+function stableHash(text) {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h);
+}
+function matches(rule, value) {
+  var _a, _b, _c;
+  const text = asText(value).trim();
+  switch (rule.when) {
+    case "all":
+      return true;
+    case "values":
+      return ((_a = rule.values) != null ? _a : []).some((v) => v.trim().toLowerCase() === text.toLowerCase());
+    case "range": {
+      const n = typeof value === "number" ? value : Number(text);
+      if (!Number.isFinite(n)) return false;
+      const from = (_b = rule.from) != null ? _b : -Infinity;
+      const to = (_c = rule.to) != null ? _c : Infinity;
+      return n >= Math.min(from, to) && n <= Math.max(from, to);
+    }
+    case "unique":
+      return text !== "";
+    default:
+      return false;
+  }
+}
+function finishOf(rule, value) {
+  var _a;
+  const set = (_a = rule.set) != null ? _a : [];
+  if (rule.when !== "unique" || !set.length) return rule.finish;
+  return set[stableHash(asText(value)) % set.length];
+}
+function pickFinish(rules, value) {
+  var _a;
+  for (const rule of rules != null ? rules : []) {
+    if (!rule.finish && !((_a = rule.set) != null ? _a : []).length) continue;
+    if (!matches(rule, value)) continue;
+    const finish = finishOf(rule, value);
+    if (!finish) continue;
+    return { finish, color: rule.color };
+  }
+  return void 0;
+}
+
+// src/ui/render/finishes.ts
+var FINISHES = [
+  "gloss",
+  "matte",
+  "holographic",
+  "reverse-holo",
+  "foil",
+  "prismatic",
+  "refractor",
+  "chrome",
+  "cracked-ice",
+  "cosmic",
+  "shimmer",
+  "metallic",
+  "canvas",
+  "die-cut",
+  "parallel",
+  "mojo",
+  "wave",
+  "negative",
+  "etch",
+  "prizm"
+];
+var NEEDS_FILL = /* @__PURE__ */ new Set(["die-cut", "canvas", "parallel", "cracked-ice"]);
+function finishName(i18n, id) {
+  return i18n.t("finish." + id);
+}
+var finishClass = (id) => "ep-fin-" + id;
+
+// src/ui/render/format.ts
+var NUMERIC = /* @__PURE__ */ new Set(["number", "decimal", "formula", "derived", "unit", "rating", "date", "datetime"]);
+function formatValue(view, entry) {
+  var _a;
+  const key = (_a = entry.key) != null ? _a : "";
+  const type = view.resolveType(entry);
+  if (type === "derived") return modifierInfo(view, entry).value;
+  const raw = view.note.raw[key];
+  const factor = Number(entry.unitFactor);
+  if (typeof raw === "number" && factor > 0 && factor !== 1) return raw * factor;
+  return raw;
+}
+function ruleFor(view, entry) {
+  var _a, _b;
+  const own = entry.format;
+  if (own) return own.off ? void 0 : own;
+  const key = ((_a = entry.key) != null ? _a : "").toLowerCase();
+  const shared = key ? (_b = view.settings.formatProps) == null ? void 0 : _b[key] : void 0;
+  return shared && !shared.off ? shared : void 0;
+}
+function paletteFor(view, rule) {
+  var _a;
+  if (!(rule == null ? void 0 : rule.palette)) return void 0;
+  return ((_a = view.settings.palettes) != null ? _a : []).find((p) => p.id === rule.palette);
+}
+function spanFor(view, entry) {
+  var _a, _b, _c, _d, _e;
+  const vault = entry.min === void 0 || entry.max === void 0 ? view.props.numberRange((_a = entry.key) != null ? _a : "") : null;
+  const min = (_c = (_b = entry.min) != null ? _b : vault == null ? void 0 : vault.min) != null ? _c : 0;
+  const max = (_e = (_d = entry.max) != null ? _d : vault == null ? void 0 : vault.max) != null ? _e : 1;
+  return max > min ? { min, max } : { min, max: min + 1 };
+}
+function allowedOf(entry) {
+  var _a;
+  return (_a = entry.constraints) == null ? void 0 : _a.allowed;
+}
+function colorOfWith(view, entry, palette, raw) {
+  if (raw === void 0 || raw === null || raw === "") return void 0;
+  if (Array.isArray(raw)) {
+    const each = raw.map((v) => colorOfWith(view, entry, palette, v)).filter((c) => !!c);
+    return each.length ? blendColors(each) : void 0;
+  }
+  if (typeof raw === "number") return colorAt(palette, raw, spanFor(view, entry));
+  const text = String(raw);
+  const type = view.resolveType(entry);
+  if (NUMERIC.has(type)) {
+    const n = Number(text);
+    return Number.isFinite(n) ? colorAt(palette, n, spanFor(view, entry)) : void 0;
+  }
+  return colorForText(palette, text, allowedOf(entry));
+}
+function targetOf(rule) {
+  return rule.target === "card" || rule.target === "chip" ? rule.target : "text";
+}
+function clear(el) {
+  el.removeClass("ep-fmt", "ep-fmt-text", "ep-fmt-chip", "ep-fmt-card", "ep-fin");
+  for (const id of FINISHES) el.removeClass(finishClass(id));
+  el.setCssProps({ "--ep-fmt-bg": "", "--ep-fmt-fg": "" });
+}
+function paint(el, color, target2, contrast, finish) {
+  el.addClass("ep-fmt", `ep-fmt-${target2}`);
+  if (finish && !(target2 === "text" && NEEDS_FILL.has(finish))) el.addClass("ep-fin", finishClass(finish));
+  if (target2 === "text") {
+    el.setCssProps({ "--ep-fmt-fg": color });
+    return;
+  }
+  const fg = contrast && contrast !== "auto" ? contrast : readableOn(color);
+  el.setCssProps({ "--ep-fmt-bg": color, "--ep-fmt-fg": fg });
+}
+var PREVIEW_EVENT = "ep-preview";
+function previewValue(el, value) {
+  el == null ? void 0 : el.dispatchEvent(new CustomEvent(PREVIEW_EVENT, { detail: { value }, bubbles: true }));
+}
+function applyFormat(view, entry, raw, els) {
+  var _a, _b, _c, _d;
+  const rule = ruleFor(view, entry);
+  const palette = paletteFor(view, rule);
+  for (const el of [els.wrap, els.val]) if (el) clear(el);
+  for (const chip of (_a = els.chips) != null ? _a : []) clear(chip);
+  if (!rule || !palette) return;
+  const target2 = targetOf(rule);
+  if (((_b = els.chips) == null ? void 0 : _b.length) && Array.isArray(raw)) {
+    els.chips.forEach((chip, i) => {
+      var _a2;
+      const item = raw[i];
+      const fin2 = pickFinish(rule.finishes, item);
+      const c = (_a2 = fin2 == null ? void 0 : fin2.color) != null ? _a2 : colorOfWith(view, entry, palette, item);
+      if (c) paint(chip, c, target2 === "text" ? "text" : "chip", rule.contrast, fin2 == null ? void 0 : fin2.finish);
+    });
+  }
+  const fin = pickFinish(rule.finishes, raw);
+  const color = (_c = fin == null ? void 0 : fin.color) != null ? _c : colorOfWith(view, entry, palette, raw);
+  if (!color) return;
+  if (target2 === "card") {
+    if (els.wrap) paint(els.wrap, color, "card", rule.contrast, fin == null ? void 0 : fin.finish);
+    return;
+  }
+  if (target2 === "chip" && ((_d = els.chips) == null ? void 0 : _d.length)) return;
+  if (els.val) paint(els.val, color, target2, rule.contrast, fin == null ? void 0 : fin.finish);
+}
+
 // src/ui/components/inline-edit.ts
 function focusEditableFrom(span, backwards) {
   var _a;
@@ -4004,6 +4591,10 @@ function openNumberInput(span, value, commit2, o) {
       commit2(n);
     }
   };
+  input.addEventListener("input", () => {
+    const n = o.evaluate ? o.evaluate(input.value) : Number(input.value);
+    if (n !== void 0 && Number.isFinite(n)) previewValue(input, n);
+  });
   input.onblur = () => finish(true);
   input.onkeydown = (e) => {
     if (e.key === "Enter") {
@@ -4055,6 +4646,7 @@ function openTextInput(app, span, key, value, valuesFor, commit2, opts = {}) {
     !opts.strict
   );
   input.addEventListener("focus", () => input.dispatchEvent(new Event("input")));
+  input.addEventListener("input", () => previewValue(input, input.value));
   input.dispatchEvent(new Event("input"));
   input.onblur = () => window.setTimeout(() => finish(true), 150);
   input.onkeydown = (e) => {
@@ -4222,117 +4814,6 @@ function trackModifiers(plugin) {
 
 // src/ui/components/setting-helpers.ts
 var import_obsidian9 = require("obsidian");
-
-// src/utils/color.ts
-var COLOR_SPACES = ["RGB", "HSL", "OKLCH", "OKLab"];
-function hexToRgb(hex) {
-  let h = (hex || "").trim().replace(/^#/, "");
-  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
-  if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
-  return { r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16) };
-}
-function rgbToHex(r, g, b) {
-  const h = (n) => Math.round(clamp(n, 0, 255)).toString(16).padStart(2, "0");
-  return "#" + h(r) + h(g) + h(b);
-}
-function rgbToHsl(r, g, b) {
-  r /= 255;
-  g /= 255;
-  b /= 255;
-  const max = Math.max(r, g, b), min = Math.min(r, g, b);
-  let h = 0, s = 0;
-  const l = (max + min) / 2;
-  const d = max - min;
-  if (d) {
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
-    else if (max === g) h = (b - r) / d + 2;
-    else h = (r - g) / d + 4;
-    h *= 60;
-  }
-  return { h, s: s * 100, l: l * 100 };
-}
-function hslToRgb(h, s, l) {
-  h = (h % 360 + 360) % 360;
-  s = clamp(s, 0, 100) / 100;
-  l = clamp(l, 0, 100) / 100;
-  const c = (1 - Math.abs(2 * l - 1)) * s;
-  const x = c * (1 - Math.abs(h / 60 % 2 - 1));
-  const m = l - c / 2;
-  let r = 0, g = 0, b = 0;
-  if (h < 60) [r, g, b] = [c, x, 0];
-  else if (h < 120) [r, g, b] = [x, c, 0];
-  else if (h < 180) [r, g, b] = [0, c, x];
-  else if (h < 240) [r, g, b] = [0, x, c];
-  else if (h < 300) [r, g, b] = [x, 0, c];
-  else [r, g, b] = [c, 0, x];
-  return { r: (r + m) * 255, g: (g + m) * 255, b: (b + m) * 255 };
-}
-function srgbToLin(c) {
-  c /= 255;
-  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-}
-function linToSrgb(c) {
-  const v = c <= 31308e-7 ? c * 12.92 : 1.055 * Math.pow(Math.max(c, 0), 1 / 2.4) - 0.055;
-  return clamp(v * 255, 0, 255);
-}
-function rgbToOklab(r, g, b) {
-  const lr = srgbToLin(r), lg = srgbToLin(g), lb = srgbToLin(b);
-  const l = 0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb;
-  const m = 0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb;
-  const s = 0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb;
-  const l_ = Math.cbrt(l), m_ = Math.cbrt(m), s_ = Math.cbrt(s);
-  return {
-    L: 0.2104542553 * l_ + 0.793617785 * m_ - 0.0040720468 * s_,
-    a: 1.9779984951 * l_ - 2.428592205 * m_ + 0.4505937099 * s_,
-    b: 0.0259040371 * l_ + 0.7827717662 * m_ - 0.808675766 * s_
-  };
-}
-function oklabToLin(L, a, b) {
-  const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
-  const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
-  const s_ = L - 0.0894841775 * a - 1.291485548 * b;
-  const l = l_ ** 3, m = m_ ** 3, s = s_ ** 3;
-  return {
-    lr: 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
-    lg: -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
-    lb: -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s
-  };
-}
-function oklabToRgb(L, a, b) {
-  const c = oklabToLin(L, a, b);
-  return { r: linToSrgb(c.lr), g: linToSrgb(c.lg), b: linToSrgb(c.lb) };
-}
-function rgbToOklch(r, g, b) {
-  const o = rgbToOklab(r, g, b);
-  const C = Math.sqrt(o.a * o.a + o.b * o.b);
-  let H = Math.atan2(o.b, o.a) * 180 / Math.PI;
-  if (H < 0) H += 360;
-  return { L: o.L, C, H };
-}
-function oklchToLin(L, C, H) {
-  const hr = H * Math.PI / 180;
-  return oklabToLin(L, C * Math.cos(hr), C * Math.sin(hr));
-}
-function oklchToRgb(L, C, H) {
-  const c = oklchToLin(L, C, H);
-  return { r: linToSrgb(c.lr), g: linToSrgb(c.lg), b: linToSrgb(c.lb) };
-}
-function inGamutLin(c) {
-  const e = 15e-4;
-  return c.lr >= -e && c.lr <= 1 + e && c.lg >= -e && c.lg <= 1 + e && c.lb >= -e && c.lb <= 1 + e;
-}
-function gradientStops(samples, at) {
-  const stops = [];
-  for (let i = 0; i <= samples; i++) {
-    const t = i / samples;
-    const { rgb, oog } = at(t);
-    const pct = Math.round(t * 100);
-    const r = Math.round(rgb.r), g = Math.round(rgb.g), b = Math.round(rgb.b);
-    stops.push((oog ? `rgba(${r},${g},${b},0.15)` : `rgb(${r},${g},${b})`) + ` ${pct}%`);
-  }
-  return `linear-gradient(to right, ${stops.join(", ")})`;
-}
 
 // src/ui/modals/color-picker.ts
 var import_obsidian7 = require("obsidian");
@@ -5195,11 +5676,11 @@ var OK = { ok: true };
 function isEmpty(v) {
   return v === void 0 || v === null || v === "" || Array.isArray(v) && v.length === 0;
 }
-var NUMERIC = /* @__PURE__ */ new Set(["number", "decimal", "formula", "derived", "unit", "rating"]);
+var NUMERIC2 = /* @__PURE__ */ new Set(["number", "decimal", "formula", "derived", "unit", "rating"]);
 function validate(raw, c, type) {
   if (!c) return OK;
   if (isEmpty(raw)) return c.required ? { ok: false, code: "required" } : OK;
-  if (NUMERIC.has(type)) {
+  if (NUMERIC2.has(type)) {
     const n = Number(raw);
     if (Number.isFinite(n)) {
       if (c.min !== void 0 && n < c.min) return { ok: false, code: "min", bound: c.min };
@@ -6258,6 +6739,7 @@ function render(kind, ctx2) {
       pending2 = fmt(out);
       place2(pending2);
       setVal(pending2);
+      previewValue(slider, pending2);
       for (const a of addons) (_a2 = a.onPreview) == null ? void 0 : _a2.call(a, ctx2, refs.cells, pending2);
     };
     knob.addEventListener("pointerdown", (e) => {
@@ -9881,448 +10363,6 @@ function openEntryMenu(e, view, file, section, entry) {
   showMenu(menu, e);
 }
 
-// src/utils/semantic-anchors.ts
-var ANCHORS = (
-  // colours
-  "red:e02020,crimson:c81e3a,scarlet:e03a2f,maroon:7b1b26,ruby:c41e4a,cherry:d42a4a,orange:f08a24,amber:f0a830,tangerine:f07d1a,peach:f4b189,apricot:eda15c,yellow:f2ce2b,gold:d9a441,golden:d9a441,lemon:eddb3a,honey:d8a63a,mustard:c9a227,lime:9fd13a,green:3fa34d,emerald:2fa36b,jade:36a186,forest:2c6e4a,olive:6b7a3a,moss:6f8f4a,mint:88d8b0,sage:9bb08a,teal:2a9d8f,cyan:31c4d6,turquoise:3ec9c0,aqua:53c9d6,sky:6cb8e6,blue:2f6fd0,azure:2f8fd0,cobalt:2a4fd0,navy:23386b,sapphire:2b5fbf,indigo:4a3fbf,denim:3a5f9f,purple:8a4fd0,violet:8a5fd6,lavender:b6a6e6,lilac:c0a6dd,plum:7a3f6b,magenta:d13fa8,orchid:c06fd0,pink:e88bb0,rose:e0728c,blush:eaa2ae,fuchsia:e04fa8,salmon:ee9080,coral:ef7f6a,brown:8a5a34,chocolate:6b432a,coffee:5c4033,tan:c19a6b,beige:d9c3a1,sand:d8c295,khaki:bfae7a,rust:9c4a24,copper:b06a3a,bronze:9c7b3a,grey:8f8f8f,gray:8f8f8f,silver:b8bcc0,slate:6e7b87,charcoal:4a4f55,graphite:53585e,black:2b2b2b,ink:23262b,shadow:32323c,white:f2f2f0,ivory:eee6d5,snow:f5f7fa,pearl:eae6de,cream:eee0c4,fire:e04b1f,flame:e85c22,ember:c8471f,burn:d4451c,heat:e0602a,lava:d43a1c,magma:c8341a,ice:8fd4ea,frost:aee0ef,snowy:e8f3f8,cold:7fc3e0,chill:8ec9e4,glacier:9fd6e8,water:3f8fd0,sea:2f7fa8,ocean:24608f,river:3f92c0,rain:6f9fc0,storm:5a6b7a,thunder:6b6f8a,lightning:e6d24a,wind:9fb8c4,air:a8c4d0,sky2:6cb8e6,cloud:c2cdd6,fog:aeb6bb,mist:bfc7cc,earth:8a6a44,stone:8d8d84,rock:7f7f76,sand2:d8c295,clay:a86a4a,mud:6b5236,dust:b5a893,wood:8a6034,tree:3f7a44,leaf:5aa04a,grass:6aa84a,flower:e07fa8,bloom:e88fb0,root:6b4a2a,vine:5a8a3a,metal:9aa2a8,iron:6f757a,steel:8792a0,rusted:9c4a24,lead:6a6f75,tin:aab0b5,sun:f0b429,solar:f0a41a,star:f2e07a,moon:c9cfd8,lunar:c2c9d4,night:2f3550,day:8fc4e6,dawn:f0a58a,dusk:6a5a8a,poison:6ab04a,toxic:7ac04a,venom:5aa03a,acid:9fd13a,corrosion:7a8a3a,holy:f0e0a4,divine:f2e6b0,sacred:eee0b4,light:f4efd8,radiant:f6e8b8,bless:f0e6c0,dark:3a3646,evil:4a2a3a,curse:5a2a4a,unholy:4a2436,void:2a2836,doom:3a2430,blood:9c1f2a,wound:a8323a,injury:a04048,pain:8a2a34,death:4a4048,decay:6a5a3a,rot:6a5f34,life:4aa06a,health:4fae6a,heal:5ab87a,vital:56b072,growth:6aba6a,fresh:7ac47a,magic:8a5fd0,arcane:7a4fc0,spell:8f6fd6,mystic:7a5fc6,psychic:c06fd0,ether:9f8fe0,energy:e6c235,power:e0a82a,force:d09a2a,speed:39c0d0,swift:44c8d8,slow:8a8a8a,calm:8fc4c0,peace:9fd0c4,quiet:a8c8c8,serene:9fd0d4,rest:a4c0c8,anger:d03a2a,rage:c42f24,fury:cf3428,wrath:b82a24,fear:5a4a6a,terror:4a3a5a,dread:52425e,joy:f2c14a,happy:f4c85a,cheer:f6cf62,sad:5a7a9a,sorrow:526f8f,grief:4a6484,melancholy:60789a,love:e0607a,heart:d9556f,passion:d63a4a,desire:cf4a5a,hope:8fd0c4,despair:4a4a5a,pride:c0a03a,shame:9a6a5a,guilt:8a5a4a,honor:d0b04a,honour:d0b04a,good:4fae6a,great:3fa860,best:2fa060,excellent:34a866,fine:6fb87a,ok:9fb08a,average:9a9a8a,bad:d0602a,poor:c05a2a,worst:b02a24,fail:b83228,failure:b02a24,success:3fa860,win:34a860,lose:b03a2a,high:3fa860,low:c05a2a,max:2fa060,min:c0502a,full:3fa860,empty:8a8a8a,none:8a8a8a,new:4fa8d0,old:8a7a6a,ancient:7a6a52,modern:5fb0d0,rare:8a5fd0,common:8a8a8a,epic:b04fd0,legendary:e0a82a,mythic:d04fb0,unique:c06fd0,easy:5fb87a,hard:c05a3a,medium:d0a83a,simple:7ac07a,complex:8a5fd0,safe:4fae6a,danger:d0502a,warning:e0a02a,alert:e08a2a,critical:c42f24,stable:5fa8b0,broken:9a5a4a,active:3fa860,inactive:8a8a8a,done:4fae6a,todo:d0a83a,pending:c8a83a,progress:4fa8d0,blocked:c04a3a,paused:9a9a8a,dragon:c04a2a,beast:8a5a3a,wolf:7a7f86,bear:7a5a3a,snake:5a8a4a,spider:4a4a52,bird:6fb0d0,fish:4a9fc0,human:d0a48a,elf:7ab08a,dwarf:9a6a4a,orc:6a8a4a,undead:6a7a6a,ghost:c0c8d4,demon:a02a3a,angel:f0e6b8,fae:b08fd0,warrior:9a4a3a,fighter:a0503a,rogue:4a4a5a,thief:52525f,wizard:6a4fc0,mage:7a5fd0,cleric:e0d09a,priest:e6d8a8,bard:c06fa8,ranger:4a7a4a,druid:5a8a4a,monk:c08a4a,paladin:e0c86a,sorcerer:b04fc0,warlock:7a3f8a,barbarian:a0432a"
-);
-var table = null;
-function anchors() {
-  if (table) return table;
-  const m = /* @__PURE__ */ new Map();
-  for (const pair of ANCHORS.split(",")) {
-    const i = pair.indexOf(":");
-    if (i <= 0) continue;
-    m.set(pair.slice(0, i), "#" + pair.slice(i + 1));
-  }
-  table = m;
-  return m;
-}
-
-// src/utils/semantic.ts
-var wide = null;
-function setSemanticTable(words) {
-  wide = words ? new Map(Object.entries(words)) : null;
-}
-function semanticTableSize() {
-  var _a;
-  return (_a = wide == null ? void 0 : wide.size) != null ? _a : 0;
-}
-function stem(word) {
-  const w = word.toLowerCase().trim();
-  const out = [];
-  const add = (s) => {
-    if (s.length > 2 && s !== w && !out.includes(s)) out.push(s);
-  };
-  if (w.endsWith("ies")) add(w.slice(0, -3) + "y");
-  if (w.endsWith("es")) add(w.slice(0, -2));
-  if (w.endsWith("s")) add(w.slice(0, -1));
-  if (w.endsWith("ing")) {
-    add(w.slice(0, -3));
-    add(w.slice(0, -3) + "e");
-  }
-  if (w.endsWith("ed")) {
-    add(w.slice(0, -2));
-    add(w.slice(0, -1));
-  }
-  if (w.endsWith("ly")) add(w.slice(0, -2));
-  if (w.endsWith("ness")) add(w.slice(0, -4));
-  if (w.endsWith("ful")) add(w.slice(0, -3));
-  return out;
-}
-function wordHash(word) {
-  let h = 2166136261;
-  const w = word.toLowerCase();
-  for (let i = 0; i < w.length; i++) {
-    h ^= w.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return Math.abs(h);
-}
-function hashColor(word, lightness = 0.72, chroma = 0.13) {
-  return fromOklch(lightness, chroma, wordHash(word) % 360);
-}
-function semanticColor(word, o = {}) {
-  var _a;
-  const w = word.toLowerCase().trim();
-  if (!w) return void 0;
-  const known = anchors();
-  const look = (k) => {
-    var _a2;
-    return (_a2 = known.get(k)) != null ? _a2 : wide == null ? void 0 : wide.get(k);
-  };
-  const direct = look(w);
-  if (direct) return direct;
-  for (const s of stem(w)) {
-    const hit = look(s);
-    if (hit) return hit;
-  }
-  if (/\s/.test(w)) {
-    for (const part of w.split(/\s+/)) {
-      const hit = (_a = look(part)) != null ? _a : stem(part).map(look).find(Boolean);
-      if (hit) return hit;
-    }
-  }
-  return o.fallback === "hash" ? hashColor(w, o.lightness, o.chroma) : void 0;
-}
-
-// src/utils/palette.ts
-function defaultWheel() {
-  return { start: 250, spread: 250, lightness: 0.72, chroma: 0.13 };
-}
-var clamp01 = (n) => n < 0 ? 0 : n > 1 ? 1 : n;
-function toOklch(hex) {
-  const rgb = hexToRgb(hex);
-  return rgb ? rgbToOklch(rgb.r, rgb.g, rgb.b) : null;
-}
-function fromOklch(L, C, H) {
-  const { r, g, b } = oklchToRgb(clamp01(L), Math.max(0, C), (H % 360 + 360) % 360);
-  return rgbToHex(r, g, b);
-}
-function mixHue(a, b, t, arc) {
-  if (a.C < 1e-4) return b.H;
-  if (b.C < 1e-4) return a.H;
-  let d = ((b.H - a.H) % 360 + 360) % 360;
-  if (arc === "short" ? d > 180 : d <= 180) d -= 360;
-  return a.H + d * t;
-}
-function mixColors(a, b, t, arc = "short") {
-  const ca = toOklch(a);
-  const cb = toOklch(b);
-  if (!ca || !cb) return ca ? a : b;
-  const u = clamp01(t);
-  return fromOklch(ca.L + (cb.L - ca.L) * u, ca.C + (cb.C - ca.C) * u, mixHue(ca, cb, u, arc));
-}
-function blendColors(colors) {
-  let n = 0;
-  let L = 0;
-  let a = 0;
-  let b = 0;
-  for (const hex of colors) {
-    const rgb = hexToRgb(hex);
-    if (!rgb) continue;
-    const lab = rgbToOklab(rgb.r, rgb.g, rgb.b);
-    L += lab.L;
-    a += lab.a;
-    b += lab.b;
-    n++;
-  }
-  if (!n) return void 0;
-  const c = oklabToRgb(L / n, a / n, b / n);
-  return rgbToHex(c.r, c.g, c.b);
-}
-function luminance(hex) {
-  const rgb = hexToRgb(hex);
-  if (!rgb) return 1;
-  const ch = (v) => {
-    const s = v / 255;
-    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
-  };
-  return 0.2126 * ch(rgb.r) + 0.7152 * ch(rgb.g) + 0.0722 * ch(rgb.b);
-}
-function readableOn(bg) {
-  const l = luminance(bg);
-  const onWhite = 1.05 / (l + 0.05);
-  const onBlack = (l + 0.05) / 0.05;
-  return onBlack >= onWhite ? "#000000" : "#ffffff";
-}
-function sortedPoints(p) {
-  var _a;
-  return ((_a = p.points) != null ? _a : []).filter((x) => Number.isFinite(x.at) && !!x.color).sort((a, b) => a.at - b.at);
-}
-function sortedRanges(p) {
-  var _a;
-  return ((_a = p.ranges) != null ? _a : []).filter((r) => Number.isFinite(r.from) && Number.isFinite(r.to) && !!r.color).sort((a, b) => a.from - b.from || a.to - b.to);
-}
-function wheelColor(w, v, span) {
-  const width = span.max - span.min;
-  const t = width > 0 ? clamp01((v - span.min) / width) : 0;
-  const hue = w.start + (w.reverse ? -1 : 1) * t * w.spread;
-  return fromOklch(w.lightness, w.chroma, hue);
-}
-function pointColor(p, v) {
-  var _a;
-  const pts = sortedPoints(p);
-  if (!pts.length) return void 0;
-  if (v <= pts[0].at) return pts[0].color;
-  const last = pts[pts.length - 1];
-  if (v >= last.at) return last.color;
-  for (let i = 1; i < pts.length; i++) {
-    const a = pts[i - 1];
-    const b = pts[i];
-    if (v > b.at) continue;
-    const width = b.at - a.at;
-    return width <= 0 ? b.color : mixColors(a.color, b.color, (v - a.at) / width, (_a = p.arc) != null ? _a : "short");
-  }
-  return last.color;
-}
-function rangeColor(p, v) {
-  var _a;
-  const rs = sortedRanges(p);
-  if (!rs.length) return void 0;
-  const hits = rs.filter((r) => v >= Math.min(r.from, r.to) && v <= Math.max(r.from, r.to));
-  if (hits.length === 1) return hits[0].color;
-  if (hits.length > 1) {
-    const dominant = hits.find((r) => v === r.from && r.domFrom || v === r.to && r.domTo);
-    return (dominant != null ? dominant : hits[0]).color;
-  }
-  const first = rs[0];
-  const last = rs[rs.length - 1];
-  if (v < first.from || v > last.to) return p.outside === "clamp" ? v < first.from ? first.color : last.color : void 0;
-  if (p.gaps !== "blend") return void 0;
-  for (let i = 1; i < rs.length; i++) {
-    const a = rs[i - 1];
-    const b = rs[i];
-    if (v <= a.to || v >= b.from) continue;
-    const width = b.from - a.to;
-    return width <= 0 ? b.color : mixColors(a.color, b.color, (v - a.to) / width, (_a = p.arc) != null ? _a : "short");
-  }
-  return void 0;
-}
-function colorAt(palette, v, span) {
-  var _a;
-  if (!Number.isFinite(v)) return void 0;
-  switch (palette.mode) {
-    case "wheel":
-      return span ? wheelColor((_a = palette.wheel) != null ? _a : defaultWheel(), v, span) : void 0;
-    case "points":
-      return pointColor(palette, v);
-    case "ranges":
-      return rangeColor(palette, v);
-    default:
-      return void 0;
-  }
-}
-function colorForText(palette, text, allowed) {
-  var _a;
-  const v = text.trim();
-  if (!v) return void 0;
-  const own = ((_a = palette.words) != null ? _a : []).find((w) => w.word.trim().toLowerCase() === v.toLowerCase());
-  if (own) return own.color;
-  if (palette.mode === "semantic") {
-    const w = palette.wheel;
-    return semanticColor(v, { fallback: palette.fallback, lightness: w == null ? void 0 : w.lightness, chroma: w == null ? void 0 : w.chroma });
-  }
-  const list = (allowed != null ? allowed : []).map((s) => s.trim().toLowerCase());
-  const i = list.indexOf(v.toLowerCase());
-  if (i < 0) return void 0;
-  return colorAt(palette, i, { min: 0, max: Math.max(1, list.length - 1) });
-}
-function rangesValid(ranges) {
-  const rs = [...ranges].sort((a, b) => a.from - b.from);
-  for (let i = 0; i < rs.length; i++) {
-    if (rs[i].to < rs[i].from) return false;
-    if (i > 0 && rs[i].from < rs[i - 1].to) return false;
-  }
-  return true;
-}
-function moveEdge(ranges, index, edge, value, linked) {
-  const rs = ranges.map((r2) => ({ ...r2 }));
-  const r = rs[index];
-  if (!r || !Number.isFinite(value)) return rs;
-  if (edge === "from") {
-    r.from = Math.min(value, r.to);
-    if (linked && rs[index - 1]) rs[index - 1].to = r.from;
-  } else {
-    r.to = Math.max(value, r.from);
-    if (linked && rs[index + 1]) rs[index + 1].from = r.to;
-  }
-  return rs;
-}
-function setDominant(ranges, index, edge, on) {
-  const rs = ranges.map((r) => ({ ...r }));
-  const me = rs[index];
-  if (!me) return rs;
-  const at = edge === "from" ? me.from : me.to;
-  if (edge === "from") me.domFrom = on || void 0;
-  else me.domTo = on || void 0;
-  if (!on) return rs;
-  rs.forEach((other, i) => {
-    if (i === index) return;
-    if (other.from === at) other.domFrom = void 0;
-    if (other.to === at) other.domTo = void 0;
-  });
-  return rs;
-}
-
-// src/utils/finish.ts
-function asText(value) {
-  if (value === void 0 || value === null) return "";
-  return Array.isArray(value) ? value.map((v) => String(v)).join(", ") : String(value);
-}
-function stableHash(text) {
-  let h = 2166136261;
-  for (let i = 0; i < text.length; i++) {
-    h ^= text.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return Math.abs(h);
-}
-function matches(rule, value) {
-  var _a, _b, _c;
-  const text = asText(value).trim();
-  switch (rule.when) {
-    case "all":
-      return true;
-    case "values":
-      return ((_a = rule.values) != null ? _a : []).some((v) => v.trim().toLowerCase() === text.toLowerCase());
-    case "range": {
-      const n = typeof value === "number" ? value : Number(text);
-      if (!Number.isFinite(n)) return false;
-      const from = (_b = rule.from) != null ? _b : -Infinity;
-      const to = (_c = rule.to) != null ? _c : Infinity;
-      return n >= Math.min(from, to) && n <= Math.max(from, to);
-    }
-    case "unique":
-      return text !== "";
-    default:
-      return false;
-  }
-}
-function finishOf(rule, value) {
-  var _a;
-  const set = (_a = rule.set) != null ? _a : [];
-  if (rule.when !== "unique" || !set.length) return rule.finish;
-  return set[stableHash(asText(value)) % set.length];
-}
-function pickFinish(rules, value) {
-  var _a;
-  for (const rule of rules != null ? rules : []) {
-    if (!rule.finish && !((_a = rule.set) != null ? _a : []).length) continue;
-    if (!matches(rule, value)) continue;
-    const finish = finishOf(rule, value);
-    if (!finish) continue;
-    return { finish, color: rule.color };
-  }
-  return void 0;
-}
-
-// src/ui/render/finishes.ts
-var FINISHES = [
-  "gloss",
-  "matte",
-  "holographic",
-  "reverse-holo",
-  "foil",
-  "prismatic",
-  "refractor",
-  "chrome",
-  "cracked-ice",
-  "cosmic",
-  "shimmer",
-  "metallic",
-  "canvas",
-  "die-cut",
-  "parallel",
-  "mojo",
-  "wave",
-  "negative",
-  "etch",
-  "prizm"
-];
-var NEEDS_FILL = /* @__PURE__ */ new Set(["die-cut", "canvas", "parallel", "cracked-ice"]);
-function finishName(i18n, id) {
-  return i18n.t("finish." + id);
-}
-var finishClass = (id) => "ep-fin-" + id;
-
-// src/ui/render/format.ts
-var NUMERIC2 = /* @__PURE__ */ new Set(["number", "decimal", "formula", "derived", "unit", "rating", "date", "datetime"]);
-function formatValue(view, entry) {
-  var _a;
-  const key = (_a = entry.key) != null ? _a : "";
-  const type = view.resolveType(entry);
-  if (type === "derived") return modifierInfo(view, entry).value;
-  const raw = view.note.raw[key];
-  const factor = Number(entry.unitFactor);
-  if (typeof raw === "number" && factor > 0 && factor !== 1) return raw * factor;
-  return raw;
-}
-function ruleFor(view, entry) {
-  var _a, _b;
-  const own = entry.format;
-  if (own) return own.off ? void 0 : own;
-  const key = ((_a = entry.key) != null ? _a : "").toLowerCase();
-  const shared = key ? (_b = view.settings.formatProps) == null ? void 0 : _b[key] : void 0;
-  return shared && !shared.off ? shared : void 0;
-}
-function paletteFor(view, rule) {
-  var _a;
-  if (!(rule == null ? void 0 : rule.palette)) return void 0;
-  return ((_a = view.settings.palettes) != null ? _a : []).find((p) => p.id === rule.palette);
-}
-function spanFor(view, entry) {
-  var _a, _b, _c, _d, _e;
-  const vault = entry.min === void 0 || entry.max === void 0 ? view.props.numberRange((_a = entry.key) != null ? _a : "") : null;
-  const min = (_c = (_b = entry.min) != null ? _b : vault == null ? void 0 : vault.min) != null ? _c : 0;
-  const max = (_e = (_d = entry.max) != null ? _d : vault == null ? void 0 : vault.max) != null ? _e : 1;
-  return max > min ? { min, max } : { min, max: min + 1 };
-}
-function allowedOf(entry) {
-  var _a;
-  return (_a = entry.constraints) == null ? void 0 : _a.allowed;
-}
-function colorOfWith(view, entry, palette, raw) {
-  if (raw === void 0 || raw === null || raw === "") return void 0;
-  if (Array.isArray(raw)) {
-    const each = raw.map((v) => colorOfWith(view, entry, palette, v)).filter((c) => !!c);
-    return each.length ? blendColors(each) : void 0;
-  }
-  if (typeof raw === "number") return colorAt(palette, raw, spanFor(view, entry));
-  const text = String(raw);
-  const type = view.resolveType(entry);
-  if (NUMERIC2.has(type)) {
-    const n = Number(text);
-    return Number.isFinite(n) ? colorAt(palette, n, spanFor(view, entry)) : void 0;
-  }
-  return colorForText(palette, text, allowedOf(entry));
-}
-function targetOf(rule) {
-  return rule.target === "card" || rule.target === "chip" ? rule.target : "text";
-}
-function clear(el) {
-  el.removeClass("ep-fmt", "ep-fmt-text", "ep-fmt-chip", "ep-fmt-card", "ep-fin");
-  for (const id of FINISHES) el.removeClass(finishClass(id));
-  el.setCssProps({ "--ep-fmt-bg": "", "--ep-fmt-fg": "" });
-}
-function paint(el, color, target2, contrast, finish) {
-  el.addClass("ep-fmt", `ep-fmt-${target2}`);
-  if (finish && !(target2 === "text" && NEEDS_FILL.has(finish))) el.addClass("ep-fin", finishClass(finish));
-  if (target2 === "text") {
-    el.setCssProps({ "--ep-fmt-fg": color });
-    return;
-  }
-  const fg = contrast && contrast !== "auto" ? contrast : readableOn(color);
-  el.setCssProps({ "--ep-fmt-bg": color, "--ep-fmt-fg": fg });
-}
-function applyFormat(view, entry, raw, els) {
-  var _a, _b, _c, _d;
-  const rule = ruleFor(view, entry);
-  const palette = paletteFor(view, rule);
-  for (const el of [els.wrap, els.val]) if (el) clear(el);
-  for (const chip of (_a = els.chips) != null ? _a : []) clear(chip);
-  if (!rule || !palette) return;
-  const target2 = targetOf(rule);
-  if (((_b = els.chips) == null ? void 0 : _b.length) && Array.isArray(raw)) {
-    els.chips.forEach((chip, i) => {
-      var _a2;
-      const item = raw[i];
-      const fin2 = pickFinish(rule.finishes, item);
-      const c = (_a2 = fin2 == null ? void 0 : fin2.color) != null ? _a2 : colorOfWith(view, entry, palette, item);
-      if (c) paint(chip, c, target2 === "text" ? "text" : "chip", rule.contrast, fin2 == null ? void 0 : fin2.finish);
-    });
-  }
-  const fin = pickFinish(rule.finishes, raw);
-  const color = (_c = fin == null ? void 0 : fin.color) != null ? _c : colorOfWith(view, entry, palette, raw);
-  if (!color) return;
-  if (target2 === "card") {
-    if (els.wrap) paint(els.wrap, color, "card", rule.contrast, fin == null ? void 0 : fin.finish);
-    return;
-  }
-  if (target2 === "chip" && ((_d = els.chips) == null ? void 0 : _d.length)) return;
-  if (els.val) paint(els.val, color, target2, rule.contrast, fin == null ? void 0 : fin.finish);
-}
-
 // src/ui/components/hold-config.ts
 var import_obsidian25 = require("obsidian");
 
@@ -10453,13 +10493,30 @@ function renderFormatting(octx) {
     redraw();
   };
   c.createEl("h4", { text: t("options.formatHeading") });
-  new import_obsidian24.Setting(c).setName(t("options.formatPalette")).setDesc(t("options.formatPaletteDesc")).addDropdown((dd) => {
-    var _a, _b;
-    dd.addOption("", t("options.formatNone"));
-    for (const p of (_a = view.settings.palettes) != null ? _a : []) dd.addOption(p.id, p.name || p.id);
-    dd.setValue((_b = rule().palette) != null ? _b : "");
+  const palRow = new import_obsidian24.Setting(c).setName(t("options.formatPalette")).setDesc(t("options.formatPaletteDesc")).addDropdown((dd) => {
+    const fill = () => {
+      var _a, _b;
+      const cur = (_a = rule().palette) != null ? _a : "";
+      dd.selectEl.empty();
+      dd.addOption("", t("options.formatNone"));
+      for (const p of (_b = view.settings.palettes) != null ? _b : []) dd.addOption(p.id, p.name || p.id);
+      dd.setValue(cur);
+    };
+    fill();
     dd.onChange((v) => write({ palette: v || void 0 }));
+    let off;
+    off = view.onSettingsSaved(() => {
+      if (!dd.selectEl.isConnected) {
+        off == null ? void 0 : off();
+        return;
+      }
+      fill();
+    });
   });
+  if (rule().palette)
+    palRow.addExtraButton(
+      (b) => b.setIcon("pencil").setTooltip(t("options.formatPaletteEdit")).onClick(() => view.openPaletteSettings(rule().palette))
+    );
   if (!rule().palette) return;
   new import_obsidian24.Setting(c).setName(t("options.formatTarget")).setDesc(t("options.formatTargetDesc")).addDropdown((dd) => {
     var _a;
@@ -11340,8 +11397,8 @@ function renderEntry(grid, view, file, section, entry, flags, drag, opts = {}) {
     v.createSpan({ cls: "ep-placeholder", text: view.i18n.t("entry.unknownKind", { kind: entry.kind }) });
   }
   if (entry.kind === "prop" && entry.key) {
-    const paint2 = () => {
-      applyFormat(view, entry, formatValue(view, entry), {
+    const paint2 = (value = formatValue(view, entry)) => {
+      applyFormat(view, entry, value, {
         wrap,
         // The chips are rebuilt by the list type as values come and go, so
         // they are found again on every pass rather than held onto.
@@ -11350,7 +11407,11 @@ function renderEntry(grid, view, file, section, entry, flags, drag, opts = {}) {
       });
     };
     paint2();
-    view.registerUpdater(paint2);
+    view.registerUpdater(() => paint2());
+    wrap.addEventListener(PREVIEW_EVENT, (e) => {
+      var _a;
+      paint2((_a = e.detail) == null ? void 0 : _a.value);
+    });
     if (ruleFor(view, entry)) {
       let queued = false;
       const watch = new MutationObserver(() => {
@@ -14008,6 +14069,12 @@ var SidebarView = class extends import_obsidian33.ItemView {
   openEntryOptions(section, entry) {
     new SectionOptionsModal(this, section, entry.id).open();
   }
+  openPaletteSettings(id) {
+    this.plugin.openPaletteSettings(id);
+  }
+  onSettingsSaved(cb) {
+    return this.plugin.onSettingsSaved(cb);
+  }
   openAddMenu(anchor, section, o) {
     const file = this.app.workspace.getActiveFile();
     if (!file) return;
@@ -16326,17 +16393,22 @@ function renderPoints(c, p, ctx2) {
   );
 }
 function renderRanges(c, p, ctx2) {
-  var _a;
+  var _a, _b;
   const t = ctx2.i18n.t.bind(ctx2.i18n);
   const cal = calendarOf(p, ctx2);
-  const rs = (_a = p.ranges) != null ? _a : p.ranges = [];
+  const settled = ensureDominance((_a = p.ranges) != null ? _a : p.ranges = []);
+  if (JSON.stringify(settled) !== JSON.stringify(p.ranges)) {
+    p.ranges = settled;
+    ctx2.save();
+  }
+  const rs = (_b = p.ranges) != null ? _b : p.ranges = [];
   new import_obsidian37.Setting(c).setName(t("palette.ranges")).setDesc(t("palette.rangesDesc"));
   const write = (next) => {
     if (!rangesValid(next)) {
       ctx2.redraw();
       return;
     }
-    p.ranges = next;
+    p.ranges = ensureDominance(next);
     ctx2.save();
     ctx2.redraw();
   };
@@ -16355,11 +16427,7 @@ function renderRanges(c, p, ctx2) {
       ctx2.redraw();
     });
     row.addExtraButton(
-      (b) => b.setIcon("x").setTooltip(t("palette.remove")).onClick(() => {
-        rs.splice(i, 1);
-        ctx2.save();
-        ctx2.redraw();
-      })
+      (b) => b.setIcon("x").setTooltip(t("palette.remove")).onClick(() => write(rs.filter((_, j) => j !== i)))
     );
   });
   new import_obsidian37.Setting(rows).setClass("ep-mini-row").addButton(
@@ -16367,9 +16435,7 @@ function renderRanges(c, p, ctx2) {
       var _a2;
       const last = rs[rs.length - 1];
       const from = last ? last.to : 0;
-      rs.push({ from, to: from + 10, color: (_a2 = last == null ? void 0 : last.color) != null ? _a2 : "#888888" });
-      ctx2.save();
-      ctx2.redraw();
+      write([...rs, { from, to: from + 10, color: (_a2 = last == null ? void 0 : last.color) != null ? _a2 : "#888888" }]);
     })
   );
   new import_obsidian37.Setting(c).setName(t("palette.linked")).setDesc(t("palette.linkedDesc")).addToggle((tg) => {
@@ -16408,12 +16474,13 @@ function edgeBox(box, r, edge, i, p, ctx2) {
   const shared = rs.some((o, j) => j !== i && (o.from === at || o.to === at));
   if (!shared) return;
   const cb = box.createEl("input", { cls: "ep-pal-dom" });
-  cb.type = "checkbox";
+  cb.type = "radio";
+  cb.name = `ep-dom-${p.id}-${at}`;
   cb.checked = (edge === "from" ? r.domFrom : r.domTo) === true;
   cb.setAttr("aria-label", ctx2.i18n.t("palette.dominant"));
   cb.setAttr("title", ctx2.i18n.t("palette.dominant"));
   cb.onchange = () => {
-    p.ranges = setDominant(rs, i, edge, cb.checked);
+    p.ranges = setDominant(rs, i, edge, true);
     ctx2.save();
     ctx2.redraw();
   };
@@ -16529,7 +16596,9 @@ var EPSettingTab = class extends import_obsidian38.PluginSettingTab {
     this.queryFocused = false;
     /** An inline kind to open at, set from a note body and used by the next render. */
     this.pendingInline = null;
-    /** The row that kind drew into, brought into view once the tab is built. */
+    /** A palette to open at, set from a property's Formatting block. */
+    this.pendingPalette = null;
+    /** The row that kind or palette drew into, brought into view once built. */
     this.inlineRow = null;
   }
   /**
@@ -16585,11 +16654,34 @@ var EPSettingTab = class extends import_obsidian38.PluginSettingTab {
     this.activeTab = this.plugin.i18n.t("settings.inlineHeading");
     if (this.renderTarget) this.render();
   }
+  /**
+   * Open on the Palettes tab at one palette's own heading - what *Edit
+   * palette* beside a property's palette dropdown asks for.
+   */
+  focusPalette(id) {
+    this.pendingPalette = id;
+    this.query = "";
+    this.activeTab = this.plugin.i18n.t("settings.palettesHeading");
+    if (this.renderTarget) this.render();
+  }
+  /**
+   * Draw the tab, without throwing the reader back to the top.
+   *
+   * Changing one switch here often rebuilds the whole body - a data type
+   * brings its own options, a palette mode swaps every control under it - and
+   * snapping to the top each time reads as the settings having closed and
+   * reopened. The exception is a render that was asked to go somewhere
+   * particular, which is allowed to move the page.
+   */
   render() {
-    this.renderBody();
-    this.tabify();
-    this.tint();
-    this.alignLooseText();
+    const build = () => {
+      this.renderBody();
+      this.tabify();
+      this.tint();
+      this.alignLooseText();
+    };
+    if (this.pendingInline || this.pendingPalette) build();
+    else keepScroll(this.host, build);
     this.showInlineRow();
   }
   /** Bring the row a note body asked for into view, and mark it briefly. */
@@ -17548,11 +17640,16 @@ var EPSettingTab = class extends import_obsidian38.PluginSettingTab {
     for (const p of list) {
       const head = new import_obsidian38.Setting(c).setName(p.name || t("palette.untitled")).setHeading();
       head.settingEl.addClass("ep-subheading");
+      if (this.pendingPalette === p.id) {
+        this.inlineRow = head.settingEl;
+        this.pendingPalette = null;
+      }
       head.addText((tx) => {
         tx.setPlaceholder(t("palette.name"));
         tx.setValue(p.name);
         tx.onChange((v) => {
           p.name = v.trim();
+          head.setName(p.name || t("palette.untitled"));
           save();
         });
       });
@@ -20302,6 +20399,14 @@ var InlineViewCtx = class {
   openEntryOptions(section, entry) {
     new EntryOptionsModal(this, section, entry, this.target).open();
   }
+  openPaletteSettings(id) {
+    var _a, _b;
+    (_b = (_a = this.ctx).openPalette) == null ? void 0 : _b.call(_a, id);
+  }
+  onSettingsSaved(cb) {
+    var _a, _b, _c;
+    return (_c = (_b = (_a = this.ctx).onSettings) == null ? void 0 : _b.call(_a, cb)) != null ? _c : () => void 0;
+  }
   // -- structural ops (a single inline card has no layout) --------------------
   renameKey(entry, newKey) {
     newKey = newKey.trim();
@@ -21864,7 +21969,8 @@ var ExtendedPropertiesPlugin = class extends import_obsidian50.Plugin {
       history: this.history,
       save: () => void this.saveSettings(),
       onSettings: (cb) => this.onSettingsSaved(cb),
-      openSettings: (kind) => this.openInlineSettings(kind)
+      openSettings: (kind) => this.openInlineSettings(kind),
+      openPalette: (id) => this.openPaletteSettings(id)
     });
     this.registerEvent(this.app.metadataCache.on("changed", (file) => this.props.invalidateFile(file)));
     this.registerEvent(this.app.vault.on("delete", (file) => this.props.invalidatePath(file.path)));
@@ -22114,11 +22220,22 @@ var ExtendedPropertiesPlugin = class extends import_obsidian50.Plugin {
    * the published typings, so it is reached through the shape it has.
    */
   openInlineSettings(kind) {
-    var _a, _b, _c, _d, _e;
+    var _a;
     (_a = this.settingTab) == null ? void 0 : _a.focusInline(kind);
+    this.openOwnSettings();
+  }
+  /** Open the plugin's settings at one palette's own heading. */
+  openPaletteSettings(id) {
+    var _a;
+    (_a = this.settingTab) == null ? void 0 : _a.focusPalette(id);
+    this.openOwnSettings();
+  }
+  /** Bring Obsidian's settings window up on this plugin's tab. */
+  openOwnSettings() {
+    var _a, _b, _c, _d;
     const host = this.app;
-    (_c = (_b = host.setting) == null ? void 0 : _b.open) == null ? void 0 : _c.call(_b);
-    (_e = (_d = host.setting) == null ? void 0 : _d.openTabById) == null ? void 0 : _e.call(_d, this.manifest.id);
+    (_b = (_a = host.setting) == null ? void 0 : _a.open) == null ? void 0 : _b.call(_a);
+    (_d = (_c = host.setting) == null ? void 0 : _c.openTabById) == null ? void 0 : _d.call(_c, this.manifest.id);
   }
   /** Watch for saved settings. Returns the unsubscribe. */
   onSettingsSaved(cb) {

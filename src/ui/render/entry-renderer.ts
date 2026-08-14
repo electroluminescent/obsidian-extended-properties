@@ -9,7 +9,7 @@ import type { TFile } from "obsidian";
 import type { ClusterFlags, EntryRenderCtx, ViewCtx } from "../../core/context";
 import type { Entry, Section } from "../../core/model";
 import { openEntryMenu } from "../menus/entry-menu";
-import { applyFormat, formatValue, ruleFor } from "./format";
+import { applyFormat, formatValue, PREVIEW_EVENT, ruleFor } from "./format";
 import {
   focusEntry,
   openEntrySettingsPopup,
@@ -117,8 +117,9 @@ export function renderEntry(
   // again whenever the value changes. A property nobody has formatted is left
   // exactly as it was, so this costs a lookup and nothing more.
   if (entry.kind === "prop" && entry.key) {
-    const paint = (): void => {
-      applyFormat(view, entry, formatValue(view, entry), {
+    /** Paint from the note, or from a value a control is previewing. */
+    const paint = (value: unknown = formatValue(view, entry)): void => {
+      applyFormat(view, entry, value, {
         wrap,
         // The chips are rebuilt by the list type as values come and go, so
         // they are found again on every pass rather than held onto.
@@ -127,7 +128,12 @@ export function renderEntry(
       });
     };
     paint();
-    view.registerUpdater(paint);
+    view.registerUpdater(() => paint());
+    // A control that is mid-change says what it is showing; the row takes the
+    // colour of that rather than of the value still sitting in the note.
+    wrap.addEventListener(PREVIEW_EVENT, (e) => {
+      paint((e as CustomEvent<{ value: unknown }>).detail?.value);
+    });
     // A value can also change without anything telling us: a slider mid-drag,
     // a stepper, an inline edit committing, a chip added. Watch what the value
     // type drew and reassess the colour - and the text that has to be legible

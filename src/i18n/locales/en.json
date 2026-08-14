@@ -673,6 +673,7 @@
   "options.formatHeading": "Formatting",
   "options.formatPalette": "Palette",
   "options.formatPaletteDesc": "Which palette colours this property. Palettes are made in the plugin settings.",
+  "options.formatPaletteEdit": "Edit this palette",
   "options.formatNone": "None",
   "options.formatTarget": "What it colours",
   "options.formatTargetDesc": "The value's text, the value in a tinted pill, or the whole row. A list colours each of its chips.",

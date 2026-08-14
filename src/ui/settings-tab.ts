@@ -16,7 +16,7 @@ import { defaultAbbr, defaultDerivations, referenceSuggestions } from "../core/i
 import { compileFormula } from "../utils/formula";
 import { genId } from "../utils/misc";
 import { RefSuggest } from "./components/suggest";
-import { destructive } from "./components/setting-helpers";
+import { destructive, keepScroll } from "./components/setting-helpers";
 import { ConfirmModal, TextPromptModal } from "./modals/dialogs";
 import { IconPickerModal } from "./modals/icon-picker";
 import { setTypedText, tintTypeNames, typedText, typeName } from "./components/type-label";
@@ -147,7 +147,9 @@ export class EPSettingTab extends PluginSettingTab {
   private queryFocused = false;
   /** An inline kind to open at, set from a note body and used by the next render. */
   private pendingInline: string | null = null;
-  /** The row that kind drew into, brought into view once the tab is built. */
+  /** A palette to open at, set from a property's Formatting block. */
+  private pendingPalette: string | null = null;
+  /** The row that kind or palette drew into, brought into view once built. */
   private inlineRow: HTMLElement | null = null;
 
   /**
@@ -162,11 +164,35 @@ export class EPSettingTab extends PluginSettingTab {
     if (this.renderTarget) this.render();
   }
 
+  /**
+   * Open on the Palettes tab at one palette's own heading - what *Edit
+   * palette* beside a property's palette dropdown asks for.
+   */
+  focusPalette(id: string): void {
+    this.pendingPalette = id;
+    this.query = "";
+    this.activeTab = this.plugin.i18n.t("settings.palettesHeading");
+    if (this.renderTarget) this.render();
+  }
+
+  /**
+   * Draw the tab, without throwing the reader back to the top.
+   *
+   * Changing one switch here often rebuilds the whole body - a data type
+   * brings its own options, a palette mode swaps every control under it - and
+   * snapping to the top each time reads as the settings having closed and
+   * reopened. The exception is a render that was asked to go somewhere
+   * particular, which is allowed to move the page.
+   */
   render(): void {
-    this.renderBody();
-    this.tabify();
-    this.tint();
-    this.alignLooseText();
+    const build = (): void => {
+      this.renderBody();
+      this.tabify();
+      this.tint();
+      this.alignLooseText();
+    };
+    if (this.pendingInline || this.pendingPalette) build();
+    else keepScroll(this.host, build);
     this.showInlineRow();
   }
 
@@ -1307,11 +1333,19 @@ export class EPSettingTab extends PluginSettingTab {
     for (const p of list) {
       const head = new Setting(c).setName(p.name || t("palette.untitled")).setHeading();
       head.settingEl.addClass("ep-subheading");
+      if (this.pendingPalette === p.id) {
+        this.inlineRow = head.settingEl;
+        this.pendingPalette = null;
+      }
       head.addText((tx) => {
         tx.setPlaceholder(t("palette.name"));
         tx.setValue(p.name);
         tx.onChange((v) => {
           p.name = v.trim();
+          // The heading is the palette's name, so it follows the field as it
+          // is typed rather than waiting for the next render; saving carries
+          // the new name to every dropdown that offers palettes.
+          head.setName(p.name || t("palette.untitled"));
           save();
         });
       });

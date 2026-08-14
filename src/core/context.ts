@@ -164,6 +164,17 @@ export interface ViewCtx {
   /** Re-point a "prop" entry at a different key, resetting type-specifics. */
   renameKey(entry: Entry, newKey: string): void;
   openEntryOptions(section: Section, entry: Entry): void;
+  /**
+   * Open the plugin's settings at one palette - the way from the property
+   * that uses a palette to the palette itself.
+   */
+  openPaletteSettings(id: string): void;
+  /**
+   * Watch for saved settings, returning the unsubscribe. A palette renamed in
+   * the settings has to reach the dropdowns that offer it while they are on
+   * screen, not only the next time one is opened.
+   */
+  onSettingsSaved(cb: () => void): () => void;
   /** Open the add-property popup anchored to `anchor`. */
   openAddMenu(anchor: HTMLElement, section: Section, o?: { index?: number; replaceId?: string }): void;
   /** Open the multi-value picker for a list property. */

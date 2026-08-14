@@ -10,6 +10,7 @@ import { valueAllowed } from "../../core/choices";
 import type { NoteScope } from "./suggest";
 import { stepField } from "./tab-chain";
 import { sfx } from "../../utils/sound";
+import { previewValue } from "../render/format";
 
 export interface NumberInputOptions {
   min: number;
@@ -89,6 +90,12 @@ export function openNumberInput(
     if (o.clamp) n = clamp(n, o.min, o.max);
     if (save) { sfx.tick(); commit(n); }
   };
+  // What is being typed is a value as far as the colour is concerned: the row
+  // recolours per keystroke rather than waiting for the commit.
+  input.addEventListener("input", () => {
+    const n = o.evaluate ? o.evaluate(input.value) : Number(input.value);
+    if (n !== undefined && Number.isFinite(n)) previewValue(input, n);
+  });
   input.onblur = () => finish(true);
   input.onkeydown = (e: KeyboardEvent) => {
     if (e.key === "Enter") { e.preventDefault(); finish(true); }
@@ -148,6 +155,7 @@ export function openTextInput(
     !opts.strict
   );
   input.addEventListener("focus", () => input.dispatchEvent(new Event("input")));
+  input.addEventListener("input", () => previewValue(input, input.value));
   input.dispatchEvent(new Event("input"));
   // Delay so a suggestion click can land before the blur commits.
   input.onblur = () => window.setTimeout(() => finish(true), 150);

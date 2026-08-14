@@ -19,7 +19,8 @@ import { hexToRgb } from "../../utils/color";
 import type { DateConfig } from "../../core/calendar";
 import { formatEdge, parseEdge } from "../../utils/palette-date";
 import {
-  colorAt, defaultWheel, moveEdge, rangesValid, setDominant, type ColorRange, type Palette,
+  colorAt, defaultWheel, ensureDominance, moveEdge, rangesValid, setDominant,
+  type ColorRange, type Palette,
 } from "../../utils/palette";
 
 /** How many samples the preview strip draws. */
@@ -247,6 +248,13 @@ function renderPoints(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): void {
 function renderRanges(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): void {
   const t = ctx.i18n.t.bind(ctx.i18n);
   const cal = calendarOf(p, ctx);
+  // Every shared edge is owned by exactly one band before anything is drawn,
+  // so the ticks below can be radios: there is always one to be checked.
+  const settled = ensureDominance(p.ranges ??= []);
+  if (JSON.stringify(settled) !== JSON.stringify(p.ranges)) {
+    p.ranges = settled;
+    ctx.save();
+  }
   const rs = (p.ranges ??= []);
   new Setting(c).setName(t("palette.ranges")).setDesc(t("palette.rangesDesc"));
   const write = (next: ColorRange[]): void => {
@@ -256,7 +264,7 @@ function renderRanges(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): void {
       ctx.redraw();
       return;
     }
-    p.ranges = next;
+    p.ranges = ensureDominance(next);
     ctx.save();
     ctx.redraw();
   };
@@ -275,20 +283,14 @@ function renderRanges(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): void {
       ctx.redraw();
     });
     row.addExtraButton((b) =>
-      b.setIcon("x").setTooltip(t("palette.remove")).onClick(() => {
-        rs.splice(i, 1);
-        ctx.save();
-        ctx.redraw();
-      })
+      b.setIcon("x").setTooltip(t("palette.remove")).onClick(() => write(rs.filter((_, j) => j !== i)))
     );
   });
   new Setting(rows).setClass("ep-mini-row").addButton((b) =>
     b.setButtonText(t("palette.rangeAdd")).onClick(() => {
       const last = rs[rs.length - 1];
       const from = last ? last.to : 0;
-      rs.push({ from, to: from + 10, color: last?.color ?? "#888888" });
-      ctx.save();
-      ctx.redraw();
+      write([...rs, { from, to: from + 10, color: last?.color ?? "#888888" }]);
     })
   );
   new Setting(c).setName(t("palette.linked")).setDesc(t("palette.linkedDesc")).addToggle((tg) => {
@@ -319,19 +321,28 @@ function renderRanges(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): void {
   });
 }
 
-/** The tick that decides which band takes a value sitting on a shared edge. */
+/**
+ * The tick that decides which band takes a value sitting on a shared edge.
+ *
+ * A radio rather than a checkbox, and deliberately: the edges meeting on one
+ * number are a single choice with one answer. Unticking the ticked one would
+ * leave the value belonging to nobody, so it cannot be done - picking another
+ * edge is how you change your mind.
+ */
 function edgeBox(box: HTMLElement, r: ColorRange, edge: "from" | "to", i: number, p: Palette, ctx: PaletteEditorCtx): void {
   const rs = p.ranges ?? [];
   const at = edge === "from" ? r.from : r.to;
   const shared = rs.some((o, j) => j !== i && (o.from === at || o.to === at));
   if (!shared) return;
   const cb = box.createEl("input", { cls: "ep-pal-dom" });
-  cb.type = "checkbox";
+  cb.type = "radio";
+  // One group per meeting point, so the browser itself keeps it to one.
+  cb.name = `ep-dom-${p.id}-${at}`;
   cb.checked = (edge === "from" ? r.domFrom : r.domTo) === true;
   cb.setAttr("aria-label", ctx.i18n.t("palette.dominant"));
   cb.setAttr("title", ctx.i18n.t("palette.dominant"));
   cb.onchange = () => {
-    p.ranges = setDominant(rs, i, edge, cb.checked);
+    p.ranges = setDominant(rs, i, edge, true);
     ctx.save();
     ctx.redraw();
   };

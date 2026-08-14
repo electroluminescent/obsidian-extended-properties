@@ -141,6 +141,22 @@ export function paint(
   el.setCssProps({ "--ep-fmt-bg": color, "--ep-fmt-fg": fg });
 }
 
+/**
+ * A value being changed, before it is a value.
+ *
+ * A slider mid-drag and a field mid-typing have not written anything to the
+ * note yet, so nothing reads back the number under the reader's finger. The
+ * control announces it instead, on an event that rises to the row, and the
+ * row recolours from it: the colour follows the drag rather than arriving
+ * once it is let go.
+ */
+export const PREVIEW_EVENT = "ep-preview";
+
+/** Announce the value a control is showing right now. */
+export function previewValue(el: HTMLElement | null | undefined, value: unknown): void {
+  el?.dispatchEvent(new CustomEvent(PREVIEW_EVENT, { detail: { value }, bubbles: true }));
+}
+
 /** The elements a row offers up for colouring. */
 export interface FormatTargets {
   /** The whole row. */
