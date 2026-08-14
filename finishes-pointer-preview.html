@@ -42,8 +42,9 @@
     <h1>The next finishes</h1>
     <p class="note">
       Move the pointer across the swatches: each one is lit from where the pointer
-      stands on it, so the light crosses the sheet one swatch at a time and fades
-      as it leaves. Pick a fill to see every finish over a different colour.
+      stands on it, so the light crosses the sheet one swatch at a time. It travels
+      at a speed with a ceiling on it, and eases back to rest when the pointer
+      leaves the window. Pick a fill to see every finish over a different colour.
     </p>
     <div class="swatches" id="fills"></div>
     <div class="grid" id="grid"></div>
@@ -106,76 +107,118 @@
       /*
         The lamp, in the shape the plugin installs it (src/ui/render/lamp.ts).
 
-        One listener, one frame of work - but the numbers are worked out per
-        value, from where the pointer stands on THAT value. The frame reads
-        every box first and writes every property afterwards, so the browser
-        lays the page out once rather than once per swatch.
+        One listener and one frame of work, but the numbers are worked out per
+        value from where the pointer stands on THAT value - and the light
+        travels there rather than teleporting: eased, and with a ceiling on
+        how fast it may cross a value however hard the pointer is flung. The
+        frame reads every box first and writes every property afterwards, so
+        the page is laid out once rather than once per swatch.
       */
       const FALLOFF = 2.6;
+      const RATE = 9;
+      const SPEED = 2.2;
+      const SNAP = 0.002;
+      const REST = { x: 0.42, y: 0.28, near: 0.35 };
       const clamp = (n, lo, hi) => (n < lo ? lo : n > hi ? hi : n);
 
-      const lightFor = (box, px, py) => {
+      const targetFor = (box, px, py) => {
         const overX = (px - box.left) / (box.width || 1);
         const overY = (py - box.top) / (box.height || 1);
         const outX = overX - 0.5;
         const outY = overY - 0.5;
         const away = Math.hypot(outX, outY) * 2;
-        const near = clamp(1 - (away - 1) / FALLOFF, 0, 1);
-        const x = clamp(overX, -0.5, 1.5);
-        const y = clamp(overY, -0.5, 1.5);
-        const dx = x - 0.5;
-        const dy = y - 0.5;
+        return {
+          x: clamp(overX, -0.5, 1.5),
+          y: clamp(overY, -0.5, 1.5),
+          near: clamp(1 - (away - 1) / FALLOFF, 0, 1),
+        };
+      };
+
+      const propsOf = (light) => {
+        const dx = light.x - 0.5;
+        const dy = light.y - 0.5;
         const reach = Math.min(1, Math.hypot(dx, dy) * 2);
         const turn = (Math.atan2(dy, dx) * 180) / Math.PI + 180;
         return {
-          "--ep-lamp-x": (x * 100).toFixed(2) + "%",
-          "--ep-lamp-y": (y * 100).toFixed(2) + "%",
+          "--ep-lamp-x": (light.x * 100).toFixed(2) + "%",
+          "--ep-lamp-y": (light.y * 100).toFixed(2) + "%",
           "--ep-lamp-dx": (dx * 100).toFixed(2) + "%",
           "--ep-lamp-dy": (dy * 100).toFixed(2) + "%",
           "--ep-lamp-reach": reach.toFixed(3),
           "--ep-lamp-turn": turn.toFixed(1) + "deg",
-          "--ep-lamp-near": near.toFixed(3),
+          "--ep-lamp-near": light.near.toFixed(3),
         };
       };
 
+      const approach = (cur, to, dt) => {
+        const gap = to - cur;
+        if (Math.abs(gap) < SNAP) return to;
+        return cur + clamp(gap * (1 - Math.exp(-RATE * dt)), -SPEED * dt, SPEED * dt);
+      };
+      const stepTo = (cur, to, dt) => ({
+        x: approach(cur.x, to.x, dt),
+        y: approach(cur.y, to.y, dt),
+        near: approach(cur.near, to.near, dt),
+      });
+      const settled = (a, b) =>
+        Math.abs(a.x - b.x) < SNAP && Math.abs(a.y - b.y) < SNAP && Math.abs(a.near - b.near) < SNAP;
+
       const PROPS = ["x", "y", "dx", "dy", "reach", "turn", "near"];
+      const at = new WeakMap();
       const resting = new WeakSet();
-      let queued = false;
       let px = 0;
       let py = 0;
-      const write = () => {
-        queued = false;
+      let gone = true;
+      let frame = 0;
+      let last = 0;
+
+      const tick = (now) => {
+        frame = 0;
+        const dt = last ? Math.min(0.05, (now - last) / 1000) : 1 / 60;
+        last = now;
         const lit = Array.from(document.querySelectorAll(".ep-fin"));
         const boxes = lit.map((el) => el.getBoundingClientRect());
+        let moving = false;
         lit.forEach((el, i) => {
-          const vals = lightFor(boxes[i], px, py);
-          if (vals["--ep-lamp-near"] === "0.000") {
-            if (resting.has(el)) return;
-            resting.add(el);
-            for (const p of PROPS) el.style.removeProperty("--ep-lamp-" + p);
+          const to = gone ? REST : targetFor(boxes[i], px, py);
+          const cur = at.get(el) ?? REST;
+          if (settled(cur, to)) {
+            if (settled(to, REST)) {
+              if (resting.has(el)) return;
+              resting.add(el);
+              at.set(el, REST);
+              for (const p of PROPS) el.style.removeProperty("--ep-lamp-" + p);
+              return;
+            }
+            at.set(el, to);
             return;
           }
+          const next = stepTo(cur, to, dt);
+          at.set(el, next);
           resting.delete(el);
-          for (const [k, v] of Object.entries(vals)) el.style.setProperty(k, v);
+          moving = true;
+          for (const [k, v] of Object.entries(propsOf(next))) el.style.setProperty(k, v);
         });
+        if (moving || !gone) run();
       };
-      const refresh = () => {
-        if (queued) return;
-        queued = true;
-        requestAnimationFrame(write);
+      const run = () => {
+        if (frame) return;
+        frame = requestAnimationFrame(tick);
       };
+
       window.addEventListener("pointermove", (e) => {
         px = e.clientX;
         py = e.clientY;
-        refresh();
+        gone = false;
+        run();
       }, { passive: true });
       // Scrolling moves the values under a pointer that has not moved at all.
-      document.addEventListener("scroll", refresh, { passive: true, capture: true });
-      // Hand the lamp back, so nothing is left lit from a corner it has left.
+      document.addEventListener("scroll", run, { passive: true, capture: true });
+      // The pointer leaving is a lamp being carried away, not switched off:
+      // the light eases back to rest over the next few frames.
       document.addEventListener("pointerleave", () => {
-        for (const el of document.querySelectorAll(".ep-fin")) {
-          for (const p of PROPS) el.style.removeProperty("--ep-lamp-" + p);
-        }
+        gone = true;
+        run();
       });
     </script>
   </body>

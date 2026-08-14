@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.62.2
+
+- **The light travels rather than teleports.** It eases towards wherever the
+  pointer is, and there is a ceiling on how fast it may cross a value - so a
+  cursor flung across the window sweeps the sheet instead of strobing it. That
+  ceiling is the part a plain transition cannot give you: an eased move is
+  proportional to the distance, so a big enough jump still arrives in one
+  blink.
+- **Taking the pointer away is a lamp being carried off, not switched off.**
+  The light eases back to rest over the next few frames and is handed to the
+  stylesheet exactly when it arrives - the resting values on both sides are
+  the same numbers, so the handover cannot be seen.
+- The frame loop stops itself once everything has settled, so a still sheet
+  costs nothing, and nothing is installed at all under `prefers-reduced-
+  motion` - the materials stay, the light simply never moves.
+
 ## 4.62.1
 
 - **Each value is lit from where the pointer stands on IT**, rather than from

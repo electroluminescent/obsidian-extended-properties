@@ -1,10 +1,10 @@
 /**
- * The light on one value: where the pointer stands on it, and how much of the
- * light it is getting.
+ * The light on one value: where the pointer stands on it, how much of the
+ * light it is getting, and how fast it is allowed to get there.
  */
 
 import { describe, expect, it } from "vitest";
-import { lightFor } from "../src/ui/render/lamp";
+import { approach, lightFor, REST, targetFor } from "../src/ui/render/lamp";
 
 /** A hundred-pixel square at the origin. */
 const box = { left: 0, top: 0, width: 100, height: 100 };
@@ -47,5 +47,74 @@ describe("the light on a value", () => {
   it("survives a value with no size at all", () => {
     const flat = lightFor({ left: 0, top: 0, width: 0, height: 0 }, 10, 10);
     expect(Number.isFinite(Number.parseFloat(flat["--ep-lamp-x"]))).toBe(true);
+  });
+});
+
+describe("the light travelling", () => {
+  const dt = 1 / 60;
+
+  it("never crosses a value faster than the speed limit", () => {
+    // A pointer flung from one end of the window to the other: however far
+    // the target has jumped, one frame moves the light by a bounded amount.
+    const one = approach(0, 50, dt);
+    expect(one).toBeGreaterThan(0);
+    expect(one).toBeLessThanOrEqual(2.2 * dt + 1e-9);
+  });
+
+  it("travels at the limit while it is far off, then eases as it arrives", () => {
+    let cur = 0;
+    const steps: number[] = [];
+    for (let i = 0; i < 60; i++) {
+      const next = approach(cur, 1, dt);
+      steps.push(next - cur);
+      cur = next;
+    }
+    const cap = 2.2 * dt;
+    // Never faster than the limit, and never speeding up.
+    for (const s of steps) expect(s).toBeLessThanOrEqual(cap + 1e-9);
+    // ...and never speeding up, bar the last hair's breadth, which is taken
+    // in one go rather than approached forever.
+    for (let i = 1; i < steps.length; i++) {
+      if (steps[i] <= 0.002) continue;
+      expect(steps[i]).toBeLessThanOrEqual(steps[i - 1] + 1e-9);
+    }
+    // It starts at the limit and finishes well under it: a slow arrival, not
+    // a stop dead.
+    expect(steps[0]).toBeCloseTo(cap, 6);
+    expect(steps[30]).toBeLessThan(cap / 4);
+  });
+
+  it("gets there in the end, and stops there", () => {
+    let cur = 0;
+    for (let i = 0; i < 400; i++) cur = approach(cur, 1, dt);
+    expect(cur).toBe(1);
+    expect(approach(1, 1, dt)).toBe(1);
+  });
+
+  it("comes back the same way it went", () => {
+    let cur = 1;
+    const first = 1 - approach(cur, 0, dt);
+    expect(first).toBeGreaterThan(0);
+    for (let i = 0; i < 400; i++) cur = approach(cur, 0, dt);
+    expect(cur).toBe(0);
+  });
+
+  it("rests where the stylesheet rests", () => {
+    // The handover from the lamp to the stylesheet has to be invisible, which
+    // means these numbers and the resting ones in styles.css are the same.
+    const props = lightFor({ left: 0, top: 0, width: 100, height: 100 }, 42, 28);
+    expect(props["--ep-lamp-x"]).toBe("42.00%");
+    expect(props["--ep-lamp-y"]).toBe("28.00%");
+    expect(props["--ep-lamp-dx"]).toBe("-8.00%");
+    expect(props["--ep-lamp-dy"]).toBe("-22.00%");
+    expect(props["--ep-lamp-reach"]).toBe("0.468");
+    expect(props["--ep-lamp-turn"]).toBe("70.0deg");
+    expect(REST.x).toBe(0.42);
+    expect(REST.y).toBe(0.28);
+  });
+
+  it("reports a target as a light rather than as text", () => {
+    const t = targetFor({ left: 0, top: 0, width: 100, height: 100 }, 50, 50);
+    expect(t).toEqual({ x: 0.5, y: 0.5, near: 1 });
   });
 });

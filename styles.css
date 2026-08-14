@@ -1186,13 +1186,15 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
 /* -- the lamp, and the spectrum it splits into ----------------------------- */
 :root {
   /* Resting values: the lamp overhead and a little to the left, which is
-     where a reader with no pointer would expect a highlight to be. */
+     where a reader with no pointer would expect a highlight to be. These are
+     also what `lamp.ts` eases a value back to before handing it over, so the
+     two must agree exactly - the handover is meant to be invisible. */
   --ep-lamp-x: 42%;
   --ep-lamp-y: 28%;
   --ep-lamp-dx: -8%;
   --ep-lamp-dy: -22%;
-  --ep-lamp-reach: 0.45;
-  --ep-lamp-turn: 115deg;
+  --ep-lamp-reach: 0.468;
+  --ep-lamp-turn: 70.0deg;
   /* How much of the light this value is getting: 1 with the pointer on it,
      falling away to 0 as the pointer leaves. At rest - no pointer, no
      JavaScript - every value gets the same modest share. */
@@ -1581,8 +1583,8 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
     --ep-lamp-y: 28%;
     --ep-lamp-dx: -8%;
     --ep-lamp-dy: -22%;
-    --ep-lamp-reach: 0.45;
-    --ep-lamp-turn: 115deg;
+    --ep-lamp-reach: 0.468;
+    --ep-lamp-turn: 70.0deg;
     --ep-lamp-near: 0.35;
     will-change: auto;
   }

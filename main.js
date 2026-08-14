@@ -4334,15 +4334,15 @@ function readableOn(bg) {
   const onBlack = (l + 0.05) / 0.05;
   return onBlack >= onWhite ? "#000000" : "#ffffff";
 }
-function centerOf(step) {
-  return (step.from + step.to) / 2;
+function centerOf(step2) {
+  return (step2.from + step2.to) / 2;
 }
 function scaleOf(p) {
   var _a, _b;
   const colors = (_a = p.colors) != null ? _a : [];
-  return ((_b = p.steps) != null ? _b : []).map((step, i) => {
+  return ((_b = p.steps) != null ? _b : []).map((step2, i) => {
     var _a2;
-    return { step, color: (_a2 = colors[i]) != null ? _a2 : "" };
+    return { step: step2, color: (_a2 = colors[i]) != null ? _a2 : "" };
   }).filter((e) => Number.isFinite(e.step.from) && Number.isFinite(e.step.to) && !!e.color).sort((a, b) => a.step.from - b.step.from || a.step.to - b.step.to);
 }
 function wheelColor(w, v, span) {
@@ -5201,7 +5201,7 @@ var ColorPickerModal = class extends import_obsidian7.Modal {
     if (this.hexInput) this.hexInput.value = hex;
   }
   /** One labelled gradient slider with a numeric input. */
-  gslider(parent, label2, min, max, step, val, grad, onInput) {
+  gslider(parent, label2, min, max, step2, val, grad, onInput) {
     const row = parent.createDiv({ cls: "ep-cp-channel" });
     const lbl = row.createSpan({ cls: "ep-cp-label", text: label2 });
     const nameKey = CHANNEL_NAMES[label2];
@@ -5213,7 +5213,7 @@ var ColorPickerModal = class extends import_obsidian7.Modal {
     num.type = "number";
     num.min = String(min);
     num.max = String(max);
-    num.step = String(step);
+    num.step = String(step2);
     num.value = String(Math.round(val * 1e3) / 1e3);
     num.addClass("ep-edit-input");
     let cur = val;
@@ -5234,7 +5234,7 @@ var ColorPickerModal = class extends import_obsidian7.Modal {
       const r = sw.getBoundingClientRect();
       const tt = clamp((clientX - r.left) / r.width, 0, 1);
       let v = min + tt * (max - min);
-      if (step) v = Math.round(v / step) * step;
+      if (step2) v = Math.round(v / step2) * step2;
       setVal(v, true);
     };
     sw.addEventListener("pointerdown", (e) => {
@@ -6253,15 +6253,15 @@ var MAX_TICKS = 400;
 function same(a, b, span) {
   return Math.abs(a - b) <= (span || 1) * 1e-9;
 }
-function marks(min, max, step) {
+function marks(min, max, step2) {
   const out = [];
-  if (!(step > 0) || !(max > min)) return out;
-  if ((max - min) / step > MAX_TICKS) return out;
-  const first = Math.ceil(min / step);
+  if (!(step2 > 0) || !(max > min)) return out;
+  if ((max - min) / step2 > MAX_TICKS) return out;
+  const first = Math.ceil(min / step2);
   for (let i = first; ; i++) {
-    const v = i * step;
-    if (v > max + step * 1e-9) break;
-    if (v >= min - step * 1e-9) out.push(v);
+    const v = i * step2;
+    if (v > max + step2 * 1e-9) break;
+    if (v >= min - step2 * 1e-9) out.push(v);
   }
   return out;
 }
@@ -6955,10 +6955,10 @@ function render(kind, ctx2) {
       syncKnob == null ? void 0 : syncKnob();
     });
     knob.addEventListener("keydown", (e) => {
-      const step = kind === "number" && !curve ? 1 : span / 100 || 1;
+      const step2 = kind === "number" && !curve ? 1 : span / 100 || 1;
       let v = get();
-      if (e.key === "ArrowLeft" || e.key === "ArrowDown") v -= step;
-      else if (e.key === "ArrowRight" || e.key === "ArrowUp") v += step;
+      if (e.key === "ArrowLeft" || e.key === "ArrowDown") v -= step2;
+      else if (e.key === "ArrowRight" || e.key === "ArrowUp") v += step2;
       else return;
       e.preventDefault();
       v = snap(v, isFree(e, view.settings));
@@ -16450,14 +16450,14 @@ var spin = {
         owned = true;
         const dur = Math.max(300, durationMs || 700);
         const t0 = performance.now();
-        const step = () => {
+        const step2 = () => {
           if (done) return;
           num.setText(String(rnd(sides)));
           const p = Math.min(1, (performance.now() - t0) / dur);
           if (p >= 1) return;
-          timer2 = window.setTimeout(step, 55 + 230 * p * p);
+          timer2 = window.setTimeout(step2, 55 + 230 * p * p);
         };
-        step();
+        step2();
       },
       settle: (v) => {
         done = true;
@@ -16736,8 +16736,8 @@ function renderWheel(c, p, ctx2) {
   var _a;
   const t = ctx2.i18n.t.bind(ctx2.i18n);
   const w = (_a = p.wheel) != null ? _a : p.wheel = defaultWheel();
-  const slider = (name, desc, min, max, step, get, set) => new import_obsidian37.Setting(c).setName(name).setDesc(desc).addSlider((sl) => {
-    sl.setLimits(min, max, step).setValue(get()).setDynamicTooltip().onChange((v) => {
+  const slider = (name, desc, min, max, step2, get, set) => new import_obsidian37.Setting(c).setName(name).setDesc(desc).addSlider((sl) => {
+    sl.setLimits(min, max, step2).setValue(get()).setDynamicTooltip().onChange((v) => {
       set(v);
       ctx2.save();
       ctx2.redraw();
@@ -16759,9 +16759,9 @@ function renderScale(c, p, ctx2) {
   var _a, _b, _c;
   const t = ctx2.i18n.t.bind(ctx2.i18n);
   const cal = calendarOf(p, ctx2);
-  const settled = ensureDominance((_a = p.steps) != null ? _a : p.steps = []);
-  if (JSON.stringify(settled) !== JSON.stringify(p.steps)) {
-    p.steps = settled;
+  const settled2 = ensureDominance((_a = p.steps) != null ? _a : p.steps = []);
+  if (JSON.stringify(settled2) !== JSON.stringify(p.steps)) {
+    p.steps = settled2;
     ctx2.save();
   }
   const steps = (_b = p.steps) != null ? _b : p.steps = [];
@@ -19052,10 +19052,10 @@ function playRollAnimation(job, i18n, done) {
       if (!pinned) close();
     }, 1400);
   };
-  const settled = [];
+  const settled2 = [];
   let keptShown = 0;
   const settleDie = (i) => {
-    settled[i] = true;
+    settled2[i] = true;
     const { grp, idx } = flat[i];
     const dropped = grp.dropped[idx];
     if (i < dies.length) {
@@ -19073,14 +19073,14 @@ function playRollAnimation(job, i18n, done) {
   };
   const budget = Math.max(300, Math.min(1e4, job.durationMs || 1500));
   const count = flat.length + job.parts.length;
-  const step = budget / (count + 1);
+  const step2 = budget / (count + 1);
   for (let i = 0; i < dies.length; i++) {
     const { grp, idx } = flat[i];
-    (_d = (_c = dies[i].view).roll) == null ? void 0 : _d.call(_c, grp.faces[idx], Math.round((i + 1) * step));
+    (_d = (_c = dies[i].view).roll) == null ? void 0 : _d.call(_c, grp.faces[idx], Math.round((i + 1) * step2));
   }
-  flat.forEach((_, i) => later(() => settleDie(i), Math.round((i + 1) * step)));
+  flat.forEach((_, i) => later(() => settleDie(i), Math.round((i + 1) * step2)));
   job.parts.forEach(
-    (part, p) => later(() => addCell("+", fmtMod(part.value), part.label), Math.round((flat.length + p + 1) * step))
+    (part, p) => later(() => addCell("+", fmtMod(part.value), part.label), Math.round((flat.length + p + 1) * step2))
   );
   later(() => {
     addCell("=", String(job.total), i18n.t("roll.partTotal"), "ep-roll-totalcell");
@@ -19089,7 +19089,7 @@ function playRollAnimation(job, i18n, done) {
   interval = window.setInterval(() => {
     let rolling = false;
     for (let i = 0; i < dies.length; i++) {
-      if (settled[i]) continue;
+      if (settled2[i]) continue;
       rolling = true;
       dies[i].view.tick();
     }
@@ -21220,10 +21220,10 @@ function renderSparkline(parent, values, opts) {
   svg.appendChild(path);
   if (!opts.nums && !opts.axis) return;
   const n = values.length;
-  const step = n > 1 ? (w - 2 * pad) / (n - 1) : 0;
-  const room = n > 1 ? step : w;
+  const step2 = n > 1 ? (w - 2 * pad) / (n - 1) : 0;
+  const room = n > 1 ? step2 : w;
   values.forEach((v, i) => {
-    const x = n === 1 ? w / 2 : pad + i * step;
+    const x = n === 1 ? w / 2 : pad + i * step2;
     if (opts.nums) label(svg, fitText(fmtNum(v), room, fs), { x, y: top - fs * 0.35, fs, cls: "ep-chart-num" });
     if (opts.axis)
       label(svg, fitText(nameAt(opts, i), room, fs), { x, y: box.h - fs * 0.3, fs, cls: "ep-chart-axis" });
@@ -22257,43 +22257,75 @@ function readCache(raw) {
 var PROPS = ["x", "y", "dx", "dy", "reach", "turn", "near"];
 var FALLOFF = 2.6;
 var LIMIT = 160;
+var RATE = 9;
+var SPEED = 2.2;
+var SNAP = 2e-3;
+var MAX_FRAME = 0.05;
 var clamp2 = (n, lo, hi) => n < lo ? lo : n > hi ? hi : n;
-function lightFor(box, px, py) {
+var REST = { x: 0.42, y: 0.28, near: 0.35 };
+function targetFor(box, px, py) {
   const overX = (px - box.left) / (box.width || 1);
   const overY = (py - box.top) / (box.height || 1);
   const outX = overX - 0.5;
   const outY = overY - 0.5;
   const away = Math.sqrt(outX * outX + outY * outY) * 2;
-  const near = clamp2(1 - (away - 1) / FALLOFF, 0, 1);
-  const x = clamp2(overX, -0.5, 1.5);
-  const y = clamp2(overY, -0.5, 1.5);
-  const dx = x - 0.5;
-  const dy = y - 0.5;
+  return {
+    x: clamp2(overX, -0.5, 1.5),
+    y: clamp2(overY, -0.5, 1.5),
+    near: clamp2(1 - (away - 1) / FALLOFF, 0, 1)
+  };
+}
+function propsOf(light) {
+  const dx = light.x - 0.5;
+  const dy = light.y - 0.5;
   const reach = Math.min(1, Math.sqrt(dx * dx + dy * dy) * 2);
   const turn = Math.atan2(dy, dx) * 180 / Math.PI + 180;
   return {
-    "--ep-lamp-x": (x * 100).toFixed(2) + "%",
-    "--ep-lamp-y": (y * 100).toFixed(2) + "%",
+    "--ep-lamp-x": (light.x * 100).toFixed(2) + "%",
+    "--ep-lamp-y": (light.y * 100).toFixed(2) + "%",
     "--ep-lamp-dx": (dx * 100).toFixed(2) + "%",
     "--ep-lamp-dy": (dy * 100).toFixed(2) + "%",
     "--ep-lamp-reach": reach.toFixed(3),
     "--ep-lamp-turn": turn.toFixed(1) + "deg",
-    "--ep-lamp-near": near.toFixed(3)
+    "--ep-lamp-near": light.near.toFixed(3)
   };
+}
+function approach(cur, to, dt) {
+  const gap = to - cur;
+  if (Math.abs(gap) < SNAP) return to;
+  const eased = gap * (1 - Math.exp(-RATE * dt));
+  const cap = SPEED * dt;
+  return cur + clamp2(eased, -cap, cap);
+}
+function step(cur, to, dt) {
+  return {
+    x: approach(cur.x, to.x, dt),
+    y: approach(cur.y, to.y, dt),
+    near: approach(cur.near, to.near, dt)
+  };
+}
+function settled(cur, to) {
+  return Math.abs(cur.x - to.x) < SNAP && Math.abs(cur.y - to.y) < SNAP && Math.abs(cur.near - to.near) < SNAP;
 }
 function installLamp(win) {
   const doc = win.document;
+  if (win.matchMedia("(prefers-reduced-motion: reduce)").matches) return () => void 0;
   let lit = [];
   let stale = true;
+  const at = /* @__PURE__ */ new WeakMap();
   const resting = /* @__PURE__ */ new WeakSet();
-  let queued = false;
   let px = 0;
   let py = 0;
+  let away = true;
+  let frame2 = 0;
+  let last = 0;
   const watch = new MutationObserver(() => {
     stale = true;
   });
-  const write = () => {
-    queued = false;
+  const tick = (now) => {
+    frame2 = 0;
+    const dt = last ? Math.min(MAX_FRAME, (now - last) / 1e3) : 1 / 60;
+    last = now;
     if (stale) {
       lit = Array.from(doc.querySelectorAll(".ep-fin")).slice(0, LIMIT);
       stale = false;
@@ -22301,48 +22333,60 @@ function installLamp(win) {
     const boxes = lit.map((el) => el.getBoundingClientRect());
     const h = win.innerHeight || 1;
     const w = win.innerWidth || 1;
+    let moving = false;
     lit.forEach((el, i) => {
+      var _a;
       const box = boxes[i];
       if (box.width === 0 || box.height === 0 || box.bottom < 0 || box.top > h || box.right < 0 || box.left > w) return;
-      const vals = lightFor(box, px, py);
-      if (vals["--ep-lamp-near"] === "0.000") {
-        if (resting.has(el)) return;
-        resting.add(el);
-        for (const p of PROPS) el.style.removeProperty("--ep-lamp-" + p);
+      const to = away ? REST : targetFor(box, px, py);
+      const cur = (_a = at.get(el)) != null ? _a : REST;
+      if (settled(cur, to)) {
+        if (to === REST || settled(to, REST)) {
+          if (!resting.has(el)) {
+            resting.add(el);
+            at.set(el, REST);
+            for (const p of PROPS) el.style.removeProperty("--ep-lamp-" + p);
+          }
+          return;
+        }
+        at.set(el, to);
         return;
       }
+      const next = step(cur, to, dt);
+      at.set(el, next);
       resting.delete(el);
-      for (const [k, v] of Object.entries(vals)) el.style.setProperty(k, v);
+      moving = true;
+      for (const [k, v] of Object.entries(propsOf(next))) el.style.setProperty(k, v);
     });
+    if (moving || !away) run();
   };
-  const refresh = () => {
-    if (queued) return;
-    queued = true;
-    win.requestAnimationFrame(write);
+  const run = () => {
+    if (frame2) return;
+    frame2 = win.requestAnimationFrame(tick);
   };
   const onMove = (e) => {
     px = e.clientX;
     py = e.clientY;
-    refresh();
+    away = false;
+    run();
   };
   const release = () => {
-    for (const el of lit) {
-      for (const p of PROPS) el.style.removeProperty("--ep-lamp-" + p);
-      resting.add(el);
-    }
+    away = true;
+    run();
   };
   watch.observe(doc.body, { childList: true, subtree: true });
   win.addEventListener("pointermove", onMove, { passive: true });
-  doc.addEventListener("scroll", refresh, { passive: true, capture: true });
+  doc.addEventListener("scroll", run, { passive: true, capture: true });
   doc.addEventListener("pointerleave", release);
   win.addEventListener("blur", release);
   return () => {
     watch.disconnect();
+    if (frame2) win.cancelAnimationFrame(frame2);
     win.removeEventListener("pointermove", onMove);
-    doc.removeEventListener("scroll", refresh, true);
+    doc.removeEventListener("scroll", run, true);
     doc.removeEventListener("pointerleave", release);
     win.removeEventListener("blur", release);
-    release();
+    for (const el of lit) for (const p of PROPS) el.style.removeProperty("--ep-lamp-" + p);
   };
 }
 
