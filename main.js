@@ -1624,6 +1624,12 @@ function restoreFromSnapshot(target2, snapshot) {
   for (const k of Object.keys(target2)) delete target2[k];
   Object.assign(target2, value);
 }
+function shownNumber(text) {
+  const m = /^\s*([+-]?[\d,]*\.?\d+)\s*([^\d]*)$/.exec(text);
+  if (!m) return void 0;
+  const n = Number(m[1].replace(/,/g, ""));
+  return Number.isFinite(n) ? n : void 0;
+}
 
 // src/core/influences.ts
 function defaultDerivations() {
@@ -10540,7 +10546,27 @@ function mountOptionsNav(content, i18n, o = {}) {
   const rail = doc.body.createDiv({ cls: "ep-nav" });
   rail.setAttr("role", "navigation");
   rail.setAttr("aria-label", i18n.t("nav.sections"));
-  const dots = heads.map((h) => {
+  const scroller = scrollerFor(heads[0]);
+  const indexAt = (y) => {
+    let at = 0;
+    heads.forEach((h, i) => {
+      if (h.offsetHeight > 0 && h.getBoundingClientRect().top <= y) at = i;
+    });
+    return at;
+  };
+  let pointerY = null;
+  let asked = null;
+  let askedUntil = 0;
+  const setHere = (i) => dots.forEach((d, j) => d.toggleClass("is-here", j === i));
+  const mark = () => {
+    if (asked !== null && Date.now() < askedUntil) {
+      setHere(asked);
+      return;
+    }
+    asked = null;
+    setHere(indexAt(pointerY != null ? pointerY : (scroller != null ? scroller : doc.documentElement).getBoundingClientRect().top + 24));
+  };
+  const dots = heads.map((h, i) => {
     var _a2;
     const text = ((_a2 = h.textContent) != null ? _a2 : "").trim();
     const dot3 = rail.createEl("button", { cls: "ep-nav-dot" });
@@ -10551,19 +10577,29 @@ function mountOptionsNav(content, i18n, o = {}) {
     dot3.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
+      asked = i;
+      askedUntil = Date.now() + 1600;
+      setHere(i);
       h.scrollIntoView({ block: "start", behavior: "smooth" });
+      whenSettled(scroller, () => flash(h, sel));
     };
     return dot3;
   });
-  const scroller = scrollerFor(heads[0]);
-  const mark = () => {
-    const top = (scroller != null ? scroller : doc.documentElement).getBoundingClientRect().top + 24;
-    let at = 0;
-    heads.forEach((h, i) => {
-      if (h.offsetHeight > 0 && h.getBoundingClientRect().top <= top) at = i;
+  let queued = false;
+  const onMove = (e) => {
+    pointerY = e.clientY;
+    if (queued) return;
+    queued = true;
+    window.requestAnimationFrame(() => {
+      queued = false;
+      mark();
     });
-    dots.forEach((d, i) => d.toggleClass("is-here", i === at));
   };
+  content.addEventListener("pointermove", onMove);
+  content.addEventListener("pointerleave", () => {
+    pointerY = null;
+    mark();
+  });
   const place2 = () => {
     const box = beside.getBoundingClientRect();
     const w = rail.offsetWidth;
@@ -10593,6 +10629,7 @@ function mountOptionsNav(content, i18n, o = {}) {
     window.clearInterval(timer2);
     doc.removeEventListener("scroll", tick, true);
     window.removeEventListener("resize", tick);
+    content.removeEventListener("pointermove", onMove);
     rail.remove();
     if (strips.get(content) === stop2) strips.delete(content);
   };
@@ -10601,6 +10638,33 @@ function mountOptionsNav(content, i18n, o = {}) {
   window.addEventListener("resize", tick);
   place2();
   mark();
+}
+function whenSettled(scroller, then) {
+  let done = false;
+  const fire = () => {
+    if (done) return;
+    done = true;
+    scroller == null ? void 0 : scroller.removeEventListener("scrollend", fire);
+    then();
+  };
+  if (scroller && "onscrollend" in scroller) {
+    scroller.addEventListener("scrollend", fire);
+    window.setTimeout(fire, 900);
+    return;
+  }
+  window.setTimeout(fire, 420);
+}
+function flash(head, sel) {
+  const marked = [head];
+  for (let n = head.nextElementSibling; n; n = n.nextElementSibling) {
+    const el = n;
+    if (el.matches(sel)) break;
+    marked.push(el);
+  }
+  for (const el of marked) el.addClass("ep-nav-flash");
+  window.setTimeout(() => {
+    for (const el of marked) el.removeClass("ep-nav-flash");
+  }, 1200);
 }
 function watchFor(content, i18n, o, sel, sig) {
   const timer2 = window.setInterval(() => {
@@ -11672,13 +11736,19 @@ function renderEntry(grid, view, file, section, entry, flags, drag, opts = {}) {
   }
   if (entry.kind === "prop" && entry.key) {
     const showing = () => {
+      var _a, _b;
       const ed = wrap.querySelector("input.ep-edit-input");
       const typed = ed == null ? void 0 : ed.value.trim();
       if (typed) {
         const n = Number(typed);
         return Number.isFinite(n) ? n : typed;
       }
-      return formatValue(view, entry);
+      const stored = formatValue(view, entry);
+      if (typeof stored !== "number") return stored;
+      const cell = wrap.querySelector(".ep-num");
+      const first = cell == null ? void 0 : cell.firstChild;
+      const text = (_a = (first == null ? void 0 : first.nodeType) === 3 ? first.nodeValue : cell == null ? void 0 : cell.textContent) != null ? _a : "";
+      return (_b = shownNumber(text)) != null ? _b : stored;
     };
     const paint2 = (value) => {
       applyFormat(view, entry, value === void 0 ? showing() : value, {

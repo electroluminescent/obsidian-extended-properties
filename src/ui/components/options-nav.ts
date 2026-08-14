@@ -98,7 +98,41 @@ export function mountOptionsNav(content: HTMLElement, i18n: I18n, o: OptionsNavO
   rail.setAttr("role", "navigation");
   rail.setAttr("aria-label", i18n.t("nav.sections"));
 
-  const dots = heads.map((h) => {
+  const scroller = scrollerFor(heads[0]);
+
+  /** The section a point on the screen falls in. */
+  const indexAt = (y: number): number => {
+    let at = 0;
+    heads.forEach((h, i) => {
+      if (h.offsetHeight > 0 && h.getBoundingClientRect().top <= y) at = i;
+    });
+    return at;
+  };
+  /** Where the pointer is, while it is over the settings at all. */
+  let pointerY: number | null = null;
+  /** A section just asked for, held marked while the page catches up. */
+  let asked: number | null = null;
+  let askedUntil = 0;
+  const setHere = (i: number): void => dots.forEach((d, j) => d.toggleClass("is-here", j === i));
+
+  /**
+   * Which section is marked.
+   *
+   * The pointer decides when it is over the settings - what you are pointing
+   * at is what you are reading - and the top of the view otherwise. A section
+   * just pressed outranks both for a moment: a page too short to scroll any
+   * further would otherwise answer a press by marking nothing.
+   */
+  const mark = (): void => {
+    if (asked !== null && Date.now() < askedUntil) {
+      setHere(asked);
+      return;
+    }
+    asked = null;
+    setHere(indexAt(pointerY ?? (scroller ?? doc.documentElement).getBoundingClientRect().top + 24));
+  };
+
+  const dots = heads.map((h, i) => {
     const text = (h.textContent ?? "").trim();
     const dot = rail.createEl("button", { cls: "ep-nav-dot" });
     dot.type = "button";
@@ -110,21 +144,32 @@ export function mountOptionsNav(content: HTMLElement, i18n: I18n, o: OptionsNavO
     dot.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
+      asked = i;
+      askedUntil = Date.now() + 1600;
+      setHere(i);
       h.scrollIntoView({ block: "start", behavior: "smooth" });
+      whenSettled(scroller, () => flash(h, sel));
     };
     return dot;
   });
 
-  /** Which section the top of the view is in. */
-  const scroller = scrollerFor(heads[0]);
-  const mark = (): void => {
-    const top = (scroller ?? doc.documentElement).getBoundingClientRect().top + 24;
-    let at = 0;
-    heads.forEach((h, i) => {
-      if (h.offsetHeight > 0 && h.getBoundingClientRect().top <= top) at = i;
+  // Pointing at a section is reading it - including on a page with nothing
+  // left to scroll, where the top of the view can never answer.
+  let queued = false;
+  const onMove = (e: PointerEvent): void => {
+    pointerY = e.clientY;
+    if (queued) return;
+    queued = true;
+    window.requestAnimationFrame(() => {
+      queued = false;
+      mark();
     });
-    dots.forEach((d, i) => d.toggleClass("is-here", i === at));
   };
+  content.addEventListener("pointermove", onMove);
+  content.addEventListener("pointerleave", () => {
+    pointerY = null;
+    mark();
+  });
 
   /**
    * Stand the strip against what it describes.
@@ -173,6 +218,7 @@ export function mountOptionsNav(content: HTMLElement, i18n: I18n, o: OptionsNavO
     window.clearInterval(timer);
     doc.removeEventListener("scroll", tick, true);
     window.removeEventListener("resize", tick);
+    content.removeEventListener("pointermove", onMove);
     rail.remove();
     if (strips.get(content) === stop) strips.delete(content);
   };
@@ -181,6 +227,48 @@ export function mountOptionsNav(content: HTMLElement, i18n: I18n, o: OptionsNavO
   window.addEventListener("resize", tick);
   place();
   mark();
+}
+
+/**
+ * Run `then` once the scrolling has settled.
+ *
+ * A smooth scroll finishes when it finishes; `scrollend` says so where it is
+ * supported, and a timer covers both the browsers that lack it and the case
+ * where nothing moved at all - a page already at the bottom fires no event,
+ * and the section still deserves its answer.
+ */
+function whenSettled(scroller: HTMLElement | null, then: () => void): void {
+  let done = false;
+  const fire = (): void => {
+    if (done) return;
+    done = true;
+    scroller?.removeEventListener("scrollend", fire);
+    then();
+  };
+  if (scroller && "onscrollend" in scroller) {
+    scroller.addEventListener("scrollend", fire);
+    window.setTimeout(fire, 900);
+    return;
+  }
+  window.setTimeout(fire, 420);
+}
+
+/**
+ * Light the section up for a moment: its heading and everything under it,
+ * down to the next heading. Arriving somewhere is worth saying out loud -
+ * particularly when the page could not scroll and nothing appeared to happen.
+ */
+function flash(head: HTMLElement, sel: string): void {
+  const marked: HTMLElement[] = [head];
+  for (let n = head.nextElementSibling; n; n = n.nextElementSibling) {
+    const el = n as HTMLElement;
+    if (el.matches(sel)) break;
+    marked.push(el);
+  }
+  for (const el of marked) el.addClass("ep-nav-flash");
+  window.setTimeout(() => {
+    for (const el of marked) el.removeClass("ep-nav-flash");
+  }, 1200);
 }
 
 /**

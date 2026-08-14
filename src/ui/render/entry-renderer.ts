@@ -9,6 +9,7 @@ import type { TFile } from "obsidian";
 import type { ClusterFlags, EntryRenderCtx, ViewCtx } from "../../core/context";
 import type { Entry, Section } from "../../core/model";
 import { openEntryMenu } from "../menus/entry-menu";
+import { shownNumber } from "../../utils/misc";
 import { applyFormat, formatValue, PREVIEW_EVENT, ruleFor } from "./format";
 import {
   focusEntry,
@@ -120,10 +121,14 @@ export function renderEntry(
     /**
      * What the row is showing right now.
      *
-     * While a value is being typed there is no value in the note yet - the
-     * cell has been replaced by a field holding something the reader has not
-     * committed - and that half-typed number is what the colour should be
-     * answering, since it is what they are looking at.
+     * Not always what the note holds. A slider mid-drag and a field mid-typing
+     * have written nothing yet - the number under the reader's finger exists
+     * only on screen - and that number is what the colour should be answering,
+     * since it is the one they are looking at.
+     *
+     * Read off the row itself rather than reported by each control: every
+     * value type already rewrites its own cell as it changes, so this needs
+     * nothing of them and cannot be forgotten by the next one written.
      */
     const showing = (): unknown => {
       const ed = wrap.querySelector<HTMLInputElement>("input.ep-edit-input");
@@ -132,7 +137,15 @@ export function renderEntry(
         const n = Number(typed);
         return Number.isFinite(n) ? n : typed;
       }
-      return formatValue(view, entry);
+      const stored = formatValue(view, entry);
+      if (typeof stored !== "number") return stored;
+      // The value cell carries the number as text, with the unit suffix in a
+      // span of its own after it - so the first text node is the number, in
+      // the same terms `formatValue` reports (a unit factor already applied).
+      const cell = wrap.querySelector<HTMLElement>(".ep-num");
+      const first = cell?.firstChild;
+      const text = (first?.nodeType === 3 ? first.nodeValue : cell?.textContent) ?? "";
+      return shownNumber(text) ?? stored;
     };
     /** Paint from the note, from what is being typed, or from a preview. */
     const paint = (value?: unknown): void => {

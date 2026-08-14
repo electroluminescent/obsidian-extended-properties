@@ -1579,6 +1579,15 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
 /* No room for a strip beside a sheet on a phone. */
 @media (max-width: 720px) { .ep-nav { display: none; } }
 
+/* Arriving somewhere is worth saying out loud - especially when the page had
+   nowhere left to scroll and nothing appeared to happen. */
+@keyframes ep-nav-flash {
+  from { background: var(--text-selection); }
+  to { background: transparent; }
+}
+.ep-nav-flash { animation: ep-nav-flash 1.2s ease-out; border-radius: var(--ep-radius, 6px); }
+@media (prefers-reduced-motion: reduce) { .ep-nav-flash { animation: none; } }
+
 .ep-nav-search { padding: 2px 0 6px; }
 .ep-nav-search-input { width: 100%; }
 /* Rows and headings the search has nothing to say for. */

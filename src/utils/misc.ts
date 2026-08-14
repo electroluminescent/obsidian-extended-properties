@@ -155,3 +155,20 @@ export function restoreFromSnapshot(target: Record<string, unknown>, snapshot: s
   for (const k of Object.keys(target)) delete target[k];
   Object.assign(target, value);
 }
+
+/**
+ * The number a value cell is showing, or undefined where what it shows is not
+ * simply a number.
+ *
+ * A slider mid-drag has written nothing to the note: the only place the value
+ * under the reader's finger exists is the text in the cell, which is where
+ * conditional formatting reads it from. A unit written after the number is
+ * fine ("12 kg", "40%"); anything with a second number in it is not ("3/4",
+ * "2 of 5"), because there is no telling which of them was meant.
+ */
+export function shownNumber(text: string): number | undefined {
+  const m = /^\s*([+-]?[\d,]*\.?\d+)\s*([^\d]*)$/.exec(text);
+  if (!m) return undefined;
+  const n = Number(m[1].replace(/,/g, ""));
+  return Number.isFinite(n) ? n : undefined;
+}

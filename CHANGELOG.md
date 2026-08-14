@@ -1,5 +1,22 @@
 # Changelog
 
+## 4.61.2
+
+- **The colour follows a slider while it is being dragged.** The row was being
+  told to repaint, and reading the value out of the note - where nothing is
+  written until the knob is let go. It reads the number off the cell instead,
+  which every value type already rewrites as it changes, so this needs nothing
+  of them and cannot be forgotten by the next one written. A unit after the
+  number is fine; anything with a second number in it falls back to the stored
+  value rather than guessing.
+- **Pressing a section lights it up** once the scrolling settles - the heading
+  and everything under it - so arriving somewhere is visible even on a page
+  with nowhere left to scroll.
+- **The mark keeps up with you.** It follows the pointer while it is over the
+  settings (what you are pointing at is what you are reading), falls back to
+  the top of the view when it is not, and a section just pressed stays marked
+  for a moment whether or not the page could move to reach it.
+
 ## 4.61.1
 
 - **The section strip keeps up with what it is describing** - another property
