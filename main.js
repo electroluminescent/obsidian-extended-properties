@@ -4676,13 +4676,61 @@ function targetOf(rule) {
   return rule.target === "card" || rule.target === "chip" ? rule.target : "text";
 }
 function clear(el) {
-  el.removeClass("ep-fmt", "ep-fmt-text", "ep-fmt-chip", "ep-fmt-card", "ep-fin");
-  for (const id of FINISHES) el.removeClass(finishClass(id));
+  el.removeClass("ep-fmt", "ep-fmt-text", "ep-fmt-chip", "ep-fmt-card");
   el.setCssProps({ "--ep-fmt-bg": "", "--ep-fmt-fg": "" });
+}
+var FADE_MS = 180;
+var worn = /* @__PURE__ */ new WeakMap();
+function wearFinish(el, id) {
+  var _a;
+  const state = (_a = worn.get(el)) != null ? _a : {};
+  worn.set(el, state);
+  if (state.id === id) return;
+  if (state.timer) window.clearTimeout(state.timer);
+  const swap = () => {
+    state.timer = void 0;
+    el.removeClass("ep-fin");
+    for (const f of FINISHES) el.removeClass(finishClass(f));
+    if (id) el.addClass("ep-fin", finishClass(id));
+    state.id = id;
+    window.requestAnimationFrame(() => el.setCssProps({ "--ep-fin-mount": id ? "1" : "" }));
+  };
+  el.setCssProps({ "--ep-fin-mount": "0" });
+  if (!state.id) swap();
+  else state.timer = window.setTimeout(swap, FADE_MS);
+}
+function layAcross(sheet, parts) {
+  if (!sheet) return;
+  const wanted = parts.filter((el) => el !== sheet);
+  if (!wanted.length) {
+    sheet.removeClass("ep-fin-sheet");
+    return;
+  }
+  window.requestAnimationFrame(() => {
+    if (!sheet.isConnected) return;
+    const box = sheet.getBoundingClientRect();
+    if (box.width === 0) return;
+    let any = false;
+    for (const el of wanted) {
+      if (!el.isConnected) continue;
+      const own = el.getBoundingClientRect();
+      if (own.width === 0) continue;
+      any = true;
+      const round = getComputedStyle(el).borderTopLeftRadius;
+      el.setCssProps({
+        "--ep-span-t": Math.max(0, Math.round(own.top - box.top)) + "px",
+        "--ep-span-l": Math.max(0, Math.round(own.left - box.left)) + "px",
+        "--ep-span-b": Math.max(0, Math.round(box.bottom - own.bottom)) + "px",
+        "--ep-span-r": Math.max(0, Math.round(box.right - own.right)) + "px",
+        "--ep-span-round": round && round !== "0px" ? round : ""
+      });
+    }
+    sheet.toggleClass("ep-fin-sheet", any);
+  });
 }
 function paint(el, color, target2, contrast, finish) {
   el.addClass("ep-fmt", `ep-fmt-${target2}`);
-  if (finish && !(target2 === "text" && NEEDS_FILL.has(finish))) el.addClass("ep-fin", finishClass(finish));
+  wearFinish(el, finish && !(target2 === "text" && NEEDS_FILL.has(finish)) ? finish : void 0);
   if (target2 === "text") {
     el.setCssProps({ "--ep-fmt-fg": color });
     return;
@@ -4695,31 +4743,50 @@ function previewValue(el, value) {
   el == null ? void 0 : el.dispatchEvent(new CustomEvent(PREVIEW_EVENT, { detail: { value }, bubbles: true }));
 }
 function applyFormat(view, entry, raw, els) {
-  var _a, _b, _c, _d;
+  var _a, _b, _c, _d, _e;
   const rule = ruleFor(view, entry);
   const palette = paletteFor(view, rule);
   for (const el of [els.wrap, els.val]) if (el) clear(el);
   for (const chip of (_a = els.chips) != null ? _a : []) clear(chip);
-  if (!rule || !palette) return;
+  const dressed = [];
+  const wear = (el, color2, at, finish) => {
+    paint(el, color2, at, rule == null ? void 0 : rule.contrast, finish);
+    if (finish) dressed.push(el);
+  };
+  if (!rule || !palette) {
+    for (const el of [els.wrap, els.val, ...(_b = els.chips) != null ? _b : []]) if (el) wearFinish(el, void 0);
+    layAcross(els.wrap, []);
+    return;
+  }
   const target2 = targetOf(rule);
-  if (((_b = els.chips) == null ? void 0 : _b.length) && Array.isArray(raw)) {
+  if (((_c = els.chips) == null ? void 0 : _c.length) && Array.isArray(raw)) {
     els.chips.forEach((chip, i) => {
       var _a2;
       const item = raw[i];
       const fin2 = pickFinish(rule.finishes, item);
       const c = (_a2 = fin2 == null ? void 0 : fin2.color) != null ? _a2 : colorOfWith(view, entry, palette, item);
-      if (c) paint(chip, c, target2 === "text" ? "text" : "chip", rule.contrast, fin2 == null ? void 0 : fin2.finish);
+      if (c) wear(chip, c, target2 === "text" ? "text" : "chip", fin2 == null ? void 0 : fin2.finish);
+      else wearFinish(chip, void 0);
     });
   }
   const fin = pickFinish(rule.finishes, raw);
-  const color = (_c = fin == null ? void 0 : fin.color) != null ? _c : colorOfWith(view, entry, palette, raw);
-  if (!color) return;
-  if (target2 === "card") {
-    if (els.wrap) paint(els.wrap, color, "card", rule.contrast, fin == null ? void 0 : fin.finish);
+  const color = (_d = fin == null ? void 0 : fin.color) != null ? _d : colorOfWith(view, entry, palette, raw);
+  if (!color) {
+    for (const el of [els.wrap, els.val]) if (el) wearFinish(el, void 0);
+    layAcross(els.wrap, dressed);
     return;
   }
-  if (target2 === "chip" && ((_d = els.chips) == null ? void 0 : _d.length)) return;
-  if (els.val) paint(els.val, color, target2, rule.contrast, fin == null ? void 0 : fin.finish);
+  if (target2 === "card") {
+    if (els.val) wearFinish(els.val, void 0);
+    if (els.wrap) wear(els.wrap, color, "card", fin == null ? void 0 : fin.finish);
+  } else if (target2 === "chip" && ((_e = els.chips) == null ? void 0 : _e.length)) {
+    if (els.wrap) wearFinish(els.wrap, void 0);
+    if (els.val) wearFinish(els.val, void 0);
+  } else if (els.val) {
+    if (els.wrap) wearFinish(els.wrap, void 0);
+    wear(els.val, color, target2, fin == null ? void 0 : fin.finish);
+  }
+  layAcross(els.wrap, dressed);
 }
 
 // src/ui/components/inline-edit.ts
@@ -22311,6 +22378,7 @@ function installLamp(win) {
   const doc = win.document;
   if (win.matchMedia("(prefers-reduced-motion: reduce)").matches) return () => void 0;
   let lit = [];
+  let sheets = [];
   let stale = true;
   const at = /* @__PURE__ */ new WeakMap();
   const resting = /* @__PURE__ */ new WeakSet();
@@ -22328,9 +22396,13 @@ function installLamp(win) {
     last = now;
     if (stale) {
       lit = Array.from(doc.querySelectorAll(".ep-fin")).slice(0, LIMIT);
+      sheets = lit.map((el) => {
+        var _a;
+        return (_a = el.closest(".ep-fin-sheet")) != null ? _a : el;
+      });
       stale = false;
     }
-    const boxes = lit.map((el) => el.getBoundingClientRect());
+    const boxes = sheets.map((el) => el.getBoundingClientRect());
     const h = win.innerHeight || 1;
     const w = win.innerWidth || 1;
     let moving = false;

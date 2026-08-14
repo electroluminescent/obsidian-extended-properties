@@ -1,5 +1,24 @@
 # Changelog
 
+## 4.63.0
+
+- **The finish goes under the text, not over it.** A finish is what the value
+  is printed on; the reading of it comes first. The fill paints, then the
+  material, then the words.
+- **A list wearing one finish is one sheet with chips cut out of it**, not
+  five little sheets. The material is laid across the whole row and each chip
+  shows its own part of it, so a spectrum runs the length of the row and is
+  interrupted by the gaps - which is what a printed card looks like. The same
+  goes for a value's own cell: the sheet is always the row's, whichever of
+  text, chip or card the colour lands on.
+- The light follows the same rule: a row of chips shares one highlight instead
+  of each chip carrying its own.
+- **Finishes fade in and out as a value crosses from one band to another** -
+  including mid-drag on a slider, where the change is most likely to be seen
+  and where a hard swap flickered at every crossing. The old material fades
+  out, the swap happens where nothing can be seen of it, and the new one fades
+  in.
+
 ## 4.62.2
 
 - **The light travels rather than teleports.** It eases towards wherever the

@@ -1231,11 +1231,38 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
 .ep-fin::after {
   content: "";
   position: absolute;
-  inset: 0;
   pointer-events: none;
   border-radius: inherit;
+  /* UNDER the text. A finish is what the value is printed on, not something
+     laid over the reading of it: the fill paints, then the material, then the
+     words. Negative inside the value's own stacking context does exactly
+     that, and still blends with the fill beneath it. */
+  z-index: -1;
+  /*
+    Laid across the ROW rather than across this element.
+
+    A list of chips wearing one finish is one sheet with chips cut out of it,
+    not five little sheets: the spectrum should run across the row and be
+    interrupted by the gaps, which is what a printed card looks like. So the
+    layer is grown to the row's own box (`--ep-span-*`, measured by the
+    renderer) and then clipped back to this element - the gradient inside it
+    is therefore drawn once, in the row's terms, and each chip shows its own
+    part of it. With no span measured the numbers are zero and this is exactly
+    the element's own box.
+  */
+  inset:
+    calc(-1 * var(--ep-span-t, 0px)) calc(-1 * var(--ep-span-r, 0px))
+    calc(-1 * var(--ep-span-b, 0px)) calc(-1 * var(--ep-span-l, 0px));
+  clip-path: inset(
+    var(--ep-span-t, 0px) var(--ep-span-r, 0px) var(--ep-span-b, 0px) var(--ep-span-l, 0px)
+    round var(--ep-span-round, var(--ep-radius, 6px))
+  );
   /* Its own layer, so moving the light does not relayout the row. */
   will-change: background-position, filter;
+  /* A value crossing into another band changes what it is made of. Fading
+     between the two is the difference between a material and a light switch;
+     it also smooths the light, which is welcome. */
+  transition: opacity 180ms ease;
 }
 
 /* The sheet: the material. */
@@ -1250,7 +1277,8 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
      pointer is vivid, its neighbours are quiet, and the far end of a long
      sheet is almost plain - which is how a sheet of foil actually reads. */
   opacity: calc(
-    var(--ep-sheet-opacity, 0.55) * var(--ep-finish-strength) * (0.55 + var(--ep-lamp-near) * 0.45)
+    var(--ep-sheet-opacity, 0.55) * var(--ep-finish-strength) * var(--ep-fin-mount, 1) *
+      (0.55 + var(--ep-lamp-near) * 0.45)
   );
 }
 
@@ -1271,7 +1299,8 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
   filter: var(--ep-glare-filter, none);
   /* The glare is the light itself, so it fades further than the sheet does. */
   opacity: calc(
-    var(--ep-glare-opacity, 0.5) * var(--ep-finish-strength) * (0.3 + var(--ep-lamp-near) * 0.7)
+    var(--ep-glare-opacity, 0.5) * var(--ep-finish-strength) * var(--ep-fin-mount, 1) *
+      (0.3 + var(--ep-lamp-near) * 0.7)
   );
 }
 
@@ -1579,6 +1608,7 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
 @media (prefers-reduced-motion: reduce) {
   .ep-fin::before,
   .ep-fin::after {
+    transition: none;
     --ep-lamp-x: 42%;
     --ep-lamp-y: 28%;
     --ep-lamp-dx: -8%;

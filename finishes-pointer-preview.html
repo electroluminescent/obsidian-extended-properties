@@ -30,6 +30,11 @@
         background: var(--fill); color: var(--fg);
       }
       .row .unit { opacity: .8; font-weight: 400; }
+      .chips { display: flex; gap: 6px; }
+      .chip {
+        padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+        background: var(--fill); color: var(--fg); --ep-span-round: 999px;
+      }
       .swatches { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
       .swatches button {
         border: 1px solid #3a3a42; background: #26262c; color: #dcddde;
@@ -83,8 +88,31 @@
           row.style.setProperty("--fill", fill);
           row.style.setProperty("--fg", readableOn(fill));
           row.innerHTML = '<span>Strength</span><span>18 <span class="unit">mod</span></span>';
-          cell.append(name, row);
+          // ...and the same finish as a list: one sheet, chips cut out of it.
+          const list = document.createElement("div");
+          list.className = "chips ep-fin-sheet";
+          for (const word of ["fire", "ice", "poison"]) {
+            const chip = document.createElement("span");
+            chip.className = "chip ep-fin ep-fin-" + id;
+            chip.style.setProperty("--fill", fill);
+            chip.style.setProperty("--fg", readableOn(fill));
+            chip.textContent = word;
+            list.append(chip);
+          }
+          cell.append(name, row, list);
           grid.append(cell);
+          // The chips' layers are grown to the row and clipped back to each
+          // chip, exactly as the plugin does it.
+          requestAnimationFrame(() => {
+            const box = list.getBoundingClientRect();
+            for (const chip of list.children) {
+              const own = chip.getBoundingClientRect();
+              chip.style.setProperty("--ep-span-t", Math.round(own.top - box.top) + "px");
+              chip.style.setProperty("--ep-span-l", Math.round(own.left - box.left) + "px");
+              chip.style.setProperty("--ep-span-b", Math.round(box.bottom - own.bottom) + "px");
+              chip.style.setProperty("--ep-span-r", Math.round(box.right - own.right) + "px");
+            }
+          });
         }
       };
 
@@ -177,7 +205,8 @@
         const dt = last ? Math.min(0.05, (now - last) / 1000) : 1 / 60;
         last = now;
         const lit = Array.from(document.querySelectorAll(".ep-fin"));
-        const boxes = lit.map((el) => el.getBoundingClientRect());
+        // Chips on one row are one sheet: lit across the row, not each alone.
+        const boxes = lit.map((el) => (el.closest(".ep-fin-sheet") ?? el).getBoundingClientRect());
         let moving = false;
         lit.forEach((el, i) => {
           const to = gone ? REST : targetFor(boxes[i], px, py);

@@ -110,11 +110,96 @@ function targetOf(rule: FormatRule): "text" | "chip" | "card" {
   return rule.target === "card" || rule.target === "chip" ? rule.target : "text";
 }
 
-/** Take every trace of a previous pass off `el`. */
+/**
+ * Take every trace of a previous pass off `el` - except the finish, which is
+ * handed over rather than snatched away (see {@link wearFinish}).
+ */
 function clear(el: HTMLElement): void {
-  el.removeClass("ep-fmt", "ep-fmt-text", "ep-fmt-chip", "ep-fmt-card", "ep-fin");
-  for (const id of FINISHES) el.removeClass(finishClass(id));
+  el.removeClass("ep-fmt", "ep-fmt-text", "ep-fmt-chip", "ep-fmt-card");
   el.setCssProps({ "--ep-fmt-bg": "", "--ep-fmt-fg": "" });
+}
+
+/** How long a finish takes to fade out before the next one fades in. */
+const FADE_MS = 180;
+
+/** What each element is currently wearing, and any change in flight. */
+interface Worn {
+  id?: string;
+  timer?: number;
+}
+const worn = new WeakMap<HTMLElement, Worn>();
+
+/**
+ * Put a finish on `el`, or take one off, without either popping into being.
+ *
+ * A value crossing from one band into another changes what it is MADE of, and
+ * a material does not appear instantly - so the old one fades out, the class
+ * is swapped while nothing can be seen of it, and the new one fades in. It
+ * matters most exactly where it is most likely to be seen: dragging a slider
+ * across a boundary, where the change would otherwise flicker at every
+ * crossing.
+ */
+function wearFinish(el: HTMLElement, id: string | undefined): void {
+  const state = worn.get(el) ?? {};
+  worn.set(el, state);
+  if (state.id === id) return;
+  if (state.timer) window.clearTimeout(state.timer);
+  const swap = (): void => {
+    state.timer = undefined;
+    el.removeClass("ep-fin");
+    for (const f of FINISHES) el.removeClass(finishClass(f));
+    if (id) el.addClass("ep-fin", finishClass(id));
+    state.id = id;
+    // Next frame, so the browser has drawn the swap at nothing before it is
+    // asked to bring it up.
+    window.requestAnimationFrame(() => el.setCssProps({ "--ep-fin-mount": id ? "1" : "" }));
+  };
+  el.setCssProps({ "--ep-fin-mount": "0" });
+  // Nothing to fade out of: the swap can happen at once and only fade in.
+  if (!state.id) swap();
+  else state.timer = window.setTimeout(swap, FADE_MS);
+}
+
+/**
+ * Lay the finishes of `parts` across `sheet` - the row they belong to.
+ *
+ * The layers are grown to the row and clipped back to each part (see the
+ * stylesheet), so what is measured here is simply how far each part sits
+ * inside the row. Done a frame later, because the row has only just been
+ * drawn and asking now would measure the last one.
+ */
+function layAcross(sheet: HTMLElement | null | undefined, parts: HTMLElement[]): void {
+  if (!sheet) return;
+  const wanted = parts.filter((el) => el !== sheet);
+  if (!wanted.length) {
+    sheet.removeClass("ep-fin-sheet");
+    return;
+  }
+  window.requestAnimationFrame(() => {
+    if (!sheet.isConnected) return;
+    const box = sheet.getBoundingClientRect();
+    if (box.width === 0) return;
+    let any = false;
+    for (const el of wanted) {
+      if (!el.isConnected) continue;
+      const own = el.getBoundingClientRect();
+      if (own.width === 0) continue;
+      any = true;
+      // The clip has to be the part's own shape, corners included, or a pill
+      // chip would show a square edge of the sheet at each end.
+      const round = getComputedStyle(el).borderTopLeftRadius;
+      el.setCssProps({
+        "--ep-span-t": Math.max(0, Math.round(own.top - box.top)) + "px",
+        "--ep-span-l": Math.max(0, Math.round(own.left - box.left)) + "px",
+        "--ep-span-b": Math.max(0, Math.round(box.bottom - own.bottom)) + "px",
+        "--ep-span-r": Math.max(0, Math.round(box.right - own.right)) + "px",
+        "--ep-span-round": round && round !== "0px" ? round : "",
+      });
+    }
+    // The lamp lights a sheet as one thing, so every chip on a row shares a
+    // highlight rather than each carrying its own.
+    sheet.toggleClass("ep-fin-sheet", any);
+  });
 }
 
 /**
@@ -132,7 +217,7 @@ export function paint(
   el.addClass("ep-fmt", `ep-fmt-${target}`);
   // A finish needs something to lie on: on bare text, the ones that cut an
   // edge or weave a surface have nothing to work with.
-  if (finish && !(target === "text" && NEEDS_FILL.has(finish))) el.addClass("ep-fin", finishClass(finish));
+  wearFinish(el, finish && !(target === "text" && NEEDS_FILL.has(finish)) ? finish : undefined);
   if (target === "text") {
     el.setCssProps({ "--ep-fmt-fg": color });
     return;
@@ -178,7 +263,23 @@ export function applyFormat(view: ViewCtx, entry: Entry, raw: unknown, els: Form
   const palette = paletteFor(view, rule);
   for (const el of [els.wrap, els.val]) if (el) clear(el);
   for (const chip of els.chips ?? []) clear(chip);
-  if (!rule || !palette) return;
+  /** Everything that ended up wearing a finish, to be laid across the row. */
+  const dressed: HTMLElement[] = [];
+  const wear = (
+    el: HTMLElement,
+    color: string,
+    at: "text" | "chip" | "card",
+    finish: string | undefined
+  ): void => {
+    paint(el, color, at, rule?.contrast, finish);
+    if (finish) dressed.push(el);
+  };
+  if (!rule || !palette) {
+    // Nothing formats this any more: whatever it was wearing fades off it.
+    for (const el of [els.wrap, els.val, ...(els.chips ?? [])]) if (el) wearFinish(el, undefined);
+    layAcross(els.wrap, []);
+    return;
+  }
   const target = targetOf(rule);
 
   // A list colours its chips one by one - each chip is its own value - and
@@ -188,18 +289,30 @@ export function applyFormat(view: ViewCtx, entry: Entry, raw: unknown, els: Form
       const item = raw[i];
       const fin = pickFinish(rule.finishes, item);
       const c = fin?.color ?? colorOfWith(view, entry, palette, item);
-      if (c) paint(chip, c, target === "text" ? "text" : "chip", rule.contrast, fin?.finish);
+      if (c) wear(chip, c, target === "text" ? "text" : "chip", fin?.finish);
+      else wearFinish(chip, undefined);
     });
   }
 
   const fin = pickFinish(rule.finishes, raw);
   const color = fin?.color ?? colorOfWith(view, entry, palette, raw);
-  if (!color) return;
-  if (target === "card") {
-    if (els.wrap) paint(els.wrap, color, "card", rule.contrast, fin?.finish);
+  if (!color) {
+    for (const el of [els.wrap, els.val]) if (el) wearFinish(el, undefined);
+    layAcross(els.wrap, dressed);
     return;
   }
-  // Chips have been painted individually; a single value paints its cell.
-  if (target === "chip" && els.chips?.length) return;
-  if (els.val) paint(els.val, color, target, rule.contrast, fin?.finish);
+  if (target === "card") {
+    if (els.val) wearFinish(els.val, undefined);
+    if (els.wrap) wear(els.wrap, color, "card", fin?.finish);
+  } else if (target === "chip" && els.chips?.length) {
+    // Chips have been painted individually; the row itself wears nothing.
+    if (els.wrap) wearFinish(els.wrap, undefined);
+    if (els.val) wearFinish(els.val, undefined);
+  } else if (els.val) {
+    if (els.wrap) wearFinish(els.wrap, undefined);
+    wear(els.val, color, target, fin?.finish);
+  }
+  // Whatever is wearing a finish wears the SAME sheet of it: the row's, not
+  // its own. A list of chips is one sheet with chips cut out of it.
+  layAcross(els.wrap, dressed);
 }

@@ -204,6 +204,15 @@ export function installLamp(win: Window): () => void {
 
   /** The finishes on screen, refreshed when the document changes under us. */
   let lit: HTMLElement[] = [];
+  /**
+   * What each of them is lit AS: itself, or the row it is one piece of.
+   *
+   * A list of chips wearing one finish is one sheet with chips cut out of it
+   * (see `format.ts`), so the light has to be worked out across the sheet -
+   * otherwise every chip carries its own highlight and the row reads as five
+   * little cards rather than one.
+   */
+  let sheets: HTMLElement[] = [];
   let stale = true;
   /** Where the light has actually got to, per value. */
   const at = new WeakMap<HTMLElement, Light>();
@@ -230,11 +239,12 @@ export function installLamp(win: Window): () => void {
     last = now;
     if (stale) {
       lit = Array.from(doc.querySelectorAll<HTMLElement>(".ep-fin")).slice(0, LIMIT);
+      sheets = lit.map((el) => el.closest<HTMLElement>(".ep-fin-sheet") ?? el);
       stale = false;
     }
     // Read every box first, THEN write every property: interleaving them
     // makes the browser lay the page out once per value instead of once.
-    const boxes = lit.map((el) => el.getBoundingClientRect());
+    const boxes = sheets.map((el) => el.getBoundingClientRect());
     const h = win.innerHeight || 1;
     const w = win.innerWidth || 1;
     let moving = false;
