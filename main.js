@@ -775,6 +775,35 @@ var en_default = {
   "options.formatScopeDesc": "This property wherever it is drawn - sidebar, type table, inline - or only this row.",
   "options.formatScope.key": "This property everywhere",
   "options.formatScope.row": "Only this row",
+  "finish.gloss": "Gloss",
+  "finish.matte": "Matte",
+  "finish.holographic": "Holographic",
+  "finish.reverse-holo": "Reverse holo",
+  "finish.foil": "Foil",
+  "finish.prismatic": "Prismatic foil",
+  "finish.refractor": "Refractor",
+  "finish.chrome": "Chrome",
+  "finish.cracked-ice": "Cracked ice",
+  "finish.cosmic": "Cosmic",
+  "finish.shimmer": "Shimmer",
+  "finish.metallic": "Metallic foil",
+  "finish.canvas": "Canvas",
+  "finish.die-cut": "Die-cut",
+  "finish.parallel": "Parallel",
+  "finish.mojo": "Mojo",
+  "finish.wave": "Wave",
+  "finish.negative": "Negative",
+  "finish.etch": "Etch",
+  "finish.prizm": "Prizm",
+  "options.finishHeading": "Finishes",
+  "options.finishHeadingDesc": "Laid over the colour, never instead of it. The first rule that speaks for a value wins, so put the particular ones first.",
+  "options.finishAdd": "Add finish rule",
+  "options.finishWhen.all": "Everything",
+  "options.finishWhen.values": "These values",
+  "options.finishWhen.range": "This band",
+  "options.finishWhen.unique": "One each",
+  "options.finishValues": "value, value",
+  "options.finishSet": "finishes to hand round",
   "settings.inlineDesc": "How each kind of inline piece is drawn in a note body. Height is in lines of text - a chart drawn on one line is barely visible. A width given as a share of the column widens to the next largest share when it would be too narrow to read.",
   "settings.inlineLines": "Lines",
   "settings.inlineWidthAuto": "Natural width",
@@ -9997,6 +10026,87 @@ function setDominant(ranges, index, edge, on) {
   return rs;
 }
 
+// src/utils/finish.ts
+function asText(value) {
+  if (value === void 0 || value === null) return "";
+  return Array.isArray(value) ? value.map((v) => String(v)).join(", ") : String(value);
+}
+function stableHash(text) {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h);
+}
+function matches(rule, value) {
+  var _a, _b, _c;
+  const text = asText(value).trim();
+  switch (rule.when) {
+    case "all":
+      return true;
+    case "values":
+      return ((_a = rule.values) != null ? _a : []).some((v) => v.trim().toLowerCase() === text.toLowerCase());
+    case "range": {
+      const n = typeof value === "number" ? value : Number(text);
+      if (!Number.isFinite(n)) return false;
+      const from = (_b = rule.from) != null ? _b : -Infinity;
+      const to = (_c = rule.to) != null ? _c : Infinity;
+      return n >= Math.min(from, to) && n <= Math.max(from, to);
+    }
+    case "unique":
+      return text !== "";
+    default:
+      return false;
+  }
+}
+function finishOf(rule, value) {
+  var _a;
+  const set = (_a = rule.set) != null ? _a : [];
+  if (rule.when !== "unique" || !set.length) return rule.finish;
+  return set[stableHash(asText(value)) % set.length];
+}
+function pickFinish(rules, value) {
+  var _a;
+  for (const rule of rules != null ? rules : []) {
+    if (!rule.finish && !((_a = rule.set) != null ? _a : []).length) continue;
+    if (!matches(rule, value)) continue;
+    const finish = finishOf(rule, value);
+    if (!finish) continue;
+    return { finish, color: rule.color };
+  }
+  return void 0;
+}
+
+// src/ui/render/finishes.ts
+var FINISHES = [
+  "gloss",
+  "matte",
+  "holographic",
+  "reverse-holo",
+  "foil",
+  "prismatic",
+  "refractor",
+  "chrome",
+  "cracked-ice",
+  "cosmic",
+  "shimmer",
+  "metallic",
+  "canvas",
+  "die-cut",
+  "parallel",
+  "mojo",
+  "wave",
+  "negative",
+  "etch",
+  "prizm"
+];
+var NEEDS_FILL = /* @__PURE__ */ new Set(["die-cut", "canvas", "parallel", "cracked-ice"]);
+function finishName(i18n, id) {
+  return i18n.t("finish." + id);
+}
+var finishClass = (id) => "ep-fin-" + id;
+
 // src/ui/render/format.ts
 var NUMERIC2 = /* @__PURE__ */ new Set(["number", "decimal", "formula", "derived", "unit", "rating", "date", "datetime"]);
 function formatValue(view, entry) {
@@ -10052,11 +10162,13 @@ function targetOf(rule) {
   return rule.target === "card" || rule.target === "chip" ? rule.target : "text";
 }
 function clear(el) {
-  el.removeClass("ep-fmt", "ep-fmt-text", "ep-fmt-chip", "ep-fmt-card");
+  el.removeClass("ep-fmt", "ep-fmt-text", "ep-fmt-chip", "ep-fmt-card", "ep-fin");
+  for (const id of FINISHES) el.removeClass(finishClass(id));
   el.setCssProps({ "--ep-fmt-bg": "", "--ep-fmt-fg": "" });
 }
-function paint(el, color, target2, contrast) {
+function paint(el, color, target2, contrast, finish) {
   el.addClass("ep-fmt", `ep-fmt-${target2}`);
+  if (finish && !(target2 === "text" && NEEDS_FILL.has(finish))) el.addClass("ep-fin", finishClass(finish));
   if (target2 === "text") {
     el.setCssProps({ "--ep-fmt-fg": color });
     return;
@@ -10065,7 +10177,7 @@ function paint(el, color, target2, contrast) {
   el.setCssProps({ "--ep-fmt-bg": color, "--ep-fmt-fg": fg });
 }
 function applyFormat(view, entry, raw, els) {
-  var _a, _b, _c;
+  var _a, _b, _c, _d;
   const rule = ruleFor(view, entry);
   const palette = paletteFor(view, rule);
   for (const el of [els.wrap, els.val]) if (el) clear(el);
@@ -10074,18 +10186,22 @@ function applyFormat(view, entry, raw, els) {
   const target2 = targetOf(rule);
   if (((_b = els.chips) == null ? void 0 : _b.length) && Array.isArray(raw)) {
     els.chips.forEach((chip, i) => {
-      const c = colorOfWith(view, entry, palette, raw[i]);
-      if (c) paint(chip, c, target2 === "text" ? "text" : "chip", rule.contrast);
+      var _a2;
+      const item = raw[i];
+      const fin2 = pickFinish(rule.finishes, item);
+      const c = (_a2 = fin2 == null ? void 0 : fin2.color) != null ? _a2 : colorOfWith(view, entry, palette, item);
+      if (c) paint(chip, c, target2 === "text" ? "text" : "chip", rule.contrast, fin2 == null ? void 0 : fin2.finish);
     });
   }
-  const color = colorOfWith(view, entry, palette, raw);
+  const fin = pickFinish(rule.finishes, raw);
+  const color = (_c = fin == null ? void 0 : fin.color) != null ? _c : colorOfWith(view, entry, palette, raw);
   if (!color) return;
   if (target2 === "card") {
-    if (els.wrap) paint(els.wrap, color, "card", rule.contrast);
+    if (els.wrap) paint(els.wrap, color, "card", rule.contrast, fin == null ? void 0 : fin.finish);
     return;
   }
-  if (target2 === "chip" && ((_c = els.chips) == null ? void 0 : _c.length)) return;
-  if (els.val) paint(els.val, color, target2, rule.contrast);
+  if (target2 === "chip" && ((_d = els.chips) == null ? void 0 : _d.length)) return;
+  if (els.val) paint(els.val, color, target2, rule.contrast, fin == null ? void 0 : fin.finish);
 }
 
 // src/ui/components/hold-config.ts
@@ -10241,6 +10357,7 @@ function renderFormatting(octx) {
     () => rule().contrast === "auto" ? void 0 : rule().contrast,
     (v) => write({ contrast: v != null ? v : void 0 })
   );
+  renderFinishRules(octx, rule, write);
   new import_obsidian24.Setting(c).setName(t("options.formatScope")).setDesc(t("options.formatScopeDesc")).addDropdown((dd) => {
     dd.addOption("key", t("options.formatScope.key"));
     dd.addOption("row", t("options.formatScope.row"));
@@ -10261,6 +10378,72 @@ function renderFormatting(octx) {
       redraw();
     });
   });
+}
+function renderFinishRules(octx, rule, write) {
+  var _a;
+  const { view, container: c } = octx;
+  const t = view.i18n.t.bind(view.i18n);
+  const list = [...(_a = rule().finishes) != null ? _a : []];
+  const put = (next) => write({ finishes: next.length ? next : void 0 });
+  new import_obsidian24.Setting(c).setName(t("options.finishHeading")).setDesc(t("options.finishHeadingDesc"));
+  const rows = c.createDiv({ cls: "ep-mini-list" });
+  list.forEach((fr, i) => {
+    var _a2, _b, _c, _d;
+    const row = new import_obsidian24.Setting(rows).setClass("ep-mini-row");
+    const box = row.controlEl;
+    const drop = box.createEl("select", { cls: "dropdown ep-fin-when" });
+    for (const when of ["all", "values", "range", "unique"])
+      drop.createEl("option", { value: when, text: t("options.finishWhen." + when) });
+    drop.value = fr.when;
+    drop.onchange = () => put(list.map((x, j) => j === i ? { ...x, when: drop.value } : x));
+    if (fr.when === "values") {
+      const vals = box.createEl("input", { cls: "ep-edit-input ep-fin-vals" });
+      vals.type = "text";
+      vals.placeholder = t("options.finishValues");
+      vals.value = ((_a2 = fr.values) != null ? _a2 : []).join(", ");
+      vals.addEventListener(
+        "change",
+        () => put(list.map((x, j) => j === i ? { ...x, values: vals.value.split(",").map((v) => v.trim()).filter(Boolean) } : x))
+      );
+    }
+    if (fr.when === "range") {
+      const num = (v, on) => {
+        const el = box.createEl("input", { cls: "ep-edit-input ep-pal-num" });
+        el.type = "number";
+        el.value = v === void 0 ? "" : String(v);
+        el.addEventListener("change", () => {
+          const n = Number(el.value);
+          if (Number.isFinite(n)) on(n);
+        });
+      };
+      num(fr.from, (n) => put(list.map((x, j) => j === i ? { ...x, from: n } : x)));
+      box.createSpan({ cls: "ep-pal-dash", text: "-" });
+      num(fr.to, (n) => put(list.map((x, j) => j === i ? { ...x, to: n } : x)));
+    }
+    const fin = box.createEl("select", { cls: "dropdown ep-fin-pick" });
+    for (const id of FINISHES) fin.createEl("option", { value: id, text: finishName(view.i18n, id) });
+    fin.value = fr.when === "unique" ? (_c = ((_b = fr.set) != null ? _b : [])[0]) != null ? _c : fr.finish : fr.finish;
+    fin.onchange = () => put(list.map((x, j) => {
+      var _a3;
+      return j === i ? { ...x, finish: fin.value, set: x.when === "unique" ? [fin.value, ...((_a3 = x.set) != null ? _a3 : []).slice(1)] : x.set } : x;
+    }));
+    if (fr.when === "unique") {
+      const more = box.createEl("input", { cls: "ep-edit-input ep-fin-set" });
+      more.type = "text";
+      more.placeholder = t("options.finishSet");
+      more.value = ((_d = fr.set) != null ? _d : []).join(", ");
+      more.addEventListener(
+        "change",
+        () => put(list.map((x, j) => j === i ? { ...x, set: more.value.split(",").map((v) => v.trim()).filter(Boolean) } : x))
+      );
+    }
+    row.addExtraButton(
+      (b) => b.setIcon("x").setTooltip(t("palette.remove")).onClick(() => put(list.filter((_, j) => j !== i)))
+    );
+  });
+  new import_obsidian24.Setting(rows).setClass("ep-mini-row").addButton(
+    (b) => b.setButtonText(t("options.finishAdd")).onClick(() => put([...list, { when: "all", finish: "gloss" }]))
+  );
 }
 function renderEntryOptionsBody(octx, onDone, onRemoved, opts = {}) {
   var _a, _b, _c, _d;
@@ -17374,11 +17557,11 @@ var EPSettingTab = class extends import_obsidian38.PluginSettingTab {
       listEl.empty();
       const q = search.value.trim().toLowerCase();
       const keys = i18n.keys();
-      const matches = keys.filter((k) => {
+      const matches2 = keys.filter((k) => {
         if (!q) return plugin.settings.stringOverrides[k] !== void 0;
         return k.toLowerCase().includes(q) || i18n.baseText(k).toLowerCase().includes(q);
       });
-      const shown = matches.slice(0, OVERRIDE_ROW_LIMIT);
+      const shown = matches2.slice(0, OVERRIDE_ROW_LIMIT);
       if (!q && !shown.length)
         listEl.createDiv({ cls: "setting-item-description", text: t("settings.overridesHint") });
       for (const key of shown) {
@@ -17393,10 +17576,10 @@ var EPSettingTab = class extends import_obsidian38.PluginSettingTab {
           });
         });
       }
-      if (matches.length > shown.length)
+      if (matches2.length > shown.length)
         listEl.createDiv({
           cls: "setting-item-description",
-          text: t("settings.overridesMore", { count: matches.length - shown.length })
+          text: t("settings.overridesMore", { count: matches2.length - shown.length })
         });
     };
     search.addEventListener("input", renderList);

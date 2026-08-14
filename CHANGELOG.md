@@ -30,6 +30,20 @@
 - **A palette can be written over a calendar**: point it at a date property and
   its edges are typed and read as dates in that property's own format, while
   the engine goes on seeing the integers underneath.
+- **Finishes**, laid over the colour rather than instead of it: gloss, matte,
+  holographic, reverse holo, foil, prismatic, refractor, chrome, cracked ice,
+  cosmic, shimmer, metallic, canvas, die-cut, parallel, mojo, wave, negative,
+  etch and prizm. All of it is gradients and blend modes - nothing is
+  downloaded and nothing is an image.
+- A property says who wears what: everything, particular values, a band of
+  numbers, or one each - a set handed round by a stable hash, so a skill wears
+  the same finish every time you open the sheet. The first rule that speaks
+  for a value wins, and a rule can carry a colour of its own instead of the
+  palette's.
+- **Nothing moves until you look at it.** The animated finishes run on hover
+  alone, so a sheet of fifty foiled rows is still, and
+  `prefers-reduced-motion` stops even that. Under Windows High Contrast the
+  whole layer stands down.
 
 ## 4.56.1
 

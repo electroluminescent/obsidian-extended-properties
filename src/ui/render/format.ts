@@ -21,6 +21,8 @@ import type { ViewCtx } from "../../core/context";
 import { modifierInfo } from "../../core/influences";
 import type { Palette, Span } from "../../utils/palette";
 import { blendColors, colorAt, colorForText, readableOn } from "../../utils/palette";
+import { pickFinish } from "../../utils/finish";
+import { FINISHES, finishClass, NEEDS_FILL } from "./finishes";
 
 /** Value types whose values are numbers, whatever they read as. */
 const NUMERIC = new Set(["number", "decimal", "formula", "derived", "unit", "rating", "date", "datetime"]);
@@ -110,7 +112,8 @@ function targetOf(rule: FormatRule): "text" | "chip" | "card" {
 
 /** Take every trace of a previous pass off `el`. */
 function clear(el: HTMLElement): void {
-  el.removeClass("ep-fmt", "ep-fmt-text", "ep-fmt-chip", "ep-fmt-card");
+  el.removeClass("ep-fmt", "ep-fmt-text", "ep-fmt-chip", "ep-fmt-card", "ep-fin");
+  for (const id of FINISHES) el.removeClass(finishClass(id));
   el.setCssProps({ "--ep-fmt-bg": "", "--ep-fmt-fg": "" });
 }
 
@@ -119,8 +122,17 @@ function clear(el: HTMLElement): void {
  * itself; a chip or a card takes it as a fill, with a foreground that can be
  * read on it.
  */
-export function paint(el: HTMLElement, color: string, target: "text" | "chip" | "card", contrast?: string): void {
+export function paint(
+  el: HTMLElement,
+  color: string,
+  target: "text" | "chip" | "card",
+  contrast?: string,
+  finish?: string
+): void {
   el.addClass("ep-fmt", `ep-fmt-${target}`);
+  // A finish needs something to lie on: on bare text, the ones that cut an
+  // edge or weave a surface have nothing to work with.
+  if (finish && !(target === "text" && NEEDS_FILL.has(finish))) el.addClass("ep-fin", finishClass(finish));
   if (target === "text") {
     el.setCssProps({ "--ep-fmt-fg": color });
     return;
@@ -157,18 +169,21 @@ export function applyFormat(view: ViewCtx, entry: Entry, raw: unknown, els: Form
   // gives the row or the text the blend of them.
   if (els.chips?.length && Array.isArray(raw)) {
     els.chips.forEach((chip, i) => {
-      const c = colorOfWith(view, entry, palette, raw[i]);
-      if (c) paint(chip, c, target === "text" ? "text" : "chip", rule.contrast);
+      const item = raw[i];
+      const fin = pickFinish(rule.finishes, item);
+      const c = fin?.color ?? colorOfWith(view, entry, palette, item);
+      if (c) paint(chip, c, target === "text" ? "text" : "chip", rule.contrast, fin?.finish);
     });
   }
 
-  const color = colorOfWith(view, entry, palette, raw);
+  const fin = pickFinish(rule.finishes, raw);
+  const color = fin?.color ?? colorOfWith(view, entry, palette, raw);
   if (!color) return;
   if (target === "card") {
-    if (els.wrap) paint(els.wrap, color, "card", rule.contrast);
+    if (els.wrap) paint(els.wrap, color, "card", rule.contrast, fin?.finish);
     return;
   }
   // Chips have been painted individually; a single value paints its cell.
   if (target === "chip" && els.chips?.length) return;
-  if (els.val) paint(els.val, color, target, rule.contrast);
+  if (els.val) paint(els.val, color, target, rule.contrast, fin?.finish);
 }

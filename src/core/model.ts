@@ -55,7 +55,7 @@ export interface Choices {
 /** Where a property's colour lands: on its text, its value, or the whole row. */
 export type FormatTarget = "text" | "chip" | "card";
 
-/** A finish laid over the colour, and which values get it (roadmap phase 3). */
+/** A finish laid over the colour, and which values get it. */
 export interface FinishRule {
   /** "all" | "values" | "range" | "unique". */
   when: string;
@@ -66,6 +66,11 @@ export interface FinishRule {
   to?: number;
   /** Finish id from the finish registry. */
   finish: string;
+  /**
+   * For `when: "unique"`, the finishes to hand round - one per distinct
+   * value, chosen by a stable hash so a value always wears the same one.
+   */
+  set?: string[];
   /** Use this colour instead of the palette's. */
   color?: string;
 }
