@@ -17,7 +17,7 @@
 
 import { Modal, Setting, TFile } from "obsidian";
 import type { OptionsCtx, ViewCtx } from "../../core/context";
-import type { Entry, Section } from "../../core/model";
+import type { Entry, FormatRule, Section } from "../../core/model";
 import type { Constraints } from "../../core/validate";
 import { destructive } from "../components/setting-helpers";
 import { setTypedText } from "../components/type-label";
@@ -137,6 +137,81 @@ function renderAllowedList(octx: OptionsCtx): void {
         }
       : undefined,
   });
+}
+
+/**
+ * Which palette speaks for this property, and where its colour lands.
+ *
+ * The rule lives with the PROPERTY by default - the sidebar, the type table
+ * and inline chips then agree about what "Current HP" looks like - and can be
+ * moved onto this one row where it should differ.
+ */
+function renderFormatting(octx: OptionsCtx): void {
+  const { view, entry: e, container: c, changed, redraw } = octx;
+  const t = view.i18n.t.bind(view.i18n);
+  if (e.kind !== "prop" || !e.key) return;
+  const key = (e.key as string).toLowerCase();
+  const rule = (): FormatRule => e.format ?? view.settings.formatProps?.[key] ?? {};
+  const onRow = (): boolean => !!e.format;
+  const empty = (r: FormatRule): boolean =>
+    !r.palette && !r.target && !r.contrast && !r.finishes?.length && !r.off;
+  const write = (patch: Partial<FormatRule>): void => {
+    const next: FormatRule = { ...rule(), ...patch };
+    if (onRow()) e.format = empty(next) ? undefined : next;
+    else {
+      const store = (view.settings.formatProps ??= {});
+      if (empty(next)) delete store[key];
+      else store[key] = next;
+    }
+    changed();
+    redraw();
+  };
+
+  c.createEl("h4", { text: t("options.formatHeading") });
+  new Setting(c)
+    .setName(t("options.formatPalette"))
+    .setDesc(t("options.formatPaletteDesc"))
+    .addDropdown((dd) => {
+      dd.addOption("", t("options.formatNone"));
+      for (const p of view.settings.palettes ?? []) dd.addOption(p.id, p.name || p.id);
+      dd.setValue(rule().palette ?? "");
+      dd.onChange((v) => write({ palette: v || undefined }));
+    });
+  if (!rule().palette) return; // nothing else means anything yet
+  new Setting(c)
+    .setName(t("options.formatTarget"))
+    .setDesc(t("options.formatTargetDesc"))
+    .addDropdown((dd) => {
+      for (const target of ["text", "chip", "card"]) dd.addOption(target, t("options.formatTarget." + target));
+      dd.setValue(rule().target ?? "text");
+      dd.onChange((v) => write({ target: v as FormatRule["target"] }));
+    });
+  const host = viewColorHost(view);
+  addColorSetting(host, c, t("options.formatContrast"), t("options.formatContrastDesc"),
+    () => (rule().contrast === "auto" ? undefined : rule().contrast),
+    (v) => write({ contrast: v ?? undefined }));
+  new Setting(c)
+    .setName(t("options.formatScope"))
+    .setDesc(t("options.formatScopeDesc"))
+    .addDropdown((dd) => {
+      dd.addOption("key", t("options.formatScope.key"));
+      dd.addOption("row", t("options.formatScope.row"));
+      dd.setValue(onRow() ? "row" : "key");
+      dd.onChange((v) => {
+        const current = rule();
+        if (v === "row") {
+          e.format = { ...current };
+          const store = view.settings.formatProps;
+          if (store) delete store[key];
+        } else {
+          const store = (view.settings.formatProps ??= {});
+          store[key] = { ...current };
+          e.format = undefined;
+        }
+        changed();
+        redraw();
+      });
+    });
 }
 
 export function renderEntryOptionsBody(
@@ -285,6 +360,7 @@ export function renderEntryOptionsBody(
         changed();
       });
     });
+  renderFormatting(octx);
   new Setting(c)
     .setName(t("options.showWhen"))
     .setDesc(t("options.showWhenDesc"))

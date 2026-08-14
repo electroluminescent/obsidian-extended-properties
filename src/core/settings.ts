@@ -91,6 +91,7 @@ const HANDLED_KEYS: ReadonlySet<string> = new Set([
   "activation",
   "units",
   "freeKey", "inline",
+  "palettes", "formatProps",
 ]);
 
 /** Coerce a persisted `types` value to a clean list of non-empty strings. */
@@ -233,6 +234,9 @@ export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EP
     if (data.units && typeof data.units === "object") s.units = data.units as Record<string, string>;
     if (typeof data.freeKey === "string" && data.freeKey.trim()) s.freeKey = data.freeKey.trim();
     if (data.inline && typeof data.inline === "object") s.inline = data.inline as EPSettings["inline"];
+    if (Array.isArray(data.palettes)) s.palettes = data.palettes as EPSettings["palettes"];
+    if (data.formatProps && typeof data.formatProps === "object")
+      s.formatProps = data.formatProps as EPSettings["formatProps"];
     // Activation: only "single" is stored; anything else means the default.
     if (data.activation && typeof data.activation === "object") {
       const act: Record<string, string> = {};

@@ -31,6 +31,8 @@ import { FREE_KEYS } from "./render/value-types/numeric";
 import {
   boxedByDefault, CHART_KINDS, INLINE_KINDS, isBoxed, MAX_INLINE_LINES, SPAN_SHARES, type InlineSize,
 } from "../utils/inline-size";
+import { renderPaletteEditor, type PaletteEditorCtx } from "./components/palette-editor";
+import { defaultWheel } from "../utils/palette";
 
 /** Max override rows rendered at once (the list is searchable). */
 const OVERRIDE_ROW_LIMIT = 25;
@@ -56,6 +58,7 @@ const TAB_GROUPS: { label: string; sections: string[] }[] = [
   { label: "settings.activationHeading", sections: ["settings.activationHeading"] },
   { label: "settings.unitsHeading", sections: ["settings.unitsHeading"] },
   { label: "settings.inlineHeading", sections: ["settings.inlineHeading"] },
+  { label: "settings.palettesHeading", sections: ["settings.palettesHeading"] },
   {
     label: "settings.tab.interface",
     sections: [
@@ -72,6 +75,7 @@ const TAB_GROUPS: { label: string; sections: string[] }[] = [
 
 const SEARCH_SECTIONS = [
   "settings.typesHeading", "settings.defaultsHeading", "settings.unitsHeading", "settings.inlineHeading",
+  "settings.palettesHeading",
   "settings.newSectionHeading",
   "settings.derivationsHeading", "settings.abbrHeading", "settings.diceHeading",
   "settings.rollsHeading", "settings.macrosHeading", "settings.typographyHeading",
@@ -522,6 +526,7 @@ export class EPSettingTab extends PluginSettingTab {
 
     this.renderUnits(c);
     this.renderInline(c);
+    this.renderPalettes(c);
 
     // -- defaults --------------------------------------------------------------
     const d = plugin.settings.defaults;
@@ -1263,6 +1268,73 @@ export class EPSettingTab extends PluginSettingTab {
         });
       });
     }
+  }
+
+  /**
+   * Named colour palettes: the vocabulary conditional formatting speaks.
+   *
+   * A palette says how a value becomes a colour; properties then point at one
+   * (see the Formatting block in a property's options), so fifty skills share
+   * one palette and one edit changes them all.
+   */
+  private renderPalettes(c: HTMLElement): void {
+    const plugin = this.plugin;
+    const t = plugin.i18n.t.bind(plugin.i18n);
+    new Setting(c).setName(t("settings.palettesHeading")).setHeading();
+    c.createEl("p", { cls: "setting-item-description", text: t("settings.palettesDesc") });
+    const list = (plugin.settings.palettes ??= []);
+    const save = (): void => {
+      void plugin.saveSettings();
+    };
+    const ctx: PaletteEditorCtx = {
+      app: this.app,
+      i18n: plugin.i18n,
+      colors: {
+        app: this.app,
+        i18n: plugin.i18n,
+        getColorSpace: () => plugin.settings.defaults.colorSpace,
+        setColorSpace: (space) => {
+          plugin.settings.defaults.colorSpace = space;
+          save();
+        },
+      },
+      save,
+      redraw: () => this.render(),
+    };
+    for (const p of list) {
+      const head = new Setting(c).setName(p.name || t("palette.untitled")).setHeading();
+      head.settingEl.addClass("ep-subheading");
+      head.addText((tx) => {
+        tx.setPlaceholder(t("palette.name"));
+        tx.setValue(p.name);
+        tx.onChange((v) => {
+          p.name = v.trim();
+          save();
+        });
+      });
+      head.addExtraButton((b) =>
+        b.setIcon("copy").setTooltip(t("palette.duplicate")).onClick(() => {
+          list.push({ ...JSON.parse(JSON.stringify(p)) as typeof p, id: genId(), name: p.name + " 2" });
+          save();
+          this.render();
+        })
+      );
+      head.addExtraButton((b) =>
+        b.setIcon("trash").setTooltip(t("palette.delete")).onClick(() => {
+          plugin.settings.palettes = list.filter((x) => x.id !== p.id);
+          save();
+          this.render();
+        })
+      );
+      renderPaletteEditor(c, p, ctx);
+    }
+    new Setting(c).addButton((b) =>
+      b.setButtonText(t("palette.add")).setCta().onClick(() => {
+        list.push({ id: genId(), name: t("palette.untitled"), mode: "wheel", wheel: defaultWheel() });
+        save();
+        this.render();
+      })
+    );
   }
 
   /**

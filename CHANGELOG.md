@@ -1,5 +1,29 @@
 # Changelog
 
+## 4.57.0
+
+- **Conditional formatting, first part: colour.** A new *Palettes* settings tab
+  makes named palettes, and a property points at one under *Formatting* in its
+  own settings. Four ways of reading a value: a **wheel** sweeping a hue across
+  the property's range, **stops** with colours pinned to values and blends
+  between them, **bands** holding a colour flat between two edges, and **words**
+  carrying colours of their own.
+- Bands behave the way you would want them to: edges can be linked so moving
+  one carries its neighbour, overlapping bands are refused outright, and where
+  two bands share an edge a tick says which of them wins a value landing exactly
+  on it. What happens beyond the ends and in the gaps is yours to choose - no
+  colour, the nearest band's, or a blend across.
+- **Colour lands where you say**: on the value's text, on the value in a tinted
+  pill, or on the whole row. A list colours each chip by its own value and gives
+  the row the blend of them.
+- Every blend travels through OKLCH, so red to blue passes through the purples
+  rather than through grey, and a fill gets a foreground picked by measured
+  contrast unless you name one. A value failing its constraints still says so
+  first.
+- **Set once, everywhere**: a property's formatting is stored against the
+  property, so the sidebar, the type table and inline chips agree - with an
+  option to give one row a look of its own.
+
 ## 4.56.1
 
 - **The -/+ buttons stop disappearing from rows that have room for them.** In

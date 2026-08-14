@@ -1067,6 +1067,26 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-editable:focus-visible, .ep-menu-btn:focus-visible, .ep-roll-box:focus-visible,
 .ep-step-btn:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; border-radius: 4px; }
 
+/* -- palette editor -------------------------------------------------------- */
+.ep-pal-preview { height: 14px; border-radius: 4px; border: 1px solid var(--background-modifier-border); margin: 2px 0 6px; }
+.ep-pal-num { width: 4.5em; }
+.ep-pal-word { width: 9em; }
+.ep-pal-dash { color: var(--text-muted); }
+.ep-pal-swatch { width: 20px; height: 20px; border-radius: 4px; border: 1px solid var(--background-modifier-border); cursor: pointer; display: inline-block; }
+.ep-pal-dom { margin: 0 2px; }
+
+/* -- conditional formatting ------------------------------------------------ */
+/* A palette hands its answer over as variables; everything below only reads
+   them, so themes, Style Settings and forced-colors can all have their say. */
+.ep-fmt-text { color: var(--ep-fmt-fg, inherit); }
+.ep-fmt-chip { background: var(--ep-fmt-bg, transparent); color: var(--ep-fmt-fg, inherit); border-radius: var(--ep-chip-radius, var(--ep-radius, 6px)); padding: 0 6px; }
+.ep-fmt-card { background: var(--ep-fmt-bg, transparent); color: var(--ep-fmt-fg, inherit); }
+.ep-fmt-card .ep-line-name, .ep-fmt-card .ep-num, .ep-fmt-card .ep-val-right { color: var(--ep-fmt-fg, inherit); }
+/* A value that fails its constraints says so first: the fill stays, the error
+   mark goes over the top of it. */
+.ep-fmt.ep-invalid, .ep-fmt .ep-invalid { box-shadow: 0 0 0 1px var(--text-error); }
+.ep-fmt-text.ep-invalid { color: var(--text-error); }
+
 /* -- M1: high-contrast / forced-colors mode -------------------------------- */
 /* Controls that convey state via background or accent colour also get a visible
    border/outline in Windows High Contrast (forced-colors), where those colours
@@ -1078,6 +1098,8 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
   .ep-mode-btn.is-active, .ep-edit-toggle.is-active, .ep-roll-box.ep-pinned,
   .ep-rating-pip.is-on, .ep-solid-face.ep-solid-on .ep-solid-edge { outline: 2px solid Highlight; outline-offset: -2px; }
   .ep-rating-pip { forced-color-adjust: auto; }
+  /* The system owns the colours here: the formatting layer stands down. */
+  .ep-fmt { --ep-fmt-bg: transparent; --ep-fmt-fg: currentColor; }
   .ep-sidebar :focus-visible, .ep-table-view :focus-visible, .ep-popup :focus-visible,
   .ep-entry:focus-visible, .ep-rating:focus-visible, .ep-section-title:focus-visible { outline: 2px solid Highlight; outline-offset: 1px; }
 }

@@ -52,6 +52,41 @@ export interface Choices {
   create?: boolean;
 }
 
+/** Where a property's colour lands: on its text, its value, or the whole row. */
+export type FormatTarget = "text" | "chip" | "card";
+
+/** A finish laid over the colour, and which values get it (roadmap phase 3). */
+export interface FinishRule {
+  /** "all" | "values" | "range" | "unique". */
+  when: string;
+  /** The values it applies to, for `when: "values"`. */
+  values?: string[];
+  /** The band it applies to, for `when: "range"`. */
+  from?: number;
+  to?: number;
+  /** Finish id from the finish registry. */
+  finish: string;
+  /** Use this colour instead of the palette's. */
+  color?: string;
+}
+
+/**
+ * How a property is coloured: which palette speaks for it, where the colour
+ * lands, and what is laid over the top. Stored per property key (so the
+ * sidebar, the table and inline chips agree), and optionally on one entry
+ * when a single row should look different.
+ */
+export interface FormatRule {
+  /** Palette id, from `settings.palettes`. */
+  palette?: string;
+  target?: FormatTarget;
+  /** "auto" (default) picks a readable foreground; a colour overrides it. */
+  contrast?: string;
+  finishes?: FinishRule[];
+  /** Off without forgetting the settings. */
+  off?: boolean;
+}
+
 /** Generic, feature-agnostic fields of a sidebar entry. */
 export interface EntryBase {
   /** Stable id used for drag & drop and FLIP animations. */
@@ -77,6 +112,11 @@ export interface EntryBase {
    * doorstep - the rest of it stays folded.
    */
   showCollapsed?: boolean;
+  /**
+   * This row's own colouring, where it should differ from the property's.
+   * Unset means the property's rule (see `settings.formatProps`).
+   */
+  format?: FormatRule;
   /** Show the data-type tag beside the label (default true; space permitting). */
   showType?: boolean;
   /** Show the modifier chain denotation, e.g. INT + DEX (default true). */
@@ -556,4 +596,11 @@ export interface EPSettings {
   propTypes?: Record<string, string>;
   /** Per-property (vault-shared) date configs, keyed by lower-cased key. */
   dateProps?: Record<string, import("./calendar").DateConfig>;
+  /** Named colour palettes, referenced by properties (see `utils/palette`). */
+  palettes?: import("../utils/palette").Palette[];
+  /**
+   * How each property is coloured, keyed by lower-cased property key - so a
+   * property looks the same in the sidebar, the type table and inline.
+   */
+  formatProps?: Record<string, FormatRule>;
 }

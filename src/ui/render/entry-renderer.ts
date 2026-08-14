@@ -9,6 +9,7 @@ import type { TFile } from "obsidian";
 import type { ClusterFlags, EntryRenderCtx, ViewCtx } from "../../core/context";
 import type { Entry, Section } from "../../core/model";
 import { openEntryMenu } from "../menus/entry-menu";
+import { applyFormat } from "./format";
 import {
   focusEntry,
   openEntrySettingsPopup,
@@ -110,6 +111,24 @@ export function renderEntry(
     view.renderLabel(head, ctx);
     const v = head.createDiv({ cls: "ep-val-right" });
     v.createSpan({ cls: "ep-placeholder", text: view.i18n.t("entry.unknownKind", { kind: entry.kind }) });
+  }
+
+  // Conditional formatting: one pass over whatever the value type drew, and
+  // again whenever the value changes. A property nobody has formatted is left
+  // exactly as it was, so this costs a lookup and nothing more.
+  if (entry.kind === "prop" && entry.key) {
+    const key = entry.key;
+    const paint = (): void => {
+      applyFormat(view, entry, view.note.raw[key], {
+        wrap,
+        // The chips are rebuilt by the list type as values come and go, so
+        // they are found again on every pass rather than held onto.
+        val: wrap.querySelector<HTMLElement>(".ep-num, .ep-val-right, .ep-val"),
+        chips: wrap.findAll(".ep-chip"),
+      });
+    };
+    paint();
+    view.registerUpdater(paint);
   }
 
   // Right-click and press-and-hold are user-mappable (menu / property
