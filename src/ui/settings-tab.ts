@@ -16,7 +16,8 @@ import { defaultAbbr, defaultDerivations, referenceSuggestions } from "../core/i
 import { compileFormula } from "../utils/formula";
 import { genId } from "../utils/misc";
 import { RefSuggest } from "./components/suggest";
-import { destructive, keepScroll } from "./components/setting-helpers";
+import { destructive, keepScroll, scrollerOf } from "./components/setting-helpers";
+import { mountOptionsNav } from "./components/options-nav";
 import { ConfirmModal, TextPromptModal } from "./modals/dialogs";
 import { IconPickerModal } from "./modals/icon-picker";
 import { setTypedText, tintTypeNames, typedText, typeName } from "./components/type-label";
@@ -190,6 +191,13 @@ export class EPSettingTab extends PluginSettingTab {
       this.tabify();
       this.tint();
       this.alignLooseText();
+      // The headings of the open tab, down the side of whatever scrolls. The
+      // filter box above already searches, so the rail is all that is added.
+      const scroller =
+        scrollerOf(this.host) ??
+        this.host.closest<HTMLElement>(".vertical-tab-content") ??
+        this.host;
+      mountOptionsNav(scroller, this.plugin.i18n, { search: false });
     };
     if (this.pendingInline || this.pendingPalette) build();
     else keepScroll(this.host, build);

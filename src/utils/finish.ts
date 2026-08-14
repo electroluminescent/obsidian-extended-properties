@@ -3,8 +3,8 @@
  *
  * A finish is the treatment laid over the colour - gloss, foil, cracked ice -
  * and a property carries a short list of rules saying who gets what: all of
- * them, particular values, a band of numbers, or one each for however many
- * distinct values there turn out to be.
+ * them, particular values, or a band of numbers. Every rule is one somebody
+ * wrote down; nothing is handed out at random.
  *
  * Pure: rules and a value in, an id out. What the ids look like is CSS, and
  * lives in `ui/render/finishes.ts`.
@@ -47,18 +47,9 @@ function matches(rule: FinishRule, value: unknown): boolean {
       const to = rule.to ?? Infinity;
       return n >= Math.min(from, to) && n <= Math.max(from, to);
     }
-    case "unique":
-      return text !== "";
     default:
       return false;
   }
-}
-
-/** What a rule gives a value: one finish, or one from its set. */
-function finishOf(rule: FinishRule, value: unknown): string {
-  const set = rule.set ?? [];
-  if (rule.when !== "unique" || !set.length) return rule.finish;
-  return set[stableHash(asText(value)) % set.length];
 }
 
 /**
@@ -71,11 +62,9 @@ export function pickFinish(
   value: unknown
 ): { finish: string; color?: string } | undefined {
   for (const rule of rules ?? []) {
-    if (!rule.finish && !(rule.set ?? []).length) continue;
+    if (!rule.finish) continue;
     if (!matches(rule, value)) continue;
-    const finish = finishOf(rule, value);
-    if (!finish) continue;
-    return { finish, color: rule.color };
+    return { finish: rule.finish, color: rule.color };
   }
   return undefined;
 }

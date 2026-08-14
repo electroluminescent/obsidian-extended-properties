@@ -26,6 +26,7 @@ import { Entry, Section, sectionMode } from "../../core/model";
 import * as ops from "../../core/layout-ops";
 import { openEntryMenu } from "../menus/entry-menu";
 import { renderEntryOptionsBody } from "../modals/entry-options";
+import { mountOptionsNav } from "./options-nav";
 import { showMenuAt } from "../menus/show";
 import { openOverlay, overlayClosed } from "../overlay";
 
@@ -357,6 +358,8 @@ export function openEntrySettingsPopup(
       const name = item.querySelector<HTMLElement>(".setting-item-name")?.textContent?.trim() ?? "";
       if (desc) item.setAttr("title", name ? name + " - " + desc : desc);
     }
+    // The sections down the side, and a box to search them.
+    mountOptionsNav(body, view.i18n);
   };
   build();
   // Clamp near the cursor once sized. The mobile sheet is placed by CSS.

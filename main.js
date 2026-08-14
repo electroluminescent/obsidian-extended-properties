@@ -710,6 +710,8 @@ var en_default = {
   "settings.inlineHeading": "Inline pieces",
   "settings.palettesHeading": "Palettes",
   "settings.palettesDesc": "How a value becomes a colour. A property points at a palette (in its own settings, under Formatting), so everything sharing that palette changes together.",
+  "nav.sections": "Sections",
+  "nav.searchPlaceholder": "Search these settings...",
   "palette.add": "Add palette",
   "palette.untitled": "Untitled palette",
   "palette.name": "Name",
@@ -818,9 +820,7 @@ var en_default = {
   "options.finishWhen.all": "Everything",
   "options.finishWhen.values": "These values",
   "options.finishWhen.range": "This band",
-  "options.finishWhen.unique": "One each",
   "options.finishValues": "value, value",
-  "options.finishSet": "finishes to hand round",
   "settings.inlineDesc": "How each kind of inline piece is drawn in a note body. Height is in lines of text - a chart drawn on one line is barely visible. A width given as a share of the column widens to the next largest share when it would be too narrow to read.",
   "settings.inlineLines": "Lines",
   "settings.inlineWidthAuto": "Natural width",
@@ -4484,14 +4484,6 @@ function asText(value) {
   if (value === void 0 || value === null) return "";
   return Array.isArray(value) ? value.map((v) => String(v)).join(", ") : String(value);
 }
-function stableHash(text) {
-  let h = 2166136261;
-  for (let i = 0; i < text.length; i++) {
-    h ^= text.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return Math.abs(h);
-}
 function matches(rule, value) {
   var _a, _b, _c;
   const text = asText(value).trim();
@@ -4507,26 +4499,15 @@ function matches(rule, value) {
       const to = (_c = rule.to) != null ? _c : Infinity;
       return n >= Math.min(from, to) && n <= Math.max(from, to);
     }
-    case "unique":
-      return text !== "";
     default:
       return false;
   }
 }
-function finishOf(rule, value) {
-  var _a;
-  const set = (_a = rule.set) != null ? _a : [];
-  if (rule.when !== "unique" || !set.length) return rule.finish;
-  return set[stableHash(asText(value)) % set.length];
-}
 function pickFinish(rules, value) {
-  var _a;
   for (const rule of rules != null ? rules : []) {
-    if (!rule.finish && !((_a = rule.set) != null ? _a : []).length) continue;
+    if (!rule.finish) continue;
     if (!matches(rule, value)) continue;
-    const finish = finishOf(rule, value);
-    if (!finish) continue;
-    return { finish, color: rule.color };
+    return { finish: rule.finish, color: rule.color };
   }
   return void 0;
 }
@@ -10484,6 +10465,98 @@ var import_obsidian25 = require("obsidian");
 
 // src/ui/modals/entry-options.ts
 var import_obsidian24 = require("obsidian");
+
+// src/ui/components/options-nav.ts
+var HIDDEN = "ep-nav-filtered";
+var queries = /* @__PURE__ */ new WeakMap();
+function offsetIn(scroller, el) {
+  return el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+}
+function mountOptionsNav(scroller, i18n, o = {}) {
+  var _a, _b;
+  const sel = (_a = o.headings) != null ? _a : "h4, .setting-item-heading";
+  const body = (_b = o.body) != null ? _b : scroller;
+  for (const old of scroller.findAll(".ep-nav, .ep-nav-search")) old.remove();
+  const heads = scroller.findAll(sel).filter((h) => h.offsetHeight > 0);
+  if (heads.length < 2) return;
+  const rail = scroller.createDiv({ cls: "ep-nav" });
+  rail.setAttr("role", "navigation");
+  rail.setAttr("aria-label", i18n.t("nav.sections"));
+  scroller.insertBefore(rail, scroller.firstChild);
+  const dots = heads.map((h) => {
+    var _a2;
+    const text = ((_a2 = h.textContent) != null ? _a2 : "").trim();
+    const dot3 = rail.createEl("button", { cls: "ep-nav-dot" });
+    dot3.type = "button";
+    dot3.setAttr("aria-label", text);
+    dot3.setAttr("title", text);
+    dot3.createSpan({ cls: "ep-nav-label", text });
+    dot3.createSpan({ cls: "ep-nav-mark" });
+    dot3.onclick = (e) => {
+      e.preventDefault();
+      scroller.scrollTo({ top: Math.max(0, offsetIn(scroller, h) - 8), behavior: "smooth" });
+    };
+    return dot3;
+  });
+  let tops = [];
+  let measuredAt = -1;
+  const measure = () => {
+    tops = heads.map((h) => offsetIn(scroller, h));
+    measuredAt = scroller.scrollHeight;
+  };
+  const mark = () => {
+    if (scroller.scrollHeight !== measuredAt) measure();
+    const top = scroller.scrollTop + 24;
+    let at = 0;
+    tops.forEach((y, i) => {
+      if (y <= top && heads[i].offsetHeight > 0) at = i;
+    });
+    dots.forEach((d, i) => d.toggleClass("is-here", i === at));
+  };
+  mark();
+  scroller.addEventListener("scroll", mark, { passive: true });
+  if (o.search === false) return;
+  const searchRow = mountSearch(scroller, body, i18n, sel, () => {
+    heads.forEach((h, i) => dots[i].toggleClass(HIDDEN, h.hasClass(HIDDEN)));
+    mark();
+  });
+  scroller.insertBefore(searchRow, rail.nextSibling);
+}
+function mountSearch(scroller, body, i18n, sel, after) {
+  var _a;
+  const row = body.createDiv({ cls: "ep-nav-search" });
+  const input = row.createEl("input", { cls: "ep-nav-search-input" });
+  input.type = "search";
+  input.placeholder = i18n.t("nav.searchPlaceholder");
+  input.setAttr("aria-label", i18n.t("nav.searchPlaceholder"));
+  input.value = (_a = queries.get(scroller)) != null ? _a : "";
+  const apply = () => {
+    var _a2;
+    const q = input.value.trim().toLowerCase();
+    queries.set(scroller, input.value);
+    for (const item of body.findAll(".setting-item")) {
+      if (item.matches(sel)) continue;
+      const text = ((_a2 = item.textContent) != null ? _a2 : "").toLowerCase();
+      item.toggleClass(HIDDEN, !!q && !text.includes(q));
+    }
+    for (const head of body.findAll(sel)) {
+      let any = false;
+      for (let n = head.nextElementSibling; n; n = n.nextElementSibling) {
+        const el = n;
+        if (el.matches(sel)) break;
+        if (el.hasClass("setting-item") && !el.hasClass(HIDDEN)) any = true;
+      }
+      head.toggleClass(HIDDEN, !!q && !any);
+    }
+    scroller.toggleClass("ep-nav-searching", !!q);
+    after();
+  };
+  input.addEventListener("input", apply);
+  apply();
+  return row;
+}
+
+// src/ui/modals/entry-options.ts
 function viewColorHost(view) {
   return {
     app: view.app,
@@ -10680,11 +10753,11 @@ function renderFinishRules(octx, rule, write) {
   new import_obsidian24.Setting(c).setName(t("options.finishHeading")).setDesc(t("options.finishHeadingDesc"));
   const rows = c.createDiv({ cls: "ep-mini-list" });
   list.forEach((fr, i) => {
-    var _a2, _b, _c, _d;
+    var _a2;
     const row = new import_obsidian24.Setting(rows).setClass("ep-mini-row");
     const box = row.controlEl;
     const drop = box.createEl("select", { cls: "dropdown ep-fin-when" });
-    for (const when of ["all", "values", "range", "unique"])
+    for (const when of ["all", "values", "range"])
       drop.createEl("option", { value: when, text: t("options.finishWhen." + when) });
     drop.value = fr.when;
     drop.onchange = () => put(list.map((x, j) => j === i ? { ...x, when: drop.value } : x));
@@ -10714,21 +10787,8 @@ function renderFinishRules(octx, rule, write) {
     }
     const fin = box.createEl("select", { cls: "dropdown ep-fin-pick" });
     for (const id of FINISHES) fin.createEl("option", { value: id, text: finishName(view.i18n, id) });
-    fin.value = fr.when === "unique" ? (_c = ((_b = fr.set) != null ? _b : [])[0]) != null ? _c : fr.finish : fr.finish;
-    fin.onchange = () => put(list.map((x, j) => {
-      var _a3;
-      return j === i ? { ...x, finish: fin.value, set: x.when === "unique" ? [fin.value, ...((_a3 = x.set) != null ? _a3 : []).slice(1)] : x.set } : x;
-    }));
-    if (fr.when === "unique") {
-      const more = box.createEl("input", { cls: "ep-edit-input ep-fin-set" });
-      more.type = "text";
-      more.placeholder = t("options.finishSet");
-      more.value = ((_d = fr.set) != null ? _d : []).join(", ");
-      more.addEventListener(
-        "change",
-        () => put(list.map((x, j) => j === i ? { ...x, set: more.value.split(",").map((v) => v.trim()).filter(Boolean) } : x))
-      );
-    }
+    fin.value = fr.finish;
+    fin.onchange = () => put(list.map((x, j) => j === i ? { ...x, finish: fin.value } : x));
     row.addExtraButton(
       (b) => b.setIcon("x").setTooltip(t("palette.remove")).onClick(() => put(list.filter((_, j) => j !== i)))
     );
@@ -10937,6 +10997,7 @@ var EntryOptionsModal = class extends import_obsidian24.Modal {
       redraw: () => this.draw()
     };
     renderEntryOptionsBody(octx, () => this.close(), () => this.close());
+    mountOptionsNav(c, view.i18n);
   }
   onClose() {
     this.contentEl.empty();
@@ -11161,6 +11222,7 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
       const name = (_e = (_d = (_c = item.querySelector(".setting-item-name")) == null ? void 0 : _c.textContent) == null ? void 0 : _d.trim()) != null ? _e : "";
       if (desc) item.setAttr("title", name ? name + " - " + desc : desc);
     }
+    mountOptionsNav(body, view.i18n);
   };
   build();
   const place2 = () => {
@@ -11860,7 +11922,10 @@ var SectionOptionsModal = class extends import_obsidian27.Modal {
     return out.filter((g) => g.ents.length);
   }
   draw() {
-    keepScroll(this.contentEl, () => this.paint());
+    keepScroll(this.contentEl, () => {
+      this.paint();
+      mountOptionsNav(this.contentEl, this.view.i18n);
+    });
   }
   paint() {
     const c = this.contentEl;
@@ -16878,10 +16943,13 @@ var EPSettingTab = class extends import_obsidian38.PluginSettingTab {
    */
   render() {
     const build = () => {
+      var _a, _b;
       this.renderBody();
       this.tabify();
       this.tint();
       this.alignLooseText();
+      const scroller = (_b = (_a = scrollerOf(this.host)) != null ? _a : this.host.closest(".vertical-tab-content")) != null ? _b : this.host;
+      mountOptionsNav(scroller, this.plugin.i18n, { search: false });
     };
     if (this.pendingInline || this.pendingPalette) build();
     else keepScroll(this.host, build);
@@ -21902,7 +21970,7 @@ function buildTable(text, anchors2, o = {}) {
   const anchorVecs = [];
   const kept = [];
   let lines = 0;
-  for (const line of eachLine(text)) {
+  for (const line of typeof text === "string" ? eachLine(text) : text) {
     lines++;
     if (o.onProgress && lines % 2e4 === 0) o.onProgress(lines);
     const parsed = parseLine(line);
@@ -21953,6 +22021,23 @@ function readCache(raw) {
 // src/main.ts
 var FEATURE_MODULES = [rollingModule, dnd5eModule, inlineModule];
 var ADOPTION_SETTLE_MS = 1500;
+function* linesOf(buf, chunk = 1 << 22) {
+  const bytes = new Uint8Array(buf);
+  const decoder = new TextDecoder("utf-8");
+  let rest = "";
+  for (let at = 0; at < bytes.length; at += chunk) {
+    const text = rest + decoder.decode(bytes.subarray(at, Math.min(at + chunk, bytes.length)), { stream: true });
+    let start = 0;
+    for (let i = 0; i < text.length; i++) {
+      if (text.charCodeAt(i) !== 10) continue;
+      const end = i > start && text.charCodeAt(i - 1) === 13 ? i - 1 : i;
+      if (end > start) yield text.slice(start, end);
+      start = i + 1;
+    }
+    rest = text.slice(start);
+  }
+  if (rest) yield rest;
+}
 var ExtendedPropertiesPlugin = class extends import_obsidian50.Plugin {
   constructor() {
     super(...arguments);
@@ -22395,7 +22480,7 @@ var ExtendedPropertiesPlugin = class extends import_obsidian50.Plugin {
         const { words: words2, built } = readCache(cached);
         if (words2 && (!hasVectors || built === 0 || built === stamp)) {
           setSemanticTable(words2);
-          this.refreshViews();
+          this.repaintEverything();
           return Object.keys(words2).length;
         }
       }
@@ -22404,15 +22489,29 @@ var ExtendedPropertiesPlugin = class extends import_obsidian50.Plugin {
         return 0;
       }
       new import_obsidian50.Notice(this.i18n.t("palette.tableBuilding"));
-      const text = await fs.read(vectorPath);
-      const words = buildTable(text, anchors());
+      const words = buildTable(linesOf(await fs.readBinary(vectorPath)), anchors());
+      if (!Object.keys(words).length) return 0;
       await fs.write(cachePath, JSON.stringify({ built: stamp, words }));
       setSemanticTable(words);
-      this.refreshViews();
+      this.repaintEverything();
       return Object.keys(words).length;
     } catch (e) {
       console.error("Extended Properties: could not read the word table", e);
       return 0;
+    }
+  }
+  /**
+   * Put a new word table (or any change behind the colours) on screen
+   * everywhere: the sidebar and table views redraw, and the pieces living in
+   * note bodies - which nothing else redraws - are told to repaint too.
+   */
+  repaintEverything() {
+    this.refreshViews();
+    for (const cb of this.settingsWatchers) {
+      try {
+        cb();
+      } catch (e) {
+      }
     }
   }
   /**

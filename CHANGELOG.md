@@ -1,5 +1,32 @@
 # Changelog
 
+## 4.59.0
+
+- **The word table builds.** *Build from glove.txt* and *Look again* both
+  reported "not built" whatever you gave them: the file was being read as one
+  string, and a vector file of any real size is more characters than a string
+  is allowed to hold, so it failed before a single word was looked at. It is
+  read as bytes and decoded a piece at a time now, so a several-hundred-
+  megabyte file goes through.
+- **A freshly built table shows up everywhere at once** - the sidebar, the
+  table views and the pieces living in note bodies, which nothing else
+  redraws. The same goes for a table found on disk when the plugin starts.
+- **A timeline of the sections** runs down the side of the property settings
+  (popup and modal alike) and of the plugin's own settings: it says which
+  section you are reading and takes you to any other in one press. It takes no
+  space of its own - the labels appear as you approach it.
+- **A search box above the property settings.** Type and the rows that do not
+  match go away, along with the headings left with nothing under them and the
+  rail dots that led to them. What you searched for survives a redraw.
+- **The colour moves with the value.** It was already worked out again on
+  every change; now it travels to the new colour rather than jumping, so a
+  value climbing a scale reads as a colour climbing with it. The finish over
+  the top stays put, and `prefers-reduced-motion` turns the movement off.
+- **The "one each" finish rule is gone.** Handing finishes round by a hash
+  meant a property's look was decided by something nobody chose; a finish is
+  now always something written down - everything, particular values, or a band
+  of numbers. Rules saved as "one each" simply give no finish.
+
 ## 4.58.0
 
 - **Stops and bands are one scale.** They were two palette modes that could

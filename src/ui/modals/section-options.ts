@@ -21,6 +21,7 @@ import { addColorSetting, addIconSetting, keepScroll } from "../components/setti
 import { asMobileSheet } from "../components/long-press";
 import { ConfirmChangesModal } from "./dialogs";
 import { renderEntryOptionsBody, viewColorHost } from "./entry-options";
+import { mountOptionsNav } from "../components/options-nav";
 import { parseExpr } from "../../core/expr";
 
 const SECTION_TAB = "::section";
@@ -256,7 +257,11 @@ export class SectionOptionsModal extends Modal {
   }
 
   private draw(): void {
-    keepScroll(this.contentEl, () => this.paint());
+    keepScroll(this.contentEl, () => {
+      this.paint();
+      // The sections of whatever this tab turned out to hold, down the side.
+      mountOptionsNav(this.contentEl, this.view.i18n);
+    });
   }
 
   private paint(): void {

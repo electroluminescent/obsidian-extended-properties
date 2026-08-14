@@ -10,7 +10,10 @@
  * The file is whatever the user dropped in, so nothing here assumes GloVe in
  * particular: one word and its numbers per line, separated by spaces.
  *
- * Pure: text in, a map out. No DOM, no Obsidian, no network.
+ * Pure: lines in, a map out. No DOM, no Obsidian, no network. Lines rather
+ * than one string, because the files people actually use are hundreds of
+ * megabytes - past what a JavaScript string can hold - so the caller decodes
+ * them in pieces and hands them over as it goes.
  */
 
 /** One line of the file, without allocating the whole thing as an array. */
@@ -74,13 +77,14 @@ export interface BuildOptions {
 }
 
 /**
- * Every word in `text`, with the colour of the anchors nearest it.
+ * Every word in `text` (a whole string, or its lines), with the colour of the
+ * anchors nearest it.
  *
  * Words are taken in the order the file lists them, which for a vector file
  * is commonest first - so a limit keeps the words people actually write.
  */
 export function buildTable(
-  text: string,
+  text: string | Iterable<string>,
   anchors: Map<string, string>,
   o: BuildOptions = {}
 ): Record<string, string> {
@@ -92,7 +96,7 @@ export function buildTable(
   const anchorVecs: { vec: number[]; len: number; rgb: [number, number, number] }[] = [];
   const kept: { word: string; vec: number[]; len: number }[] = [];
   let lines = 0;
-  for (const line of eachLine(text)) {
+  for (const line of typeof text === "string" ? eachLine(text) : text) {
     lines++;
     if (o.onProgress && lines % 20000 === 0) o.onProgress(lines);
     const parsed = parseLine(line);

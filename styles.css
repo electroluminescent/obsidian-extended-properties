@@ -1134,7 +1134,20 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
   color: var(--ep-fmt-fg, inherit);
 }
 .ep-fmt-text:hover, .ep-entry:hover .ep-fmt-text { color: var(--ep-fmt-fg, inherit); }
-.ep-fmt, .ep-fmt::after, .ep-fmt:hover, .ep-fmt:hover::after { transition: none; }
+/* The colour is worked out again on every change to the value - a slider
+   mid-drag, a stepper, a field being typed into - and it travels there rather
+   than jumping, so a value climbing a scale reads as a colour climbing with
+   it. The custom properties are not animatable themselves, but what they feed
+   is: the fill and the text move, the finish over the top does not. */
+.ep-fmt-text, .ep-fmt-chip, .ep-fmt-card,
+.ep-fmt-chip *, .ep-fmt-card .ep-line-name, .ep-fmt-card .ep-num, .ep-fmt-card .ep-val-right {
+  transition: background-color 160ms ease-out, color 160ms ease-out;
+}
+.ep-fmt::after { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .ep-fmt-text, .ep-fmt-chip, .ep-fmt-card, .ep-fmt-chip *,
+  .ep-fmt-card .ep-line-name, .ep-fmt-card .ep-num, .ep-fmt-card .ep-val-right { transition: none; }
+}
 
 /* -- finishes -------------------------------------------------------------- */
 /* A finish MODULATES the palette's colour rather than covering it - the way a
@@ -1465,3 +1478,39 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 /* The override search field spans the row, minus that padding. */
 .ep-settings-host > input,
 .ep-settings-panel > input { box-sizing: border-box; }
+
+/* -- the section rail, and searching a page of settings -------------------- */
+/* Pinned to the side of whatever scrolls, taking no space of its own: the
+   settings read exactly as they did, with a timeline of their sections
+   alongside. Labels are there all along and only revealed on approach, so
+   nothing reflows when they appear. */
+.ep-nav {
+  position: sticky; top: 0; z-index: 5; height: 0; overflow: visible;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+  float: right; margin-right: -2px; pointer-events: none;
+}
+.ep-nav-dot {
+  display: flex; align-items: center; gap: 6px; pointer-events: auto;
+  background: transparent; border: none; box-shadow: none; padding: 0 2px; height: 14px;
+  cursor: pointer; color: var(--text-faint); font-size: var(--font-smaller); line-height: 1;
+}
+.ep-nav-mark { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.ep-nav-dot .ep-nav-label {
+  max-width: 0; overflow: hidden; white-space: nowrap; opacity: 0;
+  transition: max-width 140ms ease, opacity 140ms ease; text-align: right;
+}
+.ep-nav:hover .ep-nav-label, .ep-nav-dot:focus-visible .ep-nav-label {
+  max-width: 12em; opacity: 1;
+}
+.ep-nav:hover .ep-nav-dot { background: var(--background-secondary); border-radius: 8px; }
+.ep-nav-dot:hover { color: var(--text-normal); }
+.ep-nav-dot.is-here { color: var(--interactive-accent); }
+.ep-nav-dot.is-here .ep-nav-mark { transform: scale(1.35); }
+@media (prefers-reduced-motion: reduce) { .ep-nav-dot .ep-nav-label { transition: none; } }
+
+.ep-nav-search { padding: 2px 0 6px; }
+.ep-nav-search-input { width: 100%; }
+/* Rows and headings the search has nothing to say for - and the rail dots
+   that would have led to them. */
+.ep-options .ep-nav-filtered, .ep-settings-host .ep-nav-filtered,
+.ep-nav .ep-nav-filtered, .setting-item.ep-nav-filtered { display: none; }

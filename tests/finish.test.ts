@@ -48,22 +48,14 @@ describe("who a rule speaks for", () => {
   });
 });
 
-describe("one each", () => {
-  const rs = [rule({ when: "unique", finish: "gloss", set: ["gloss", "foil", "chrome"] })];
-
-  it("hands a finish to every value, from the set", () => {
-    const a = pickFinish(rs, "Athletics")?.finish;
-    expect(a).toBeDefined();
-    expect(["gloss", "foil", "chrome"]).toContain(a);
+describe("the withdrawn one-each rule", () => {
+  it("gives nothing at all: a finish is something somebody chose", () => {
+    const rs = [rule({ when: "unique", finish: "gloss", set: ["gloss", "foil", "chrome"] })];
+    expect(pickFinish(rs, "Athletics")).toBeUndefined();
   });
 
-  it("gives the same value the same one, every time", () => {
-    expect(pickFinish(rs, "Athletics")?.finish).toBe(pickFinish(rs, "Athletics")?.finish);
+  it("still hashes the same way, for anything else that wants it", () => {
     expect(stableHash("Athletics")).toBe(stableHash("Athletics"));
-  });
-
-  it("passes over a value there is nothing to hand out for", () => {
-    expect(pickFinish(rs, "")).toBeUndefined();
   });
 });
 

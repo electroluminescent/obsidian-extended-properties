@@ -57,7 +57,7 @@ export type FormatTarget = "text" | "chip" | "card";
 
 /** A finish laid over the colour, and which values get it. */
 export interface FinishRule {
-  /** "all" | "values" | "range" | "unique". */
+  /** "all" | "values" | "range". */
   when: string;
   /** The values it applies to, for `when: "values"`. */
   values?: string[];
@@ -66,10 +66,7 @@ export interface FinishRule {
   to?: number;
   /** Finish id from the finish registry. */
   finish: string;
-  /**
-   * For `when: "unique"`, the finishes to hand round - one per distinct
-   * value, chosen by a stable hash so a value always wears the same one.
-   */
+  /** @deprecated the set the withdrawn "one each" rule handed round. */
   set?: string[];
   /** Use this colour instead of the palette's. */
   color?: string;

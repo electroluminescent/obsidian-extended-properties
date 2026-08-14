@@ -58,6 +58,32 @@ const FEATURE_MODULES: FeatureModule[] = [rollingModule, dnd5eModule, inlineModu
 /** How long after a rename the metadata cache is still catching up (ms). */
 const ADOPTION_SETTLE_MS = 1500;
 
+/**
+ * The lines of a file held as bytes, decoded a piece at a time.
+ *
+ * A word-vector file runs to hundreds of megabytes; a JavaScript string tops
+ * out at about half that, so it can never be read whole. This walks the
+ * buffer in chunks, keeps whatever is left over at the end of one chunk to
+ * join the start of the next, and yields complete lines as they appear.
+ */
+function* linesOf(buf: ArrayBuffer, chunk = 1 << 22): Generator<string> {
+  const bytes = new Uint8Array(buf);
+  const decoder = new TextDecoder("utf-8");
+  let rest = "";
+  for (let at = 0; at < bytes.length; at += chunk) {
+    const text = rest + decoder.decode(bytes.subarray(at, Math.min(at + chunk, bytes.length)), { stream: true });
+    let start = 0;
+    for (let i = 0; i < text.length; i++) {
+      if (text.charCodeAt(i) !== 10) continue; // \n
+      const end = i > start && text.charCodeAt(i - 1) === 13 ? i - 1 : i; // \r\n
+      if (end > start) yield text.slice(start, end);
+      start = i + 1;
+    }
+    rest = text.slice(start);
+  }
+  if (rest) yield rest;
+}
+
 export default class ExtendedPropertiesPlugin extends Plugin {
   settings!: EPSettings;
   readonly i18n = new I18n();
@@ -570,7 +596,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
         // (no stamp of ours) is taken as it is.
         if (words && (!hasVectors || built === 0 || built === stamp)) {
           setSemanticTable(words);
-          this.refreshViews();
+          this.repaintEverything();
           return Object.keys(words).length;
         }
       }
@@ -579,15 +605,35 @@ export default class ExtendedPropertiesPlugin extends Plugin {
         return 0;
       }
       new Notice(this.i18n.t("palette.tableBuilding"));
-      const text = await fs.read(vectorPath);
-      const words = buildTable(text, anchors());
+      // Read as bytes and decode in pieces. A vector file is commonly several
+      // hundred megabytes - more characters than a JavaScript string is
+      // allowed to hold - so reading it as text throws before a single word
+      // is looked at, which is what "not built" was really reporting.
+      const words = buildTable(linesOf(await fs.readBinary(vectorPath)), anchors());
+      if (!Object.keys(words).length) return 0;
       await fs.write(cachePath, JSON.stringify({ built: stamp, words }));
       setSemanticTable(words);
-      this.refreshViews();
+      this.repaintEverything();
       return Object.keys(words).length;
     } catch (e) {
       console.error("Extended Properties: could not read the word table", e);
       return 0;
+    }
+  }
+
+  /**
+   * Put a new word table (or any change behind the colours) on screen
+   * everywhere: the sidebar and table views redraw, and the pieces living in
+   * note bodies - which nothing else redraws - are told to repaint too.
+   */
+  repaintEverything(): void {
+    this.refreshViews();
+    for (const cb of this.settingsWatchers) {
+      try {
+        cb();
+      } catch {
+        /* one broken watcher must not stop the rest */
+      }
     }
   }
 

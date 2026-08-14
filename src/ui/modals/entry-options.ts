@@ -30,6 +30,7 @@ import {
   addColorSetting, addIconSetting, ColorHost, keepScroll, mountTextList,
 } from "../components/setting-helpers";
 import { PropSuggest } from "../components/suggest";
+import { mountOptionsNav } from "../components/options-nav";
 import { asMobileSheet } from "../components/long-press";
 import { ConfirmChangesModal } from "./dialogs";
 
@@ -244,9 +245,8 @@ function renderFormatting(octx: OptionsCtx): void {
 
 /**
  * The finishes laid over the colour, and who wears them: everything, certain
- * values, a band of numbers, or one each for however many distinct values
- * there turn out to be. The first rule that speaks for a value wins, so the
- * particular ones belong above the general.
+ * values, or a band of numbers. The first rule that speaks for a value wins,
+ * so the particular ones belong above the general.
  */
 function renderFinishRules(
   octx: OptionsCtx,
@@ -263,7 +263,7 @@ function renderFinishRules(
     const row = new Setting(rows).setClass("ep-mini-row");
     const box = row.controlEl;
     const drop = box.createEl("select", { cls: "dropdown ep-fin-when" });
-    for (const when of ["all", "values", "range", "unique"])
+    for (const when of ["all", "values", "range"])
       drop.createEl("option", { value: when, text: t("options.finishWhen." + when) });
     drop.value = fr.when;
     drop.onchange = () => put(list.map((x, j) => (j === i ? { ...x, when: drop.value } : x)));
@@ -290,21 +290,10 @@ function renderFinishRules(
       box.createSpan({ cls: "ep-pal-dash", text: "-" });
       num(fr.to, (n) => put(list.map((x, j) => (j === i ? { ...x, to: n } : x))));
     }
-    // "Unique" hands round a set; the others wear one finish.
     const fin = box.createEl("select", { cls: "dropdown ep-fin-pick" });
     for (const id of FINISHES) fin.createEl("option", { value: id, text: finishName(view.i18n, id) });
-    fin.value = fr.when === "unique" ? (fr.set ?? [])[0] ?? fr.finish : fr.finish;
-    fin.onchange = () =>
-      put(list.map((x, j) => (j === i ? { ...x, finish: fin.value, set: x.when === "unique" ? [fin.value, ...(x.set ?? []).slice(1)] : x.set } : x)));
-    if (fr.when === "unique") {
-      const more = box.createEl("input", { cls: "ep-edit-input ep-fin-set" });
-      more.type = "text";
-      more.placeholder = t("options.finishSet");
-      more.value = (fr.set ?? []).join(", ");
-      more.addEventListener("change", () =>
-        put(list.map((x, j) => (j === i ? { ...x, set: more.value.split(",").map((v) => v.trim()).filter(Boolean) } : x)))
-      );
-    }
+    fin.value = fr.finish;
+    fin.onchange = () => put(list.map((x, j) => (j === i ? { ...x, finish: fin.value } : x)));
     row.addExtraButton((b) =>
       b.setIcon("x").setTooltip(t("palette.remove")).onClick(() => put(list.filter((_, j) => j !== i)))
     );
@@ -576,6 +565,7 @@ export class EntryOptionsModal extends Modal {
       redraw: () => this.draw(),
     };
     renderEntryOptionsBody(octx, () => this.close(), () => this.close());
+    mountOptionsNav(c, view.i18n);
   }
 
   onClose(): void {

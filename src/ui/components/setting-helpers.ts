@@ -104,7 +104,7 @@ export function mountTextList(host: HTMLElement, o: TextListOptions): void {
  * ancestor that does. A settings popup scrolls its own body; a modal scrolls
  * the content element above whatever was rebuilt.
  */
-function scrollerOf(host: HTMLElement): HTMLElement | null {
+export function scrollerOf(host: HTMLElement): HTMLElement | null {
   for (let el: HTMLElement | null = host; el; el = el.parentElement) {
     const cs = getComputedStyle(el);
     if (/(auto|scroll)/.test(cs.overflowY) && el.scrollHeight > el.clientHeight + 1) return el;
