@@ -173,7 +173,7 @@ function closeSettingsPopup(): void {
  * own workflow, so it must not be read as "clicked away".
  */
 const OUTSIDE_LAYERS =
-  ".ep-popup, .suggestion-container, .menu, .modal-container, .prompt, .notice, .notice-container";
+  ".ep-popup, .ep-nav, .suggestion-container, .menu, .modal-container, .prompt, .notice, .notice-container";
 
 /** Layers that answer Escape before the popup does - when actually shown. */
 const OWN_ESCAPE = ".modal-container, .suggestion-container, .menu, .ep-popup:not(.ep-entrysettings)";
@@ -204,7 +204,9 @@ function displayed(doc: Document, sel: string): boolean {
  * press that picks an option is reported against the document rather than the
  * select - dismissing on it would close the popup every time a dropdown is
  * used. While a select inside the popup holds focus, a press with no element
- * of its own belongs to that list.
+ * of its own belongs to that list. The section strip counts as part of the
+ * popup for the same reason: it stands outside it on purpose, and pressing it
+ * is how the popup is read, not a way of leaving it.
  */
 export function outsidePopup(pop: HTMLElement, target: EventTarget | null, doc: Document): boolean {
   if (!(target instanceof Node)) return false;
@@ -358,8 +360,8 @@ export function openEntrySettingsPopup(
       const name = item.querySelector<HTMLElement>(".setting-item-name")?.textContent?.trim() ?? "";
       if (desc) item.setAttr("title", name ? name + " - " + desc : desc);
     }
-    // The sections down the side, and a box to search them.
-    mountOptionsNav(body, view.i18n);
+    // The sections beside the popup, and a box to search them.
+    mountOptionsNav(body, view.i18n, { beside: pop });
   };
   build();
   // Clamp near the cursor once sized. The mobile sheet is placed by CSS.

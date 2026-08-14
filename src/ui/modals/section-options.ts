@@ -260,7 +260,9 @@ export class SectionOptionsModal extends Modal {
     keepScroll(this.contentEl, () => {
       this.paint();
       // The sections of whatever this tab turned out to hold, down the side.
-      mountOptionsNav(this.contentEl, this.view.i18n);
+      mountOptionsNav(this.contentEl, this.view.i18n, {
+        beside: this.contentEl.closest<HTMLElement>(".modal") ?? this.contentEl,
+      });
     });
   }
 

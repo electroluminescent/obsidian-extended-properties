@@ -1,5 +1,27 @@
 # Changelog
 
+## 4.61.0
+
+- **The colour keeps up with a value being typed.** It was being worked out
+  again on every keystroke, and painting nothing: an open editor REPLACES the
+  cell it is editing, so the element carrying the colour had gone for exactly
+  as long as the value was being changed. The field itself wears the colour
+  now, and the half-typed number is what the colour answers to - as the drag
+  of a slider already was.
+- **The section strip stands outside the settings, not inside them.** It is a
+  panel beside the popup or the settings window - on whichever side has room -
+  with every section named in full rather than a column of dots that had to be
+  approached before it would say anything. It follows the window as it moves
+  and goes when the window does.
+- **It shows up on the plugin's settings**, where it did not before: pinned
+  inside the scrolling area, it had nothing to pin against and no width to
+  live in.
+- **Pressing a section takes you there.** The strip now asks the heading to
+  bring itself into view, so it works whatever is doing the scrolling - a
+  popup body, a modal, the settings window - rather than depending on the
+  strip having correctly guessed which of them it was. Pressing it also no
+  longer counts as a press outside the popup, which used to close it.
+
 ## 4.60.0
 
 - **The finishes are redrawn as materials.** Thirteen of them - matte, gloss,

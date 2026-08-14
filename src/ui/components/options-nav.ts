@@ -5,13 +5,14 @@
  * A property's options run to a dozen sections and the plugin's settings to
  * many more, which is fine to read and miserable to navigate - the thing you
  * want is always somewhere below the fold. The rail is a timeline of the
- * headings pinned to the side of whatever scrolls: it says where you are and
- * takes you anywhere else in one press. The search box hides the rows that do
- * not match, and the headings left with nothing under them.
+ * headings, and it stands OUTSIDE what it describes: a strip alongside the
+ * popup or the settings window, every section named in full, with the one you
+ * are reading marked. Inside would mean either covering the settings or
+ * stealing width from them, and a column of unlabelled dots is a puzzle
+ * rather than a map.
  *
- * Mounted into the scrolling element itself and pinned with `sticky`, so the
- * same code serves the popup, the modals and the settings tab without any of
- * them having to arrange a column for it.
+ * The search box does belong inside, above the first row: it hides the rows
+ * that do not match, and the headings left with nothing under them.
  */
 
 import type { I18n } from "../../i18n/i18n";
@@ -19,107 +20,143 @@ import type { I18n } from "../../i18n/i18n";
 /** Hidden by the search, rather than by anything the settings themselves say. */
 const HIDDEN = "ep-nav-filtered";
 
+/** How far from the strip's edge the window is allowed to crowd it. */
+const EDGE = 8;
+
 export interface OptionsNavOptions {
   /** What counts as a section heading. */
   headings?: string;
   /** Offer the search box above the first row. */
   search?: boolean;
-  /** Where the search box goes; the scroller itself by default. */
+  /** Where the search box goes; the content element by default. */
   body?: HTMLElement;
+  /** What the strip stands beside; the content element by default. */
+  beside?: HTMLElement;
 }
 
-/** The query each scroller was last searched for, kept across redraws. */
+/** The query each page was last searched for, kept across redraws. */
 const queries = new WeakMap<HTMLElement, string>();
+/**
+ * How to take down the strip standing beside each page. A redraw replaces
+ * rather than adds - and the old strip's watchers have to go with it, or a
+ * settings tab redrawn a dozen times leaves a dozen timers behind, each
+ * placing a strip that is no longer on screen.
+ */
+const strips = new WeakMap<HTMLElement, () => void>();
 
-/** `el`'s distance from the top of the scrolling box's content. */
-function offsetIn(scroller: HTMLElement, el: HTMLElement): number {
-  return el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+/** The nearest thing that actually scrolls around `el`. */
+function scrollerFor(el: HTMLElement): HTMLElement | null {
+  for (let n: HTMLElement | null = el; n; n = n.parentElement) {
+    const cs = getComputedStyle(n);
+    if (/(auto|scroll|overlay)/.test(cs.overflowY) && n.scrollHeight > n.clientHeight + 1) return n;
+  }
+  return null;
 }
 
 /**
- * Put the rail (and, if asked, the search box) on `scroller`.
+ * Put the strip beside `content` (and, if asked, a search box inside it).
  *
- * Call it after the body has been drawn, and again after every redraw: it
- * takes its own previous copy off first, so re-mounting is the normal way to
- * use it rather than a special case.
+ * Call it after the body has been drawn, and again after every redraw: the
+ * previous strip is taken down first, so re-mounting is the normal way to use
+ * this rather than a special case.
  */
-export function mountOptionsNav(scroller: HTMLElement, i18n: I18n, o: OptionsNavOptions = {}): void {
+export function mountOptionsNav(content: HTMLElement, i18n: I18n, o: OptionsNavOptions = {}): void {
   const sel = o.headings ?? "h4, .setting-item-heading";
-  const body = o.body ?? scroller;
-  for (const old of scroller.findAll(".ep-nav, .ep-nav-search")) old.remove();
+  const body = o.body ?? content;
+  const beside = o.beside ?? content;
+  strips.get(content)?.();
+  strips.delete(content);
+  for (const old of content.findAll(".ep-nav-search")) old.remove();
+
+  if (o.search !== false) {
+    const searchRow = mountSearch(content, body, i18n, sel);
+    body.insertBefore(searchRow, body.firstChild);
+  }
+
   // Only what is on show: the settings tab keeps every tab's headings in the
   // document and displays one tab's worth of them.
-  const heads = scroller.findAll(sel).filter((h) => h.offsetHeight > 0);
+  const heads = content.findAll(sel).filter((h) => h.offsetHeight > 0);
   if (heads.length < 2) return;
 
-  const rail = scroller.createDiv({ cls: "ep-nav" });
+  const doc = content.ownerDocument;
+  const rail = doc.body.createDiv({ cls: "ep-nav" });
   rail.setAttr("role", "navigation");
   rail.setAttr("aria-label", i18n.t("nav.sections"));
-  scroller.insertBefore(rail, scroller.firstChild);
 
   const dots = heads.map((h) => {
     const text = (h.textContent ?? "").trim();
     const dot = rail.createEl("button", { cls: "ep-nav-dot" });
     dot.type = "button";
-    dot.setAttr("aria-label", text);
     dot.setAttr("title", text);
-    dot.createSpan({ cls: "ep-nav-label", text });
     dot.createSpan({ cls: "ep-nav-mark" });
+    dot.createSpan({ cls: "ep-nav-label", text });
+    // Whatever is scrolling - a popup body, a modal, the settings window -
+    // gets to do the scrolling itself, so nothing has to be found first.
     dot.onclick = (e) => {
       e.preventDefault();
-      scroller.scrollTo({ top: Math.max(0, offsetIn(scroller, h) - 8), behavior: "smooth" });
+      e.stopPropagation();
+      h.scrollIntoView({ block: "start", behavior: "smooth" });
     };
     return dot;
   });
 
-  // Where each heading sits, measured once and again only when the page
-  // changes height - a search hiding rows, a row growing options of its own.
-  let tops: number[] = [];
-  let measuredAt = -1;
-  const measure = (): void => {
-    tops = heads.map((h) => offsetIn(scroller, h));
-    measuredAt = scroller.scrollHeight;
-  };
   /** Which section the top of the view is in. */
+  const scroller = scrollerFor(heads[0]);
   const mark = (): void => {
-    if (scroller.scrollHeight !== measuredAt) measure();
-    const top = scroller.scrollTop + 24;
+    const top = (scroller ?? doc.documentElement).getBoundingClientRect().top + 24;
     let at = 0;
-    tops.forEach((y, i) => {
-      if (y <= top && heads[i].offsetHeight > 0) at = i;
+    heads.forEach((h, i) => {
+      if (h.offsetHeight > 0 && h.getBoundingClientRect().top <= top) at = i;
     });
     dots.forEach((d, i) => d.toggleClass("is-here", i === at));
   };
-  mark();
-  scroller.addEventListener("scroll", mark, { passive: true });
 
-  if (o.search === false) return;
-  const searchRow = mountSearch(scroller, body, i18n, sel, () => {
-    // A section the search emptied has nowhere to take anyone.
-    heads.forEach((h, i) => dots[i].toggleClass(HIDDEN, h.hasClass(HIDDEN)));
+  /** Stand the strip beside what it describes, on whichever side has room. */
+  const place = (): void => {
+    const box = beside.getBoundingClientRect();
+    const w = rail.offsetWidth;
+    const h = rail.offsetHeight;
+    const room = box.left - EDGE * 2;
+    const left = room >= w ? box.left - w - EDGE : Math.min(box.right + EDGE, window.innerWidth - w - EDGE);
+    const top = Math.min(Math.max(EDGE, box.top), Math.max(EDGE, window.innerHeight - h - EDGE));
+    rail.setCssStyles({ left: `${Math.max(EDGE, left)}px`, top: `${top}px` });
+  };
+
+  const tick = (): void => {
+    if (!content.isConnected || beside.offsetHeight === 0) {
+      stop();
+      return;
+    }
+    place();
     mark();
-  });
-  scroller.insertBefore(searchRow, rail.nextSibling);
+  };
+  const timer = window.setInterval(tick, 400);
+  const stop = (): void => {
+    window.clearInterval(timer);
+    doc.removeEventListener("scroll", tick, true);
+    window.removeEventListener("resize", tick);
+    rail.remove();
+    if (strips.get(content) === stop) strips.delete(content);
+  };
+  strips.set(content, stop);
+  doc.addEventListener("scroll", tick, true);
+  window.addEventListener("resize", tick);
+  place();
+  mark();
 }
 
 /** The search box, and what it does to the rows below it. */
-function mountSearch(
-  scroller: HTMLElement,
-  body: HTMLElement,
-  i18n: I18n,
-  sel: string,
-  after: () => void
-): HTMLElement {
+function mountSearch(content: HTMLElement, body: HTMLElement, i18n: I18n, sel: string): HTMLElement {
   const row = body.createDiv({ cls: "ep-nav-search" });
   const input = row.createEl("input", { cls: "ep-nav-search-input" });
   input.type = "search";
   input.placeholder = i18n.t("nav.searchPlaceholder");
   input.setAttr("aria-label", i18n.t("nav.searchPlaceholder"));
-  input.value = queries.get(scroller) ?? "";
+  input.value = queries.get(content) ?? "";
 
   const apply = (): void => {
     const q = input.value.trim().toLowerCase();
-    queries.set(scroller, input.value);
+    queries.set(content, input.value);
     for (const item of body.findAll(".setting-item")) {
       if (item.matches(sel)) continue; // headings are decided by their contents
       const text = (item.textContent ?? "").toLowerCase();
@@ -135,8 +172,7 @@ function mountSearch(
       }
       head.toggleClass(HIDDEN, !!q && !any);
     }
-    scroller.toggleClass("ep-nav-searching", !!q);
-    after();
+    content.toggleClass("ep-nav-searching", !!q);
   };
   input.addEventListener("input", apply);
   apply();

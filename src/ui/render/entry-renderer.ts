@@ -117,13 +117,32 @@ export function renderEntry(
   // again whenever the value changes. A property nobody has formatted is left
   // exactly as it was, so this costs a lookup and nothing more.
   if (entry.kind === "prop" && entry.key) {
-    /** Paint from the note, or from a value a control is previewing. */
-    const paint = (value: unknown = formatValue(view, entry)): void => {
-      applyFormat(view, entry, value, {
+    /**
+     * What the row is showing right now.
+     *
+     * While a value is being typed there is no value in the note yet - the
+     * cell has been replaced by a field holding something the reader has not
+     * committed - and that half-typed number is what the colour should be
+     * answering, since it is what they are looking at.
+     */
+    const showing = (): unknown => {
+      const ed = wrap.querySelector<HTMLInputElement>("input.ep-edit-input");
+      const typed = ed?.value.trim();
+      if (typed) {
+        const n = Number(typed);
+        return Number.isFinite(n) ? n : typed;
+      }
+      return formatValue(view, entry);
+    };
+    /** Paint from the note, from what is being typed, or from a preview. */
+    const paint = (value?: unknown): void => {
+      applyFormat(view, entry, value === undefined ? showing() : value, {
         wrap,
         // The chips are rebuilt by the list type as values come and go, so
-        // they are found again on every pass rather than held onto.
-        val: wrap.querySelector<HTMLElement>(".ep-num, .ep-val-right, .ep-val"),
+        // they are found again on every pass rather than held onto. The open
+        // editor stands in for the cell it replaced, so the colour follows
+        // the value while it is being typed instead of vanishing with it.
+        val: wrap.querySelector<HTMLElement>(".ep-num, .ep-val-right, .ep-val, input.ep-edit-input"),
         chips: wrap.findAll(".ep-chip"),
       });
     };
@@ -155,6 +174,9 @@ export function renderEntry(
         });
       });
       watch.observe(wrap, { subtree: true, childList: true, characterData: true });
+      // A field being typed into changes no node at all - its value is a
+      // property, not a text node - so the row listens for the typing too.
+      wrap.addEventListener("input", () => paint());
     }
   }
 

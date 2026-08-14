@@ -1107,6 +1107,13 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 /* A palette hands its answer over as variables; everything below only reads
    them, so themes, Style Settings and forced-colors can all have their say. */
 .ep-fmt-text { color: var(--ep-fmt-fg, inherit); }
+/* The field that stands in for a value while it is being typed wears the
+   colour the value would: the row does not blink back to plain the moment
+   somebody starts editing it. */
+input.ep-edit-input.ep-fmt-text { color: var(--ep-fmt-fg, inherit); }
+input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
+  background: var(--ep-fmt-bg, transparent); color: var(--ep-fmt-fg, inherit);
+}
 .ep-fmt-chip { background: var(--ep-fmt-bg, transparent); color: var(--ep-fmt-fg, inherit); border-radius: var(--ep-chip-radius, var(--ep-radius, 6px)); padding: 0 6px; }
 .ep-fmt-card { background: var(--ep-fmt-bg, transparent); color: var(--ep-fmt-fg, inherit); }
 /* The foreground picked for the fill belongs to everything written on it -
@@ -1527,37 +1534,43 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-settings-panel > input { box-sizing: border-box; }
 
 /* -- the section rail, and searching a page of settings -------------------- */
-/* Pinned to the side of whatever scrolls, taking no space of its own: the
-   settings read exactly as they did, with a timeline of their sections
-   alongside. Labels are there all along and only revealed on approach, so
-   nothing reflows when they appear. */
+/* A strip standing beside the popup or the settings window rather than inside
+   it: nothing is covered, no width is taken from the settings themselves, and
+   every section is named in full - a column of unlabelled dots is a puzzle,
+   not a map. */
 .ep-nav {
-  position: sticky; top: 0; z-index: 5; height: 0; overflow: visible;
-  display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
-  float: right; margin-right: -2px; pointer-events: none;
+  position: fixed; z-index: 10001; display: flex; flex-direction: column; gap: 1px;
+  max-height: 72vh; overflow-y: auto; padding: 6px; width: max-content; max-width: 15em;
+  background: var(--background-secondary); border: 1px solid var(--background-modifier-border);
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.28);
 }
 .ep-nav-dot {
-  display: flex; align-items: center; gap: 6px; pointer-events: auto;
-  background: transparent; border: none; box-shadow: none; padding: 0 2px; height: 14px;
-  cursor: pointer; color: var(--text-faint); font-size: var(--font-smaller); line-height: 1;
+  display: flex; align-items: center; gap: 8px; text-align: left;
+  background: transparent; border: none; box-shadow: none; padding: 3px 6px; height: auto;
+  cursor: pointer; color: var(--text-muted); font-size: var(--font-ui-smaller); line-height: 1.3;
+  border-radius: 5px; position: relative;
 }
-.ep-nav-mark { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
-.ep-nav-dot .ep-nav-label {
-  max-width: 0; overflow: hidden; white-space: nowrap; opacity: 0;
-  transition: max-width 140ms ease, opacity 140ms ease; text-align: right;
+/* The line down the strip that makes it a timeline rather than a list. */
+.ep-nav-dot::before {
+  content: ""; position: absolute; left: 9px; top: 0; bottom: 0; width: 1px;
+  background: var(--background-modifier-border);
 }
-.ep-nav:hover .ep-nav-label, .ep-nav-dot:focus-visible .ep-nav-label {
-  max-width: 12em; opacity: 1;
+.ep-nav-dot:first-child::before { top: 50%; }
+.ep-nav-dot:last-child::before { bottom: 50%; }
+.ep-nav-mark {
+  width: 7px; height: 7px; border-radius: 50%; flex: none; position: relative; z-index: 1;
+  background: var(--background-modifier-border-hover); margin-left: 2px;
+  box-shadow: 0 0 0 2px var(--background-secondary);
 }
-.ep-nav:hover .ep-nav-dot { background: var(--background-secondary); border-radius: 8px; }
-.ep-nav-dot:hover { color: var(--text-normal); }
-.ep-nav-dot.is-here { color: var(--interactive-accent); }
-.ep-nav-dot.is-here .ep-nav-mark { transform: scale(1.35); }
-@media (prefers-reduced-motion: reduce) { .ep-nav-dot .ep-nav-label { transition: none; } }
+.ep-nav-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ep-nav-dot:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.ep-nav-dot.is-here { color: var(--text-normal); }
+.ep-nav-dot.is-here .ep-nav-mark { background: var(--interactive-accent); }
+/* No room for a strip beside a sheet on a phone. */
+@media (max-width: 720px) { .ep-nav { display: none; } }
 
 .ep-nav-search { padding: 2px 0 6px; }
 .ep-nav-search-input { width: 100%; }
-/* Rows and headings the search has nothing to say for - and the rail dots
-   that would have led to them. */
+/* Rows and headings the search has nothing to say for. */
 .ep-options .ep-nav-filtered, .ep-settings-host .ep-nav-filtered,
-.ep-nav .ep-nav-filtered, .setting-item.ep-nav-filtered { display: none; }
+.setting-item.ep-nav-filtered { display: none; }

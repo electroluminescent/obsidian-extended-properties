@@ -565,7 +565,7 @@ export class EntryOptionsModal extends Modal {
       redraw: () => this.draw(),
     };
     renderEntryOptionsBody(octx, () => this.close(), () => this.close());
-    mountOptionsNav(c, view.i18n);
+    mountOptionsNav(c, view.i18n, { beside: c.closest<HTMLElement>(".modal") ?? c });
   }
 
   onClose(): void {

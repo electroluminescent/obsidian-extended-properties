@@ -10502,72 +10502,101 @@ var import_obsidian24 = require("obsidian");
 
 // src/ui/components/options-nav.ts
 var HIDDEN = "ep-nav-filtered";
+var EDGE = 8;
 var queries = /* @__PURE__ */ new WeakMap();
-function offsetIn(scroller, el) {
-  return el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+var strips = /* @__PURE__ */ new WeakMap();
+function scrollerFor(el) {
+  for (let n = el; n; n = n.parentElement) {
+    const cs = getComputedStyle(n);
+    if (/(auto|scroll|overlay)/.test(cs.overflowY) && n.scrollHeight > n.clientHeight + 1) return n;
+  }
+  return null;
 }
-function mountOptionsNav(scroller, i18n, o = {}) {
-  var _a, _b;
+function mountOptionsNav(content, i18n, o = {}) {
+  var _a, _b, _c, _d;
   const sel = (_a = o.headings) != null ? _a : "h4, .setting-item-heading";
-  const body = (_b = o.body) != null ? _b : scroller;
-  for (const old of scroller.findAll(".ep-nav, .ep-nav-search")) old.remove();
-  const heads = scroller.findAll(sel).filter((h) => h.offsetHeight > 0);
+  const body = (_b = o.body) != null ? _b : content;
+  const beside = (_c = o.beside) != null ? _c : content;
+  (_d = strips.get(content)) == null ? void 0 : _d();
+  strips.delete(content);
+  for (const old of content.findAll(".ep-nav-search")) old.remove();
+  if (o.search !== false) {
+    const searchRow = mountSearch(content, body, i18n, sel);
+    body.insertBefore(searchRow, body.firstChild);
+  }
+  const heads = content.findAll(sel).filter((h) => h.offsetHeight > 0);
   if (heads.length < 2) return;
-  const rail = scroller.createDiv({ cls: "ep-nav" });
+  const doc = content.ownerDocument;
+  const rail = doc.body.createDiv({ cls: "ep-nav" });
   rail.setAttr("role", "navigation");
   rail.setAttr("aria-label", i18n.t("nav.sections"));
-  scroller.insertBefore(rail, scroller.firstChild);
   const dots = heads.map((h) => {
     var _a2;
     const text = ((_a2 = h.textContent) != null ? _a2 : "").trim();
     const dot3 = rail.createEl("button", { cls: "ep-nav-dot" });
     dot3.type = "button";
-    dot3.setAttr("aria-label", text);
     dot3.setAttr("title", text);
-    dot3.createSpan({ cls: "ep-nav-label", text });
     dot3.createSpan({ cls: "ep-nav-mark" });
+    dot3.createSpan({ cls: "ep-nav-label", text });
     dot3.onclick = (e) => {
       e.preventDefault();
-      scroller.scrollTo({ top: Math.max(0, offsetIn(scroller, h) - 8), behavior: "smooth" });
+      e.stopPropagation();
+      h.scrollIntoView({ block: "start", behavior: "smooth" });
     };
     return dot3;
   });
-  let tops = [];
-  let measuredAt = -1;
-  const measure = () => {
-    tops = heads.map((h) => offsetIn(scroller, h));
-    measuredAt = scroller.scrollHeight;
-  };
+  const scroller = scrollerFor(heads[0]);
   const mark = () => {
-    if (scroller.scrollHeight !== measuredAt) measure();
-    const top = scroller.scrollTop + 24;
+    const top = (scroller != null ? scroller : doc.documentElement).getBoundingClientRect().top + 24;
     let at = 0;
-    tops.forEach((y, i) => {
-      if (y <= top && heads[i].offsetHeight > 0) at = i;
+    heads.forEach((h, i) => {
+      if (h.offsetHeight > 0 && h.getBoundingClientRect().top <= top) at = i;
     });
     dots.forEach((d, i) => d.toggleClass("is-here", i === at));
   };
-  mark();
-  scroller.addEventListener("scroll", mark, { passive: true });
-  if (o.search === false) return;
-  const searchRow = mountSearch(scroller, body, i18n, sel, () => {
-    heads.forEach((h, i) => dots[i].toggleClass(HIDDEN, h.hasClass(HIDDEN)));
+  const place2 = () => {
+    const box = beside.getBoundingClientRect();
+    const w = rail.offsetWidth;
+    const h = rail.offsetHeight;
+    const room = box.left - EDGE * 2;
+    const left = room >= w ? box.left - w - EDGE : Math.min(box.right + EDGE, window.innerWidth - w - EDGE);
+    const top = Math.min(Math.max(EDGE, box.top), Math.max(EDGE, window.innerHeight - h - EDGE));
+    rail.setCssStyles({ left: `${Math.max(EDGE, left)}px`, top: `${top}px` });
+  };
+  const tick = () => {
+    if (!content.isConnected || beside.offsetHeight === 0) {
+      stop2();
+      return;
+    }
+    place2();
     mark();
-  });
-  scroller.insertBefore(searchRow, rail.nextSibling);
+  };
+  const timer2 = window.setInterval(tick, 400);
+  const stop2 = () => {
+    window.clearInterval(timer2);
+    doc.removeEventListener("scroll", tick, true);
+    window.removeEventListener("resize", tick);
+    rail.remove();
+    if (strips.get(content) === stop2) strips.delete(content);
+  };
+  strips.set(content, stop2);
+  doc.addEventListener("scroll", tick, true);
+  window.addEventListener("resize", tick);
+  place2();
+  mark();
 }
-function mountSearch(scroller, body, i18n, sel, after) {
+function mountSearch(content, body, i18n, sel) {
   var _a;
   const row = body.createDiv({ cls: "ep-nav-search" });
   const input = row.createEl("input", { cls: "ep-nav-search-input" });
   input.type = "search";
   input.placeholder = i18n.t("nav.searchPlaceholder");
   input.setAttr("aria-label", i18n.t("nav.searchPlaceholder"));
-  input.value = (_a = queries.get(scroller)) != null ? _a : "";
+  input.value = (_a = queries.get(content)) != null ? _a : "";
   const apply = () => {
     var _a2;
     const q = input.value.trim().toLowerCase();
-    queries.set(scroller, input.value);
+    queries.set(content, input.value);
     for (const item of body.findAll(".setting-item")) {
       if (item.matches(sel)) continue;
       const text = ((_a2 = item.textContent) != null ? _a2 : "").toLowerCase();
@@ -10582,8 +10611,7 @@ function mountSearch(scroller, body, i18n, sel, after) {
       }
       head.toggleClass(HIDDEN, !!q && !any);
     }
-    scroller.toggleClass("ep-nav-searching", !!q);
-    after();
+    content.toggleClass("ep-nav-searching", !!q);
   };
   input.addEventListener("input", apply);
   apply();
@@ -11013,6 +11041,7 @@ var EntryOptionsModal = class extends import_obsidian24.Modal {
     keepScroll(this.contentEl, () => this.paint());
   }
   paint() {
+    var _a;
     const c = this.contentEl;
     const view = this.view;
     const t = view.i18n.t.bind(view.i18n);
@@ -11031,7 +11060,7 @@ var EntryOptionsModal = class extends import_obsidian24.Modal {
       redraw: () => this.draw()
     };
     renderEntryOptionsBody(octx, () => this.close(), () => this.close());
-    mountOptionsNav(c, view.i18n);
+    mountOptionsNav(c, view.i18n, { beside: (_a = c.closest(".modal")) != null ? _a : c });
   }
   onClose() {
     this.contentEl.empty();
@@ -11126,7 +11155,7 @@ function closeSettingsPopup() {
   pop.addEventListener("animationend", drop, { once: true });
   window.setTimeout(drop, 200);
 }
-var OUTSIDE_LAYERS = ".ep-popup, .suggestion-container, .menu, .modal-container, .prompt, .notice, .notice-container";
+var OUTSIDE_LAYERS = ".ep-popup, .ep-nav, .suggestion-container, .menu, .modal-container, .prompt, .notice, .notice-container";
 var OWN_ESCAPE = ".modal-container, .suggestion-container, .menu, .ep-popup:not(.ep-entrysettings)";
 function displayed(doc, sel) {
   var _a;
@@ -11256,7 +11285,7 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
       const name = (_e = (_d = (_c = item.querySelector(".setting-item-name")) == null ? void 0 : _c.textContent) == null ? void 0 : _d.trim()) != null ? _e : "";
       if (desc) item.setAttr("title", name ? name + " - " + desc : desc);
     }
-    mountOptionsNav(body, view.i18n);
+    mountOptionsNav(body, view.i18n, { beside: pop });
   };
   build();
   const place2 = () => {
@@ -11609,12 +11638,23 @@ function renderEntry(grid, view, file, section, entry, flags, drag, opts = {}) {
     v.createSpan({ cls: "ep-placeholder", text: view.i18n.t("entry.unknownKind", { kind: entry.kind }) });
   }
   if (entry.kind === "prop" && entry.key) {
-    const paint2 = (value = formatValue(view, entry)) => {
-      applyFormat(view, entry, value, {
+    const showing = () => {
+      const ed = wrap.querySelector("input.ep-edit-input");
+      const typed = ed == null ? void 0 : ed.value.trim();
+      if (typed) {
+        const n = Number(typed);
+        return Number.isFinite(n) ? n : typed;
+      }
+      return formatValue(view, entry);
+    };
+    const paint2 = (value) => {
+      applyFormat(view, entry, value === void 0 ? showing() : value, {
         wrap,
         // The chips are rebuilt by the list type as values come and go, so
-        // they are found again on every pass rather than held onto.
-        val: wrap.querySelector(".ep-num, .ep-val-right, .ep-val"),
+        // they are found again on every pass rather than held onto. The open
+        // editor stands in for the cell it replaced, so the colour follows
+        // the value while it is being typed instead of vanishing with it.
+        val: wrap.querySelector(".ep-num, .ep-val-right, .ep-val, input.ep-edit-input"),
         chips: wrap.findAll(".ep-chip")
       });
     };
@@ -11640,6 +11680,7 @@ function renderEntry(grid, view, file, section, entry, flags, drag, opts = {}) {
         });
       });
       watch.observe(wrap, { subtree: true, childList: true, characterData: true });
+      wrap.addEventListener("input", () => paint2());
     }
   }
   wireEntryInteractions(wrap, view, file, section, entry);
@@ -11957,8 +11998,11 @@ var SectionOptionsModal = class extends import_obsidian27.Modal {
   }
   draw() {
     keepScroll(this.contentEl, () => {
+      var _a;
       this.paint();
-      mountOptionsNav(this.contentEl, this.view.i18n);
+      mountOptionsNav(this.contentEl, this.view.i18n, {
+        beside: (_a = this.contentEl.closest(".modal")) != null ? _a : this.contentEl
+      });
     });
   }
   paint() {
@@ -16977,13 +17021,15 @@ var EPSettingTab = class extends import_obsidian38.PluginSettingTab {
    */
   render() {
     const build = () => {
-      var _a, _b;
+      var _a;
       this.renderBody();
       this.tabify();
       this.tint();
       this.alignLooseText();
-      const scroller = (_b = (_a = scrollerOf(this.host)) != null ? _a : this.host.closest(".vertical-tab-content")) != null ? _b : this.host;
-      mountOptionsNav(scroller, this.plugin.i18n, { search: false });
+      mountOptionsNav(this.host, this.plugin.i18n, {
+        search: false,
+        beside: (_a = this.host.closest(".modal")) != null ? _a : this.host
+      });
     };
     if (this.pendingInline || this.pendingPalette) build();
     else keepScroll(this.host, build);
