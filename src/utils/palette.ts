@@ -73,6 +73,14 @@ export interface Palette {
   words?: WordColor[];
   /** Where a word not in the list is looked for next. */
   fallback?: "table" | "hash" | "none";
+  /**
+   * What the numbers in this palette mean. "date" writes and reads them as
+   * dates under `dateProp`'s calendar - the colour engine still sees plain
+   * numbers, since that is what a date is stored as.
+   */
+  scale?: "number" | "date";
+  /** The date property whose calendar the edges are written in. */
+  dateProp?: string;
 }
 
 /** The stretch of values a palette is spread over. */

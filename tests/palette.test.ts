@@ -8,6 +8,8 @@ import {
   blendColors, colorAt, colorForText, defaultWheel, mixColors, moveEdge, rangesValid, readableOn,
   setDominant, toOklch, type ColorRange, type Palette,
 } from "../src/utils/palette";
+import { formatEdge, parseEdge } from "../src/utils/palette-date";
+import type { DateConfig } from "../src/core/calendar";
 
 const wheel = (): Palette => ({ id: "w", name: "Wheel", mode: "wheel", wheel: defaultWheel() });
 
@@ -188,5 +190,31 @@ describe("text that can be read on it", () => {
   it("is black on a light fill and white on a dark one", () => {
     expect(readableOn("#ffffff")).toBe("#000000");
     expect(readableOn("#111111")).toBe("#ffffff");
+  });
+});
+
+describe("edges written as dates", () => {
+  const cfg: DateConfig = { format: "YYYY-MM-DD" };
+
+  it("stores what was typed as the number behind it", () => {
+    const n = parseEdge("1312-06-03", cfg);
+    expect(n).toBeDefined();
+    expect(formatEdge(n, cfg)).toBe("1312-06-03");
+  });
+
+  it("takes a plain number as the stored value itself", () => {
+    expect(parseEdge("487000", cfg)).toBe(487000);
+  });
+
+  it("gives nothing for what is not a date", () => {
+    expect(parseEdge("", cfg)).toBeUndefined();
+    expect(parseEdge("sometime", cfg)).toBeUndefined();
+    expect(formatEdge(undefined, cfg)).toBe("");
+  });
+
+  it("orders the way the calendar does, so bands over dates work", () => {
+    const a = parseEdge("1312-06-03", cfg)!;
+    const b = parseEdge("1312-07-03", cfg)!;
+    expect(b).toBeGreaterThan(a);
   });
 });

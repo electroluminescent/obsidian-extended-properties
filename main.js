@@ -722,6 +722,10 @@ var en_default = {
   "palette.mode.points": "Stops",
   "palette.mode.ranges": "Bands",
   "palette.mode.semantic": "Words",
+  "palette.scale": "What its numbers mean",
+  "palette.scaleDesc": "Plain numbers, or dates under a date property's calendar - the edges are then typed and read in that property's own format.",
+  "palette.scale.number": "Numbers",
+  "palette.scale.date": "Dates ({key})",
   "palette.arc": "Which way blends travel",
   "palette.arcDesc": "Round the colour circle the short way, or the long way through the colours on the other side.",
   "palette.arc.short": "The short way",
@@ -9995,6 +9999,16 @@ function setDominant(ranges, index, edge, on) {
 
 // src/ui/render/format.ts
 var NUMERIC2 = /* @__PURE__ */ new Set(["number", "decimal", "formula", "derived", "unit", "rating", "date", "datetime"]);
+function formatValue(view, entry) {
+  var _a;
+  const key = (_a = entry.key) != null ? _a : "";
+  const type = view.resolveType(entry);
+  if (type === "derived") return modifierInfo(view, entry).value;
+  const raw = view.note.raw[key];
+  const factor = Number(entry.unitFactor);
+  if (typeof raw === "number" && factor > 0 && factor !== 1) return raw * factor;
+  return raw;
+}
 function ruleFor(view, entry) {
   var _a, _b;
   const own = entry.format;
@@ -11020,9 +11034,8 @@ function renderEntry(grid, view, file, section, entry, flags, drag, opts = {}) {
     v.createSpan({ cls: "ep-placeholder", text: view.i18n.t("entry.unknownKind", { kind: entry.kind }) });
   }
   if (entry.kind === "prop" && entry.key) {
-    const key = entry.key;
     const paint2 = () => {
-      applyFormat(view, entry, view.note.raw[key], {
+      applyFormat(view, entry, formatValue(view, entry), {
         wrap,
         // The chips are rebuilt by the list type as values come and go, so
         // they are found again on every pass rather than held onto.
@@ -15789,6 +15802,22 @@ function isShaped(size) {
 
 // src/ui/components/palette-editor.ts
 var import_obsidian37 = require("obsidian");
+
+// src/utils/palette-date.ts
+function parseEdge(text, cfg) {
+  const v = text.trim();
+  if (!v) return void 0;
+  if (/^-?\d+$/.test(v)) return Number(v);
+  const parts = parseDateFlexible(v, cfg);
+  return parts ? encodeSerial(parts, cfg) : void 0;
+}
+function formatEdge(n, cfg) {
+  if (n === void 0 || !Number.isFinite(n)) return "";
+  const parts = decodeSerial(Math.round(n), cfg);
+  return parts ? formatDate(parts, cfg) : String(n);
+}
+
+// src/ui/components/palette-editor.ts
 var PREVIEW_STEPS = 48;
 function swatch(host, row, get, set) {
   const sw = row.createSpan({ cls: "ep-swatch ep-pal-swatch" });
@@ -15812,8 +15841,18 @@ function swatch(host, row, get, set) {
     }
   };
 }
-function numField(row, value, cls, on) {
+function numField(row, value, cls, on, cal) {
   const input = row.createEl("input", { cls: "ep-edit-input " + cls });
+  if (cal) {
+    input.type = "text";
+    input.value = formatEdge(value, cal);
+    input.placeholder = cal.format;
+    input.addEventListener("change", () => {
+      const n = parseEdge(input.value, cal);
+      if (n !== void 0) on(n);
+    });
+    return input;
+  }
   input.type = "number";
   input.value = value === void 0 || !Number.isFinite(value) ? "" : String(value);
   input.addEventListener("change", () => {
@@ -15842,7 +15881,17 @@ function scaleOf(p, t) {
   const max = Math.max(...xs);
   return min + t * (max - min || 1);
 }
+function calendarOf(p, ctx2) {
+  var _a, _b, _c, _d, _e;
+  if (p.scale !== "date") return void 0;
+  const all = (_b = (_a = ctx2.dateProps) == null ? void 0 : _a.call(ctx2)) != null ? _b : [];
+  return (_e = (_c = all.find((d) => {
+    var _a2;
+    return d.key === ((_a2 = p.dateProp) != null ? _a2 : "").toLowerCase();
+  })) == null ? void 0 : _c.cfg) != null ? _e : (_d = all[0]) == null ? void 0 : _d.cfg;
+}
 function renderPaletteEditor(c, p, ctx2) {
+  var _a, _b;
   const t = ctx2.i18n.t.bind(ctx2.i18n);
   const save = ctx2.save;
   preview(c, p);
@@ -15859,12 +15908,27 @@ function renderPaletteEditor(c, p, ctx2) {
   if (p.mode === "wheel") renderWheel(c, p, ctx2);
   if (p.mode === "points") renderPoints(c, p, ctx2);
   if (p.mode === "ranges") renderRanges(c, p, ctx2);
+  const dates = (_b = (_a = ctx2.dateProps) == null ? void 0 : _a.call(ctx2)) != null ? _b : [];
+  if (dates.length && p.mode !== "semantic") {
+    new import_obsidian37.Setting(c).setName(t("palette.scale")).setDesc(t("palette.scaleDesc")).addDropdown((dd) => {
+      var _a2;
+      dd.addOption("", t("palette.scale.number"));
+      for (const d of dates) dd.addOption(d.key, t("palette.scale.date", { key: d.key }));
+      dd.setValue(p.scale === "date" ? (_a2 = p.dateProp) != null ? _a2 : dates[0].key : "");
+      dd.onChange((v) => {
+        p.scale = v ? "date" : void 0;
+        p.dateProp = v || void 0;
+        ctx2.save();
+        ctx2.redraw();
+      });
+    });
+  }
   if (p.mode !== "wheel") {
     new import_obsidian37.Setting(c).setName(t("palette.arc")).setDesc(t("palette.arcDesc")).addDropdown((dd) => {
-      var _a;
+      var _a2;
       dd.addOption("short", t("palette.arc.short"));
       dd.addOption("long", t("palette.arc.long"));
-      dd.setValue((_a = p.arc) != null ? _a : "short");
+      dd.setValue((_a2 = p.arc) != null ? _a2 : "short");
       dd.onChange((v) => {
         p.arc = v === "long" ? "long" : void 0;
         save();
@@ -15900,17 +15964,18 @@ function renderWheel(c, p, ctx2) {
 function renderPoints(c, p, ctx2) {
   var _a;
   const t = ctx2.i18n.t.bind(ctx2.i18n);
+  const cal = calendarOf(p, ctx2);
   const pts = (_a = p.points) != null ? _a : p.points = [];
   new import_obsidian37.Setting(c).setName(t("palette.points")).setDesc(t("palette.pointsDesc"));
   const rows = c.createDiv({ cls: "ep-mini-list" });
   pts.forEach((pt, i) => {
     const row = new import_obsidian37.Setting(rows).setClass("ep-mini-row");
     const box = row.controlEl;
-    numField(box, pt.at, "ep-pal-num", (n) => {
+    numField(box, pt.at, cal ? "ep-pal-date" : "ep-pal-num", (n) => {
       pt.at = n;
       ctx2.save();
       ctx2.redraw();
-    });
+    }, cal);
     swatch(ctx2.colors, box, () => pt.color, (v) => {
       pt.color = v;
       ctx2.save();
@@ -15937,6 +16002,7 @@ function renderPoints(c, p, ctx2) {
 function renderRanges(c, p, ctx2) {
   var _a;
   const t = ctx2.i18n.t.bind(ctx2.i18n);
+  const cal = calendarOf(p, ctx2);
   const rs = (_a = p.ranges) != null ? _a : p.ranges = [];
   new import_obsidian37.Setting(c).setName(t("palette.ranges")).setDesc(t("palette.rangesDesc"));
   const write = (next) => {
@@ -15953,9 +16019,9 @@ function renderRanges(c, p, ctx2) {
     const row = new import_obsidian37.Setting(rows).setClass("ep-mini-row");
     const box = row.controlEl;
     edgeBox(box, r, "from", i, p, ctx2);
-    numField(box, r.from, "ep-pal-num", (n) => write(moveEdge(rs, i, "from", n, p.linked === true)));
+    numField(box, r.from, cal ? "ep-pal-date" : "ep-pal-num", (n) => write(moveEdge(rs, i, "from", n, p.linked === true)), cal);
     box.createSpan({ cls: "ep-pal-dash", text: "-" });
-    numField(box, r.to, "ep-pal-num", (n) => write(moveEdge(rs, i, "to", n, p.linked === true)));
+    numField(box, r.to, cal ? "ep-pal-date" : "ep-pal-num", (n) => write(moveEdge(rs, i, "to", n, p.linked === true)), cal);
     edgeBox(box, r, "to", i, p, ctx2);
     swatch(ctx2.colors, box, () => r.color, (v) => {
       r.color = v;
@@ -17137,7 +17203,11 @@ var EPSettingTab = class extends import_obsidian38.PluginSettingTab {
         }
       },
       save,
-      redraw: () => this.render()
+      redraw: () => this.render(),
+      dateProps: () => {
+        var _a2;
+        return Object.entries((_a2 = plugin.settings.dateProps) != null ? _a2 : {}).map(([key, cfg]) => ({ key, cfg }));
+      }
     };
     for (const p of list) {
       const head = new import_obsidian38.Setting(c).setName(p.name || t("palette.untitled")).setHeading();

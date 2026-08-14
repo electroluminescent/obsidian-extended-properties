@@ -18,11 +18,29 @@
 
 import type { Entry, FormatRule } from "../../core/model";
 import type { ViewCtx } from "../../core/context";
+import { modifierInfo } from "../../core/influences";
 import type { Palette, Span } from "../../utils/palette";
 import { blendColors, colorAt, colorForText, readableOn } from "../../utils/palette";
 
 /** Value types whose values are numbers, whatever they read as. */
 const NUMERIC = new Set(["number", "decimal", "formula", "derived", "unit", "rating", "date", "datetime"]);
+
+/**
+ * The value a property is coloured by.
+ *
+ * Not always the one in the note: a derived property is worked out rather
+ * than stored, and a number shown through a unit factor is coloured by what
+ * the reader sees, since that is what the palette's edges were typed in.
+ */
+export function formatValue(view: ViewCtx, entry: Entry): unknown {
+  const key = entry.key ?? "";
+  const type = view.resolveType(entry);
+  if (type === "derived") return modifierInfo(view, entry).value;
+  const raw = view.note.raw[key];
+  const factor = Number(entry.unitFactor);
+  if (typeof raw === "number" && factor > 0 && factor !== 1) return raw * factor;
+  return raw;
+}
 
 /** The rule in force for an entry: its own, else the one its key carries. */
 export function ruleFor(view: ViewCtx, entry: Entry): FormatRule | undefined {

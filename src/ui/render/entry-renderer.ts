@@ -9,7 +9,7 @@ import type { TFile } from "obsidian";
 import type { ClusterFlags, EntryRenderCtx, ViewCtx } from "../../core/context";
 import type { Entry, Section } from "../../core/model";
 import { openEntryMenu } from "../menus/entry-menu";
-import { applyFormat } from "./format";
+import { applyFormat, formatValue } from "./format";
 import {
   focusEntry,
   openEntrySettingsPopup,
@@ -117,9 +117,8 @@ export function renderEntry(
   // again whenever the value changes. A property nobody has formatted is left
   // exactly as it was, so this costs a lookup and nothing more.
   if (entry.kind === "prop" && entry.key) {
-    const key = entry.key;
     const paint = (): void => {
-      applyFormat(view, entry, view.note.raw[key], {
+      applyFormat(view, entry, formatValue(view, entry), {
         wrap,
         // The chips are rebuilt by the list type as values come and go, so
         // they are found again on every pass rather than held onto.

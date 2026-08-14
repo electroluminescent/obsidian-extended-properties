@@ -1300,6 +1300,8 @@ export class EPSettingTab extends PluginSettingTab {
       },
       save,
       redraw: () => this.render(),
+      dateProps: () =>
+        Object.entries(plugin.settings.dateProps ?? {}).map(([key, cfg]) => ({ key, cfg })),
     };
     for (const p of list) {
       const head = new Setting(c).setName(p.name || t("palette.untitled")).setHeading();

@@ -1070,6 +1070,7 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 /* -- palette editor -------------------------------------------------------- */
 .ep-pal-preview { height: 14px; border-radius: 4px; border: 1px solid var(--background-modifier-border); margin: 2px 0 6px; }
 .ep-pal-num { width: 4.5em; }
+.ep-pal-date { width: 8.5em; }
 .ep-pal-word { width: 9em; }
 .ep-pal-dash { color: var(--text-muted); }
 .ep-pal-swatch { width: 20px; height: 20px; border-radius: 4px; border: 1px solid var(--background-modifier-border); cursor: pointer; display: inline-block; }

@@ -16,6 +16,8 @@ import type { I18n } from "../../i18n/i18n";
 import { ColorPickerModal } from "../modals/color-picker";
 import type { ColorHost } from "./setting-helpers";
 import { hexToRgb } from "../../utils/color";
+import type { DateConfig } from "../../core/calendar";
+import { formatEdge, parseEdge } from "../../utils/palette-date";
 import {
   colorAt, defaultWheel, moveEdge, rangesValid, setDominant, type ColorRange, type Palette,
 } from "../../utils/palette";
@@ -48,9 +50,29 @@ function swatch(host: ColorHost, row: HTMLElement, get: () => string, set: (v: s
   };
 }
 
-/** A number field that only reports numbers. */
-function numField(row: HTMLElement, value: number | undefined, cls: string, on: (n: number) => void): HTMLInputElement {
+/**
+ * An edge of the scale: a number, or - where the palette is written over a
+ * calendar - a date in that property's own format, stored as the integer
+ * behind it.
+ */
+function numField(
+  row: HTMLElement,
+  value: number | undefined,
+  cls: string,
+  on: (n: number) => void,
+  cal?: DateConfig
+): HTMLInputElement {
   const input = row.createEl("input", { cls: "ep-edit-input " + cls });
+  if (cal) {
+    input.type = "text";
+    input.value = formatEdge(value, cal);
+    input.placeholder = cal.format;
+    input.addEventListener("change", () => {
+      const n = parseEdge(input.value, cal);
+      if (n !== undefined) on(n);
+    });
+    return input;
+  }
   input.type = "number";
   input.value = value === undefined || !Number.isFinite(value) ? "" : String(value);
   input.addEventListener("change", () => {
@@ -95,6 +117,15 @@ export interface PaletteEditorCtx {
   save: () => void;
   /** Rebuild the editor (a mode change swaps every control below it). */
   redraw: () => void;
+  /** The date properties a palette can borrow a calendar from. */
+  dateProps?: () => { key: string; cfg: DateConfig }[];
+}
+
+/** The calendar this palette writes its edges in, if it writes dates. */
+function calendarOf(p: Palette, ctx: PaletteEditorCtx): DateConfig | undefined {
+  if (p.scale !== "date") return undefined;
+  const all = ctx.dateProps?.() ?? [];
+  return all.find((d) => d.key === (p.dateProp ?? "").toLowerCase())?.cfg ?? all[0]?.cfg;
 }
 
 /** Draw the whole editor for `p` into `c`. */
@@ -117,6 +148,20 @@ export function renderPaletteEditor(c: HTMLElement, p: Palette, ctx: PaletteEdit
   if (p.mode === "wheel") renderWheel(c, p, ctx);
   if (p.mode === "points") renderPoints(c, p, ctx);
   if (p.mode === "ranges") renderRanges(c, p, ctx);
+  const dates = ctx.dateProps?.() ?? [];
+  if (dates.length && p.mode !== "semantic") {
+    new Setting(c).setName(t("palette.scale")).setDesc(t("palette.scaleDesc")).addDropdown((dd) => {
+      dd.addOption("", t("palette.scale.number"));
+      for (const d of dates) dd.addOption(d.key, t("palette.scale.date", { key: d.key }));
+      dd.setValue(p.scale === "date" ? p.dateProp ?? dates[0].key : "");
+      dd.onChange((v) => {
+        p.scale = v ? "date" : undefined;
+        p.dateProp = v || undefined;
+        ctx.save();
+        ctx.redraw();
+      });
+    });
+  }
   if (p.mode !== "wheel") {
     new Setting(c).setName(t("palette.arc")).setDesc(t("palette.arcDesc")).addDropdown((dd) => {
       dd.addOption("short", t("palette.arc.short"));
@@ -163,17 +208,18 @@ function renderWheel(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): void {
 /** The stops: a colour pinned to a value, blended between. */
 function renderPoints(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): void {
   const t = ctx.i18n.t.bind(ctx.i18n);
+  const cal = calendarOf(p, ctx);
   const pts = (p.points ??= []);
   new Setting(c).setName(t("palette.points")).setDesc(t("palette.pointsDesc"));
   const rows = c.createDiv({ cls: "ep-mini-list" });
   pts.forEach((pt, i) => {
     const row = new Setting(rows).setClass("ep-mini-row");
     const box = row.controlEl;
-    numField(box, pt.at, "ep-pal-num", (n) => {
+    numField(box, pt.at, cal ? "ep-pal-date" : "ep-pal-num", (n) => {
       pt.at = n;
       ctx.save();
       ctx.redraw();
-    });
+    }, cal);
     swatch(ctx.colors, box, () => pt.color, (v) => {
       pt.color = v;
       ctx.save();
@@ -200,6 +246,7 @@ function renderPoints(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): void {
 /** The bands: flat colour between two edges, with the edge rules. */
 function renderRanges(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): void {
   const t = ctx.i18n.t.bind(ctx.i18n);
+  const cal = calendarOf(p, ctx);
   const rs = (p.ranges ??= []);
   new Setting(c).setName(t("palette.ranges")).setDesc(t("palette.rangesDesc"));
   const write = (next: ColorRange[]): void => {
@@ -218,9 +265,9 @@ function renderRanges(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): void {
     const row = new Setting(rows).setClass("ep-mini-row");
     const box = row.controlEl;
     edgeBox(box, r, "from", i, p, ctx);
-    numField(box, r.from, "ep-pal-num", (n) => write(moveEdge(rs, i, "from", n, p.linked === true)));
+    numField(box, r.from, cal ? "ep-pal-date" : "ep-pal-num", (n) => write(moveEdge(rs, i, "from", n, p.linked === true)), cal);
     box.createSpan({ cls: "ep-pal-dash", text: "-" });
-    numField(box, r.to, "ep-pal-num", (n) => write(moveEdge(rs, i, "to", n, p.linked === true)));
+    numField(box, r.to, cal ? "ep-pal-date" : "ep-pal-num", (n) => write(moveEdge(rs, i, "to", n, p.linked === true)), cal);
     edgeBox(box, r, "to", i, p, ctx);
     swatch(ctx.colors, box, () => r.color, (v) => {
       r.color = v;

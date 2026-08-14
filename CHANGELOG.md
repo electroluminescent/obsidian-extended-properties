@@ -23,6 +23,13 @@
 - **Set once, everywhere**: a property's formatting is stored against the
   property, so the sidebar, the type table and inline chips agree - with an
   option to give one row a look of its own.
+- **Dates, derived values and formulas colour like numbers**, because that is
+  what they are. A derived property is coloured by what it works out to rather
+  than by the nothing it stores, and a number shown through a unit factor by
+  what the reader sees.
+- **A palette can be written over a calendar**: point it at a date property and
+  its edges are typed and read as dates in that property's own format, while
+  the engine goes on seeing the integers underneath.
 
 ## 4.56.1
 
