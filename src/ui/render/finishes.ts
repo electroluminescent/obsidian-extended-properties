@@ -6,18 +6,20 @@
  * colour the palette chose rather than replacing it. Which values wear which
  * is decided in `utils/finish`; this is only the list and what each is called.
  *
- * Nothing here moves. A finish is a surface, not an animation: each is
- * blended into the colour rather than painted over it - the blend mode is the
- * finish's own, since a gloss is light added and a linen is a weave shading
- * what is under it - so hovering a row changes nothing about how it is drawn.
+ * Nothing here runs on a timer, and hovering a row changes nothing. What does
+ * move is the light: one lamp for the whole screen, driven by the pointer
+ * (see `lamp.ts`), which every finish reads through the same few custom
+ * properties. Each is blended into the colour rather than painted over it,
+ * with the blend its own material asks for - a sheen is light added, a weave
+ * is cloth shading what lies under it.
  */
 
 import type { I18n } from "../../i18n/i18n";
 
 /** Every finish, in the order the settings offer them. */
 export const FINISHES = [
-  "matte", "gloss", "foil", "prismatic", "holographic", "iridescent", "satin",
-  "emboss", "sparkle", "linen", "crystal", "radiant", "hammered",
+  "matte", "sheen", "mirror", "foil", "spectra", "prism", "opal", "nebula",
+  "beacon", "glitter", "crackle", "satin", "weave", "relief", "hammered",
 ] as const;
 
 export type FinishId = (typeof FINISHES)[number];
@@ -28,7 +30,7 @@ export type FinishId = (typeof FINISHES)[number];
  * where there is no material for the light to land on.
  */
 export const NEEDS_FILL: ReadonlySet<string> = new Set([
-  "matte", "satin", "linen", "emboss", "hammered",
+  "matte", "satin", "weave", "relief", "hammered",
 ]);
 
 /** What a finish is called. */

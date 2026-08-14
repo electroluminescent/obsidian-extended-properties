@@ -1160,95 +1160,427 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
 }
 
 /* -- finishes -------------------------------------------------------------- */
-/* Laid over the palette's colour and blended INTO it, each with the blend its
-   own material asks for: a gloss is light added (`screen`), a linen is a
-   weave shading what is under it (`overlay`), a matte scatters it
-   (`soft-light`). Everything is gradients - no images, nothing fetched - and
-   nothing moves: a finish is a surface, not an animation, so hovering a row
-   changes nothing about it. */
-.ep-fin { position: relative; isolation: isolate; }
+/*
+  A finish is what the value's colour is MADE of, and the light on it moves.
+  A foil that never catches the light is a picture of a foil; the whole reason
+  the material reads as material is that the highlight travels as you do.
+
+  So there is one lamp for the whole screen. A single pointer watcher (see
+  `ui/render/lamp.ts`) writes a handful of custom properties on the document,
+  and every finish on every property answers to them together - the sheet lit
+  by one light rather than each row lit by its own. It is also the only
+  version of this that stays cheap with fifty formatted rows on screen: no
+  per-element listeners, no per-element work, one style recalculation a frame.
+
+  Two layers per value, both blended INTO the palette's colour rather than
+  painted over it:
+    ::before  the SHEET - the material: spectrum, weave, star field, facets.
+    ::after   the GLARE - the light on it, brightest where the pointer is.
+
+  Everything is gradients. Nothing is downloaded, nothing is an image, and
+  nothing animates on a timer - the only thing that moves is the light, and it
+  moves because the reader moved it.
+*/
+
+/* -- the lamp, and the spectrum it splits into ----------------------------- */
+:root {
+  /* Resting values: the lamp overhead and a little to the left, which is
+     where a reader with no pointer would expect a highlight to be. */
+  --ep-lamp-x: 42%;
+  --ep-lamp-y: 28%;
+  --ep-lamp-dx: -8%;
+  --ep-lamp-dy: -22%;
+  --ep-lamp-reach: 0.45;
+  --ep-lamp-turn: 115deg;
+
+  /* Six hues a white light splits into here. Deliberately not a rainbow of
+     primaries: these are the colours a thin film actually throws - warm at
+     the top, cold at the bottom, nothing fully saturated. */
+  --ep-hue-1: hsl(348 92% 74%);
+  --ep-hue-2: hsl(38 96% 72%);
+  --ep-hue-3: hsl(78 78% 68%);
+  --ep-hue-4: hsl(168 82% 70%);
+  --ep-hue-5: hsl(212 94% 74%);
+  --ep-hue-6: hsl(288 84% 74%);
+
+  /* How far the sheet travels for a given move of the lamp. Higher is more
+     dramatic and, past about 4, seasick. */
+  --ep-travel: 2.4;
+  /* The whole effect's strength, for a global "calm it down" switch. */
+  --ep-finish-strength: 1;
+}
+
+/* -- the two layers -------------------------------------------------------- */
+/*
+  `isolation: isolate` keeps the blending inside the value: without it a
+  color-dodge layer reaches through to the note behind and lights that up too.
+*/
+.ep-fin {
+  position: relative;
+  isolation: isolate;
+}
+
+.ep-fin::before,
 .ep-fin::after {
-  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
-  background: var(--ep-fin-img, none); background-size: var(--ep-fin-size, auto);
-  mix-blend-mode: var(--ep-fin-blend, overlay); opacity: var(--ep-fin-opacity, .6);
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  /* Its own layer, so moving the light does not relayout the row. */
+  will-change: background-position, filter;
 }
 
+/* The sheet: the material. */
+.ep-fin::before {
+  background-image: var(--ep-sheet-img, none);
+  background-size: var(--ep-sheet-size, 300% 300%);
+  background-position: var(--ep-sheet-pos, center);
+  background-blend-mode: var(--ep-sheet-mix, normal);
+  mix-blend-mode: var(--ep-sheet-blend, hard-light);
+  filter: var(--ep-sheet-filter, none);
+  opacity: calc(var(--ep-sheet-opacity, 0.55) * var(--ep-finish-strength));
+}
+
+/* The glare: the light on it. */
+.ep-fin::after {
+  background-image: var(
+    --ep-glare-img,
+    radial-gradient(
+      circle at var(--ep-lamp-x) var(--ep-lamp-y),
+      hsl(0 0% 100% / 0.55) 0%,
+      hsl(0 0% 100% / 0.12) 32%,
+      hsl(0 0% 0% / 0.28) 88%
+    )
+  );
+  background-size: var(--ep-glare-size, cover);
+  background-position: var(--ep-glare-pos, center);
+  mix-blend-mode: var(--ep-glare-blend, overlay);
+  filter: var(--ep-glare-filter, none);
+  opacity: calc(var(--ep-glare-opacity, 0.5) * var(--ep-finish-strength));
+}
+
+/*
+  The two positions almost every finish wants, written once.
+
+  DRIFT moves the sheet the OTHER way to the lamp, which is what makes a flat
+  gradient read as depth: the material appears to sit under glass. SWEEP moves
+  with it, for the layers that are meant to be the light rather than the thing
+  being lit.
+*/
+.ep-fin {
+  --ep-drift: calc(50% - (var(--ep-lamp-dx) * var(--ep-travel)))
+    calc(50% - (var(--ep-lamp-dy) * var(--ep-travel)));
+  --ep-sweep: calc(50% + (var(--ep-lamp-dx) * var(--ep-travel)))
+    calc(50% + (var(--ep-lamp-dy) * var(--ep-travel)));
+  /* Brighter as the pointer goes wide, so the light has somewhere to come
+     from rather than sitting at one strength forever. */
+  --ep-lift: calc(0.55 + (var(--ep-lamp-reach) * 0.55));
+}
+
+/* ==========================================================================
+   THE FINISHES
+   Fourteen. Each is a handful of declarations; the shapes above do the rest.
+   ========================================================================== */
+
+/* MATTE - the one that does not shine. Light arrives and stays. */
 .ep-fin-matte {
-  --ep-fin-img: linear-gradient(135deg, rgba(90,90,90,.75), rgba(175,175,175,.45) 45%, rgba(105,105,105,.7));
-  --ep-fin-blend: soft-light;
-  --ep-fin-opacity: .85;
+  --ep-sheet-img: linear-gradient(160deg, hsl(0 0% 42% / 0.7), hsl(0 0% 72% / 0.4) 48%, hsl(0 0% 38% / 0.65));
+  --ep-sheet-size: cover;
+  --ep-sheet-pos: center;
+  --ep-sheet-blend: soft-light;
+  --ep-sheet-opacity: 0.9;
+  --ep-glare-img: none;
 }
 
-.ep-fin-gloss {
-  --ep-fin-img: linear-gradient(112deg, transparent 0%, rgba(255,255,255,.05) 32%, rgba(255,255,255,.7) 47%, rgba(255,255,255,.95) 50%, rgba(255,255,255,.08) 54%, transparent 68%);
-  --ep-fin-blend: screen;
-  --ep-fin-opacity: .72;
+/* SHEEN - one clean highlight travelling across a smooth surface. */
+.ep-fin-sheen {
+  --ep-sheet-img: linear-gradient(
+    104deg,
+    transparent 0 34%,
+    hsl(0 0% 100% / 0.72) 47%,
+    hsl(0 0% 100% / 0.95) 50%,
+    hsl(0 0% 100% / 0.1) 55%,
+    transparent 66%
+  );
+  --ep-sheet-size: 260% 260%;
+  --ep-sheet-pos: var(--ep-sweep);
+  --ep-sheet-blend: screen;
+  --ep-sheet-opacity: 0.62;
+  --ep-glare-opacity: 0.35;
 }
 
+/* MIRROR - polished metal: bright bands and black ones, and it swings. */
+.ep-fin-mirror {
+  --ep-sheet-img: linear-gradient(
+    var(--ep-lamp-turn),
+    hsl(0 0% 100% / 0.9) 0 8%,
+    hsl(0 0% 0% / 0.75) 26%,
+    hsl(0 0% 100% / 0.92) 47%,
+    hsl(0 0% 0% / 0.7) 68%,
+    hsl(0 0% 100% / 0.88) 100%
+  );
+  --ep-sheet-size: 220% 220%;
+  --ep-sheet-pos: var(--ep-sweep);
+  --ep-sheet-blend: hard-light;
+  --ep-sheet-filter: brightness(var(--ep-lift)) contrast(1.6);
+  --ep-sheet-opacity: 0.6;
+}
+
+/* FOIL - beaten metal, every bright ridge with a dark valley beside it. */
 .ep-fin-foil {
-  --ep-fin-img: linear-gradient(118deg, rgba(255,255,255,.15) 0%, rgba(255,255,255,.8) 18%, rgba(120,120,120,.2) 30%, rgba(255,255,255,.65) 43%, rgba(80,80,80,.18) 55%, rgba(255,255,255,.75) 71%, rgba(120,120,120,.15) 84%, rgba(255,255,255,.5));
-  --ep-fin-blend: overlay;
-  --ep-fin-opacity: .7;
+  --ep-sheet-img: repeating-linear-gradient(
+      100deg,
+      hsl(0 0% 100% / 0.8) 0 2px,
+      hsl(0 0% 0% / 0.55) 2px 4px,
+      transparent 4px 8px
+    ),
+    linear-gradient(100deg, hsl(0 0% 100% / 0.35), transparent 45%, hsl(0 0% 100% / 0.3));
+  --ep-sheet-size: 200% 200%, cover;
+  --ep-sheet-pos: var(--ep-drift), center;
+  --ep-sheet-mix: screen;
+  --ep-sheet-blend: hard-light;
+  --ep-sheet-filter: brightness(var(--ep-lift)) contrast(1.35);
+  --ep-sheet-opacity: 0.55;
 }
 
-.ep-fin-prismatic {
-  --ep-fin-img: linear-gradient(112deg, rgba(255,80,180,.3), rgba(255,235,70,.28) 17%, rgba(70,255,180,.3) 34%, rgba(70,210,255,.32) 51%, rgba(115,90,255,.3) 68%, rgba(255,80,220,.3) 84%, rgba(255,255,255,.15)), linear-gradient(168deg, transparent 30%, rgba(255,255,255,.45) 50%, transparent 70%);
-  --ep-fin-blend: color-dodge;
-  --ep-fin-opacity: .5;
+/* SPECTRA - the plain holo sheet: a spectrum under fine scan lines. */
+.ep-fin-spectra {
+  --ep-band: 7%;
+  --ep-sheet-img: repeating-linear-gradient(
+      112deg,
+      var(--ep-hue-1) calc(var(--ep-band) * 1),
+      var(--ep-hue-2) calc(var(--ep-band) * 2),
+      var(--ep-hue-3) calc(var(--ep-band) * 3),
+      var(--ep-hue-4) calc(var(--ep-band) * 4),
+      var(--ep-hue-5) calc(var(--ep-band) * 5),
+      var(--ep-hue-6) calc(var(--ep-band) * 6),
+      var(--ep-hue-1) calc(var(--ep-band) * 7)
+    ),
+    repeating-linear-gradient(90deg, hsl(0 0% 0% / 0.6) 0 1px, hsl(0 0% 78% / 0.5) 1px 3px);
+  --ep-sheet-size: 320% 320%, cover;
+  --ep-sheet-pos: var(--ep-drift), center;
+  --ep-sheet-mix: overlay;
+  --ep-sheet-blend: color-dodge;
+  --ep-sheet-filter: brightness(calc(var(--ep-lift) * 0.9)) contrast(1.5) saturate(1.1);
+  --ep-sheet-opacity: 0.5;
+  --ep-glare-blend: overlay;
+  --ep-glare-filter: brightness(0.85) contrast(1.4);
 }
 
-.ep-fin-holographic {
-  --ep-fin-img: repeating-linear-gradient(118deg, rgba(255,255,255,.12) 0 2px, transparent 2px 8px), linear-gradient(103deg, rgba(255,70,180,.25), rgba(255,230,70,.25) 20%, rgba(60,255,180,.25) 40%, rgba(60,210,255,.28) 60%, rgba(120,70,255,.25) 80%, rgba(255,70,180,.25)), linear-gradient(135deg, transparent 35%, rgba(255,255,255,.5) 50%, transparent 65%);
-  --ep-fin-blend: overlay;
-  --ep-fin-opacity: .55;
+/* PRISM - the spectrum crossed with itself, sharper and more restless. */
+.ep-fin-prism {
+  --ep-band: 5%;
+  --ep-sheet-img: repeating-linear-gradient(
+      var(--ep-lamp-turn),
+      var(--ep-hue-1) calc(var(--ep-band) * 1),
+      var(--ep-hue-3) calc(var(--ep-band) * 2),
+      var(--ep-hue-5) calc(var(--ep-band) * 3),
+      var(--ep-hue-2) calc(var(--ep-band) * 4),
+      var(--ep-hue-6) calc(var(--ep-band) * 5),
+      var(--ep-hue-1) calc(var(--ep-band) * 6)
+    ),
+    repeating-linear-gradient(
+      calc(var(--ep-lamp-turn) * -1),
+      hsl(0 0% 0% / 0.5) 0 3px,
+      hsl(0 0% 100% / 0.35) 3px 6px
+    );
+  --ep-sheet-size: 300% 300%, 180% 180%;
+  --ep-sheet-pos: var(--ep-drift), var(--ep-sweep);
+  --ep-sheet-mix: hard-light;
+  --ep-sheet-blend: color-dodge;
+  --ep-sheet-filter: brightness(calc(var(--ep-lift) * 0.8)) contrast(1.9) saturate(1.2);
+  --ep-sheet-opacity: 0.45;
 }
 
-.ep-fin-iridescent {
-  --ep-fin-img: linear-gradient(125deg, rgba(255,255,255,.05), rgba(255,120,190,.3) 18%, rgba(130,255,235,.28) 37%, rgba(255,255,160,.25) 55%, rgba(120,180,255,.3) 74%, rgba(225,130,255,.28) 90%), linear-gradient(70deg, transparent 35%, rgba(255,255,255,.4) 50%, transparent 65%);
-  --ep-fin-blend: soft-light;
-  --ep-fin-opacity: .7;
+/* OPAL - the same light, but soft: a thin film rather than a foil. */
+.ep-fin-opal {
+  --ep-sheet-img: linear-gradient(
+      126deg,
+      hsl(0 0% 100% / 0.06),
+      var(--ep-hue-1) 18%,
+      var(--ep-hue-4) 38%,
+      var(--ep-hue-2) 56%,
+      var(--ep-hue-5) 74%,
+      var(--ep-hue-6) 92%
+    ),
+    linear-gradient(68deg, transparent 34%, hsl(0 0% 100% / 0.42) 50%, transparent 66%);
+  --ep-sheet-size: 260% 260%, 200% 200%;
+  --ep-sheet-pos: var(--ep-drift), var(--ep-sweep);
+  --ep-sheet-blend: soft-light;
+  --ep-sheet-filter: saturate(1.15);
+  --ep-sheet-opacity: 0.72;
+  --ep-glare-opacity: 0.4;
 }
 
+/* NEBULA - a deep field with a spectrum turning slowly behind it. */
+.ep-fin-nebula {
+  --ep-sheet-img: radial-gradient(circle at 18% 26%, hsl(0 0% 100% / 0.95) 0 1px, transparent 2px),
+    radial-gradient(circle at 57% 73%, hsl(0 0% 100% / 0.85) 0 1px, transparent 2px),
+    radial-gradient(circle at 84% 31%, hsl(0 0% 100% / 0.9) 0 1px, transparent 2px),
+    radial-gradient(circle at 36% 88%, hsl(0 0% 100% / 0.7) 0 1px, transparent 2px),
+    conic-gradient(
+      from var(--ep-lamp-turn),
+      var(--ep-hue-6),
+      var(--ep-hue-5) 22%,
+      var(--ep-hue-4) 44%,
+      var(--ep-hue-1) 68%,
+      var(--ep-hue-6)
+    ),
+    radial-gradient(ellipse at 32% 62%, hsl(266 60% 30% / 0.75), hsl(240 40% 6% / 0.85) 72%);
+  --ep-sheet-size: 34px 34px, 51px 51px, 43px 43px, 61px 61px, 260% 260%, cover;
+  --ep-sheet-pos: var(--ep-sweep), var(--ep-sweep), var(--ep-sweep), var(--ep-sweep), var(--ep-drift), center;
+  --ep-sheet-mix: screen;
+  --ep-sheet-blend: color-dodge;
+  --ep-sheet-filter: brightness(calc(var(--ep-lift) * 0.85)) contrast(1.6);
+  --ep-sheet-opacity: 0.6;
+}
+
+/* BEACON - light thrown out from wherever the pointer is. */
+.ep-fin-beacon {
+  --ep-sheet-img: repeating-conic-gradient(
+      from var(--ep-lamp-turn) at var(--ep-lamp-x) var(--ep-lamp-y),
+      hsl(0 0% 100% / 0.3) 0deg 2deg,
+      transparent 2deg 11deg
+    ),
+    radial-gradient(circle at var(--ep-lamp-x) var(--ep-lamp-y), hsl(0 0% 100% / 0.5), transparent 58%);
+  --ep-sheet-size: cover, cover;
+  --ep-sheet-pos: center, center;
+  --ep-sheet-mix: screen;
+  --ep-sheet-blend: color-dodge;
+  --ep-sheet-filter: brightness(calc(var(--ep-lift) * 0.75)) contrast(1.5);
+  --ep-sheet-opacity: 0.5;
+  --ep-glare-img: none;
+}
+
+/* GLITTER - a field of specks, each catching the light as it passes. */
+.ep-fin-glitter {
+  --ep-sheet-img: radial-gradient(circle at 20% 20%, hsl(0 0% 100% / 0.9) 0 1px, transparent 2px),
+    radial-gradient(circle at 70% 40%, var(--ep-hue-2) 0 1px, transparent 2px),
+    radial-gradient(circle at 40% 80%, var(--ep-hue-4) 0 1px, transparent 2px),
+    radial-gradient(circle at 88% 76%, var(--ep-hue-6) 0 1px, transparent 2px),
+    radial-gradient(circle at var(--ep-lamp-x) var(--ep-lamp-y), hsl(0 0% 100% / 0.65), transparent 62%);
+  --ep-sheet-size: 13px 13px, 17px 17px, 19px 19px, 23px 23px, cover;
+  --ep-sheet-pos: var(--ep-sweep), var(--ep-sweep), var(--ep-sweep), var(--ep-sweep), center;
+  --ep-sheet-mix: screen;
+  --ep-sheet-blend: color-dodge;
+  --ep-sheet-filter: brightness(calc(var(--ep-lift) * 0.9)) contrast(1.8);
+  --ep-sheet-opacity: 0.55;
+  --ep-glare-opacity: 0.3;
+}
+
+/* CRACKLE - a broken surface: facets that flash one at a time. */
+.ep-fin-crackle {
+  --ep-sheet-img: repeating-conic-gradient(
+      from calc(var(--ep-lamp-turn) * 0.5) at 32% 38%,
+      hsl(0 0% 100% / 0.7) 0deg 5deg,
+      hsl(0 0% 0% / 0.5) 5deg 8deg,
+      transparent 8deg 24deg
+    ),
+    repeating-conic-gradient(
+      from calc(var(--ep-lamp-turn) * -0.5) at 71% 66%,
+      hsl(190 90% 92% / 0.6) 0deg 4deg,
+      hsl(0 0% 0% / 0.42) 4deg 7deg,
+      transparent 7deg 21deg
+    );
+  --ep-sheet-size: cover, cover;
+  --ep-sheet-pos: center, center;
+  --ep-sheet-mix: hard-light;
+  --ep-sheet-blend: hard-light;
+  --ep-sheet-filter: brightness(var(--ep-lift)) contrast(1.4);
+  --ep-sheet-opacity: 0.5;
+}
+
+/* SATIN - woven thread: the sheen runs along the weave, not across it. */
 .ep-fin-satin {
-  --ep-fin-img: repeating-linear-gradient(104deg, rgba(255,255,255,.12) 0 1px, rgba(255,255,255,.03) 1px 3px, transparent 3px 8px), linear-gradient(105deg, rgba(80,80,80,.25), rgba(255,255,255,.35) 48%, rgba(70,70,70,.25));
-  --ep-fin-blend: soft-light;
-  --ep-fin-opacity: .75;
+  --ep-sheet-img: repeating-linear-gradient(
+      104deg,
+      hsl(0 0% 100% / 0.14) 0 1px,
+      hsl(0 0% 100% / 0.04) 1px 3px,
+      transparent 3px 8px
+    ),
+    linear-gradient(104deg, hsl(0 0% 30% / 0.28), hsl(0 0% 100% / 0.4) 48%, hsl(0 0% 28% / 0.28));
+  --ep-sheet-size: cover, 220% 220%;
+  --ep-sheet-pos: center, var(--ep-sweep);
+  --ep-sheet-blend: soft-light;
+  --ep-sheet-opacity: 0.78;
+  --ep-glare-opacity: 0.28;
 }
 
-.ep-fin-emboss {
-  --ep-fin-img: linear-gradient(135deg, rgba(255,255,255,.38) 0%, rgba(255,255,255,.08) 28%, transparent 38%, transparent 62%, rgba(0,0,0,.22) 72%, rgba(255,255,255,.12) 100%), linear-gradient(315deg, rgba(0,0,0,.15), transparent 45%, rgba(255,255,255,.2) 55%, transparent);
-  --ep-fin-blend: overlay;
-  --ep-fin-opacity: .7;
+/* WEAVE - a coarse cloth, lit across the grain. */
+.ep-fin-weave {
+  --ep-sheet-img: repeating-linear-gradient(0deg, hsl(0 0% 100% / 0.1) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(90deg, hsl(0 0% 0% / 0.09) 0 1px, transparent 1px 4px),
+    linear-gradient(140deg, hsl(0 0% 100% / 0.2), hsl(0 0% 30% / 0.2));
+  --ep-sheet-size: cover, cover, 200% 200%;
+  --ep-sheet-pos: center, center, var(--ep-sweep);
+  --ep-sheet-blend: overlay;
+  --ep-sheet-opacity: 0.6;
+  --ep-glare-opacity: 0.25;
 }
 
-.ep-fin-sparkle {
-  --ep-fin-img: radial-gradient(circle at 12% 22%, rgba(255,255,255,.95) 0 1px, transparent 2px), radial-gradient(circle at 43% 71%, rgba(255,255,255,.8) 0 1px, transparent 2px), radial-gradient(circle at 78% 34%, rgba(255,255,255,.9) 0 1px, transparent 2px), radial-gradient(circle at 91% 82%, rgba(255,255,255,.7) 0 1px, transparent 2px), radial-gradient(circle at 64% 12%, rgba(255,255,255,.75) 0 1px, transparent 2px), linear-gradient(120deg, transparent, rgba(255,255,255,.2), transparent);
-  --ep-fin-blend: screen;
-  --ep-fin-opacity: .72;
+/* RELIEF - stamped rather than printed: a raised edge and its shadow. */
+.ep-fin-relief {
+  --ep-sheet-img: linear-gradient(
+      var(--ep-lamp-turn),
+      hsl(0 0% 100% / 0.42) 0 26%,
+      transparent 38% 62%,
+      hsl(0 0% 0% / 0.3) 74%,
+      hsl(0 0% 100% / 0.14) 100%
+    ),
+    linear-gradient(calc(var(--ep-lamp-turn) + 180deg), hsl(0 0% 0% / 0.18), transparent 46%, hsl(0 0% 100% / 0.22) 56%, transparent);
+  --ep-sheet-size: cover, cover;
+  --ep-sheet-pos: center, center;
+  --ep-sheet-mix: overlay;
+  --ep-sheet-blend: hard-light;
+  --ep-sheet-opacity: 0.68;
+  --ep-glare-opacity: 0.3;
 }
 
-.ep-fin-linen {
-  --ep-fin-img: repeating-linear-gradient(0deg, rgba(255,255,255,.08) 0 1px, transparent 1px 4px), repeating-linear-gradient(90deg, rgba(0,0,0,.07) 0 1px, transparent 1px 4px), linear-gradient(135deg, rgba(255,255,255,.15), rgba(80,80,80,.15));
-  --ep-fin-blend: overlay;
-  --ep-fin-opacity: .55;
-}
-
-.ep-fin-crystal {
-  --ep-fin-img: linear-gradient(127deg, transparent 0 17%, rgba(255,255,255,.4) 18% 19%, transparent 20% 41%, rgba(255,255,255,.28) 42% 43%, transparent 44% 66%, rgba(255,255,255,.38) 67% 68%, transparent 69%), linear-gradient(37deg, transparent 0 28%, rgba(255,255,255,.22) 29% 30%, transparent 31% 58%, rgba(255,255,255,.32) 59% 60%, transparent 61%);
-  --ep-fin-blend: screen;
-  --ep-fin-opacity: .65;
-}
-
-.ep-fin-radiant {
-  --ep-fin-img: repeating-conic-gradient(from 12deg, rgba(255,255,255,.18) 0deg 2deg, transparent 2deg 12deg), radial-gradient(circle at 50% 50%, rgba(255,255,255,.4), transparent 55%);
-  --ep-fin-blend: screen;
-  --ep-fin-opacity: .55;
-}
-
+/* HAMMERED - beaten by hand: dents that hold the light unevenly. */
 .ep-fin-hammered {
-  --ep-fin-img: radial-gradient(ellipse at 15% 20%, rgba(255,255,255,.32) 0 3%, transparent 8%), radial-gradient(ellipse at 48% 64%, rgba(0,0,0,.22) 0 4%, transparent 10%), radial-gradient(ellipse at 82% 35%, rgba(255,255,255,.3) 0 3%, transparent 9%), radial-gradient(ellipse at 70% 88%, rgba(0,0,0,.18) 0 3%, transparent 8%), linear-gradient(125deg, rgba(255,255,255,.2), rgba(70,70,70,.2));
-  --ep-fin-blend: overlay;
-  --ep-fin-opacity: .65;
+  --ep-sheet-img: radial-gradient(ellipse at 16% 22%, hsl(0 0% 100% / 0.34) 0 3%, transparent 9%),
+    radial-gradient(ellipse at 49% 63%, hsl(0 0% 0% / 0.26) 0 4%, transparent 11%),
+    radial-gradient(ellipse at 81% 34%, hsl(0 0% 100% / 0.3) 0 3%, transparent 10%),
+    radial-gradient(ellipse at 69% 87%, hsl(0 0% 0% / 0.2) 0 3%, transparent 9%),
+    linear-gradient(var(--ep-lamp-turn), hsl(0 0% 100% / 0.22), hsl(0 0% 28% / 0.22));
+  --ep-sheet-size: 44px 44px, 52px 52px, 38px 38px, 60px 60px, 200% 200%;
+  --ep-sheet-pos: var(--ep-drift), var(--ep-drift), var(--ep-drift), var(--ep-drift), var(--ep-sweep);
+  --ep-sheet-mix: overlay;
+  --ep-sheet-blend: hard-light;
+  --ep-sheet-filter: brightness(var(--ep-lift));
+  --ep-sheet-opacity: 0.6;
+}
+
+/* ==========================================================================
+   WHEN NOT TO DO ANY OF THIS
+   ========================================================================== */
+
+/*
+  Reduced motion: the material stays, the light stops following. Keeping the
+  finish and dropping only the movement is the point - somebody who cannot
+  bear the movement should still be able to tell a foil from a matte.
+*/
+@media (prefers-reduced-motion: reduce) {
+  .ep-fin::before,
+  .ep-fin::after {
+    --ep-lamp-x: 42%;
+    --ep-lamp-y: 28%;
+    --ep-lamp-dx: -8%;
+    --ep-lamp-dy: -22%;
+    --ep-lamp-reach: 0.45;
+    --ep-lamp-turn: 115deg;
+    will-change: auto;
+  }
+}
+
+/* High contrast: the whole layer stands down rather than tinting a system
+   colour it was never asked about. */
+@media (forced-colors: active) {
+  .ep-fin::before,
+  .ep-fin::after {
+    display: none;
+  }
 }
 
 /* -- M1: high-contrast / forced-colors mode -------------------------------- */
@@ -1264,8 +1596,7 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
   .ep-rating-pip { forced-color-adjust: auto; }
   /* The system owns the colours here: the formatting layer stands down. */
   .ep-fmt { --ep-fmt-bg: transparent; --ep-fmt-fg: currentColor; }
-  .ep-fin::after { display: none; }
-  .ep-fin-negative { filter: none; }
+  .ep-fin::before, .ep-fin::after { display: none; }
   .ep-sidebar :focus-visible, .ep-table-view :focus-visible, .ep-popup :focus-visible,
   .ep-entry:focus-visible, .ep-rating:focus-visible, .ep-section-title:focus-visible { outline: 2px solid Highlight; outline-offset: 1px; }
 }

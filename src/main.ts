@@ -45,6 +45,7 @@ import { setSemanticTable } from "./utils/semantic";
 import { anchors } from "./utils/semantic-anchors";
 import { buildTable, readCache } from "./utils/semantic-build";
 import { configureTabChain } from "./ui/components/tab-chain";
+import { installLamp } from "./ui/render/lamp";
 import { NoteFacade } from "./core/note-model";
 
 /**
@@ -277,6 +278,13 @@ export default class ExtendedPropertiesPlugin extends Plugin {
         }, () => this.props.knownProps()).open(),
     });
     void this.loadSemanticTable();
+
+    // One lamp per window: the finishes are lit by the pointer, and a popout
+    // is its own document with its own pointer to follow.
+    this.register(installLamp(window));
+    this.registerEvent(
+      this.app.workspace.on("window-open", (win) => this.register(installLamp(win.win)))
+    );
     this.settingTab = new EPSettingTab(this.app, this);
     this.addSettingTab(this.settingTab);
 

@@ -795,17 +795,19 @@ var en_default = {
   "options.formatScope.key": "This property everywhere",
   "options.formatScope.row": "Only this row",
   "finish.matte": "Matte",
-  "finish.gloss": "Gloss",
+  "finish.sheen": "Sheen",
+  "finish.mirror": "Mirror",
   "finish.foil": "Foil",
-  "finish.prismatic": "Prismatic foil",
-  "finish.holographic": "Holographic",
-  "finish.iridescent": "Iridescent",
+  "finish.spectra": "Spectra",
+  "finish.prism": "Prism",
+  "finish.opal": "Opal",
+  "finish.nebula": "Nebula",
+  "finish.beacon": "Beacon",
+  "finish.glitter": "Glitter",
+  "finish.crackle": "Crackle",
   "finish.satin": "Satin",
-  "finish.emboss": "Emboss",
-  "finish.sparkle": "Sparkle",
-  "finish.linen": "Linen",
-  "finish.crystal": "Crystal",
-  "finish.radiant": "Radiant",
+  "finish.weave": "Weave",
+  "finish.relief": "Relief",
   "finish.hammered": "Hammered",
   "options.finishHeading": "Finishes",
   "options.finishHeadingDesc": "Laid over the colour, never instead of it. The first rule that speaks for a value wins, so put the particular ones first.",
@@ -2581,7 +2583,7 @@ function normalizeSettings(raw, defaultLayout) {
   }
   return s;
 }
-var CURRENT_SCHEMA = 8;
+var CURRENT_SCHEMA = 9;
 var SCHEMA_MIGRATIONS = [
   {
     to: 1,
@@ -2777,6 +2779,42 @@ var SCHEMA_MIGRATIONS = [
         negative: "emboss",
         etch: "emboss",
         prizm: "prismatic"
+      };
+      let changed = false;
+      const each = (rules) => {
+        for (const r of rules != null ? rules : []) {
+          const to = moved[r.finish];
+          if (!to) continue;
+          r.finish = to;
+          changed = true;
+        }
+      };
+      for (const rule of Object.values((_a = s.formatProps) != null ? _a : {})) each(rule.finishes);
+      const entry = (e) => {
+        var _a2;
+        return each((_a2 = e == null ? void 0 : e.format) == null ? void 0 : _a2.finishes);
+      };
+      for (const lk of Object.keys((_b = s.layouts) != null ? _b : {}))
+        for (const sec of (_c = s.layouts[lk].sections) != null ? _c : []) for (const e of (_d = sec.entries) != null ? _d : []) entry(e);
+      for (const k of Object.keys((_e = s.inlineEntries) != null ? _e : {})) entry((_f = s.inlineEntries) == null ? void 0 : _f[k]);
+      return changed;
+    }
+  },
+  {
+    to: 9,
+    name: "finishes-lit-by-a-pointer",
+    run: (s) => {
+      var _a, _b, _c, _d, _e, _f;
+      const moved = {
+        gloss: "sheen",
+        prismatic: "prism",
+        holographic: "spectra",
+        iridescent: "opal",
+        emboss: "relief",
+        sparkle: "glitter",
+        linen: "weave",
+        crystal: "crackle",
+        radiant: "beacon"
       };
       let changed = false;
       const each = (rules) => {
@@ -4556,24 +4594,26 @@ function pickFinish(rules, value) {
 // src/ui/render/finishes.ts
 var FINISHES = [
   "matte",
-  "gloss",
+  "sheen",
+  "mirror",
   "foil",
-  "prismatic",
-  "holographic",
-  "iridescent",
+  "spectra",
+  "prism",
+  "opal",
+  "nebula",
+  "beacon",
+  "glitter",
+  "crackle",
   "satin",
-  "emboss",
-  "sparkle",
-  "linen",
-  "crystal",
-  "radiant",
+  "weave",
+  "relief",
   "hammered"
 ];
 var NEEDS_FILL = /* @__PURE__ */ new Set([
   "matte",
   "satin",
-  "linen",
-  "emboss",
+  "weave",
+  "relief",
   "hammered"
 ]);
 function finishName(i18n, id) {
@@ -22213,6 +22253,62 @@ function readCache(raw) {
   return plain ? { words: obj, built: 0 } : { words: null, built: 0 };
 }
 
+// src/ui/render/lamp.ts
+var LOOK_EVERY = 1e3;
+var PROPS = ["x", "y", "dx", "dy", "reach", "turn"];
+function lighting(doc, seen) {
+  const now = Date.now();
+  if (now - seen.at < LOOK_EVERY) return seen.any;
+  seen.at = now;
+  seen.any = !!doc.querySelector(".ep-fin");
+  return seen.any;
+}
+function installLamp(win) {
+  const doc = win.document;
+  const root = doc.documentElement;
+  const seen = { at: 0, any: false };
+  let queued = false;
+  let x = 0;
+  let y = 0;
+  const write = () => {
+    queued = false;
+    if (!lighting(doc, seen)) return;
+    const w = win.innerWidth || 1;
+    const h = win.innerHeight || 1;
+    const px = x / w;
+    const py = y / h;
+    const dx = px - 0.5;
+    const dy = py - 0.5;
+    const reach = Math.min(1, Math.sqrt(dx * dx + dy * dy) * 2);
+    const turn = Math.atan2(dy, dx) * 180 / Math.PI + 180;
+    root.style.setProperty("--ep-lamp-x", (px * 100).toFixed(2) + "%");
+    root.style.setProperty("--ep-lamp-y", (py * 100).toFixed(2) + "%");
+    root.style.setProperty("--ep-lamp-dx", (dx * 100).toFixed(2) + "%");
+    root.style.setProperty("--ep-lamp-dy", (dy * 100).toFixed(2) + "%");
+    root.style.setProperty("--ep-lamp-reach", reach.toFixed(3));
+    root.style.setProperty("--ep-lamp-turn", turn.toFixed(1) + "deg");
+  };
+  const onMove = (e) => {
+    x = e.clientX;
+    y = e.clientY;
+    if (queued) return;
+    queued = true;
+    win.requestAnimationFrame(write);
+  };
+  const release = () => {
+    for (const p of PROPS) root.style.removeProperty("--ep-lamp-" + p);
+  };
+  win.addEventListener("pointermove", onMove, { passive: true });
+  doc.addEventListener("pointerleave", release);
+  win.addEventListener("blur", release);
+  return () => {
+    win.removeEventListener("pointermove", onMove);
+    doc.removeEventListener("pointerleave", release);
+    win.removeEventListener("blur", release);
+    release();
+  };
+}
+
 // src/main.ts
 var FEATURE_MODULES = [rollingModule, dnd5eModule, inlineModule];
 var ADOPTION_SETTLE_MS = 1500;
@@ -22393,6 +22489,10 @@ var ExtendedPropertiesPlugin = class extends import_obsidian50.Plugin {
       }, () => this.props.knownProps()).open()
     });
     void this.loadSemanticTable();
+    this.register(installLamp(window));
+    this.registerEvent(
+      this.app.workspace.on("window-open", (win) => this.register(installLamp(win.win)))
+    );
     this.settingTab = new EPSettingTab(this.app, this);
     this.addSettingTab(this.settingTab);
     this.addCommand({

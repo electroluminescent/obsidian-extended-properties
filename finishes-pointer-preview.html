@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Extended Properties - the next finishes</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      /*
+        The harness only, kept for looking at the finishes over a range of
+        fills without opening a vault. It loads the plugin's own stylesheet,
+        so what is shown here is what ships; the watcher below is the same one
+        the plugin installs (see src/ui/render/lamp.ts).
+      */
+      body {
+        margin: 0;
+        padding: 28px;
+        background: #1b1b1f;
+        color: #dcddde;
+        font: 14px/1.4 ui-sans-serif, system-ui, sans-serif;
+      }
+      h1 { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
+      p.note { color: #9a9aa2; max-width: 60ch; margin: 0 0 20px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+      .cell { display: grid; gap: 6px; }
+      .name { color: #9a9aa2; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; }
+      /* Stands in for a formatted row: a fill with a legible foreground. */
+      .row {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 8px 12px; border-radius: 8px; font-weight: 600;
+        background: var(--fill); color: var(--fg);
+      }
+      .row .unit { opacity: .8; font-weight: 400; }
+      .swatches { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
+      .swatches button {
+        border: 1px solid #3a3a42; background: #26262c; color: #dcddde;
+        border-radius: 999px; padding: 4px 12px; cursor: pointer; font: inherit;
+      }
+      .swatches button[aria-pressed="true"] { background: #4c6ef5; border-color: #4c6ef5; color: #fff; }
+    </style>
+  </head>
+  <body>
+    <h1>The next finishes</h1>
+    <p class="note">
+      Move the pointer anywhere in the window: one lamp, every finish answering to
+      it together. Pick a fill to see each finish over a different colour.
+    </p>
+    <div class="swatches" id="fills"></div>
+    <div class="grid" id="grid"></div>
+
+    <script>
+      // The finishes, in the order the settings would offer them.
+      const FINISHES = [
+        "matte", "sheen", "mirror", "foil", "spectra", "prism", "opal",
+        "nebula", "beacon", "glitter", "crackle", "satin", "weave",
+        "relief", "hammered",
+      ];
+      const FILLS = ["#8b1e3f", "#1f6f8b", "#2f7a45", "#7a5c1f", "#4b3f8b", "#c7ccd1", "#2a2a30"];
+
+      /** Black or white, whichever can be read on the fill (as the plugin does). */
+      const readableOn = (hex) => {
+        const n = parseInt(hex.slice(1), 16);
+        const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
+          const s = v / 255;
+          return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+        });
+        const l = 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+        return (l + 0.05) / 0.05 >= 1.05 / (l + 0.05) ? "#000000" : "#ffffff";
+      };
+
+      const grid = document.getElementById("grid");
+      const draw = (fill) => {
+        grid.textContent = "";
+        for (const id of FINISHES) {
+          const cell = document.createElement("div");
+          cell.className = "cell";
+          const name = document.createElement("div");
+          name.className = "name";
+          name.textContent = id;
+          const row = document.createElement("div");
+          row.className = "row ep-fin ep-fin-" + id;
+          row.style.setProperty("--fill", fill);
+          row.style.setProperty("--fg", readableOn(fill));
+          row.innerHTML = '<span>Strength</span><span>18 <span class="unit">mod</span></span>';
+          cell.append(name, row);
+          grid.append(cell);
+        }
+      };
+
+      const fills = document.getElementById("fills");
+      FILLS.forEach((hex, i) => {
+        const b = document.createElement("button");
+        b.style.background = hex;
+        b.style.color = readableOn(hex);
+        b.textContent = hex;
+        b.setAttribute("aria-pressed", String(i === 0));
+        b.onclick = () => {
+          for (const other of fills.children) other.setAttribute("aria-pressed", "false");
+          b.setAttribute("aria-pressed", "true");
+          draw(hex);
+        };
+        fills.append(b);
+      });
+      draw(FILLS[0]);
+
+      /*
+        The pointer watcher, in the shape the plugin will want it.
+
+        One listener for the whole document, rAF-throttled, writing six custom
+        properties on the root. No per-element work, no per-element listeners:
+        every finish on screen is lit by the same lamp, which is both the look
+        we are after and the only version of this that stays cheap with fifty
+        formatted rows on screen.
+      */
+      const root = document.documentElement;
+      let queued = false;
+      let last = { x: 0, y: 0 };
+      const write = () => {
+        queued = false;
+        const w = window.innerWidth || 1;
+        const h = window.innerHeight || 1;
+        const px = last.x / w;
+        const py = last.y / h;
+        const dx = px - 0.5;
+        const dy = py - 0.5;
+        const reach = Math.min(1, Math.hypot(dx, dy) * 2);
+        const turn = (Math.atan2(dy, dx) * 180) / Math.PI + 180;
+        root.style.setProperty("--ep-lamp-x", (px * 100).toFixed(2) + "%");
+        root.style.setProperty("--ep-lamp-y", (py * 100).toFixed(2) + "%");
+        root.style.setProperty("--ep-lamp-dx", (dx * 100).toFixed(2) + "%");
+        root.style.setProperty("--ep-lamp-dy", (dy * 100).toFixed(2) + "%");
+        root.style.setProperty("--ep-lamp-reach", reach.toFixed(3));
+        root.style.setProperty("--ep-lamp-turn", turn.toFixed(1) + "deg");
+      };
+      window.addEventListener("pointermove", (e) => {
+        last = { x: e.clientX, y: e.clientY };
+        if (queued) return;
+        queued = true;
+        requestAnimationFrame(write);
+      }, { passive: true });
+      // Hand the lamp back when the pointer leaves, so nothing is left lit
+      // from a corner it has wandered out of.
+      window.addEventListener("pointerleave", () => {
+        for (const p of ["x", "y", "dx", "dy", "reach", "turn"]) root.style.removeProperty("--ep-lamp-" + p);
+      });
+    </script>
+  </body>
+</html>

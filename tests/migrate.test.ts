@@ -244,16 +244,29 @@ describe("runSchemaMigrations (D3)", () => {
       },
     };
     runSchemaMigrations(s);
-    expect(s.formatProps.hp.finishes?.[0].finish).toBe("gloss");
-    expect(s.layouts.character.sections[0].entries[0].format?.finishes?.[0].finish).toBe("sparkle");
+    // ...and then again when gloss became sheen and sparkle became glitter.
+    expect(s.formatProps.hp.finishes?.[0].finish).toBe("sheen");
+    expect(s.layouts.character.sections[0].entries[0].format?.finishes?.[0].finish).toBe("glitter");
   });
 
   it("leaves a finish that is still drawn alone", () => {
     const s = defaultSettings();
     s.schemaVersion = 7;
-    s.formatProps = { hp: { finishes: [{ when: "all", finish: "linen" }] } };
+    s.formatProps = { hp: { finishes: [{ when: "all", finish: "matte" }] } };
     runSchemaMigrations(s);
-    expect(s.formatProps.hp.finishes?.[0].finish).toBe("linen");
+    expect(s.formatProps.hp.finishes?.[0].finish).toBe("matte");
+  });
+
+  it("carries the renamed finishes onto the ones lit by the pointer", () => {
+    const s = defaultSettings();
+    s.schemaVersion = 8;
+    s.formatProps = {
+      hp: { finishes: [{ when: "all", finish: "holographic" }] },
+      ac: { finishes: [{ when: "all", finish: "linen" }, { when: "all", finish: "emboss" }] },
+    };
+    runSchemaMigrations(s);
+    expect(s.formatProps.hp.finishes?.[0].finish).toBe("spectra");
+    expect(s.formatProps.ac.finishes?.map((f) => f.finish)).toEqual(["weave", "relief"]);
   });
 
   it("runs only steps newer than the stored version, in ascending order", () => {

@@ -1,5 +1,27 @@
 # Changelog
 
+## 4.62.0
+
+- **The finishes are lit by your pointer.** Fifteen materials - matte, sheen,
+  mirror, foil, spectra, prism, opal, nebula, beacon, glitter, crackle, satin,
+  weave, relief and hammered - each built as two layers blended into the
+  palette's colour: the sheet it is made of, and the light on it. A foil that
+  never catches the light is a picture of a foil; these catch it.
+- **One lamp for the whole screen.** A single watcher per window follows the
+  pointer and writes a few numbers on the document; every finish on every
+  property reads the same ones, so the sheet is lit by one light rather than
+  each row by its own - and fifty formatted rows cost one style recalculation
+  a frame rather than fifty sets of listeners. A popout window gets its own
+  lamp, and nothing is written at all while no finish is on screen.
+- Every one of those numbers has a resting value in the stylesheet, so the
+  finishes are correct with no pointer at all - on a phone, before the first
+  movement, or under **reduced motion**, which keeps the material and stops
+  the light. Windows High Contrast stands the whole layer down as before.
+- Anything wearing one of the previous finishes is carried across: gloss reads
+  as sheen, holographic as spectra, iridescent as opal, prismatic as prism,
+  emboss as relief, sparkle as glitter, linen as weave, crystal as crackle and
+  radiant as beacon.
+
 ## 4.61.2
 
 - **The colour follows a slider while it is being dragged.** The row was being

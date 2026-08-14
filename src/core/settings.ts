@@ -311,7 +311,7 @@ export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EP
 // ---------------------------------------------------------------------------
 
 /** Current settings schema version. Bump when adding a migration step below. */
-export const CURRENT_SCHEMA = 8;
+export const CURRENT_SCHEMA = 9;
 
 /** One ordered migration step: bring settings up to schema `to`. */
 export interface Migration {
@@ -553,6 +553,41 @@ export const SCHEMA_MIGRATIONS: Migration[] = [
         negative: "emboss",
         etch: "emboss",
         prizm: "prismatic",
+      };
+      let changed = false;
+      const each = (rules: { finish: string }[] | undefined): void => {
+        for (const r of rules ?? []) {
+          const to = moved[r.finish];
+          if (!to) continue;
+          r.finish = to;
+          changed = true;
+        }
+      };
+      for (const rule of Object.values(s.formatProps ?? {})) each(rule.finishes);
+      const entry = (e: Entry | undefined): void => each(e?.format?.finishes);
+      for (const lk of Object.keys(s.layouts ?? {}))
+        for (const sec of s.layouts[lk].sections ?? []) for (const e of sec.entries ?? []) entry(e);
+      for (const k of Object.keys(s.inlineEntries ?? {})) entry(s.inlineEntries?.[k]);
+      return changed;
+    },
+  },
+  {
+    to: 9,
+    name: "finishes-lit-by-a-pointer",
+    run: (s) => {
+      // The finishes were redrawn again, this time as materials with the light
+      // moving across them, and several were renamed for what they now are.
+      // Every old name is pointed at the one that replaced it.
+      const moved: Record<string, string> = {
+        gloss: "sheen",
+        prismatic: "prism",
+        holographic: "spectra",
+        iridescent: "opal",
+        emboss: "relief",
+        sparkle: "glitter",
+        linen: "weave",
+        crystal: "crackle",
+        radiant: "beacon",
       };
       let changed = false;
       const each = (rules: { finish: string }[] | undefined): void => {
