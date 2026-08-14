@@ -717,10 +717,9 @@ var en_default = {
   "palette.delete": "Delete this palette",
   "palette.remove": "Remove",
   "palette.mode": "How it reads a value",
-  "palette.modeDesc": "The wheel sweeps a hue across the property's range; stops blend between the colours you pin; bands hold a colour flat between two edges; words carry colours of their own.",
+  "palette.modeDesc": "The wheel sweeps a hue across the property's range; a scale pins colours to stops and holds them flat across bands; words carry colours of their own.",
   "palette.mode.wheel": "Wheel",
-  "palette.mode.points": "Stops",
-  "palette.mode.ranges": "Bands",
+  "palette.mode.bands": "Stops and bands",
   "palette.mode.semantic": "Words",
   "palette.scale": "What its numbers mean",
   "palette.scaleDesc": "Plain numbers, or dates under a date property's calendar - the edges are then typed and read in that property's own format.",
@@ -740,19 +739,24 @@ var en_default = {
   "palette.wheelChromaDesc": "How much colour there is in them.",
   "palette.wheelReverse": "Sweep the other way",
   "palette.wheelReverseDesc": "Travel anticlockwise from the starting hue instead.",
-  "palette.points": "Stops",
-  "palette.pointsDesc": "A colour pinned to a value. Between two stops the colour blends; beyond the ends it holds.",
-  "palette.pointAdd": "Add stop",
-  "palette.ranges": "Bands",
-  "palette.rangesDesc": "Every value between two edges takes one colour. Overlapping bands are refused; bands may share an edge.",
-  "palette.rangeAdd": "Add band",
+  "palette.scaleName": "The scale",
+  "palette.scaleDesc2": "Stops and bands, in value order, with the colours they wear beside them. A stop is one value; a band is every value between two edges. Overlapping bands are refused, but a stop may sit anywhere - including inside a band, which it then wins. The colours are a list of their own: drag one by its handle to move it past the others, or blend it from its neighbours.",
+  "palette.point": "Stop",
+  "palette.band": "Band",
+  "palette.addPoint": "+ stop",
+  "palette.addBand": "+ band",
+  "palette.addPointTip": "Add a stop here, coloured between the two beside it",
+  "palette.addBandTip": "Add a band here, coloured between the two beside it",
+  "palette.colorMove": "Drag to move this colour up or down the list",
+  "palette.blendMid": "Halfway between the colours above and below",
+  "palette.blendPos": "Blend the colours above and below by where this step sits",
   "palette.linked": "Move edges together",
   "palette.linkedDesc": "Moving one edge carries its neighbour with it, so closing a gap on one side opens none on the other.",
   "palette.outside": "Beyond the ends",
-  "palette.outsideDesc": "What a value below the first band or above the last one takes.",
+  "palette.outsideDesc": "What a value below the first step or above the last one takes.",
   "palette.outside.none": "No colour",
-  "palette.outside.clamp": "The nearest band's colour",
-  "palette.gaps": "Between bands",
+  "palette.outside.clamp": "The nearest step's colour",
+  "palette.gaps": "Between steps",
   "palette.gapsDesc": "What a value in a gap takes.",
   "palette.gaps.none": "No colour",
   "palette.gaps.blend": "Blend across the gap",
@@ -2578,7 +2582,7 @@ function normalizeSettings(raw, defaultLayout) {
   }
   return s;
 }
-var CURRENT_SCHEMA = 6;
+var CURRENT_SCHEMA = 7;
 var SCHEMA_MIGRATIONS = [
   {
     to: 1,
@@ -2714,6 +2718,42 @@ var SCHEMA_MIGRATIONS = [
       for (const lk of Object.keys((_a = s.layouts) != null ? _a : {}))
         for (const sec of (_b = s.layouts[lk].sections) != null ? _b : []) for (const e of (_c = sec.entries) != null ? _c : []) each(e);
       for (const k of Object.keys((_d = s.inlineEntries) != null ? _d : {})) each((_e = s.inlineEntries) == null ? void 0 : _e[k]);
+      return changed;
+    }
+  },
+  {
+    to: 7,
+    name: "one-scale-of-stops-and-bands",
+    run: (s) => {
+      var _a, _b, _c, _d, _e;
+      let changed = false;
+      for (const p of (_a = s.palettes) != null ? _a : []) {
+        const legacy = p;
+        const wasPoints = legacy.mode === "points";
+        if (!wasPoints && legacy.mode !== "ranges") continue;
+        const steps = [];
+        const colors = [];
+        if (wasPoints)
+          for (const pt of [...(_b = legacy.points) != null ? _b : []].sort((a, b) => a.at - b.at)) {
+            steps.push({ from: pt.at, to: pt.at, point: true });
+            colors.push(pt.color);
+          }
+        else
+          for (const r of [...(_c = legacy.ranges) != null ? _c : []].sort((a, b) => a.from - b.from)) {
+            steps.push({ from: r.from, to: r.to, domFrom: r.domFrom, domTo: r.domTo });
+            colors.push(r.color);
+          }
+        legacy.steps = steps;
+        legacy.colors = colors;
+        legacy.mode = "bands";
+        if (wasPoints) {
+          legacy.gaps = (_d = legacy.gaps) != null ? _d : "blend";
+          legacy.outside = (_e = legacy.outside) != null ? _e : "clamp";
+        }
+        delete legacy.points;
+        delete legacy.ranges;
+        changed = true;
+      }
       return changed;
     }
   }
@@ -4215,13 +4255,16 @@ function readableOn(bg) {
   const onBlack = (l + 0.05) / 0.05;
   return onBlack >= onWhite ? "#000000" : "#ffffff";
 }
-function sortedPoints(p) {
-  var _a;
-  return ((_a = p.points) != null ? _a : []).filter((x) => Number.isFinite(x.at) && !!x.color).sort((a, b) => a.at - b.at);
+function centerOf(step) {
+  return (step.from + step.to) / 2;
 }
-function sortedRanges(p) {
-  var _a;
-  return ((_a = p.ranges) != null ? _a : []).filter((r) => Number.isFinite(r.from) && Number.isFinite(r.to) && !!r.color).sort((a, b) => a.from - b.from || a.to - b.to);
+function scaleOf(p) {
+  var _a, _b;
+  const colors = (_a = p.colors) != null ? _a : [];
+  return ((_b = p.steps) != null ? _b : []).map((step, i) => {
+    var _a2;
+    return { step, color: (_a2 = colors[i]) != null ? _a2 : "" };
+  }).filter((e) => Number.isFinite(e.step.from) && Number.isFinite(e.step.to) && !!e.color).sort((a, b) => a.step.from - b.step.from || a.step.to - b.step.to);
 }
 function wheelColor(w, v, span) {
   const width = span.max - span.min;
@@ -4229,44 +4272,31 @@ function wheelColor(w, v, span) {
   const hue = w.start + (w.reverse ? -1 : 1) * t * w.spread;
   return fromOklch(w.lightness, w.chroma, hue);
 }
-function pointColor(p, v) {
-  var _a;
-  const pts = sortedPoints(p);
-  if (!pts.length) return void 0;
-  if (v <= pts[0].at) return pts[0].color;
-  const last = pts[pts.length - 1];
-  if (v >= last.at) return last.color;
-  for (let i = 1; i < pts.length; i++) {
-    const a = pts[i - 1];
-    const b = pts[i];
-    if (v > b.at) continue;
-    const width = b.at - a.at;
-    return width <= 0 ? b.color : mixColors(a.color, b.color, (v - a.at) / width, (_a = p.arc) != null ? _a : "short");
-  }
-  return last.color;
-}
-function rangeColor(p, v) {
-  var _a;
-  const rs = sortedRanges(p);
-  if (!rs.length) return void 0;
-  const hits = rs.filter((r) => v >= Math.min(r.from, r.to) && v <= Math.max(r.from, r.to));
+function scaleColor(p, v) {
+  var _a, _b;
+  const all = scaleOf(p);
+  if (!all.length) return void 0;
+  const hits = all.filter((e) => v >= e.step.from && v <= e.step.to);
   if (hits.length === 1) return hits[0].color;
   if (hits.length > 1) {
-    const dominant = hits.find((r) => v === r.from && r.domFrom || v === r.to && r.domTo);
-    return (dominant != null ? dominant : hits[0]).color;
+    const stop2 = hits.find((e) => e.step.point);
+    if (stop2) return stop2.color;
+    const dom = hits.find((e) => v === e.step.from && e.step.domFrom || v === e.step.to && e.step.domTo);
+    return (dom != null ? dom : hits[0]).color;
   }
-  const first = rs[0];
-  const last = rs[rs.length - 1];
-  if (v < first.from || v > last.to) return p.outside === "clamp" ? v < first.from ? first.color : last.color : void 0;
+  let left;
+  let right;
+  for (const e of all) {
+    if (e.step.to <= v && (!left || e.step.to > left.step.to)) left = e;
+    if (e.step.from >= v && (!right || e.step.from < right.step.from)) right = e;
+  }
+  if (!left || !right) {
+    if (p.outside !== "clamp") return void 0;
+    return (_a = left != null ? left : right) == null ? void 0 : _a.color;
+  }
   if (p.gaps !== "blend") return void 0;
-  for (let i = 1; i < rs.length; i++) {
-    const a = rs[i - 1];
-    const b = rs[i];
-    if (v <= a.to || v >= b.from) continue;
-    const width = b.from - a.to;
-    return width <= 0 ? b.color : mixColors(a.color, b.color, (v - a.to) / width, (_a = p.arc) != null ? _a : "short");
-  }
-  return void 0;
+  const width = right.step.from - left.step.to;
+  return width <= 0 ? right.color : mixColors(left.color, right.color, (v - left.step.to) / width, (_b = p.arc) != null ? _b : "short");
 }
 function colorAt(palette, v, span) {
   var _a;
@@ -4274,10 +4304,8 @@ function colorAt(palette, v, span) {
   switch (palette.mode) {
     case "wheel":
       return span ? wheelColor((_a = palette.wheel) != null ? _a : defaultWheel(), v, span) : void 0;
-    case "points":
-      return pointColor(palette, v);
-    case "ranges":
-      return rangeColor(palette, v);
+    case "bands":
+      return scaleColor(palette, v);
     default:
       return void 0;
   }
@@ -4297,24 +4325,29 @@ function colorForText(palette, text, allowed) {
   if (i < 0) return void 0;
   return colorAt(palette, i, { min: 0, max: Math.max(1, list.length - 1) });
 }
-function rangesValid(ranges) {
-  const rs = [...ranges].sort((a, b) => a.from - b.from);
-  for (let i = 0; i < rs.length; i++) {
-    if (rs[i].to < rs[i].from) return false;
-    if (i > 0 && rs[i].from < rs[i - 1].to) return false;
+function stepsValid(steps) {
+  const bands = steps.filter((x) => !x.point).sort((a, b) => a.from - b.from);
+  for (let i = 0; i < bands.length; i++) {
+    if (bands[i].to < bands[i].from) return false;
+    if (i > 0 && bands[i].from < bands[i - 1].to) return false;
   }
-  return true;
+  return steps.every((x) => Number.isFinite(x.from) && Number.isFinite(x.to) && (!x.point || x.from === x.to));
 }
-function moveEdge(ranges, index, edge, value, linked) {
-  const rs = ranges.map((r2) => ({ ...r2 }));
+function moveEdge(steps, index, edge, value, linked) {
+  const rs = steps.map((r2) => ({ ...r2 }));
   const r = rs[index];
   if (!r || !Number.isFinite(value)) return rs;
+  if (r.point) {
+    r.from = value;
+    r.to = value;
+    return rs;
+  }
   if (edge === "from") {
     r.from = Math.min(value, r.to);
-    if (linked && rs[index - 1]) rs[index - 1].to = r.from;
+    if (linked && rs[index - 1] && !rs[index - 1].point) rs[index - 1].to = r.from;
   } else {
     r.to = Math.max(value, r.from);
-    if (linked && rs[index + 1]) rs[index + 1].from = r.to;
+    if (linked && rs[index + 1] && !rs[index + 1].point) rs[index + 1].from = r.to;
   }
   return rs;
 }
@@ -4325,31 +4358,45 @@ function setDom(r, edge, on) {
   if (edge === "from") r.domFrom = on || void 0;
   else r.domTo = on || void 0;
 }
-function ensureDominance(ranges) {
+function edgeContested(steps, index, edge) {
+  const me = steps[index];
+  if (!me || me.point) return false;
+  const at = edge === "from" ? me.from : me.to;
+  if (steps.some((o, j) => j !== index && o.point && o.from === at)) return false;
+  return steps.some((o, j) => j !== index && !o.point && (o.from === at || o.to === at));
+}
+function ensureDominance(steps) {
   var _a, _b;
-  const rs = ranges.map((r) => ({ ...r }));
+  const rs = steps.map((r) => ({ ...r }));
   const edges = /* @__PURE__ */ new Map();
   rs.forEach((r, i) => {
     var _a2;
+    if (r.point) return;
     for (const edge of ["from", "to"]) {
       const at = edge === "from" ? r.from : r.to;
-      const at2 = (_a2 = edges.get(at)) != null ? _a2 : [];
-      at2.push({ i, edge });
-      edges.set(at, at2);
+      const met = (_a2 = edges.get(at)) != null ? _a2 : [];
+      met.push({ i, edge });
+      edges.set(at, met);
     }
   });
-  for (const met of edges.values()) {
-    if (met.length < 2) {
+  for (const [at, met] of edges) {
+    const stopped = rs.some((o) => o.point && o.from === at);
+    if (met.length < 2 || stopped) {
       for (const e of met) setDom(rs[e.i], e.edge, false);
       continue;
     }
     const keep = (_b = (_a = met.find((e) => domOf(rs[e.i], e.edge))) != null ? _a : met.find((e) => e.edge === "from")) != null ? _b : met[0];
     for (const e of met) setDom(rs[e.i], e.edge, e === keep);
   }
+  for (const r of rs)
+    if (r.point) {
+      r.domFrom = void 0;
+      r.domTo = void 0;
+    }
   return rs;
 }
-function setDominant(ranges, index, edge, on) {
-  const rs = ranges.map((r) => ({ ...r }));
+function setDominant(steps, index, edge, on) {
+  const rs = steps.map((r) => ({ ...r }));
   const me = rs[index];
   if (!me) return rs;
   const at = edge === "from" ? me.from : me.to;
@@ -4361,6 +4408,75 @@ function setDominant(ranges, index, edge, on) {
       if (other.to === at) other.domTo = void 0;
     });
   return ensureDominance(rs);
+}
+function stepWidth(steps) {
+  if (!steps.length) return 10;
+  const lo = Math.min(...steps.map((s) => s.from));
+  const hi = Math.max(...steps.map((s) => s.to));
+  return hi > lo ? (hi - lo) / 10 : 10;
+}
+function insertStep(steps, colors, at, kind, arc = "short") {
+  const rs = steps.map((r) => ({ ...r }));
+  const cs = [...colors];
+  const i = Math.max(0, Math.min(at, rs.length));
+  const prev = rs[i - 1];
+  const next = rs[i];
+  const width = stepWidth(rs);
+  let made;
+  if (kind === "point") {
+    const v = prev && next ? (prev.to + next.from) / 2 : prev ? prev.to + width : next ? next.from - width : 0;
+    made = { from: v, to: v, point: true };
+  } else if (prev && next && next.from > prev.to) {
+    made = { from: prev.to, to: next.from };
+  } else if (prev) {
+    made = { from: prev.to, to: prev.to + width };
+    for (let j = i; j < rs.length; j++) {
+      rs[j].from += width;
+      rs[j].to += width;
+    }
+  } else if (next) {
+    made = { from: next.from - width, to: next.from };
+  } else {
+    made = { from: 0, to: width };
+  }
+  const a = cs[i - 1];
+  const b = cs[i];
+  const color = a && b ? mixColors(a, b, 0.5, arc) : a || b || "#888888";
+  rs.splice(i, 0, made);
+  cs.splice(i, 0, color);
+  return { steps: ensureDominance(rs), colors: cs };
+}
+function removeStep(steps, colors, index) {
+  return {
+    steps: ensureDominance(steps.filter((_, i) => i !== index)),
+    colors: colors.filter((_, i) => i !== index)
+  };
+}
+function moveColor(colors, from, to) {
+  const cs = [...colors];
+  if (from < 0 || from >= cs.length) return cs;
+  const target2 = Math.max(0, Math.min(to, cs.length - 1));
+  const [moved] = cs.splice(from, 1);
+  cs.splice(target2, 0, moved);
+  return cs;
+}
+function midpointBlend(colors, i, arc = "short") {
+  const a = colors[i - 1];
+  const b = colors[i + 1];
+  if (!a || !b) return a || b;
+  return mixColors(a, b, 0.5, arc);
+}
+function positionalBlend(steps, colors, i, arc = "short") {
+  const a = colors[i - 1];
+  const b = colors[i + 1];
+  if (!a || !b) return a || b;
+  const from = steps[i - 1];
+  const here = steps[i];
+  const to = steps[i + 1];
+  if (!from || !here || !to) return mixColors(a, b, 0.5, arc);
+  const width = centerOf(to) - centerOf(from);
+  const t = width === 0 ? 0.5 : clamp01((centerOf(here) - centerOf(from)) / width);
+  return mixColors(a, b, t, arc);
 }
 
 // src/utils/finish.ts
@@ -16260,15 +16376,15 @@ function preview(host, p) {
   const stops = [];
   for (let i = 0; i <= PREVIEW_STEPS; i++) {
     const t = i / PREVIEW_STEPS;
-    const at = p.mode === "wheel" ? span.min + t * (span.max - span.min) : scaleOf(p, t);
+    const at = p.mode === "wheel" ? span.min + t * (span.max - span.min) : valueAt(p, t);
     const c = colorAt(p, at, span);
     stops.push(`${c != null ? c : "transparent"} ${Math.round(t * 100)}%`);
   }
   bar.setCssStyles({ background: `linear-gradient(to right, ${stops.join(", ")})` });
 }
-function scaleOf(p, t) {
-  var _a, _b;
-  const xs = p.mode === "points" ? ((_a = p.points) != null ? _a : []).map((x) => x.at) : ((_b = p.ranges) != null ? _b : []).flatMap((r) => [r.from, r.to]);
+function valueAt(p, t) {
+  var _a;
+  const xs = ((_a = p.steps) != null ? _a : []).flatMap((r) => [r.from, r.to]);
   if (!xs.length) return t;
   const min = Math.min(...xs);
   const max = Math.max(...xs);
@@ -16289,7 +16405,7 @@ function renderPaletteEditor(c, p, ctx2) {
   const save = ctx2.save;
   preview(c, p);
   new import_obsidian37.Setting(c).setName(t("palette.mode")).setDesc(t("palette.modeDesc")).addDropdown((dd) => {
-    for (const m of ["wheel", "points", "ranges", "semantic"]) dd.addOption(m, t("palette.mode." + m));
+    for (const m of ["wheel", "bands", "semantic"]) dd.addOption(m, t("palette.mode." + m));
     dd.setValue(p.mode);
     dd.onChange((v) => {
       p.mode = v;
@@ -16299,8 +16415,7 @@ function renderPaletteEditor(c, p, ctx2) {
     });
   });
   if (p.mode === "wheel") renderWheel(c, p, ctx2);
-  if (p.mode === "points") renderPoints(c, p, ctx2);
-  if (p.mode === "ranges") renderRanges(c, p, ctx2);
+  if (p.mode === "bands") renderScale(c, p, ctx2);
   const dates = (_b = (_a = ctx2.dateProps) == null ? void 0 : _a.call(ctx2)) != null ? _b : [];
   if (dates.length && p.mode !== "semantic") {
     new import_obsidian37.Setting(c).setName(t("palette.scale")).setDesc(t("palette.scaleDesc")).addDropdown((dd) => {
@@ -16354,90 +16469,109 @@ function renderWheel(c, p, ctx2) {
     });
   });
 }
-function renderPoints(c, p, ctx2) {
-  var _a;
+function renderScale(c, p, ctx2) {
+  var _a, _b, _c;
   const t = ctx2.i18n.t.bind(ctx2.i18n);
   const cal = calendarOf(p, ctx2);
-  const pts = (_a = p.points) != null ? _a : p.points = [];
-  new import_obsidian37.Setting(c).setName(t("palette.points")).setDesc(t("palette.pointsDesc"));
-  const rows = c.createDiv({ cls: "ep-mini-list" });
-  pts.forEach((pt, i) => {
-    const row = new import_obsidian37.Setting(rows).setClass("ep-mini-row");
-    const box = row.controlEl;
-    numField(box, pt.at, cal ? "ep-pal-date" : "ep-pal-num", (n) => {
-      pt.at = n;
-      ctx2.save();
-      ctx2.redraw();
-    }, cal);
-    swatch(ctx2.colors, box, () => pt.color, (v) => {
-      pt.color = v;
-      ctx2.save();
-      ctx2.redraw();
-    });
-    row.addExtraButton(
-      (b) => b.setIcon("x").setTooltip(t("palette.remove")).onClick(() => {
-        pts.splice(i, 1);
-        ctx2.save();
-        ctx2.redraw();
-      })
-    );
-  });
-  new import_obsidian37.Setting(rows).setClass("ep-mini-row").addButton(
-    (b) => b.setButtonText(t("palette.pointAdd")).onClick(() => {
-      var _a2;
-      const last = pts[pts.length - 1];
-      pts.push({ at: last ? last.at + 10 : 0, color: (_a2 = last == null ? void 0 : last.color) != null ? _a2 : "#888888" });
-      ctx2.save();
-      ctx2.redraw();
-    })
-  );
-}
-function renderRanges(c, p, ctx2) {
-  var _a, _b;
-  const t = ctx2.i18n.t.bind(ctx2.i18n);
-  const cal = calendarOf(p, ctx2);
-  const settled = ensureDominance((_a = p.ranges) != null ? _a : p.ranges = []);
-  if (JSON.stringify(settled) !== JSON.stringify(p.ranges)) {
-    p.ranges = settled;
+  const settled = ensureDominance((_a = p.steps) != null ? _a : p.steps = []);
+  if (JSON.stringify(settled) !== JSON.stringify(p.steps)) {
+    p.steps = settled;
     ctx2.save();
   }
-  const rs = (_b = p.ranges) != null ? _b : p.ranges = [];
-  new import_obsidian37.Setting(c).setName(t("palette.ranges")).setDesc(t("palette.rangesDesc"));
+  const steps = (_b = p.steps) != null ? _b : p.steps = [];
+  const colors = (_c = p.colors) != null ? _c : p.colors = [];
+  while (colors.length < steps.length) colors.push("#888888");
+  new import_obsidian37.Setting(c).setName(t("palette.scaleName")).setDesc(t("palette.scaleDesc2"));
   const write = (next) => {
-    if (!rangesValid(next)) {
+    if (!stepsValid(next)) {
       ctx2.redraw();
       return;
     }
-    p.ranges = ensureDominance(next);
+    p.steps = ensureDominance(next);
     ctx2.save();
     ctx2.redraw();
   };
-  const rows = c.createDiv({ cls: "ep-mini-list" });
-  rs.forEach((r, i) => {
-    const row = new import_obsidian37.Setting(rows).setClass("ep-mini-row");
-    const box = row.controlEl;
-    edgeBox(box, r, "from", i, p, ctx2);
-    numField(box, r.from, cal ? "ep-pal-date" : "ep-pal-num", (n) => write(moveEdge(rs, i, "from", n, p.linked === true)), cal);
-    box.createSpan({ cls: "ep-pal-dash", text: "-" });
-    numField(box, r.to, cal ? "ep-pal-date" : "ep-pal-num", (n) => write(moveEdge(rs, i, "to", n, p.linked === true)), cal);
-    edgeBox(box, r, "to", i, p, ctx2);
-    swatch(ctx2.colors, box, () => r.color, (v) => {
-      r.color = v;
+  const put = (both) => {
+    p.steps = both.steps;
+    p.colors = both.colors;
+    ctx2.save();
+    ctx2.redraw();
+  };
+  const grid = c.createDiv({ cls: "ep-scale" });
+  const cells = [];
+  const insertBar = (at) => {
+    const bar = grid.createDiv({ cls: "ep-scale-ins" });
+    const add = (kind, label2, tip) => {
+      const b = bar.createEl("button", { cls: "ep-scale-add", text: label2 });
+      b.setAttr("aria-label", tip);
+      b.setAttr("title", tip);
+      b.onclick = () => {
+        var _a2;
+        return put(insertStep(steps, colors, at, kind, (_a2 = p.arc) != null ? _a2 : "short"));
+      };
+    };
+    add("point", t("palette.addPoint"), t("palette.addPointTip"));
+    add("band", t("palette.addBand"), t("palette.addBandTip"));
+  };
+  insertBar(0);
+  steps.forEach((r, i) => {
+    const row = grid.createDiv({ cls: "ep-scale-row" });
+    const vals = row.createDiv({ cls: "ep-scale-vals" });
+    vals.createSpan({ cls: "ep-scale-kind", text: r.point ? t("palette.point") : t("palette.band") });
+    if (r.point) {
+      numField(vals, r.from, cal ? "ep-pal-date" : "ep-pal-num", (n) => write(moveEdge(steps, i, "from", n, false)), cal);
+    } else {
+      edgeBox(vals, r, "from", i, p, ctx2);
+      numField(vals, r.from, cal ? "ep-pal-date" : "ep-pal-num", (n) => write(moveEdge(steps, i, "from", n, p.linked === true)), cal);
+      vals.createSpan({ cls: "ep-pal-dash", text: "-" });
+      numField(vals, r.to, cal ? "ep-pal-date" : "ep-pal-num", (n) => write(moveEdge(steps, i, "to", n, p.linked === true)), cal);
+      edgeBox(vals, r, "to", i, p, ctx2);
+    }
+    iconButton(vals, "x", t("palette.remove"), () => put(removeStep(steps, colors, i)));
+    const cell = row.createDiv({ cls: "ep-scale-color" });
+    cells.push(cell);
+    const grip = cell.createSpan({ cls: "ep-scale-grip", text: "::" });
+    grip.setAttr("aria-label", t("palette.colorMove"));
+    grip.setAttr("title", t("palette.colorMove"));
+    grip.tabIndex = 0;
+    swatch(ctx2.colors, cell, () => {
+      var _a2;
+      return (_a2 = colors[i]) != null ? _a2 : "#888888";
+    }, (v) => {
+      colors[i] = v;
       ctx2.save();
       ctx2.redraw();
     });
-    row.addExtraButton(
-      (b) => b.setIcon("x").setTooltip(t("palette.remove")).onClick(() => write(rs.filter((_, j) => j !== i)))
-    );
-  });
-  new import_obsidian37.Setting(rows).setClass("ep-mini-row").addButton(
-    (b) => b.setButtonText(t("palette.rangeAdd")).onClick(() => {
+    const blend = (icon, tip, calc) => void iconButton(cell, icon, tip, () => {
+      const v = calc();
+      if (!v) return;
+      colors[i] = v;
+      ctx2.save();
+      ctx2.redraw();
+    });
+    blend("equal", t("palette.blendMid"), () => {
       var _a2;
-      const last = rs[rs.length - 1];
-      const from = last ? last.to : 0;
-      write([...rs, { from, to: from + 10, color: (_a2 = last == null ? void 0 : last.color) != null ? _a2 : "#888888" }]);
-    })
-  );
+      return midpointBlend(colors, i, (_a2 = p.arc) != null ? _a2 : "short");
+    });
+    blend("move-horizontal", t("palette.blendPos"), () => {
+      var _a2;
+      return positionalBlend(steps, colors, i, (_a2 = p.arc) != null ? _a2 : "short");
+    });
+    wireColorDrag(grip, cells, i, (to) => {
+      p.colors = moveColor(colors, i, to);
+      ctx2.save();
+      ctx2.redraw();
+    });
+    grip.onkeydown = (e) => {
+      const by = e.key === "ArrowUp" ? -1 : e.key === "ArrowDown" ? 1 : 0;
+      if (!by) return;
+      e.preventDefault();
+      p.colors = moveColor(colors, i, i + by);
+      ctx2.save();
+      ctx2.redraw();
+    };
+    insertBar(i + 1);
+  });
   new import_obsidian37.Setting(c).setName(t("palette.linked")).setDesc(t("palette.linkedDesc")).addToggle((tg) => {
     tg.setValue(p.linked === true).onChange((v) => {
       p.linked = v || void 0;
@@ -16467,12 +16601,66 @@ function renderRanges(c, p, ctx2) {
     });
   });
 }
+function wireColorDrag(grip, cells, index, commit2) {
+  grip.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const startY = e.clientY;
+    const mids = cells.map((el) => {
+      const r = el.getBoundingClientRect();
+      return r.top + r.height / 2;
+    });
+    const me = cells[index];
+    if (!me) return;
+    let to = index;
+    me.addClass("is-dragging");
+    try {
+      grip.setPointerCapture(e.pointerId);
+    } catch (e2) {
+    }
+    const move = (ev) => {
+      const dy = ev.clientY - startY;
+      const here = mids[index] + dy;
+      let best = index;
+      let bestGap = Infinity;
+      mids.forEach((m, j) => {
+        const gap = Math.abs(m - here);
+        if (gap < bestGap) {
+          bestGap = gap;
+          best = j;
+        }
+      });
+      to = best;
+      me.setCssStyles({ transform: `translateY(${dy}px)` });
+      cells.forEach((el, j) => {
+        if (j === index) return;
+        const passed = to > index ? j > index && j <= to : j < index && j >= to;
+        const shift2 = passed ? mids[to > index ? j - 1 : j + 1] - mids[j] : 0;
+        el.setCssStyles({ transform: shift2 ? `translateY(${shift2}px)` : "" });
+      });
+    };
+    const end = (ev) => {
+      grip.removeEventListener("pointermove", move);
+      grip.removeEventListener("pointerup", end);
+      grip.removeEventListener("pointercancel", end);
+      try {
+        grip.releasePointerCapture(ev.pointerId);
+      } catch (e2) {
+      }
+      me.removeClass("is-dragging");
+      for (const el of cells) el.setCssStyles({ transform: "" });
+      if (to !== index) commit2(to);
+    };
+    grip.addEventListener("pointermove", move);
+    grip.addEventListener("pointerup", end);
+    grip.addEventListener("pointercancel", end);
+  });
+}
 function edgeBox(box, r, edge, i, p, ctx2) {
   var _a;
-  const rs = (_a = p.ranges) != null ? _a : [];
+  const steps = (_a = p.steps) != null ? _a : [];
+  if (!edgeContested(steps, i, edge)) return;
   const at = edge === "from" ? r.from : r.to;
-  const shared = rs.some((o, j) => j !== i && (o.from === at || o.to === at));
-  if (!shared) return;
   const cb = box.createEl("input", { cls: "ep-pal-dom" });
   cb.type = "radio";
   cb.name = `ep-dom-${p.id}-${at}`;
@@ -16480,7 +16668,7 @@ function edgeBox(box, r, edge, i, p, ctx2) {
   cb.setAttr("aria-label", ctx2.i18n.t("palette.dominant"));
   cb.setAttr("title", ctx2.i18n.t("palette.dominant"));
   cb.onchange = () => {
-    p.ranges = setDominant(rs, i, edge, true);
+    p.steps = setDominant(steps, i, edge, true);
     ctx2.save();
     ctx2.redraw();
   };
@@ -16530,6 +16718,21 @@ function renderWords(c, p, ctx2) {
         ctx2.save();
       });
     });
+}
+function iconButton(host, icon, label2, on) {
+  const b = host.createSpan({ cls: "ep-icon-btn" });
+  (0, import_obsidian37.setIcon)(b, icon);
+  b.setAttr("aria-label", label2);
+  b.setAttr("title", label2);
+  b.tabIndex = 0;
+  b.onclick = on;
+  b.onkeydown = (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      on();
+    }
+  };
+  return b;
 }
 
 // src/ui/settings-tab.ts

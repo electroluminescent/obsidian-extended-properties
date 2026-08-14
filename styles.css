@@ -1075,6 +1075,31 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-pal-dash { color: var(--text-muted); }
 .ep-pal-swatch { width: 20px; height: 20px; border-radius: 4px; border: 1px solid var(--background-modifier-border); cursor: pointer; display: inline-block; }
 .ep-pal-dom { margin: 0 2px; }
+
+/* The scale: numbers down the left, the colours they wear down the right.
+   Two columns rather than one row of controls, because the colours have to be
+   able to slide past each other while the numbers hold still. */
+.ep-scale { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; margin: 4px 0 10px; }
+.ep-scale-row { display: contents; }
+.ep-scale-vals { display: flex; align-items: center; gap: 4px; min-height: 28px; }
+.ep-scale-color { display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
+.ep-scale-kind { color: var(--text-muted); font-size: var(--font-smaller); width: 3.2em; }
+.ep-scale-grip { cursor: grab; color: var(--text-faint); letter-spacing: -1px; padding: 0 2px; border-radius: 4px; }
+.ep-scale-grip:hover, .ep-scale-grip:focus-visible { color: var(--text-normal); background: var(--background-modifier-hover); }
+/* Only the cell under the pointer is lifted; the ones it passes slide by
+   transform, which is why they are transitioned and it is not. */
+.ep-scale-color { transition: transform 120ms ease; }
+.ep-scale-color.is-dragging { transition: none; cursor: grabbing; z-index: 1; position: relative; }
+.ep-scale-color.is-dragging .ep-pal-swatch { box-shadow: 0 2px 8px var(--background-modifier-box-shadow); }
+/* The two ways in: a stop or a band, at this exact place in the scale. */
+.ep-scale-ins { grid-column: 1 / -1; display: flex; gap: 6px; opacity: .35; }
+.ep-scale-ins:hover, .ep-scale-ins:focus-within { opacity: 1; }
+.ep-scale-add {
+  font-size: var(--font-smaller); padding: 0 6px; height: 20px; line-height: 18px;
+  background: transparent; border: 1px dashed var(--background-modifier-border); color: var(--text-muted);
+  border-radius: 4px; cursor: pointer; box-shadow: none;
+}
+.ep-scale-add:hover { color: var(--text-normal); border-style: solid; background: var(--background-modifier-hover); }
 .ep-fin-when, .ep-fin-pick { max-width: 9em; }
 .ep-fin-vals, .ep-fin-set { width: 9em; }
 

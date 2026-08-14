@@ -199,6 +199,37 @@ describe("runSchemaMigrations (D3)", () => {
     expect(s.inlineEntries.hp.dataType).toBe("number");
   });
 
+  it("folds the old stops and bands modes into one scale", () => {
+    const s = defaultSettings();
+    s.schemaVersion = 6;
+    s.palettes = [
+      {
+        id: "p", name: "Stops", mode: "points",
+        points: [{ at: 10, color: "#00f" }, { at: 0, color: "#f00" }],
+      },
+      {
+        id: "r", name: "Bands", mode: "ranges",
+        ranges: [{ from: 0, to: 10, color: "#f00", domTo: true }],
+      },
+    ] as unknown as typeof s.palettes;
+    runSchemaMigrations(s);
+    const [stops, bands] = s.palettes ?? [];
+    expect(stops.mode).toBe("bands");
+    // Sorted on the way in, and the colours come out into a list of their own.
+    expect(stops.steps).toEqual([
+      { from: 0, to: 0, point: true },
+      { from: 10, to: 10, point: true },
+    ]);
+    expect(stops.colors).toEqual(["#f00", "#00f"]);
+    // Stops blended between and held beyond the ends; that is now written down.
+    expect(stops.gaps).toBe("blend");
+    expect(stops.outside).toBe("clamp");
+    expect(bands.steps).toEqual([{ from: 0, to: 10, domFrom: undefined, domTo: true }]);
+    expect(bands.colors).toEqual(["#f00"]);
+    expect((bands as { points?: unknown }).points).toBeUndefined();
+    expect((bands as { ranges?: unknown }).ranges).toBeUndefined();
+  });
+
   it("runs only steps newer than the stored version, in ascending order", () => {
     const order: number[] = [];
     const table: Migration[] = [

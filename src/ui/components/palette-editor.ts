@@ -1,11 +1,17 @@
 /**
  * The editor for one palette: how a value becomes a colour.
  *
- * Four ways of saying it, and the editor shows only the one in use - a wheel
- * swept across the property's range, stops blended between, bands with edges
- * you can pin to each other, or words with colours of their own. Above them
- * all, a strip of what the palette actually produces, because a list of
- * numbers and hexes tells you nothing about what you will see.
+ * Three ways of saying it, and the editor shows only the one in use - a wheel
+ * swept across the property's range, a scale of stops and bands, or words
+ * with colours of their own. Above them all, a strip of what the palette
+ * actually produces, because a list of numbers and hexes tells you nothing
+ * about what you will see.
+ *
+ * The scale is drawn as two columns that happen to line up: the numbers on
+ * the left, the colours on the right. They are stored apart and can be moved
+ * apart - dragging a colour past its neighbours slides them out of its way -
+ * because deciding where a step sits and deciding what colour it wears are
+ * two different jobs, usually done at different times.
  *
  * Kept out of the settings tab so the same editor can be opened from a
  * property later without the tab in between.
@@ -19,8 +25,9 @@ import { hexToRgb } from "../../utils/color";
 import type { DateConfig } from "../../core/calendar";
 import { formatEdge, parseEdge } from "../../utils/palette-date";
 import {
-  colorAt, defaultWheel, ensureDominance, moveEdge, rangesValid, setDominant,
-  type ColorRange, type Palette,
+  colorAt, defaultWheel, edgeContested, ensureDominance, insertStep, midpointBlend, moveColor,
+  moveEdge, positionalBlend, removeStep, setDominant, stepsValid,
+  type Palette, type ScaleStep,
 } from "../../utils/palette";
 
 /** How many samples the preview strip draws. */
@@ -91,7 +98,7 @@ function preview(host: HTMLElement, p: Palette): void {
   for (let i = 0; i <= PREVIEW_STEPS; i++) {
     const t = i / PREVIEW_STEPS;
     // Bands and stops are read on their own scale; the wheel on 0-100.
-    const at = p.mode === "wheel" ? span.min + t * (span.max - span.min) : scaleOf(p, t);
+    const at = p.mode === "wheel" ? span.min + t * (span.max - span.min) : valueAt(p, t);
     const c = colorAt(p, at, span);
     stops.push(`${c ?? "transparent"} ${Math.round(t * 100)}%`);
   }
@@ -99,11 +106,8 @@ function preview(host: HTMLElement, p: Palette): void {
 }
 
 /** The value `t` of the way along whatever the palette is spread over. */
-function scaleOf(p: Palette, t: number): number {
-  const xs =
-    p.mode === "points"
-      ? (p.points ?? []).map((x) => x.at)
-      : (p.ranges ?? []).flatMap((r) => [r.from, r.to]);
+function valueAt(p: Palette, t: number): number {
+  const xs = (p.steps ?? []).flatMap((r) => [r.from, r.to]);
   if (!xs.length) return t;
   const min = Math.min(...xs);
   const max = Math.max(...xs);
@@ -136,7 +140,7 @@ export function renderPaletteEditor(c: HTMLElement, p: Palette, ctx: PaletteEdit
   preview(c, p);
 
   new Setting(c).setName(t("palette.mode")).setDesc(t("palette.modeDesc")).addDropdown((dd) => {
-    for (const m of ["wheel", "points", "ranges", "semantic"]) dd.addOption(m, t("palette.mode." + m));
+    for (const m of ["wheel", "bands", "semantic"]) dd.addOption(m, t("palette.mode." + m));
     dd.setValue(p.mode);
     dd.onChange((v) => {
       p.mode = v as Palette["mode"];
@@ -147,8 +151,7 @@ export function renderPaletteEditor(c: HTMLElement, p: Palette, ctx: PaletteEdit
   });
 
   if (p.mode === "wheel") renderWheel(c, p, ctx);
-  if (p.mode === "points") renderPoints(c, p, ctx);
-  if (p.mode === "ranges") renderRanges(c, p, ctx);
+  if (p.mode === "bands") renderScale(c, p, ctx);
   const dates = ctx.dateProps?.() ?? [];
   if (dates.length && p.mode !== "semantic") {
     new Setting(c).setName(t("palette.scale")).setDesc(t("palette.scaleDesc")).addDropdown((dd) => {
@@ -206,93 +209,120 @@ function renderWheel(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): void {
   });
 }
 
-/** The stops: a colour pinned to a value, blended between. */
-function renderPoints(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): void {
-  const t = ctx.i18n.t.bind(ctx.i18n);
-  const cal = calendarOf(p, ctx);
-  const pts = (p.points ??= []);
-  new Setting(c).setName(t("palette.points")).setDesc(t("palette.pointsDesc"));
-  const rows = c.createDiv({ cls: "ep-mini-list" });
-  pts.forEach((pt, i) => {
-    const row = new Setting(rows).setClass("ep-mini-row");
-    const box = row.controlEl;
-    numField(box, pt.at, cal ? "ep-pal-date" : "ep-pal-num", (n) => {
-      pt.at = n;
-      ctx.save();
-      ctx.redraw();
-    }, cal);
-    swatch(ctx.colors, box, () => pt.color, (v) => {
-      pt.color = v;
-      ctx.save();
-      ctx.redraw();
-    });
-    row.addExtraButton((b) =>
-      b.setIcon("x").setTooltip(t("palette.remove")).onClick(() => {
-        pts.splice(i, 1);
-        ctx.save();
-        ctx.redraw();
-      })
-    );
-  });
-  new Setting(rows).setClass("ep-mini-row").addButton((b) =>
-    b.setButtonText(t("palette.pointAdd")).onClick(() => {
-      const last = pts[pts.length - 1];
-      pts.push({ at: last ? last.at + 10 : 0, color: last?.color ?? "#888888" });
-      ctx.save();
-      ctx.redraw();
-    })
-  );
-}
-
-/** The bands: flat colour between two edges, with the edge rules. */
-function renderRanges(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): void {
+/**
+ * The scale: stops and bands down one column, the colours they wear down the
+ * other.
+ *
+ * Written as a plain grid rather than as `Setting` rows, because the colours
+ * have to be able to move past each other: a dragged colour slides its
+ * neighbours out of its way, which needs cells that can be transformed
+ * independently of the numbers beside them.
+ */
+function renderScale(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): void {
   const t = ctx.i18n.t.bind(ctx.i18n);
   const cal = calendarOf(p, ctx);
   // Every shared edge is owned by exactly one band before anything is drawn,
   // so the ticks below can be radios: there is always one to be checked.
-  const settled = ensureDominance(p.ranges ??= []);
-  if (JSON.stringify(settled) !== JSON.stringify(p.ranges)) {
-    p.ranges = settled;
+  const settled = ensureDominance((p.steps ??= []));
+  if (JSON.stringify(settled) !== JSON.stringify(p.steps)) {
+    p.steps = settled;
     ctx.save();
   }
-  const rs = (p.ranges ??= []);
-  new Setting(c).setName(t("palette.ranges")).setDesc(t("palette.rangesDesc"));
-  const write = (next: ColorRange[]): void => {
-    if (!rangesValid(next)) {
+  const steps = (p.steps ??= []);
+  const colors = (p.colors ??= []);
+  // A colour for every step, whatever the data arrived looking like.
+  while (colors.length < steps.length) colors.push("#888888");
+  new Setting(c).setName(t("palette.scaleName")).setDesc(t("palette.scaleDesc2"));
+
+  /** Write the steps back, refusing a layout the renderer could not read. */
+  const write = (next: ScaleStep[]): void => {
+    if (!stepsValid(next)) {
       // The editor refuses an overlap rather than leaving the renderer to
       // guess which band a value belongs to.
       ctx.redraw();
       return;
     }
-    p.ranges = ensureDominance(next);
+    p.steps = ensureDominance(next);
     ctx.save();
     ctx.redraw();
   };
-  const rows = c.createDiv({ cls: "ep-mini-list" });
-  rs.forEach((r, i) => {
-    const row = new Setting(rows).setClass("ep-mini-row");
-    const box = row.controlEl;
-    edgeBox(box, r, "from", i, p, ctx);
-    numField(box, r.from, cal ? "ep-pal-date" : "ep-pal-num", (n) => write(moveEdge(rs, i, "from", n, p.linked === true)), cal);
-    box.createSpan({ cls: "ep-pal-dash", text: "-" });
-    numField(box, r.to, cal ? "ep-pal-date" : "ep-pal-num", (n) => write(moveEdge(rs, i, "to", n, p.linked === true)), cal);
-    edgeBox(box, r, "to", i, p, ctx);
-    swatch(ctx.colors, box, () => r.color, (v) => {
-      r.color = v;
+  const put = (both: { steps: ScaleStep[]; colors: string[] }): void => {
+    p.steps = both.steps;
+    p.colors = both.colors;
+    ctx.save();
+    ctx.redraw();
+  };
+
+  const grid = c.createDiv({ cls: "ep-scale" });
+  /** The colour cells, in order - the drag needs to see all of them. */
+  const cells: HTMLElement[] = [];
+
+  /** The two buttons that put a new step in at `at`. */
+  const insertBar = (at: number): void => {
+    const bar = grid.createDiv({ cls: "ep-scale-ins" });
+    const add = (kind: "point" | "band", label: string, tip: string): void => {
+      const b = bar.createEl("button", { cls: "ep-scale-add", text: label });
+      b.setAttr("aria-label", tip);
+      b.setAttr("title", tip);
+      b.onclick = () => put(insertStep(steps, colors, at, kind, p.arc ?? "short"));
+    };
+    add("point", t("palette.addPoint"), t("palette.addPointTip"));
+    add("band", t("palette.addBand"), t("palette.addBandTip"));
+  };
+
+  insertBar(0);
+  steps.forEach((r, i) => {
+    const row = grid.createDiv({ cls: "ep-scale-row" });
+    const vals = row.createDiv({ cls: "ep-scale-vals" });
+    vals.createSpan({ cls: "ep-scale-kind", text: r.point ? t("palette.point") : t("palette.band") });
+    if (r.point) {
+      numField(vals, r.from, cal ? "ep-pal-date" : "ep-pal-num", (n) => write(moveEdge(steps, i, "from", n, false)), cal);
+    } else {
+      edgeBox(vals, r, "from", i, p, ctx);
+      numField(vals, r.from, cal ? "ep-pal-date" : "ep-pal-num", (n) => write(moveEdge(steps, i, "from", n, p.linked === true)), cal);
+      vals.createSpan({ cls: "ep-pal-dash", text: "-" });
+      numField(vals, r.to, cal ? "ep-pal-date" : "ep-pal-num", (n) => write(moveEdge(steps, i, "to", n, p.linked === true)), cal);
+      edgeBox(vals, r, "to", i, p, ctx);
+    }
+    iconButton(vals, "x", t("palette.remove"), () => put(removeStep(steps, colors, i)));
+
+    const cell = row.createDiv({ cls: "ep-scale-color" });
+    cells.push(cell);
+    const grip = cell.createSpan({ cls: "ep-scale-grip", text: "::" });
+    grip.setAttr("aria-label", t("palette.colorMove"));
+    grip.setAttr("title", t("palette.colorMove"));
+    grip.tabIndex = 0;
+    swatch(ctx.colors, cell, () => colors[i] ?? "#888888", (v) => {
+      colors[i] = v;
       ctx.save();
       ctx.redraw();
     });
-    row.addExtraButton((b) =>
-      b.setIcon("x").setTooltip(t("palette.remove")).onClick(() => write(rs.filter((_, j) => j !== i)))
-    );
+    const blend = (icon: string, tip: string, calc: () => string | undefined): void =>
+      void iconButton(cell, icon, tip, () => {
+        const v = calc();
+        if (!v) return;
+        colors[i] = v;
+        ctx.save();
+        ctx.redraw();
+      });
+    blend("equal", t("palette.blendMid"), () => midpointBlend(colors, i, p.arc ?? "short"));
+    blend("move-horizontal", t("palette.blendPos"), () => positionalBlend(steps, colors, i, p.arc ?? "short"));
+    wireColorDrag(grip, cells, i, (to) => {
+      p.colors = moveColor(colors, i, to);
+      ctx.save();
+      ctx.redraw();
+    });
+    grip.onkeydown = (e) => {
+      const by = e.key === "ArrowUp" ? -1 : e.key === "ArrowDown" ? 1 : 0;
+      if (!by) return;
+      e.preventDefault();
+      p.colors = moveColor(colors, i, i + by);
+      ctx.save();
+      ctx.redraw();
+    };
+    insertBar(i + 1);
   });
-  new Setting(rows).setClass("ep-mini-row").addButton((b) =>
-    b.setButtonText(t("palette.rangeAdd")).onClick(() => {
-      const last = rs[rs.length - 1];
-      const from = last ? last.to : 0;
-      write([...rs, { from, to: from + 10, color: last?.color ?? "#888888" }]);
-    })
-  );
+
   new Setting(c).setName(t("palette.linked")).setDesc(t("palette.linkedDesc")).addToggle((tg) => {
     tg.setValue(p.linked === true).onChange((v) => {
       p.linked = v || undefined;
@@ -322,18 +352,83 @@ function renderRanges(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): void {
 }
 
 /**
+ * Drag one colour up or down the column.
+ *
+ * The cells are moved by transform while the pointer is down - the ones being
+ * passed slide into the space the dragged cell leaves - and nothing is
+ * written until it is let go, so a drag that ends up where it started costs
+ * nothing. Where it lands is decided by which cell's middle is nearest, so
+ * the rows do not have to be the same height.
+ */
+function wireColorDrag(
+  grip: HTMLElement,
+  cells: HTMLElement[],
+  index: number,
+  commit: (to: number) => void
+): void {
+  grip.addEventListener("pointerdown", (e: PointerEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const startY = e.clientY;
+    const mids = cells.map((el) => {
+      const r = el.getBoundingClientRect();
+      return r.top + r.height / 2;
+    });
+    const me = cells[index];
+    if (!me) return;
+    let to = index;
+    me.addClass("is-dragging");
+    try { grip.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
+    const move = (ev: PointerEvent): void => {
+      const dy = ev.clientY - startY;
+      const here = mids[index] + dy;
+      let best = index;
+      let bestGap = Infinity;
+      mids.forEach((m, j) => {
+        const gap = Math.abs(m - here);
+        if (gap < bestGap) {
+          bestGap = gap;
+          best = j;
+        }
+      });
+      to = best;
+      me.setCssStyles({ transform: `translateY(${dy}px)` });
+      cells.forEach((el, j) => {
+        if (j === index) return;
+        const passed = to > index ? j > index && j <= to : j < index && j >= to;
+        const shift = passed ? mids[to > index ? j - 1 : j + 1] - mids[j] : 0;
+        el.setCssStyles({ transform: shift ? `translateY(${shift}px)` : "" });
+      });
+    };
+    const end = (ev: PointerEvent): void => {
+      grip.removeEventListener("pointermove", move);
+      grip.removeEventListener("pointerup", end);
+      grip.removeEventListener("pointercancel", end);
+      try { grip.releasePointerCapture(ev.pointerId); } catch { /* ignore */ }
+      me.removeClass("is-dragging");
+      for (const el of cells) el.setCssStyles({ transform: "" });
+      if (to !== index) commit(to);
+    };
+    grip.addEventListener("pointermove", move);
+    grip.addEventListener("pointerup", end);
+    grip.addEventListener("pointercancel", end);
+  });
+}
+
+/**
  * The tick that decides which band takes a value sitting on a shared edge.
  *
  * A radio rather than a checkbox, and deliberately: the edges meeting on one
  * number are a single choice with one answer. Unticking the ticked one would
  * leave the value belonging to nobody, so it cannot be done - picking another
- * edge is how you change your mind.
+ * edge is how you change your mind. An edge with a stop standing on it is not
+ * offered at all: the stop names that value outright, and nothing a band says
+ * about its own edge can outrank that.
  */
-function edgeBox(box: HTMLElement, r: ColorRange, edge: "from" | "to", i: number, p: Palette, ctx: PaletteEditorCtx): void {
-  const rs = p.ranges ?? [];
+function edgeBox(box: HTMLElement, r: ScaleStep, edge: "from" | "to", i: number, p: Palette, ctx: PaletteEditorCtx): void {
+  const steps = p.steps ?? [];
+  if (!edgeContested(steps, i, edge)) return;
   const at = edge === "from" ? r.from : r.to;
-  const shared = rs.some((o, j) => j !== i && (o.from === at || o.to === at));
-  if (!shared) return;
   const cb = box.createEl("input", { cls: "ep-pal-dom" });
   cb.type = "radio";
   // One group per meeting point, so the browser itself keeps it to one.
@@ -342,7 +437,7 @@ function edgeBox(box: HTMLElement, r: ColorRange, edge: "from" | "to", i: number
   cb.setAttr("aria-label", ctx.i18n.t("palette.dominant"));
   cb.setAttr("title", ctx.i18n.t("palette.dominant"));
   cb.onchange = () => {
-    p.ranges = setDominant(rs, i, edge, true);
+    p.steps = setDominant(steps, i, edge, true);
     ctx.save();
     ctx.redraw();
   };

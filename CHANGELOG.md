@@ -1,5 +1,32 @@
 # Changelog
 
+## 4.58.0
+
+- **Stops and bands are one scale.** They were two palette modes that could
+  not be mixed, which was a distinction without a difference: a stop is a band
+  with no width. One list holds both now, in value order, and *+ stop* and
+  *+ band* sit after every row - press one and a step goes in exactly there,
+  taking the gap if there is one and making room if there is not.
+- A stop may stand anywhere, **inside a band included**, and it wins the value
+  it names. Picking one number out of a stretch - the death line, the
+  threshold, the natural 20 - no longer means cutting the band in two.
+- Because of that, **a band bordering a stop is not offered the edge**: the
+  stop names that value outright, so there is nothing there for the band to
+  win and no tick to be confused by. Edges that only meet other bands settle
+  as before, exactly one owner each.
+- **The colours are a list of their own.** Which colour a step wears and where
+  that step sits are two different decisions, so they are held apart: drag a
+  colour by its handle and it moves up or down the column, the others sliding
+  out of its way, while every number stays where you put it.
+- A new step arrives **coloured from the two it lands between**, and either
+  side of each colour are two buttons that do the same on demand: the plain
+  halfway blend, or the blend weighted by where the step actually sits - a
+  stop nine tenths of the way along comes out nine tenths of the way between
+  the colours.
+- Existing palettes are carried over on load: stops keep blending between
+  themselves and holding their end colours, which are now the *Between steps*
+  and *Beyond the ends* settings written down rather than implied.
+
 ## 4.57.0
 
 - **Conditional formatting, first part: colour.** A new *Palettes* settings tab

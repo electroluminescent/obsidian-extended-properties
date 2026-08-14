@@ -5,32 +5,38 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  blendColors, colorAt, colorForText, defaultWheel, ensureDominance, mixColors, moveEdge,
-  rangesValid, readableOn, setDominant, toOklch, type ColorRange, type Palette,
+  blendColors, colorAt, colorForText, defaultWheel, edgeContested, ensureDominance, insertStep,
+  midpointBlend, mixColors, moveColor, moveEdge, positionalBlend, readableOn, removeStep,
+  setDominant, stepsValid, toOklch, type Palette, type ScaleStep,
 } from "../src/utils/palette";
 import { formatEdge, parseEdge } from "../src/utils/palette-date";
 import type { DateConfig } from "../src/core/calendar";
 
 const wheel = (): Palette => ({ id: "w", name: "Wheel", mode: "wheel", wheel: defaultWheel() });
 
+/** Two stops, as the old points mode became after the migration. */
 const points = (): Palette => ({
   id: "p",
   name: "Points",
-  mode: "points",
-  points: [
-    { at: 0, color: "#ff0000" },
-    { at: 10, color: "#0000ff" },
+  mode: "bands",
+  steps: [
+    { from: 0, to: 0, point: true },
+    { from: 10, to: 10, point: true },
   ],
+  colors: ["#ff0000", "#0000ff"],
+  gaps: "blend",
+  outside: "clamp",
 });
 
 const bands = (extra: Partial<Palette> = {}): Palette => ({
   id: "r",
   name: "Bands",
-  mode: "ranges",
-  ranges: [
-    { from: 0, to: 10, color: "#ff0000" },
-    { from: 20, to: 30, color: "#0000ff" },
+  mode: "bands",
+  steps: [
+    { from: 0, to: 10 },
+    { from: 20, to: 30 },
   ],
+  colors: ["#ff0000", "#0000ff"],
   ...extra,
 });
 
@@ -108,28 +114,28 @@ describe("bands", () => {
   });
 
   it("hands a shared edge to whichever side was marked dominant", () => {
-    const touching: ColorRange[] = [
-      { from: 0, to: 10, color: "#ff0000" },
-      { from: 10, to: 20, color: "#0000ff" },
+    const touching: ScaleStep[] = [
+      { from: 0, to: 10 },
+      { from: 10, to: 20 },
     ];
-    const lower = bands({ ranges: touching });
+    const lower = bands({ steps: touching });
     expect(colorAt(lower, 10)).toBe("#ff0000"); // the lower band, by default
-    const upper = bands({ ranges: setDominant(touching, 1, "from", true) });
+    const upper = bands({ steps: setDominant(touching, 1, "from", true) });
     expect(colorAt(upper, 10)).toBe("#0000ff");
   });
 });
 
 describe("who owns a shared edge", () => {
-  const touching = (): ColorRange[] => [
-    { from: 0, to: 10, color: "#f00" },
-    { from: 10, to: 20, color: "#00f" },
+  const touching = (): ScaleStep[] => [
+    { from: 0, to: 10 },
+    { from: 10, to: 20 },
   ];
 
   it("gives an unclaimed meeting point to the band that starts there", () => {
     const rs = ensureDominance(touching());
     expect(rs[1].domFrom).toBe(true);
     expect(rs[0].domTo).toBeUndefined();
-    expect(colorAt({ id: "r", name: "R", mode: "ranges", ranges: rs }, 10)).toBe("#00f");
+    expect(colorAt({ id: "r", name: "R", mode: "bands", steps: rs, colors: ["#f00", "#00f"] }, 10)).toBe("#00f");
   });
 
   it("leaves a claim where the user put it", () => {
@@ -140,16 +146,16 @@ describe("who owns a shared edge", () => {
 
   it("never leaves two edges claiming the same value", () => {
     const rs = ensureDominance([
-      { from: 0, to: 10, color: "#f00", domTo: true },
-      { from: 10, to: 20, color: "#00f", domFrom: true },
+      { from: 0, to: 10, domTo: true },
+      { from: 10, to: 20, domFrom: true },
     ]);
     expect([rs[0].domTo === true, rs[1].domFrom === true].filter(Boolean)).toHaveLength(1);
   });
 
   it("drops a claim on an edge that meets nothing", () => {
     const rs = ensureDominance([
-      { from: 0, to: 10, color: "#f00", domFrom: true, domTo: true },
-      { from: 20, to: 30, color: "#00f" },
+      { from: 0, to: 10, domFrom: true, domTo: true },
+      { from: 20, to: 30 },
     ]);
     expect(rs[0].domFrom).toBeUndefined();
     expect(rs[0].domTo).toBeUndefined();
@@ -164,9 +170,9 @@ describe("who owns a shared edge", () => {
 
   it("settles every meeting point of three bands at once", () => {
     const rs = ensureDominance([
-      { from: 0, to: 10, color: "#f00" },
-      { from: 10, to: 20, color: "#0f0" },
-      { from: 20, to: 30, color: "#00f" },
+      { from: 0, to: 10 },
+      { from: 10, to: 20 },
+      { from: 20, to: 30 },
     ]);
     expect(rs[1].domFrom).toBe(true);
     expect(rs[2].domFrom).toBe(true);
@@ -177,15 +183,20 @@ describe("who owns a shared edge", () => {
 
 describe("keeping the bands legal", () => {
   it("accepts bands that touch and refuses bands that overlap", () => {
-    expect(rangesValid([{ from: 0, to: 10, color: "#f00" }, { from: 10, to: 20, color: "#00f" }])).toBe(true);
-    expect(rangesValid([{ from: 0, to: 10, color: "#f00" }, { from: 5, to: 20, color: "#00f" }])).toBe(false);
-    expect(rangesValid([{ from: 10, to: 0, color: "#f00" }])).toBe(false);
+    expect(stepsValid([{ from: 0, to: 10 }, { from: 10, to: 20 }])).toBe(true);
+    expect(stepsValid([{ from: 0, to: 10 }, { from: 5, to: 20 }])).toBe(false);
+    expect(stepsValid([{ from: 10, to: 0 }])).toBe(false);
+  });
+
+  it("lets a stop stand wherever it likes, a band's middle included", () => {
+    expect(stepsValid([{ from: 0, to: 10 }, { from: 5, to: 5, point: true }])).toBe(true);
+    expect(stepsValid([{ from: 5, to: 6, point: true }])).toBe(false); // a stop has no width
   });
 
   it("carries the neighbour when the edges are linked", () => {
-    const rs: ColorRange[] = [
-      { from: 0, to: 10, color: "#f00" },
-      { from: 10, to: 20, color: "#00f" },
+    const rs: ScaleStep[] = [
+      { from: 0, to: 10 },
+      { from: 10, to: 20 },
     ];
     const moved = moveEdge(rs, 1, "from", 14, true);
     expect(moved[1].from).toBe(14);
@@ -195,9 +206,9 @@ describe("keeping the bands legal", () => {
   });
 
   it("lets only one edge of a shared number be dominant", () => {
-    const rs: ColorRange[] = [
-      { from: 0, to: 10, color: "#f00", domTo: true },
-      { from: 10, to: 20, color: "#00f" },
+    const rs: ScaleStep[] = [
+      { from: 0, to: 10, domTo: true },
+      { from: 10, to: 20 },
     ];
     const next = setDominant(rs, 1, "from", true);
     expect(next[1].domFrom).toBe(true);
@@ -205,9 +216,124 @@ describe("keeping the bands legal", () => {
   });
 });
 
+describe("stops and bands on one scale", () => {
+  const mixed = (): Palette => ({
+    id: "m",
+    name: "Mixed",
+    mode: "bands",
+    steps: [
+      { from: 0, to: 10 },
+      { from: 10, to: 10, point: true },
+      { from: 10, to: 20 },
+    ],
+    colors: ["#ff0000", "#00ff00", "#0000ff"],
+  });
+
+  it("hands a value a stop names to the stop, whatever the bands claim", () => {
+    expect(colorAt(mixed(), 10)).toBe("#00ff00");
+    expect(colorAt(mixed(), 5)).toBe("#ff0000");
+    expect(colorAt(mixed(), 15)).toBe("#0000ff");
+  });
+
+  it("lets a stop pick one value out of the middle of a band", () => {
+    const p: Palette = {
+      id: "i", name: "I", mode: "bands",
+      steps: [{ from: 0, to: 100 }, { from: 20, to: 20, point: true }],
+      colors: ["#ff0000", "#00ff00"],
+    };
+    expect(colorAt(p, 20)).toBe("#00ff00");
+    expect(colorAt(p, 21)).toBe("#ff0000");
+  });
+
+  it("offers no claim on an edge a stop is standing on", () => {
+    const steps = mixed().steps as ScaleStep[];
+    expect(edgeContested(steps, 0, "to")).toBe(false);
+    expect(edgeContested(steps, 2, "from")).toBe(false);
+    const settled = ensureDominance(steps);
+    expect(settled[0].domTo).toBeUndefined();
+    expect(settled[2].domFrom).toBeUndefined();
+  });
+
+  it("still settles a meeting point with no stop on it", () => {
+    const steps: ScaleStep[] = [{ from: 0, to: 10 }, { from: 10, to: 20 }];
+    expect(edgeContested(steps, 1, "from")).toBe(true);
+  });
+
+  it("moves a stop whole, from either edge", () => {
+    const moved = moveEdge([{ from: 5, to: 5, point: true }], 0, "to", 9, false);
+    expect(moved[0]).toEqual({ from: 9, to: 9, point: true });
+  });
+});
+
+describe("putting a step in, and taking one out", () => {
+  const two = (): { steps: ScaleStep[]; colors: string[] } => ({
+    steps: [{ from: 0, to: 10 }, { from: 20, to: 30 }],
+    colors: ["#ff0000", "#0000ff"],
+  });
+
+  it("fills the gap between two bands, and blends the colour it lands between", () => {
+    const { steps, colors } = two();
+    const next = insertStep(steps, colors, 1, "band");
+    expect(next.steps[1]).toMatchObject({ from: 10, to: 20 });
+    expect(next.colors[1]).not.toBe("#ff0000");
+    expect(next.colors[1]).not.toBe("#0000ff");
+    expect(toOklch(next.colors[1])!.C).toBeGreaterThan(0.1); // through the colours, not through grey
+  });
+
+  it("makes room when the bands it lands between are touching", () => {
+    const steps: ScaleStep[] = [{ from: 0, to: 10 }, { from: 10, to: 20 }];
+    const next = insertStep(steps, ["#f00", "#00f"], 1, "band");
+    expect(next.steps[1].from).toBe(10);
+    expect(next.steps[2].from).toBeGreaterThanOrEqual(next.steps[1].to); // the one above moved up
+    expect(stepsValid(next.steps)).toBe(true);
+  });
+
+  it("puts a stop halfway between its neighbours and moves nothing", () => {
+    const { steps, colors } = two();
+    const next = insertStep(steps, colors, 1, "point");
+    expect(next.steps[1]).toMatchObject({ from: 15, to: 15, point: true });
+    expect(next.steps[2]).toMatchObject({ from: 20, to: 30 });
+  });
+
+  it("takes a step and its colour away together", () => {
+    const { steps, colors } = two();
+    const next = removeStep(steps, colors, 0);
+    expect(next.steps).toHaveLength(1);
+    expect(next.colors).toEqual(["#0000ff"]);
+  });
+});
+
+describe("colours that move on their own", () => {
+  it("slides the others out of the way when one is moved", () => {
+    expect(moveColor(["a", "b", "c"], 0, 2)).toEqual(["b", "c", "a"]);
+    expect(moveColor(["a", "b", "c"], 2, 0)).toEqual(["c", "a", "b"]);
+    expect(moveColor(["a", "b", "c"], 1, 99)).toEqual(["a", "c", "b"]);
+  });
+
+  it("blends from the two either side, halfway", () => {
+    const mid = midpointBlend(["#ff0000", "#000000", "#0000ff"], 1);
+    expect(mid).toBeDefined();
+    expect(mid).not.toBe("#000000");
+    expect(midpointBlend(["#ff0000", "#00ff00"], 1)).toBe("#ff0000"); // nothing above it
+  });
+
+  it("blends by where the step sits between its neighbours", () => {
+    const steps: ScaleStep[] = [
+      { from: 0, to: 0, point: true },
+      { from: 9, to: 9, point: true },
+      { from: 10, to: 10, point: true },
+    ];
+    const colors = ["#ff0000", "#000000", "#0000ff"];
+    const near = positionalBlend(steps, colors, 1);
+    const mid = midpointBlend(colors, 1);
+    expect(near).not.toBe(mid); // nine tenths of the way along, not half
+    expect(near).toBe(mixColors("#ff0000", "#0000ff", 0.9));
+  });
+});
+
 describe("words", () => {
   it("takes the colour it was given", () => {
-    const p: Palette = { id: "s", name: "S", mode: "points", words: [{ word: "Poison", color: "#00ff00" }] };
+    const p: Palette = { id: "s", name: "S", mode: "bands", words: [{ word: "Poison", color: "#00ff00" }] };
     expect(colorForText(p, "poison")).toBe("#00ff00");
   });
 

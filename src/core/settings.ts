@@ -9,6 +9,7 @@
 import type { Defaults, Entry, EPSettings, Layout } from "./model";
 import { defaultDerivations } from "./influences";
 import { convertDecimalToNumber, convertLinkToText } from "./layout-ops";
+import type { ColorPoint, ColorRange, ScaleStep } from "../utils/palette";
 
 export const DEFAULT_DEFAULTS: Defaults = {
   dataType: "text",
@@ -310,7 +311,7 @@ export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EP
 // ---------------------------------------------------------------------------
 
 /** Current settings schema version. Bump when adding a migration step below. */
-export const CURRENT_SCHEMA = 6;
+export const CURRENT_SCHEMA = 7;
 
 /** One ordered migration step: bring settings up to schema `to`. */
 export interface Migration {
@@ -476,6 +477,56 @@ export const SCHEMA_MIGRATIONS: Migration[] = [
       for (const lk of Object.keys(s.layouts ?? {}))
         for (const sec of s.layouts[lk].sections ?? []) for (const e of sec.entries ?? []) each(e);
       for (const k of Object.keys(s.inlineEntries ?? {})) each(s.inlineEntries?.[k]);
+      return changed;
+    },
+  },
+  {
+    to: 7,
+    name: "one-scale-of-stops-and-bands",
+    run: (s) => {
+      // Stops and bands were two palette modes that could not be mixed; they
+      // are one scale now, since a stop is only a band with no width. The
+      // colours come out of the steps into a list of their own, paired by
+      // position - which is what lets either be moved without the other.
+      let changed = false;
+      for (const p of s.palettes ?? []) {
+        const legacy = p as unknown as {
+          mode: string;
+          points?: ColorPoint[];
+          ranges?: ColorRange[];
+          steps?: ScaleStep[];
+          colors?: string[];
+          gaps?: "blend" | "none";
+          outside?: "none" | "clamp";
+        };
+        const wasPoints = legacy.mode === "points";
+        if (!wasPoints && legacy.mode !== "ranges") continue;
+        const steps: ScaleStep[] = [];
+        const colors: string[] = [];
+        if (wasPoints)
+          for (const pt of [...(legacy.points ?? [])].sort((a, b) => a.at - b.at)) {
+            steps.push({ from: pt.at, to: pt.at, point: true });
+            colors.push(pt.color);
+          }
+        else
+          for (const r of [...(legacy.ranges ?? [])].sort((a, b) => a.from - b.from)) {
+            steps.push({ from: r.from, to: r.to, domFrom: r.domFrom, domTo: r.domTo });
+            colors.push(r.color);
+          }
+        legacy.steps = steps;
+        legacy.colors = colors;
+        legacy.mode = "bands";
+        // Stops blended between themselves and held their end colours beyond
+        // the ends; on one scale those are the gap and outside rules, so they
+        // are written down rather than lost.
+        if (wasPoints) {
+          legacy.gaps = legacy.gaps ?? "blend";
+          legacy.outside = legacy.outside ?? "clamp";
+        }
+        delete legacy.points;
+        delete legacy.ranges;
+        changed = true;
+      }
       return changed;
     },
   },
