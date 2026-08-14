@@ -4969,6 +4969,25 @@ function mountTextList(host, o) {
   footEl = foot.settingEl;
   (_a = o.extra) == null ? void 0 : _a.call(o, foot, append);
 }
+function scrollerOf(host) {
+  for (let el = host; el; el = el.parentElement) {
+    const cs = getComputedStyle(el);
+    if (/(auto|scroll)/.test(cs.overflowY) && el.scrollHeight > el.clientHeight + 1) return el;
+    if (el.hasClass("modal") || el.hasClass("ep-popup")) break;
+  }
+  return null;
+}
+function keepScroll(host, rebuild) {
+  var _a;
+  const el = scrollerOf(host);
+  const top = (_a = el == null ? void 0 : el.scrollTop) != null ? _a : 0;
+  rebuild();
+  if (!el || !top) return;
+  el.scrollTop = top;
+  window.requestAnimationFrame(() => {
+    if (el.isConnected) el.scrollTop = top;
+  });
+}
 function addColorSetting(host, container, name, desc, get, set) {
   const setting = new import_obsidian9.Setting(container).setName(name);
   if (desc) setting.setDesc(desc);
@@ -10724,6 +10743,9 @@ var EntryOptionsModal = class extends import_obsidian24.Modal {
     this.draw();
   }
   draw() {
+    keepScroll(this.contentEl, () => this.paint());
+  }
+  paint() {
     const c = this.contentEl;
     const view = this.view;
     const t = view.i18n.t.bind(view.i18n);
@@ -10943,8 +10965,10 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
   tool("x", t("entry.popup.close"), () => closeSettingsPopup());
   const body = pop.createDiv({ cls: "ep-entrysettings-body" });
   const build = () => {
+    keepScroll(body, () => draw());
+  };
+  const draw = () => {
     var _a, _b, _c, _d, _e;
-    const scroll = body.scrollTop;
     body.empty();
     const octx = {
       view,
@@ -10964,7 +10988,6 @@ function openEntrySettingsPopup(view, file, section, entry, x, y) {
       const name = (_e = (_d = (_c = item.querySelector(".setting-item-name")) == null ? void 0 : _c.textContent) == null ? void 0 : _d.trim()) != null ? _e : "";
       if (desc) item.setAttr("title", name ? name + " - " + desc : desc);
     }
-    if (scroll) body.scrollTop = scroll;
   };
   build();
   const place2 = () => {
@@ -11643,6 +11666,9 @@ var SectionOptionsModal = class extends import_obsidian27.Modal {
     return out.filter((g) => g.ents.length);
   }
   draw() {
+    keepScroll(this.contentEl, () => this.paint());
+  }
+  paint() {
     const c = this.contentEl;
     const t = this.view.i18n.t.bind(this.view.i18n);
     for (const id of [...this.selected])

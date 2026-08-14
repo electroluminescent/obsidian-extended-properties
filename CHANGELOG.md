@@ -22,7 +22,12 @@
   first.
 - **Set once, everywhere**: a property's formatting is stored against the
   property, so the sidebar, the type table and inline chips agree - with an
-  option to give one row a look of its own.
+  option to give one row a look of its own. Inline `vals:` cards wear it too.
+- **Changing a setting no longer throws you back to the top.** Rows rebuild
+  whenever a change brings other options with it - a data type, a palette, a
+  width that reveals a field - and the property settings popup and both
+  options modals now keep their scroll position through it, restoring it again
+  a frame later so a row that finishes arriving late cannot undo it.
 - **Dates, derived values and formulas colour like numbers**, because that is
   what they are. A derived property is coloured by what it works out to rather
   than by the nothing it stores, and a number shown through a unit factor by

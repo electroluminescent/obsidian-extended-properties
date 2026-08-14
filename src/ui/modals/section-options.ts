@@ -17,7 +17,7 @@ import { Modal, Setting, TFile, setIcon } from "obsidian";
 import type { OptionsCtx, ViewCtx } from "../../core/context";
 import { Entry, LayoutMode, Section, SectionPin, SectionSize, sectionMode, sectionPin } from "../../core/model";
 import { restoreFromSnapshot } from "../../utils/misc";
-import { addColorSetting, addIconSetting } from "../components/setting-helpers";
+import { addColorSetting, addIconSetting, keepScroll } from "../components/setting-helpers";
 import { asMobileSheet } from "../components/long-press";
 import { ConfirmChangesModal } from "./dialogs";
 import { renderEntryOptionsBody, viewColorHost } from "./entry-options";
@@ -256,6 +256,10 @@ export class SectionOptionsModal extends Modal {
   }
 
   private draw(): void {
+    keepScroll(this.contentEl, () => this.paint());
+  }
+
+  private paint(): void {
     const c = this.contentEl;
     const t = this.view.i18n.t.bind(this.view.i18n);
     // Drop selections whose entries were removed meanwhile.

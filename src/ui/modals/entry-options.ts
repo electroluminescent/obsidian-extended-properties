@@ -26,7 +26,9 @@ import { parseExpr } from "../../core/expr";
 import { setSharedDataType } from "../../core/layout-ops";
 import { poolFor } from "../../core/pool";
 import { restoreFromSnapshot } from "../../utils/misc";
-import { addColorSetting, addIconSetting, ColorHost, mountTextList } from "../components/setting-helpers";
+import {
+  addColorSetting, addIconSetting, ColorHost, keepScroll, mountTextList,
+} from "../components/setting-helpers";
 import { PropSuggest } from "../components/suggest";
 import { asMobileSheet } from "../components/long-press";
 import { ConfirmChangesModal } from "./dialogs";
@@ -528,6 +530,10 @@ export class EntryOptionsModal extends Modal {
   }
 
   private draw(): void {
+    keepScroll(this.contentEl, () => this.paint());
+  }
+
+  private paint(): void {
     const c = this.contentEl;
     const view = this.view;
     const t = view.i18n.t.bind(view.i18n);

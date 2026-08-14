@@ -99,6 +99,40 @@ export function mountTextList(host: HTMLElement, o: TextListOptions): void {
   o.extra?.(foot, append);
 }
 
+/**
+ * The element that actually scrolls around `host`: itself, or the first
+ * ancestor that does. A settings popup scrolls its own body; a modal scrolls
+ * the content element above whatever was rebuilt.
+ */
+function scrollerOf(host: HTMLElement): HTMLElement | null {
+  for (let el: HTMLElement | null = host; el; el = el.parentElement) {
+    const cs = getComputedStyle(el);
+    if (/(auto|scroll)/.test(cs.overflowY) && el.scrollHeight > el.clientHeight + 1) return el;
+    if (el.hasClass("modal") || el.hasClass("ep-popup")) break;
+  }
+  return null;
+}
+
+/**
+ * Rebuild something without throwing the reader back to the top.
+ *
+ * Changing one setting often rebuilds the rows around it - a data type that
+ * brings its own options, a width that reveals a field. Snapping to the top
+ * each time reads as the panel having closed and reopened. The position is
+ * put back straight away and again on the next frame, since a row that
+ * finishes arriving late would otherwise undo it.
+ */
+export function keepScroll(host: HTMLElement, rebuild: () => void): void {
+  const el = scrollerOf(host);
+  const top = el?.scrollTop ?? 0;
+  rebuild();
+  if (!el || !top) return;
+  el.scrollTop = top;
+  window.requestAnimationFrame(() => {
+    if (el.isConnected) el.scrollTop = top;
+  });
+}
+
 /** Host for color settings: where the picker reads/writes its color space. */
 export interface ColorHost {
   app: App;

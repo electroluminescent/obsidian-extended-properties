@@ -20,6 +20,7 @@
  */
 
 import { Menu, Platform, Scope, setIcon, TFile } from "obsidian";
+import { keepScroll } from "./setting-helpers";
 import type { ViewCtx, OptionsCtx } from "../../core/context";
 import { Entry, Section, sectionMode } from "../../core/model";
 import * as ops from "../../core/layout-ops";
@@ -329,10 +330,12 @@ export function openEntrySettingsPopup(
   tool("x", t("entry.popup.close"), () => closeSettingsPopup());
   const body = pop.createDiv({ cls: "ep-entrysettings-body" });
   const build = (): void => {
-    // Rows rebuild in place (a rename, a data-type change): keep the reader
-    // where they were instead of snapping back to the top, which reads as the
-    // popup having closed and reopened.
-    const scroll = body.scrollTop;
+    // Rows rebuild in place (a rename, a data-type change, a palette): keep
+    // the reader where they were instead of snapping back to the top, which
+    // reads as the popup having closed and reopened.
+    keepScroll(body, () => draw());
+  };
+  const draw = (): void => {
     body.empty();
     const octx: OptionsCtx = {
       view,
@@ -354,7 +357,6 @@ export function openEntrySettingsPopup(
       const name = item.querySelector<HTMLElement>(".setting-item-name")?.textContent?.trim() ?? "";
       if (desc) item.setAttr("title", name ? name + " - " + desc : desc);
     }
-    if (scroll) body.scrollTop = scroll;
   };
   build();
   // Clamp near the cursor once sized. The mobile sheet is placed by CSS.
