@@ -42,6 +42,8 @@ import { runMacro } from "./features/rolling/macros";
 import { inlineModule, registerInline } from "./features/inline/index";
 import { configureSound } from "./utils/sound";
 import { setSemanticTable } from "./utils/semantic";
+import { anchors } from "./utils/semantic-anchors";
+import { buildTable, readCache } from "./utils/semantic-build";
 import { configureTabChain } from "./ui/components/tab-chain";
 import { NoteFacade } from "./core/note-model";
 
@@ -539,27 +541,49 @@ export default class ExtendedPropertiesPlugin extends Plugin {
   private settingTab: EPSettingTab | null = null;
 
   /**
-   * Read the optional wide word table, if this vault has one.
+   * The wide word table: read it, or build it from a vector file.
    *
-   * The plugin ships a few hundred words; anyone wanting the rest of English
-   * drops `semantic-en.json` (built by `scripts/build-semantic.mjs`, shipped
-   * on the release page) into the plugin's own folder. Nothing is downloaded
-   * and nothing is executed - it is a map of words to colours.
+   * The plugin ships a few hundred words. Anyone wanting the rest of English
+   * drops a word-vector file into the plugin's own folder as `glove.txt` -
+   * GloVe's 2024 vectors, or anything in the same shape - and the table is
+   * built from it ONCE, here, on this machine. What is kept afterwards is
+   * `semantic-en.json`, a plain map of words to colours: no model is loaded,
+   * no weights are bundled, and nothing is ever downloaded.
+   *
+   * The build is redone when the vector file changes, or on request.
    */
-  async loadSemanticTable(): Promise<number> {
+  async loadSemanticTable(force = false): Promise<number> {
     const dir = this.manifest.dir;
     if (!dir) return 0;
-    const path = `${dir}/semantic-en.json`;
+    const fs = this.app.vault.adapter;
+    const cachePath = `${dir}/semantic-en.json`;
+    const vectorPath = `${dir}/glove.txt`;
     try {
-      if (!(await this.app.vault.adapter.exists(path))) {
+      const hasVectors = await fs.exists(vectorPath);
+      const hasCache = await fs.exists(cachePath);
+      const stamp = hasVectors ? (await fs.stat(vectorPath))?.size ?? 0 : 0;
+      if (hasCache && !force) {
+        const cached: unknown = JSON.parse(await fs.read(cachePath));
+        const { words, built } = readCache(cached);
+        // A cache built from a different file is stale; anything hand-made
+        // (no stamp of ours) is taken as it is.
+        if (words && (!hasVectors || built === 0 || built === stamp)) {
+          setSemanticTable(words);
+          this.refreshViews();
+          return Object.keys(words).length;
+        }
+      }
+      if (!hasVectors) {
         setSemanticTable(null);
         return 0;
       }
-      const parsed: unknown = JSON.parse(await this.app.vault.adapter.read(path));
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return 0;
-      setSemanticTable(parsed as Record<string, string>);
+      new Notice(this.i18n.t("palette.tableBuilding"));
+      const text = await fs.read(vectorPath);
+      const words = buildTable(text, anchors());
+      await fs.write(cachePath, JSON.stringify({ built: stamp, words }));
+      setSemanticTable(words);
       this.refreshViews();
-      return Object.keys(parsed).length;
+      return Object.keys(words).length;
     } catch (e) {
       console.error("Extended Properties: could not read the word table", e);
       return 0;

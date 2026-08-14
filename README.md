@@ -150,7 +150,7 @@ The colour lands on the value's text, on the value in a tinted pill, or on the w
 
 Over the top go **finishes** - gloss, matte, holographic, reverse holo, foil, prismatic, refractor, chrome, cracked ice, cosmic, shimmer, metallic, canvas, die-cut, parallel, mojo, wave, negative, etch, prizm - applied to everything, to named values, to a band of numbers, or one each. All of it is gradients and blend modes; the animated ones run under the pointer only, stop entirely under `prefers-reduced-motion`, and stand down under Windows High Contrast.
 
-A palette set to *Words* knows a few hundred English words out of the box (colours, elements, materials, weather, states, outcomes) and reaches more by stemming. For the rest of the language, `semantic-en.json` from the release page can be dropped into the plugin's folder - a plain word-to-colour table, built ahead of time by `scripts/build-semantic.mjs` from a word-vector file such as [GloVe](https://nlp.stanford.edu/projects/glove/) (Stanford, PDDL). No model runs in the plugin, nothing is bundled and nothing is downloaded.
+A palette set to *Words* knows a few hundred English words out of the box (colours, elements, materials, weather, states, outcomes) and reaches more by stemming. For the rest of the language, drop a word-vector file named `glove.txt` into the plugin's folder - [GloVe's pre-trained vectors](https://github.com/stanfordnlp/GloVe#download-pre-trained-word-vectors-new-2024-vectors), or anything in the same `word n n n ...` shape - and press *Build from glove.txt* in **Settings -> Palettes**. Every word takes the colour of the anchors it sits nearest to; the result is kept as `semantic-en.json` beside it and reused from then on, and rebuilt only if the vector file changes or you ask. The work happens once, on your machine: no model runs in the plugin, no weights are bundled, and nothing is ever downloaded.
 
 ### Validation & Conditional Visibility
 
@@ -278,6 +278,12 @@ Toggle **Flat sections** in Style Settings (or add the `ep-flat-sections` class 
 - Feature modules extend entries using open-ended field storage; disabling a module preserves its data (displayed as "Unavailable" stubs until the module is re-enabled).
 - Migrations are applied automatically for schema updates, via a versioned, idempotent runner; the pre-migration `data.json` is backed up first (last 5 kept).
 - Customizations carry across plugin versions: settings written by a newer version (or by a third-party module) are preserved rather than dropped on load, and any version change snapshots `data.json` so an upgrade can always be rolled back.
+
+## Credits
+
+Word colouring can be extended with pre-trained word vectors. The plugin bundles none, downloads none and runs no model - it reads a file you provide and builds a word-to-colour table from it once.
+
+- **GloVe: Global Vectors for Word Representation** - Jeffrey Pennington, Richard Socher and Christopher D. Manning, Stanford NLP (EMNLP 2014), with the [2024 vectors](https://github.com/stanfordnlp/GloVe#download-pre-trained-word-vectors-new-2024-vectors). Released into the public domain under the Public Domain Dedication and Licence (PDDL) v1.0.
 
 ## License
 

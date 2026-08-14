@@ -762,8 +762,12 @@ var en_default = {
   "palette.wordAdd": "Add word",
   "palette.table": "Wide word table",
   "palette.tableOn": "{n} words installed.",
-  "palette.tableOff": "Not installed. A few hundred words ship with the plugin; for the rest of English, put semantic-en.json from the release page in the plugin's folder.",
+  "palette.tableOff": "Not built. A few hundred words ship with the plugin; for the rest of English, put a word-vector file named glove.txt in the plugin's folder and build the table from it - it is built once, here, and kept as semantic-en.json.",
   "palette.tableReload": "Look again",
+  "palette.tableBuild": "Build from glove.txt",
+  "palette.tableBuilding": "Building the word table from glove.txt - this takes a moment.",
+  "palette.tableSource": "Where to get vectors (GloVe, 2024)",
+  "palette.tableCredit": "GloVe: Global Vectors for Word Representation - Pennington, Socher & Manning (Stanford NLP), released into the public domain under the PDDL. The plugin reads the file on your machine; nothing is downloaded and no model is bundled.",
   "palette.fallback": "Words nothing knows",
   "palette.fallbackDesc": "A word none of the tables holds: leave it uncoloured, or give it a colour of its own - meaningless, but the same word is always the same colour.",
   "palette.fallback.none": "Leave uncoloured",
@@ -17526,7 +17530,26 @@ var EPSettingTab = class extends import_obsidian38.PluginSettingTab {
       renderPaletteEditor(c, p, ctx2);
     }
     const words = semanticTableSize();
-    new import_obsidian38.Setting(c).setName(t("palette.table")).setDesc(words ? t("palette.tableOn", { n: String(words) }) : t("palette.tableOff")).addButton(
+    const tableDesc = createFragment((frag) => {
+      frag.appendText(words ? t("palette.tableOn", { n: String(words) }) : t("palette.tableOff"));
+      frag.appendText(" ");
+      const a = frag.createEl("a", {
+        text: t("palette.tableSource"),
+        href: "https://github.com/stanfordnlp/GloVe#download-pre-trained-word-vectors-new-2024-vectors"
+      });
+      a.setAttr("target", "_blank");
+      a.setAttr("rel", "noopener");
+      frag.createEl("br");
+      frag.appendText(t("palette.tableCredit"));
+    });
+    new import_obsidian38.Setting(c).setName(t("palette.table")).setDesc(tableDesc).addButton(
+      (b) => b.setButtonText(t("palette.tableBuild")).onClick(() => {
+        void plugin.loadSemanticTable(true).then((n) => {
+          new import_obsidian38.Notice(n ? t("palette.tableOn", { n: String(n) }) : t("palette.tableOff"));
+          this.render();
+        });
+      })
+    ).addButton(
       (b) => b.setButtonText(t("palette.tableReload")).onClick(() => {
         void plugin.loadSemanticTable().then((n) => {
           new import_obsidian38.Notice(n ? t("palette.tableOn", { n: String(n) }) : t("palette.tableOff"));
@@ -21478,6 +21501,99 @@ function registerInline(plugin, ctx2) {
   plugin.registerEditorExtension(inlineLivePreview(ctx2));
 }
 
+// src/utils/semantic-build.ts
+function* eachLine(text) {
+  let start = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (text.charCodeAt(i) !== 10) continue;
+    const end = i > start && text.charCodeAt(i - 1) === 13 ? i - 1 : i;
+    if (end > start) yield text.slice(start, end);
+    start = i + 1;
+  }
+  if (start < text.length) yield text.slice(start);
+}
+function parseLine(line) {
+  const sp = line.indexOf(" ");
+  if (sp <= 0) return null;
+  const parts = line.slice(sp + 1).split(" ");
+  const vec = [];
+  for (const p of parts) {
+    const n = Number(p);
+    if (!Number.isFinite(n)) return null;
+    vec.push(n);
+  }
+  return vec.length ? { word: line.slice(0, sp), vec } : null;
+}
+var dot2 = (a, b) => {
+  let s = 0;
+  const n = Math.min(a.length, b.length);
+  for (let i = 0; i < n; i++) s += a[i] * b[i];
+  return s;
+};
+var norm2 = (a) => Math.sqrt(dot2(a, a)) || 1;
+function channels(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return [n >> 16 & 255, n >> 8 & 255, n & 255];
+}
+var toHex = (r, g, b) => "#" + [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
+function buildTable(text, anchors2, o = {}) {
+  var _a, _b, _c;
+  const limit = (_a = o.limit) != null ? _a : 5e4;
+  const near = (_b = o.near) != null ? _b : 4;
+  const minSim = (_c = o.minSim) != null ? _c : 0.2;
+  const anchorVecs = [];
+  const kept = [];
+  let lines = 0;
+  for (const line of eachLine(text)) {
+    lines++;
+    if (o.onProgress && lines % 2e4 === 0) o.onProgress(lines);
+    const parsed = parseLine(line);
+    if (!parsed) continue;
+    const { word, vec } = parsed;
+    const anchor = anchors2.get(word);
+    if (anchor) {
+      const rgb = channels(anchor);
+      if (rgb) anchorVecs.push({ vec, len: norm2(vec), rgb });
+    }
+    if (kept.length < limit && /^[a-z][a-z'-]{1,}$/.test(word)) kept.push({ word, vec, len: norm2(vec) });
+  }
+  if (!anchorVecs.length) return {};
+  const out = {};
+  for (const { word, vec, len: len2 } of kept) {
+    const own = anchors2.get(word);
+    if (own) {
+      out[word] = own;
+      continue;
+    }
+    const scored = anchorVecs.map((a) => ({ a, sim: dot2(vec, a.vec) / (len2 * a.len) })).sort((x, y) => y.sim - x.sim).slice(0, near).filter((x) => x.sim > minSim);
+    if (!scored.length) continue;
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    let w = 0;
+    for (const { a, sim } of scored) {
+      const k = sim * sim * sim;
+      r += a.rgb[0] * k;
+      g += a.rgb[1] * k;
+      b += a.rgb[2] * k;
+      w += k;
+    }
+    if (w > 0) out[word] = toHex(r / w, g / w, b / w);
+  }
+  return out;
+}
+function readCache(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { words: null, built: 0 };
+  const obj = raw;
+  if (obj.words && typeof obj.words === "object" && !Array.isArray(obj.words)) {
+    return { words: obj.words, built: Number(obj.built) || 0 };
+  }
+  const plain = Object.values(obj).every((v) => typeof v === "string");
+  return plain ? { words: obj, built: 0 } : { words: null, built: 0 };
+}
+
 // src/main.ts
 var FEATURE_MODULES = [rollingModule, dnd5eModule, inlineModule];
 var ADOPTION_SETTLE_MS = 1500;
@@ -21895,27 +22011,48 @@ var ExtendedPropertiesPlugin = class extends import_obsidian50.Plugin {
     return preset ? preset.build(this.i18n) : { version: 4, sections: [] };
   }
   /**
-   * Read the optional wide word table, if this vault has one.
+   * The wide word table: read it, or build it from a vector file.
    *
-   * The plugin ships a few hundred words; anyone wanting the rest of English
-   * drops `semantic-en.json` (built by `scripts/build-semantic.mjs`, shipped
-   * on the release page) into the plugin's own folder. Nothing is downloaded
-   * and nothing is executed - it is a map of words to colours.
+   * The plugin ships a few hundred words. Anyone wanting the rest of English
+   * drops a word-vector file into the plugin's own folder as `glove.txt` -
+   * GloVe's 2024 vectors, or anything in the same shape - and the table is
+   * built from it ONCE, here, on this machine. What is kept afterwards is
+   * `semantic-en.json`, a plain map of words to colours: no model is loaded,
+   * no weights are bundled, and nothing is ever downloaded.
+   *
+   * The build is redone when the vector file changes, or on request.
    */
-  async loadSemanticTable() {
+  async loadSemanticTable(force = false) {
+    var _a, _b;
     const dir = this.manifest.dir;
     if (!dir) return 0;
-    const path = `${dir}/semantic-en.json`;
+    const fs = this.app.vault.adapter;
+    const cachePath = `${dir}/semantic-en.json`;
+    const vectorPath = `${dir}/glove.txt`;
     try {
-      if (!await this.app.vault.adapter.exists(path)) {
+      const hasVectors = await fs.exists(vectorPath);
+      const hasCache = await fs.exists(cachePath);
+      const stamp = hasVectors ? (_b = (_a = await fs.stat(vectorPath)) == null ? void 0 : _a.size) != null ? _b : 0 : 0;
+      if (hasCache && !force) {
+        const cached = JSON.parse(await fs.read(cachePath));
+        const { words: words2, built } = readCache(cached);
+        if (words2 && (!hasVectors || built === 0 || built === stamp)) {
+          setSemanticTable(words2);
+          this.refreshViews();
+          return Object.keys(words2).length;
+        }
+      }
+      if (!hasVectors) {
         setSemanticTable(null);
         return 0;
       }
-      const parsed = JSON.parse(await this.app.vault.adapter.read(path));
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return 0;
-      setSemanticTable(parsed);
+      new import_obsidian50.Notice(this.i18n.t("palette.tableBuilding"));
+      const text = await fs.read(vectorPath);
+      const words = buildTable(text, anchors());
+      await fs.write(cachePath, JSON.stringify({ built: stamp, words }));
+      setSemanticTable(words);
       this.refreshViews();
-      return Object.keys(parsed).length;
+      return Object.keys(words).length;
     } catch (e) {
       console.error("Extended Properties: could not read the word table", e);
       return 0;

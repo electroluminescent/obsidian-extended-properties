@@ -16,3 +16,8 @@ backups/
 
 # FreeFileSync sync databases (created by the vault/project sync)
 *.ffs_db
+
+# Word vectors the user supplies, and the table built from them: large, local,
+# and reproducible - they belong in the plugin folder, not in the repository.
+glove.txt
+semantic-en.json

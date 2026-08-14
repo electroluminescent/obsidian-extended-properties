@@ -1331,11 +1331,32 @@ export class EPSettingTab extends PluginSettingTab {
       );
       renderPaletteEditor(c, p, ctx);
     }
-    // The wide word table: shipped separately, read from the plugin's folder.
+    // The wide word table: built here, once, from a vector file the user
+    // drops in - with the link to where one comes from.
     const words = semanticTableSize();
+    const tableDesc = createFragment((frag) => {
+      frag.appendText(words ? t("palette.tableOn", { n: String(words) }) : t("palette.tableOff"));
+      frag.appendText(" ");
+      const a = frag.createEl("a", {
+        text: t("palette.tableSource"),
+        href: "https://github.com/stanfordnlp/GloVe#download-pre-trained-word-vectors-new-2024-vectors",
+      });
+      a.setAttr("target", "_blank");
+      a.setAttr("rel", "noopener");
+      frag.createEl("br");
+      frag.appendText(t("palette.tableCredit"));
+    });
     new Setting(c)
       .setName(t("palette.table"))
-      .setDesc(words ? t("palette.tableOn", { n: String(words) }) : t("palette.tableOff"))
+      .setDesc(tableDesc)
+      .addButton((b) =>
+        b.setButtonText(t("palette.tableBuild")).onClick(() => {
+          void plugin.loadSemanticTable(true).then((n) => {
+            new Notice(n ? t("palette.tableOn", { n: String(n) }) : t("palette.tableOff"));
+            this.render();
+          });
+        })
+      )
       .addButton((b) =>
         b.setButtonText(t("palette.tableReload")).onClick(() => {
           void plugin.loadSemanticTable().then((n) => {

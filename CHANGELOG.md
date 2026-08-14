@@ -53,11 +53,15 @@
 - A word nothing knows can be left alone or given **a colour of its own**:
   meaningless, but the same word is the same colour in every note and on every
   machine, so a vocabulary the plugin has never met still reads consistently.
-- **The wide vocabulary is optional and separate.** `scripts/build-semantic.mjs`
-  turns a word-vector file into a word-to-colour table ahead of time; the
-  result ships on the release page as `semantic-en.json` and is read from the
-  plugin's own folder if you put it there. No model runs in the plugin, no
-  weights are bundled and nothing is ever downloaded at runtime.
+- **The wide vocabulary is yours to add.** Drop a word-vector file named
+  `glove.txt` into the plugin's folder - GloVe's 2024 vectors, or anything in
+  the same shape - and *Build from glove.txt* in the Palettes settings turns it
+  into a word-to-colour table: every word takes the colour of the anchors it
+  sits nearest to. It is built once, on your machine, kept as
+  `semantic-en.json` beside it, and rebuilt only when the vector file changes
+  or you ask. No model runs in the plugin, no weights are bundled and nothing
+  is ever downloaded - and the settings row links to where the vectors come
+  from, with the credit they are due.
 
 ## 4.56.1
 
