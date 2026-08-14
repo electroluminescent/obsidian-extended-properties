@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.60.0
+
+- **The finishes are redrawn as materials.** Thirteen of them - matte, gloss,
+  foil, prismatic, holographic, iridescent, satin, emboss, sparkle, linen,
+  crystal, radiant and hammered - each with the blend its own material asks
+  for: a gloss is light added, a linen is a weave shading what lies under it,
+  a matte scatters the light rather than returning it. Still all gradients,
+  still nothing downloaded, still nothing that moves.
+- The twenty that came before are gone, and **anything wearing one is pointed
+  at its nearest survivor** rather than left bare - chrome reads as gloss,
+  cracked ice as crystal, cosmic as sparkle, canvas as linen, etch and die-cut
+  as emboss, prizm and refractor as prismatic.
+- The finishes that are surfaces rather than light - matte, satin, linen,
+  emboss, hammered - stay off bare text, where there is no material for the
+  light to land on.
+
 ## 4.59.0
 
 - **The word table builds.** *Build from glove.txt* and *Look again* both

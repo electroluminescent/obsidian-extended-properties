@@ -6,27 +6,30 @@
  * colour the palette chose rather than replacing it. Which values wear which
  * is decided in `utils/finish`; this is only the list and what each is called.
  *
- * Nothing here moves. A finish is a surface, not an animation: it is blended
- * into the colour (every texture is built around mid-grey, which `overlay`
- * leaves alone), so hovering a row changes nothing about how it is drawn.
+ * Nothing here moves. A finish is a surface, not an animation: each is
+ * blended into the colour rather than painted over it - the blend mode is the
+ * finish's own, since a gloss is light added and a linen is a weave shading
+ * what is under it - so hovering a row changes nothing about how it is drawn.
  */
 
 import type { I18n } from "../../i18n/i18n";
 
 /** Every finish, in the order the settings offer them. */
 export const FINISHES = [
-  "gloss", "matte", "holographic", "reverse-holo", "foil", "prismatic", "refractor",
-  "chrome", "cracked-ice", "cosmic", "shimmer", "metallic", "canvas", "die-cut",
-  "parallel", "mojo", "wave", "negative", "etch", "prizm",
+  "matte", "gloss", "foil", "prismatic", "holographic", "iridescent", "satin",
+  "emboss", "sparkle", "linen", "crystal", "radiant", "hammered",
 ] as const;
 
 export type FinishId = (typeof FINISHES)[number];
 
 /**
- * Finishes that need something to shape or texture: a cut edge and a woven
- * surface mean nothing on a line of bare text.
+ * Finishes that need a surface to be a surface: a weave, a raised edge, a
+ * beaten face - none of them mean anything laid over a line of bare text,
+ * where there is no material for the light to land on.
  */
-export const NEEDS_FILL: ReadonlySet<string> = new Set(["die-cut", "canvas", "parallel", "cracked-ice"]);
+export const NEEDS_FILL: ReadonlySet<string> = new Set([
+  "matte", "satin", "linen", "emboss", "hammered",
+]);
 
 /** What a finish is called. */
 export function finishName(i18n: I18n, id: string): string {

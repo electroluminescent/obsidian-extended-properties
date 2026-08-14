@@ -311,7 +311,7 @@ export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EP
 // ---------------------------------------------------------------------------
 
 /** Current settings schema version. Bump when adding a migration step below. */
-export const CURRENT_SCHEMA = 7;
+export const CURRENT_SCHEMA = 8;
 
 /** One ordered migration step: bring settings up to schema `to`. */
 export interface Migration {
@@ -527,6 +527,47 @@ export const SCHEMA_MIGRATIONS: Migration[] = [
         delete legacy.ranges;
         changed = true;
       }
+      return changed;
+    },
+  },
+  {
+    to: 8,
+    name: "finishes-remade",
+    run: (s) => {
+      // The finishes were redrawn as one set of materials, and the ones that
+      // went are pointed at their nearest survivor rather than dropped: a
+      // property wearing "chrome" should not come back wearing nothing.
+      const moved: Record<string, string> = {
+        "reverse-holo": "holographic",
+        refractor: "prismatic",
+        chrome: "gloss",
+        "cracked-ice": "crystal",
+        cosmic: "sparkle",
+        shimmer: "satin",
+        metallic: "foil",
+        canvas: "linen",
+        "die-cut": "emboss",
+        parallel: "foil",
+        mojo: "radiant",
+        wave: "radiant",
+        negative: "emboss",
+        etch: "emboss",
+        prizm: "prismatic",
+      };
+      let changed = false;
+      const each = (rules: { finish: string }[] | undefined): void => {
+        for (const r of rules ?? []) {
+          const to = moved[r.finish];
+          if (!to) continue;
+          r.finish = to;
+          changed = true;
+        }
+      };
+      for (const rule of Object.values(s.formatProps ?? {})) each(rule.finishes);
+      const entry = (e: Entry | undefined): void => each(e?.format?.finishes);
+      for (const lk of Object.keys(s.layouts ?? {}))
+        for (const sec of s.layouts[lk].sections ?? []) for (const e of sec.entries ?? []) entry(e);
+      for (const k of Object.keys(s.inlineEntries ?? {})) entry(s.inlineEntries?.[k]);
       return changed;
     },
   },

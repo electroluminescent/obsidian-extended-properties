@@ -230,6 +230,32 @@ describe("runSchemaMigrations (D3)", () => {
     expect((bands as { ranges?: unknown }).ranges).toBeUndefined();
   });
 
+  it("points a withdrawn finish at its nearest survivor", () => {
+    const s = defaultSettings();
+    s.schemaVersion = 7;
+    s.formatProps = { hp: { palette: "p", finishes: [{ when: "all", finish: "chrome" }] } };
+    s.layouts = {
+      character: {
+        version: 4,
+        sections: [{
+          id: "s", title: "S", columns: 1,
+          entries: [{ id: "e", kind: "prop", key: "AC", format: { finishes: [{ when: "all", finish: "cosmic" }] } }],
+        }],
+      },
+    };
+    runSchemaMigrations(s);
+    expect(s.formatProps.hp.finishes?.[0].finish).toBe("gloss");
+    expect(s.layouts.character.sections[0].entries[0].format?.finishes?.[0].finish).toBe("sparkle");
+  });
+
+  it("leaves a finish that is still drawn alone", () => {
+    const s = defaultSettings();
+    s.schemaVersion = 7;
+    s.formatProps = { hp: { finishes: [{ when: "all", finish: "linen" }] } };
+    runSchemaMigrations(s);
+    expect(s.formatProps.hp.finishes?.[0].finish).toBe("linen");
+  });
+
   it("runs only steps newer than the stored version, in ascending order", () => {
     const order: number[] = [];
     const table: Migration[] = [

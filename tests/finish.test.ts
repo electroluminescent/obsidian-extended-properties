@@ -23,11 +23,11 @@ describe("who a rule speaks for", () => {
   });
 
   it("speaks for a band of numbers, whichever way round it is written", () => {
-    const rs = [rule({ when: "range", from: 10, to: 20, finish: "chrome" })];
-    expect(pickFinish(rs, 15)?.finish).toBe("chrome");
-    expect(pickFinish(rs, 10)?.finish).toBe("chrome");
+    const rs = [rule({ when: "range", from: 10, to: 20, finish: "crystal" })];
+    expect(pickFinish(rs, 15)?.finish).toBe("crystal");
+    expect(pickFinish(rs, 10)?.finish).toBe("crystal");
     expect(pickFinish(rs, 21)).toBeUndefined();
-    expect(pickFinish([rule({ when: "range", from: 20, to: 10, finish: "chrome" })], 15)?.finish).toBe("chrome");
+    expect(pickFinish([rule({ when: "range", from: 20, to: 10, finish: "crystal" })], 15)?.finish).toBe("crystal");
   });
 
   it("reads a number written as text", () => {
@@ -36,10 +36,10 @@ describe("who a rule speaks for", () => {
 
   it("lets the first rule that speaks win", () => {
     const rs = [
-      rule({ when: "values", values: ["Fire"], finish: "cosmic" }),
+      rule({ when: "values", values: ["Fire"], finish: "sparkle" }),
       rule({ when: "all", finish: "matte" }),
     ];
-    expect(pickFinish(rs, "Fire")?.finish).toBe("cosmic");
+    expect(pickFinish(rs, "Fire")?.finish).toBe("sparkle");
     expect(pickFinish(rs, "Water")?.finish).toBe("matte");
   });
 
@@ -50,7 +50,7 @@ describe("who a rule speaks for", () => {
 
 describe("the withdrawn one-each rule", () => {
   it("gives nothing at all: a finish is something somebody chose", () => {
-    const rs = [rule({ when: "unique", finish: "gloss", set: ["gloss", "foil", "chrome"] })];
+    const rs = [rule({ when: "unique", finish: "gloss", set: ["gloss", "foil", "crystal"] })];
     expect(pickFinish(rs, "Athletics")).toBeUndefined();
   });
 

@@ -794,26 +794,19 @@ var en_default = {
   "options.formatScopeDesc": "This property wherever it is drawn - sidebar, type table, inline - or only this row.",
   "options.formatScope.key": "This property everywhere",
   "options.formatScope.row": "Only this row",
-  "finish.gloss": "Gloss",
   "finish.matte": "Matte",
-  "finish.holographic": "Holographic",
-  "finish.reverse-holo": "Reverse holo",
+  "finish.gloss": "Gloss",
   "finish.foil": "Foil",
   "finish.prismatic": "Prismatic foil",
-  "finish.refractor": "Refractor",
-  "finish.chrome": "Chrome",
-  "finish.cracked-ice": "Cracked ice",
-  "finish.cosmic": "Cosmic",
-  "finish.shimmer": "Shimmer",
-  "finish.metallic": "Metallic foil",
-  "finish.canvas": "Canvas",
-  "finish.die-cut": "Die-cut",
-  "finish.parallel": "Parallel",
-  "finish.mojo": "Mojo",
-  "finish.wave": "Wave",
-  "finish.negative": "Negative",
-  "finish.etch": "Etch",
-  "finish.prizm": "Prizm",
+  "finish.holographic": "Holographic",
+  "finish.iridescent": "Iridescent",
+  "finish.satin": "Satin",
+  "finish.emboss": "Emboss",
+  "finish.sparkle": "Sparkle",
+  "finish.linen": "Linen",
+  "finish.crystal": "Crystal",
+  "finish.radiant": "Radiant",
+  "finish.hammered": "Hammered",
   "options.finishHeading": "Finishes",
   "options.finishHeadingDesc": "Laid over the colour, never instead of it. The first rule that speaks for a value wins, so put the particular ones first.",
   "options.finishAdd": "Add finish rule",
@@ -2582,7 +2575,7 @@ function normalizeSettings(raw, defaultLayout) {
   }
   return s;
 }
-var CURRENT_SCHEMA = 7;
+var CURRENT_SCHEMA = 8;
 var SCHEMA_MIGRATIONS = [
   {
     to: 1,
@@ -2754,6 +2747,48 @@ var SCHEMA_MIGRATIONS = [
         delete legacy.ranges;
         changed = true;
       }
+      return changed;
+    }
+  },
+  {
+    to: 8,
+    name: "finishes-remade",
+    run: (s) => {
+      var _a, _b, _c, _d, _e, _f;
+      const moved = {
+        "reverse-holo": "holographic",
+        refractor: "prismatic",
+        chrome: "gloss",
+        "cracked-ice": "crystal",
+        cosmic: "sparkle",
+        shimmer: "satin",
+        metallic: "foil",
+        canvas: "linen",
+        "die-cut": "emboss",
+        parallel: "foil",
+        mojo: "radiant",
+        wave: "radiant",
+        negative: "emboss",
+        etch: "emboss",
+        prizm: "prismatic"
+      };
+      let changed = false;
+      const each = (rules) => {
+        for (const r of rules != null ? rules : []) {
+          const to = moved[r.finish];
+          if (!to) continue;
+          r.finish = to;
+          changed = true;
+        }
+      };
+      for (const rule of Object.values((_a = s.formatProps) != null ? _a : {})) each(rule.finishes);
+      const entry = (e) => {
+        var _a2;
+        return each((_a2 = e == null ? void 0 : e.format) == null ? void 0 : _a2.finishes);
+      };
+      for (const lk of Object.keys((_b = s.layouts) != null ? _b : {}))
+        for (const sec of (_c = s.layouts[lk].sections) != null ? _c : []) for (const e of (_d = sec.entries) != null ? _d : []) entry(e);
+      for (const k of Object.keys((_e = s.inlineEntries) != null ? _e : {})) entry((_f = s.inlineEntries) == null ? void 0 : _f[k]);
       return changed;
     }
   }
@@ -4514,28 +4549,27 @@ function pickFinish(rules, value) {
 
 // src/ui/render/finishes.ts
 var FINISHES = [
-  "gloss",
   "matte",
-  "holographic",
-  "reverse-holo",
+  "gloss",
   "foil",
   "prismatic",
-  "refractor",
-  "chrome",
-  "cracked-ice",
-  "cosmic",
-  "shimmer",
-  "metallic",
-  "canvas",
-  "die-cut",
-  "parallel",
-  "mojo",
-  "wave",
-  "negative",
-  "etch",
-  "prizm"
+  "holographic",
+  "iridescent",
+  "satin",
+  "emboss",
+  "sparkle",
+  "linen",
+  "crystal",
+  "radiant",
+  "hammered"
 ];
-var NEEDS_FILL = /* @__PURE__ */ new Set(["die-cut", "canvas", "parallel", "cracked-ice"]);
+var NEEDS_FILL = /* @__PURE__ */ new Set([
+  "matte",
+  "satin",
+  "linen",
+  "emboss",
+  "hammered"
+]);
 function finishName(i18n, id) {
   return i18n.t("finish." + id);
 }
