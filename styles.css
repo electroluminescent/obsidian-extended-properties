@@ -1165,12 +1165,13 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
   A foil that never catches the light is a picture of a foil; the whole reason
   the material reads as material is that the highlight travels as you do.
 
-  So there is one lamp for the whole screen. A single pointer watcher (see
-  `ui/render/lamp.ts`) writes a handful of custom properties on the document,
-  and every finish on every property answers to them together - the sheet lit
-  by one light rather than each row lit by its own. It is also the only
-  version of this that stays cheap with fifty formatted rows on screen: no
-  per-element listeners, no per-element work, one style recalculation a frame.
+  One pointer, but every value lit relative to ITSELF. What matters to a row
+  is not where the pointer is in the window - it is where the pointer is on
+  the row: the highlight belongs under the cursor, and a sheet of ten rows
+  should catch the light one row at a time as you cross them. A single watcher
+  (see `ui/render/lamp.ts`) works that out per value in one pass a frame and
+  writes it as the properties below; a value the light has not reached is left
+  to the resting values here, which cost nothing at all.
 
   Two layers per value, both blended INTO the palette's colour rather than
   painted over it:
@@ -1192,6 +1193,10 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
   --ep-lamp-dy: -22%;
   --ep-lamp-reach: 0.45;
   --ep-lamp-turn: 115deg;
+  /* How much of the light this value is getting: 1 with the pointer on it,
+     falling away to 0 as the pointer leaves. At rest - no pointer, no
+     JavaScript - every value gets the same modest share. */
+  --ep-lamp-near: 0.35;
 
   /* Six hues a white light splits into here. Deliberately not a rainbow of
      primaries: these are the colours a thin film actually throws - warm at
@@ -1239,7 +1244,12 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
   background-blend-mode: var(--ep-sheet-mix, normal);
   mix-blend-mode: var(--ep-sheet-blend, hard-light);
   filter: var(--ep-sheet-filter, none);
-  opacity: calc(var(--ep-sheet-opacity, 0.55) * var(--ep-finish-strength));
+  /* The nearer the light, the more of the material you see: a row under the
+     pointer is vivid, its neighbours are quiet, and the far end of a long
+     sheet is almost plain - which is how a sheet of foil actually reads. */
+  opacity: calc(
+    var(--ep-sheet-opacity, 0.55) * var(--ep-finish-strength) * (0.55 + var(--ep-lamp-near) * 0.45)
+  );
 }
 
 /* The glare: the light on it. */
@@ -1257,7 +1267,10 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
   background-position: var(--ep-glare-pos, center);
   mix-blend-mode: var(--ep-glare-blend, overlay);
   filter: var(--ep-glare-filter, none);
-  opacity: calc(var(--ep-glare-opacity, 0.5) * var(--ep-finish-strength));
+  /* The glare is the light itself, so it fades further than the sheet does. */
+  opacity: calc(
+    var(--ep-glare-opacity, 0.5) * var(--ep-finish-strength) * (0.3 + var(--ep-lamp-near) * 0.7)
+  );
 }
 
 /*
@@ -1570,6 +1583,7 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
     --ep-lamp-dy: -22%;
     --ep-lamp-reach: 0.45;
     --ep-lamp-turn: 115deg;
+    --ep-lamp-near: 0.35;
     will-change: auto;
   }
 }

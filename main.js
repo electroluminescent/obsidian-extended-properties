@@ -22254,55 +22254,92 @@ function readCache(raw) {
 }
 
 // src/ui/render/lamp.ts
-var LOOK_EVERY = 1e3;
-var PROPS = ["x", "y", "dx", "dy", "reach", "turn"];
-function lighting(doc, seen) {
-  const now = Date.now();
-  if (now - seen.at < LOOK_EVERY) return seen.any;
-  seen.at = now;
-  seen.any = !!doc.querySelector(".ep-fin");
-  return seen.any;
+var PROPS = ["x", "y", "dx", "dy", "reach", "turn", "near"];
+var FALLOFF = 2.6;
+var LIMIT = 160;
+var clamp2 = (n, lo, hi) => n < lo ? lo : n > hi ? hi : n;
+function lightFor(box, px, py) {
+  const overX = (px - box.left) / (box.width || 1);
+  const overY = (py - box.top) / (box.height || 1);
+  const outX = overX - 0.5;
+  const outY = overY - 0.5;
+  const away = Math.sqrt(outX * outX + outY * outY) * 2;
+  const near = clamp2(1 - (away - 1) / FALLOFF, 0, 1);
+  const x = clamp2(overX, -0.5, 1.5);
+  const y = clamp2(overY, -0.5, 1.5);
+  const dx = x - 0.5;
+  const dy = y - 0.5;
+  const reach = Math.min(1, Math.sqrt(dx * dx + dy * dy) * 2);
+  const turn = Math.atan2(dy, dx) * 180 / Math.PI + 180;
+  return {
+    "--ep-lamp-x": (x * 100).toFixed(2) + "%",
+    "--ep-lamp-y": (y * 100).toFixed(2) + "%",
+    "--ep-lamp-dx": (dx * 100).toFixed(2) + "%",
+    "--ep-lamp-dy": (dy * 100).toFixed(2) + "%",
+    "--ep-lamp-reach": reach.toFixed(3),
+    "--ep-lamp-turn": turn.toFixed(1) + "deg",
+    "--ep-lamp-near": near.toFixed(3)
+  };
 }
 function installLamp(win) {
   const doc = win.document;
-  const root = doc.documentElement;
-  const seen = { at: 0, any: false };
+  let lit = [];
+  let stale = true;
+  const resting = /* @__PURE__ */ new WeakSet();
   let queued = false;
-  let x = 0;
-  let y = 0;
+  let px = 0;
+  let py = 0;
+  const watch = new MutationObserver(() => {
+    stale = true;
+  });
   const write = () => {
     queued = false;
-    if (!lighting(doc, seen)) return;
-    const w = win.innerWidth || 1;
+    if (stale) {
+      lit = Array.from(doc.querySelectorAll(".ep-fin")).slice(0, LIMIT);
+      stale = false;
+    }
+    const boxes = lit.map((el) => el.getBoundingClientRect());
     const h = win.innerHeight || 1;
-    const px = x / w;
-    const py = y / h;
-    const dx = px - 0.5;
-    const dy = py - 0.5;
-    const reach = Math.min(1, Math.sqrt(dx * dx + dy * dy) * 2);
-    const turn = Math.atan2(dy, dx) * 180 / Math.PI + 180;
-    root.style.setProperty("--ep-lamp-x", (px * 100).toFixed(2) + "%");
-    root.style.setProperty("--ep-lamp-y", (py * 100).toFixed(2) + "%");
-    root.style.setProperty("--ep-lamp-dx", (dx * 100).toFixed(2) + "%");
-    root.style.setProperty("--ep-lamp-dy", (dy * 100).toFixed(2) + "%");
-    root.style.setProperty("--ep-lamp-reach", reach.toFixed(3));
-    root.style.setProperty("--ep-lamp-turn", turn.toFixed(1) + "deg");
+    const w = win.innerWidth || 1;
+    lit.forEach((el, i) => {
+      const box = boxes[i];
+      if (box.width === 0 || box.height === 0 || box.bottom < 0 || box.top > h || box.right < 0 || box.left > w) return;
+      const vals = lightFor(box, px, py);
+      if (vals["--ep-lamp-near"] === "0.000") {
+        if (resting.has(el)) return;
+        resting.add(el);
+        for (const p of PROPS) el.style.removeProperty("--ep-lamp-" + p);
+        return;
+      }
+      resting.delete(el);
+      for (const [k, v] of Object.entries(vals)) el.style.setProperty(k, v);
+    });
   };
-  const onMove = (e) => {
-    x = e.clientX;
-    y = e.clientY;
+  const refresh = () => {
     if (queued) return;
     queued = true;
     win.requestAnimationFrame(write);
   };
-  const release = () => {
-    for (const p of PROPS) root.style.removeProperty("--ep-lamp-" + p);
+  const onMove = (e) => {
+    px = e.clientX;
+    py = e.clientY;
+    refresh();
   };
+  const release = () => {
+    for (const el of lit) {
+      for (const p of PROPS) el.style.removeProperty("--ep-lamp-" + p);
+      resting.add(el);
+    }
+  };
+  watch.observe(doc.body, { childList: true, subtree: true });
   win.addEventListener("pointermove", onMove, { passive: true });
+  doc.addEventListener("scroll", refresh, { passive: true, capture: true });
   doc.addEventListener("pointerleave", release);
   win.addEventListener("blur", release);
   return () => {
+    watch.disconnect();
     win.removeEventListener("pointermove", onMove);
+    doc.removeEventListener("scroll", refresh, true);
     doc.removeEventListener("pointerleave", release);
     win.removeEventListener("blur", release);
     release();

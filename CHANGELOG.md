@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.62.1
+
+- **Each value is lit from where the pointer stands on IT**, rather than from
+  where the pointer is in the window. That is the difference between a sheet
+  of rows that all flash together and one that catches the light a row at a
+  time as you cross it: the highlight belongs under the cursor, and the value
+  under the cursor is the one wearing it.
+- **The light fades with distance**, measured in each value's own terms - so a
+  row two rows down goes quiet faster than one two columns across, which is
+  right, and the far end of a long sheet sits almost plain.
+- Still one listener and one frame of work: every box is read first and every
+  property written afterwards, so the page is laid out once rather than once
+  per value; values the light has left are put back to rest once and then
+  skipped entirely, and scrolling counts as movement because it moves the
+  values under a pointer that has not moved at all.
+
 ## 4.62.0
 
 - **The finishes are lit by your pointer.** Fifteen materials - matte, sheen,

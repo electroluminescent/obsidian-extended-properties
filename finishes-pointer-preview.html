@@ -41,8 +41,9 @@
   <body>
     <h1>The next finishes</h1>
     <p class="note">
-      Move the pointer anywhere in the window: one lamp, every finish answering to
-      it together. Pick a fill to see each finish over a different colour.
+      Move the pointer across the swatches: each one is lit from where the pointer
+      stands on it, so the light crosses the sheet one swatch at a time and fades
+      as it leaves. Pick a fill to see every finish over a different colour.
     </p>
     <div class="swatches" id="fills"></div>
     <div class="grid" id="grid"></div>
@@ -103,44 +104,78 @@
       draw(FILLS[0]);
 
       /*
-        The pointer watcher, in the shape the plugin will want it.
+        The lamp, in the shape the plugin installs it (src/ui/render/lamp.ts).
 
-        One listener for the whole document, rAF-throttled, writing six custom
-        properties on the root. No per-element work, no per-element listeners:
-        every finish on screen is lit by the same lamp, which is both the look
-        we are after and the only version of this that stays cheap with fifty
-        formatted rows on screen.
+        One listener, one frame of work - but the numbers are worked out per
+        value, from where the pointer stands on THAT value. The frame reads
+        every box first and writes every property afterwards, so the browser
+        lays the page out once rather than once per swatch.
       */
-      const root = document.documentElement;
-      let queued = false;
-      let last = { x: 0, y: 0 };
-      const write = () => {
-        queued = false;
-        const w = window.innerWidth || 1;
-        const h = window.innerHeight || 1;
-        const px = last.x / w;
-        const py = last.y / h;
-        const dx = px - 0.5;
-        const dy = py - 0.5;
+      const FALLOFF = 2.6;
+      const clamp = (n, lo, hi) => (n < lo ? lo : n > hi ? hi : n);
+
+      const lightFor = (box, px, py) => {
+        const overX = (px - box.left) / (box.width || 1);
+        const overY = (py - box.top) / (box.height || 1);
+        const outX = overX - 0.5;
+        const outY = overY - 0.5;
+        const away = Math.hypot(outX, outY) * 2;
+        const near = clamp(1 - (away - 1) / FALLOFF, 0, 1);
+        const x = clamp(overX, -0.5, 1.5);
+        const y = clamp(overY, -0.5, 1.5);
+        const dx = x - 0.5;
+        const dy = y - 0.5;
         const reach = Math.min(1, Math.hypot(dx, dy) * 2);
         const turn = (Math.atan2(dy, dx) * 180) / Math.PI + 180;
-        root.style.setProperty("--ep-lamp-x", (px * 100).toFixed(2) + "%");
-        root.style.setProperty("--ep-lamp-y", (py * 100).toFixed(2) + "%");
-        root.style.setProperty("--ep-lamp-dx", (dx * 100).toFixed(2) + "%");
-        root.style.setProperty("--ep-lamp-dy", (dy * 100).toFixed(2) + "%");
-        root.style.setProperty("--ep-lamp-reach", reach.toFixed(3));
-        root.style.setProperty("--ep-lamp-turn", turn.toFixed(1) + "deg");
+        return {
+          "--ep-lamp-x": (x * 100).toFixed(2) + "%",
+          "--ep-lamp-y": (y * 100).toFixed(2) + "%",
+          "--ep-lamp-dx": (dx * 100).toFixed(2) + "%",
+          "--ep-lamp-dy": (dy * 100).toFixed(2) + "%",
+          "--ep-lamp-reach": reach.toFixed(3),
+          "--ep-lamp-turn": turn.toFixed(1) + "deg",
+          "--ep-lamp-near": near.toFixed(3),
+        };
       };
-      window.addEventListener("pointermove", (e) => {
-        last = { x: e.clientX, y: e.clientY };
+
+      const PROPS = ["x", "y", "dx", "dy", "reach", "turn", "near"];
+      const resting = new WeakSet();
+      let queued = false;
+      let px = 0;
+      let py = 0;
+      const write = () => {
+        queued = false;
+        const lit = Array.from(document.querySelectorAll(".ep-fin"));
+        const boxes = lit.map((el) => el.getBoundingClientRect());
+        lit.forEach((el, i) => {
+          const vals = lightFor(boxes[i], px, py);
+          if (vals["--ep-lamp-near"] === "0.000") {
+            if (resting.has(el)) return;
+            resting.add(el);
+            for (const p of PROPS) el.style.removeProperty("--ep-lamp-" + p);
+            return;
+          }
+          resting.delete(el);
+          for (const [k, v] of Object.entries(vals)) el.style.setProperty(k, v);
+        });
+      };
+      const refresh = () => {
         if (queued) return;
         queued = true;
         requestAnimationFrame(write);
+      };
+      window.addEventListener("pointermove", (e) => {
+        px = e.clientX;
+        py = e.clientY;
+        refresh();
       }, { passive: true });
-      // Hand the lamp back when the pointer leaves, so nothing is left lit
-      // from a corner it has wandered out of.
-      window.addEventListener("pointerleave", () => {
-        for (const p of ["x", "y", "dx", "dy", "reach", "turn"]) root.style.removeProperty("--ep-lamp-" + p);
+      // Scrolling moves the values under a pointer that has not moved at all.
+      document.addEventListener("scroll", refresh, { passive: true, capture: true });
+      // Hand the lamp back, so nothing is left lit from a corner it has left.
+      document.addEventListener("pointerleave", () => {
+        for (const el of document.querySelectorAll(".ep-fin")) {
+          for (const p of PROPS) el.style.removeProperty("--ep-lamp-" + p);
+        }
       });
     </script>
   </body>
