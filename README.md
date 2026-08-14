@@ -142,6 +142,16 @@ Values resolve against the note the code lives in, so embeds and hover previews 
 
 *Open type table* (command + ribbon icon) opens a workspace view that lists every note of a chosen type as rows, with the properties you pick as columns. Choose the type, pick the columns, filter by text, and click a header to sort (ascending -> descending -> none). Cells render a compact, type-aware widget - checkbox, rating pips, colour swatch, internal link, image thumbnail, right-aligned numbers, list chips - and edit in place on double-click; rollable columns get a die button that rolls the cell value through the dice system. Rows click through to the note. Columns drag to resize, and the column set, sort order and widths persist per type. Rows above 150 virtualize, so a type with thousands of notes stays responsive.
 
+### Conditional Formatting
+
+Colour a property by its own value. Palettes are made once in **Settings -> Palettes** and pointed at from a property's *Formatting* block, so the sidebar, the type table and inline chips agree on what a value looks like. Four ways of reading a value: a **wheel** sweeping a hue across the property's range, **stops** with colours pinned to values and blends between them, **bands** holding a colour flat between two edges (with linked edges, a tick to say which side wins a shared edge, and your choice of what happens in the gaps and beyond the ends), and **words** with colours of their own. Every blend travels through OKLCH, so red to blue passes through the purples rather than through grey, and a fill takes a foreground picked by measured contrast.
+
+The colour lands on the value's text, on the value in a tinted pill, or on the whole row; a list colours each chip by its own value and gives the row the blend of them. Dates, derived values and formulas are coloured as the numbers they are - a palette can even be written over a calendar, its edges typed and read as dates in the property's own format.
+
+Over the top go **finishes** - gloss, matte, holographic, reverse holo, foil, prismatic, refractor, chrome, cracked ice, cosmic, shimmer, metallic, canvas, die-cut, parallel, mojo, wave, negative, etch, prizm - applied to everything, to named values, to a band of numbers, or one each. All of it is gradients and blend modes; the animated ones run under the pointer only, stop entirely under `prefers-reduced-motion`, and stand down under Windows High Contrast.
+
+A palette set to *Words* knows a few hundred English words out of the box (colours, elements, materials, weather, states, outcomes) and reaches more by stemming. For the rest of the language, `semantic-en.json` from the release page can be dropped into the plugin's folder - a plain word-to-colour table, built ahead of time by `scripts/build-semantic.mjs` from a word-vector file such as [GloVe](https://nlp.stanford.edu/projects/glove/) (Stanford, PDDL). No model runs in the plugin, nothing is bundled and nothing is downloaded.
+
 ### Validation & Conditional Visibility
 
 **Validation & constraints.** Any entry can carry constraints - required, numeric range, regex pattern, allowed values (element-wise for lists). Invalid values get a non-blocking invalid style (the data is never rejected), and numbers can optionally clamp to range on commit.
