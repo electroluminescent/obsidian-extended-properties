@@ -20366,6 +20366,11 @@ function makeValsEl(ctx2, file, body, onEditSource) {
       const v = ctx2.facade.get(target2, entry.key);
       head.createDiv({ cls: "ep-val-right" }).setText(v === void 0 || v === null || v === "" ? "-" : Array.isArray(v) ? v.join(", ") : String(v));
     }
+    applyFormat(view, entry, formatValue(view, entry), {
+      wrap,
+      val: wrap.querySelector(".ep-num, .ep-val-right, .ep-val"),
+      chips: wrap.findAll(".ep-chip")
+    });
     const openCardMenu = (x, y) => {
       var _a2, _b2;
       const ev = new MouseEvent("contextmenu", { clientX: x, clientY: y, bubbles: true });

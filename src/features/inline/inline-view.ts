@@ -37,6 +37,7 @@ import { PopupManager } from "../../ui/components/popups";
 import type { InlineCtx } from "./inline-render";
 import { addAppearanceItem, makeValEl } from "./inline-render";
 import { applyInlineSize } from "./size";
+import { applyFormat, formatValue } from "../../ui/render/format";
 import { showMenu } from "../../ui/menus/show";
 
 /** The note-type layout for a file (or null when no configured type matches). */
@@ -352,6 +353,14 @@ export function makeValsEl(ctx: InlineCtx, file: TFile, body: string, onEditSour
         .createDiv({ cls: "ep-val-right" })
         .setText(v === undefined || v === null || v === "" ? "-" : Array.isArray(v) ? v.join(", ") : String(v));
     }
+
+    // Whatever the property's palette says, said here too: an inline card is
+    // the sidebar's row, so it wears the sidebar's colours.
+    applyFormat(view, entry, formatValue(view, entry), {
+      wrap,
+      val: wrap.querySelector<HTMLElement>(".ep-num, .ep-val-right, .ep-val"),
+      chips: wrap.findAll(".ep-chip"),
+    });
 
     // The card's own menu: configure (options modal), clear value, value-type
     // items, and Edit source - but none of the sidebar's structural (grid)
