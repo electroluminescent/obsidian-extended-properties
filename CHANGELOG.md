@@ -44,6 +44,20 @@
   alone, so a sheet of fifty foiled rows is still, and
   `prefers-reduced-motion` stops even that. Under Windows High Contrast the
   whole layer stands down.
+- **Words colour themselves.** A palette set to *Words* looks in four places
+  in turn: the words you pinned by hand, the few hundred that ship with the
+  plugin (colours, elements, materials, weather, states, outcomes, classes),
+  the same again after the word is cut back to its stem - "poisons" reaches
+  "poison" - and the optional wide table if the vault has one. A phrase takes
+  the colour of the first word in it that means anything.
+- A word nothing knows can be left alone or given **a colour of its own**:
+  meaningless, but the same word is the same colour in every note and on every
+  machine, so a vocabulary the plugin has never met still reads consistently.
+- **The wide vocabulary is optional and separate.** `scripts/build-semantic.mjs`
+  turns a word-vector file into a word-to-colour table ahead of time; the
+  result ships on the release page as `semantic-en.json` and is read from the
+  plugin's own folder if you put it there. No model runs in the plugin, no
+  weights are bundled and nothing is ever downloaded at runtime.
 
 ## 4.56.1
 

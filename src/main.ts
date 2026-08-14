@@ -41,6 +41,7 @@ import { RollService } from "./features/rolling/roll-service";
 import { runMacro } from "./features/rolling/macros";
 import { inlineModule, registerInline } from "./features/inline/index";
 import { configureSound } from "./utils/sound";
+import { setSemanticTable } from "./utils/semantic";
 import { configureTabChain } from "./ui/components/tab-chain";
 import { NoteFacade } from "./core/note-model";
 
@@ -247,6 +248,7 @@ export default class ExtendedPropertiesPlugin extends Plugin {
           new Notice(this.i18n.t("notice.hiding", { key: k }));
         }, () => this.props.knownProps()).open(),
     });
+    void this.loadSemanticTable();
     this.settingTab = new EPSettingTab(this.app, this);
     this.addSettingTab(this.settingTab);
 
@@ -535,6 +537,34 @@ export default class ExtendedPropertiesPlugin extends Plugin {
 
   /** The settings tab, kept so a note body can open it where it belongs. */
   private settingTab: EPSettingTab | null = null;
+
+  /**
+   * Read the optional wide word table, if this vault has one.
+   *
+   * The plugin ships a few hundred words; anyone wanting the rest of English
+   * drops `semantic-en.json` (built by `scripts/build-semantic.mjs`, shipped
+   * on the release page) into the plugin's own folder. Nothing is downloaded
+   * and nothing is executed - it is a map of words to colours.
+   */
+  async loadSemanticTable(): Promise<number> {
+    const dir = this.manifest.dir;
+    if (!dir) return 0;
+    const path = `${dir}/semantic-en.json`;
+    try {
+      if (!(await this.app.vault.adapter.exists(path))) {
+        setSemanticTable(null);
+        return 0;
+      }
+      const parsed: unknown = JSON.parse(await this.app.vault.adapter.read(path));
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return 0;
+      setSemanticTable(parsed as Record<string, string>);
+      this.refreshViews();
+      return Object.keys(parsed).length;
+    } catch (e) {
+      console.error("Extended Properties: could not read the word table", e);
+      return 0;
+    }
+  }
 
   /**
    * Open the plugin's settings at the inline piece `kind` - the way from a

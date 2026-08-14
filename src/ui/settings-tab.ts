@@ -33,6 +33,7 @@ import {
 } from "../utils/inline-size";
 import { renderPaletteEditor, type PaletteEditorCtx } from "./components/palette-editor";
 import { defaultWheel } from "../utils/palette";
+import { semanticTableSize } from "../utils/semantic";
 
 /** Max override rows rendered at once (the list is searchable). */
 const OVERRIDE_ROW_LIMIT = 25;
@@ -1330,6 +1331,19 @@ export class EPSettingTab extends PluginSettingTab {
       );
       renderPaletteEditor(c, p, ctx);
     }
+    // The wide word table: shipped separately, read from the plugin's folder.
+    const words = semanticTableSize();
+    new Setting(c)
+      .setName(t("palette.table"))
+      .setDesc(words ? t("palette.tableOn", { n: String(words) }) : t("palette.tableOff"))
+      .addButton((b) =>
+        b.setButtonText(t("palette.tableReload")).onClick(() => {
+          void plugin.loadSemanticTable().then((n) => {
+            new Notice(n ? t("palette.tableOn", { n: String(n) }) : t("palette.tableOff"));
+            this.render();
+          });
+        })
+      );
     new Setting(c).addButton((b) =>
       b.setButtonText(t("palette.add")).setCta().onClick(() => {
         list.push({ id: genId(), name: t("palette.untitled"), mode: "wheel", wheel: defaultWheel() });

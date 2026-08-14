@@ -14,6 +14,7 @@
  */
 
 import { hexToRgb, oklchToRgb, rgbToHex, rgbToOklab, rgbToOklch, oklabToRgb } from "./color";
+import { semanticColor } from "./semantic";
 
 /** How a palette turns a value into a colour. */
 export type PaletteMode = "wheel" | "points" | "ranges" | "semantic";
@@ -276,7 +277,10 @@ export function colorForText(palette: Palette, text: string, allowed?: string[])
   if (!v) return undefined;
   const own = (palette.words ?? []).find((w) => w.word.trim().toLowerCase() === v.toLowerCase());
   if (own) return own.color;
-  if (palette.mode === "semantic") return undefined; // the rest of semantic comes later
+  if (palette.mode === "semantic") {
+    const w = palette.wheel;
+    return semanticColor(v, { fallback: palette.fallback, lightness: w?.lightness, chroma: w?.chroma });
+  }
   const list = (allowed ?? []).map((s) => s.trim().toLowerCase());
   const i = list.indexOf(v.toLowerCase());
   if (i < 0) return undefined;

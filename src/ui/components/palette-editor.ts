@@ -372,6 +372,16 @@ function renderWords(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): void {
       ctx.redraw();
     })
   );
+  if (p.mode === "semantic")
+    new Setting(c).setName(t("palette.fallback")).setDesc(t("palette.fallbackDesc")).addDropdown((dd) => {
+      dd.addOption("none", t("palette.fallback.none"));
+      dd.addOption("hash", t("palette.fallback.hash"));
+      dd.setValue(p.fallback === "hash" ? "hash" : "none");
+      dd.onChange((v) => {
+        p.fallback = v === "hash" ? "hash" : undefined;
+        ctx.save();
+      });
+    });
 }
 
 /** A small icon button, for the palette list's own controls. */
