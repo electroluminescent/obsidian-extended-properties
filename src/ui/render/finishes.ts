@@ -6,9 +6,9 @@
  * colour the palette chose rather than replacing it. Which values wear which
  * is decided in `utils/finish`; this is only the list and what each is called.
  *
- * Movement lives under the pointer alone: a sheet with fifty foiled rows
- * should be still until you look at one, and `prefers-reduced-motion` stops
- * even that (see the stylesheet).
+ * Nothing here moves. A finish is a surface, not an animation: it is blended
+ * into the colour (every texture is built around mid-grey, which `overlay`
+ * leaves alone), so hovering a row changes nothing about how it is drawn.
  */
 
 import type { I18n } from "../../i18n/i18n";

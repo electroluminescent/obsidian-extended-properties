@@ -9,7 +9,7 @@ import type { TFile } from "obsidian";
 import type { ClusterFlags, EntryRenderCtx, ViewCtx } from "../../core/context";
 import type { Entry, Section } from "../../core/model";
 import { openEntryMenu } from "../menus/entry-menu";
-import { applyFormat, formatValue } from "./format";
+import { applyFormat, formatValue, ruleFor } from "./format";
 import {
   focusEntry,
   openEntrySettingsPopup,
@@ -128,6 +128,28 @@ export function renderEntry(
     };
     paint();
     view.registerUpdater(paint);
+    // A value can also change without anything telling us: a slider mid-drag,
+    // a stepper, an inline edit committing, a chip added. Watch what the value
+    // type drew and reassess the colour - and the text that has to be legible
+    // on it - whenever it changes. One frame at a time, and only for rows that
+    // are actually formatted.
+    if (ruleFor(view, entry)) {
+      let queued = false;
+      const watch = new MutationObserver(() => {
+        if (!wrap.isConnected) {
+          watch.disconnect();
+          return;
+        }
+        if (queued) return;
+        queued = true;
+        window.requestAnimationFrame(() => {
+          queued = false;
+          if (wrap.isConnected) paint();
+          else watch.disconnect();
+        });
+      });
+      watch.observe(wrap, { subtree: true, childList: true, characterData: true });
+    }
   }
 
   // Right-click and press-and-hold are user-mappable (menu / property

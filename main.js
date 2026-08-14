@@ -11351,6 +11351,23 @@ function renderEntry(grid, view, file, section, entry, flags, drag, opts = {}) {
     };
     paint2();
     view.registerUpdater(paint2);
+    if (ruleFor(view, entry)) {
+      let queued = false;
+      const watch = new MutationObserver(() => {
+        if (!wrap.isConnected) {
+          watch.disconnect();
+          return;
+        }
+        if (queued) return;
+        queued = true;
+        window.requestAnimationFrame(() => {
+          queued = false;
+          if (wrap.isConnected) paint2();
+          else watch.disconnect();
+        });
+      });
+      watch.observe(wrap, { subtree: true, childList: true, characterData: true });
+    }
   }
   wireEntryInteractions(wrap, view, file, section, entry);
   if (view.editMode || entry.menuBtn === true) {

@@ -23,6 +23,11 @@
 - **Set once, everywhere**: a property's formatting is stored against the
   property, so the sidebar, the type table and inline chips agree - with an
   option to give one row a look of its own. Inline `vals:` cards wear it too.
+- **The colour is reassessed whenever the value moves** - a slider mid-drag, a
+  stepper, an inline edit, a chip added - not only when the note is written.
+  The foreground picked to be legible on the fill is chosen again with it, and
+  belongs to everything written there: the unit suffix, the data-type tag, the
+  modifier chain, a chip's remove cross.
 - **Changing a setting no longer throws you back to the top.** Rows rebuild
   whenever a change brings other options with it - a data type, a palette, a
   width that reveals a field - and the property settings popup and both
@@ -45,9 +50,11 @@
   the same finish every time you open the sheet. The first rule that speaks
   for a value wins, and a rule can carry a colour of its own instead of the
   palette's.
-- **Nothing moves until you look at it.** The animated finishes run on hover
-  alone, so a sheet of fifty foiled rows is still, and
-  `prefers-reduced-motion` stops even that. Under Windows High Contrast the
+- **Nothing moves at all.** A finish is a surface, not an animation: it is
+  blended into the colour rather than lit over the top of it - every texture
+  is built around mid-grey, which the blend leaves untouched, so what you see
+  is the colour modulated, lighter where the texture is light and darker where
+  it is dark. Hovering a row changes nothing. Under Windows High Contrast the
   whole layer stands down.
 - **Words colour themselves.** A palette set to *Words* looks in four places
   in turn: the words you pinned by hand, the few hundred that ship with the
