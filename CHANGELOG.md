@@ -1,5 +1,24 @@
 # Changelog
 
+## 4.61.1
+
+- **The section strip keeps up with what it is describing** - another property
+  picked in the options modal, another tab opened in the settings. The tabs
+  are the same nodes shown and hidden rather than a re-render, so nothing was
+  telling the strip its sections had been put away; it now notices for itself,
+  and a page with nothing worth listing keeps watching in case the next one
+  has.
+- **It stands against the panel rather than the corner of the screen.** Beside
+  the window by preference, on whichever side has room, and tucked inside its
+  own right edge where neither side has any - never pushed out to the far
+  corner, which read as belonging to the screen rather than to the settings.
+- **A stop is called a point**, everywhere it is written.
+- **The scale lines up with the rows above it.** Its fields, buttons and
+  labels are loose elements rather than setting rows, so they were missing the
+  row padding and running to the edge; they take the same measured padding the
+  rest of the loose copy does, and wrap rather than overflow when the window
+  is narrow.
+
 ## 4.61.0
 
 - **The colour keeps up with a value being typed.** It was being worked out

@@ -44,6 +44,15 @@ const queries = new WeakMap<HTMLElement, string>();
  */
 const strips = new WeakMap<HTMLElement, () => void>();
 
+/** What the strip is currently describing, to notice when that changes. */
+function signatureOf(content: HTMLElement, sel: string): string {
+  return content
+    .findAll(sel)
+    .filter((h) => h.offsetHeight > 0)
+    .map((h) => (h.textContent ?? "").trim())
+    .join("\u0000");
+}
+
 /** The nearest thing that actually scrolls around `el`. */
 function scrollerFor(el: HTMLElement): HTMLElement | null {
   for (let n: HTMLElement | null = el; n; n = n.parentElement) {
@@ -76,7 +85,13 @@ export function mountOptionsNav(content: HTMLElement, i18n: I18n, o: OptionsNavO
   // Only what is on show: the settings tab keeps every tab's headings in the
   // document and displays one tab's worth of them.
   const heads = content.findAll(sel).filter((h) => h.offsetHeight > 0);
-  if (heads.length < 2) return;
+  let sig = signatureOf(content, sel);
+  if (heads.length < 2) {
+    // Nothing worth a strip now, but a tab switch or another property could
+    // change that, so keep watching for one rather than giving up outright.
+    watchFor(content, i18n, o, sel, sig);
+    return;
+  }
 
   const doc = content.ownerDocument;
   const rail = doc.body.createDiv({ cls: "ep-nav" });
@@ -111,20 +126,43 @@ export function mountOptionsNav(content: HTMLElement, i18n: I18n, o: OptionsNavO
     dots.forEach((d, i) => d.toggleClass("is-here", i === at));
   };
 
-  /** Stand the strip beside what it describes, on whichever side has room. */
+  /**
+   * Stand the strip against what it describes.
+   *
+   * Just outside its left edge by preference, just outside its right edge if
+   * the left is against the window - and, where neither side has the room,
+   * tucked inside its own right edge rather than pushed out to the corner of
+   * the screen. A strip in the far corner belongs to the window; a strip
+   * against the panel belongs to the panel.
+   */
   const place = (): void => {
     const box = beside.getBoundingClientRect();
     const w = rail.offsetWidth;
     const h = rail.offsetHeight;
-    const room = box.left - EDGE * 2;
-    const left = room >= w ? box.left - w - EDGE : Math.min(box.right + EDGE, window.innerWidth - w - EDGE);
-    const top = Math.min(Math.max(EDGE, box.top), Math.max(EDGE, window.innerHeight - h - EDGE));
-    rail.setCssStyles({ left: `${Math.max(EDGE, left)}px`, top: `${top}px` });
+    const outsideLeft = box.left - EDGE - w;
+    const outsideRight = box.right + EDGE;
+    const left =
+      outsideLeft >= EDGE
+        ? outsideLeft
+        : outsideRight + w <= window.innerWidth - EDGE
+          ? outsideRight
+          : Math.max(EDGE, box.right - w - EDGE);
+    const top = Math.min(Math.max(EDGE, box.top + EDGE), Math.max(EDGE, window.innerHeight - h - EDGE));
+    rail.setCssStyles({ left: `${Math.round(left)}px`, top: `${Math.round(top)}px` });
   };
 
   const tick = (): void => {
     if (!content.isConnected || beside.offsetHeight === 0) {
       stop();
+      return;
+    }
+    // The sections themselves change under the strip: another property picked
+    // in the modal, another tab opened in the settings. When they do, the
+    // strip is built again rather than left describing what was there before.
+    const now = signatureOf(content, sel);
+    if (now !== sig) {
+      sig = now;
+      mountOptionsNav(content, i18n, o);
       return;
     }
     place();
@@ -143,6 +181,36 @@ export function mountOptionsNav(content: HTMLElement, i18n: I18n, o: OptionsNavO
   window.addEventListener("resize", tick);
   place();
   mark();
+}
+
+/**
+ * Keep an eye on a page that has nothing to describe yet.
+ *
+ * A settings tab with one heading, or a modal showing a property with none,
+ * is a page the strip has no use on - but the next tab or the next property
+ * may be different, and there would be nothing left running to notice.
+ */
+function watchFor(
+  content: HTMLElement,
+  i18n: I18n,
+  o: OptionsNavOptions,
+  sel: string,
+  sig: string
+): void {
+  const timer = window.setInterval(() => {
+    if (!content.isConnected) {
+      window.clearInterval(timer);
+      if (strips.get(content) === stop) strips.delete(content);
+      return;
+    }
+    if (signatureOf(content, sel) === sig) return;
+    mountOptionsNav(content, i18n, o);
+  }, 400);
+  const stop = (): void => {
+    window.clearInterval(timer);
+    if (strips.get(content) === stop) strips.delete(content);
+  };
+  strips.set(content, stop);
 }
 
 /** The search box, and what it does to the rows below it. */

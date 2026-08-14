@@ -191,17 +191,26 @@ export class EPSettingTab extends PluginSettingTab {
       this.tabify();
       this.tint();
       this.alignLooseText();
-      // The headings of the open tab, on a strip beside the settings window.
-      // The filter box above already searches, so the strip is all that is
-      // added here.
-      mountOptionsNav(this.host, this.plugin.i18n, {
-        search: false,
-        beside: this.host.closest<HTMLElement>(".modal") ?? this.host,
-      });
+      this.mountNav();
     };
     if (this.pendingInline || this.pendingPalette) build();
     else keepScroll(this.host, build);
     this.showInlineRow();
+  }
+
+  /**
+   * The headings of the OPEN tab, on a strip beside the settings window.
+   *
+   * Re-mounted whenever the tab changes: the tabs are the same nodes shown
+   * and hidden rather than a re-render, so nothing else would tell the strip
+   * that what it is describing has been put away. The filter box above
+   * already searches, so the strip is all that is added here.
+   */
+  private mountNav(): void {
+    mountOptionsNav(this.host, this.plugin.i18n, {
+      search: false,
+      beside: this.host.closest<HTMLElement>(".modal") ?? this.host,
+    });
   }
 
   /** Bring the row a note body asked for into view, and mark it briefly. */
@@ -351,6 +360,9 @@ export class EPSettingTab extends PluginSettingTab {
         hits += shownInTab;
       }
       empty.toggleClass("ep-hidden", !q || hits > 0);
+      // What the strip beside the window lists is whatever this just left on
+      // show - another tab's sections, or a search's worth of them.
+      this.mountNav();
     };
 
     const empty = body.createDiv({ cls: "ep-settings-empty setting-item-description ep-hidden" });

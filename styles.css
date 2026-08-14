@@ -1079,9 +1079,12 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 /* The scale: numbers down the left, the colours they wear down the right.
    Two columns rather than one row of controls, because the colours have to be
    able to slide past each other while the numbers hold still. */
-.ep-scale { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; margin: 4px 0 10px; }
+.ep-scale {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px;
+  align-items: center; margin: 4px 0 10px; box-sizing: border-box; max-width: 100%;
+}
 .ep-scale-row { display: contents; }
-.ep-scale-vals { display: flex; align-items: center; gap: 4px; min-height: 28px; }
+.ep-scale-vals { display: flex; align-items: center; gap: 4px; min-height: 28px; flex-wrap: wrap; min-width: 0; }
 .ep-scale-color { display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
 .ep-scale-kind { color: var(--text-muted); font-size: var(--font-smaller); width: 3.2em; }
 .ep-scale-grip { cursor: grab; color: var(--text-faint); letter-spacing: -1px; padding: 0 2px; border-radius: 4px; }
@@ -1525,7 +1528,14 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
 .ep-settings-panel > h4,
 .ep-settings-panel > h5,
 .ep-settings-panel > .setting-item-description,
-.ep-settings-panel > div > .setting-item-description {
+.ep-settings-panel > div > .setting-item-description,
+/* The bespoke editors are loose elements too - the palette's scale, and the
+   growing lists - so their fields, buttons and labels line up with the rows
+   above them rather than running to the edge of the window. */
+.ep-settings-host > .ep-scale,
+.ep-settings-host > .ep-mini-list,
+.ep-settings-panel > .ep-scale,
+.ep-settings-panel > .ep-mini-list {
   padding-left: var(--ep-row-pad-l, var(--size-4-3, 12px));
   padding-right: var(--ep-row-pad-r, var(--size-4-3, 12px));
 }

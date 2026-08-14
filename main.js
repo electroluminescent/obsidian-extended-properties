@@ -719,9 +719,9 @@ var en_default = {
   "palette.delete": "Delete this palette",
   "palette.remove": "Remove",
   "palette.mode": "How it reads a value",
-  "palette.modeDesc": "The wheel sweeps a hue across the property's range; a scale pins colours to stops and holds them flat across bands; words carry colours of their own.",
+  "palette.modeDesc": "The wheel sweeps a hue across the property's range; a scale pins colours to points and holds them flat across bands; words carry colours of their own.",
   "palette.mode.wheel": "Wheel",
-  "palette.mode.bands": "Stops and bands",
+  "palette.mode.bands": "Points and bands",
   "palette.mode.semantic": "Words",
   "palette.scale": "What its numbers mean",
   "palette.scaleDesc": "Plain numbers, or dates under a date property's calendar - the edges are then typed and read in that property's own format.",
@@ -742,23 +742,23 @@ var en_default = {
   "palette.wheelReverse": "Sweep the other way",
   "palette.wheelReverseDesc": "Travel anticlockwise from the starting hue instead.",
   "palette.scaleName": "The scale",
-  "palette.scaleDesc2": "Stops and bands, in value order, with the colours they wear beside them. A stop is one value; a band is every value between two edges. Overlapping bands are refused, but a stop may sit anywhere - including inside a band, which it then wins. The colours are a list of their own: drag one by its handle to move it past the others, or blend it from its neighbours.",
-  "palette.point": "Stop",
+  "palette.scaleDesc2": "Points and bands, in value order, with the colours they wear beside them. A point is one value; a band is every value between two edges. Overlapping bands are refused, but a point may sit anywhere - including inside a band, which it then wins. The colours are a list of their own: drag one by its handle to move it past the others, or blend it from its neighbours.",
+  "palette.point": "Point",
   "palette.band": "Band",
-  "palette.addPoint": "+ stop",
+  "palette.addPoint": "+ point",
   "palette.addBand": "+ band",
-  "palette.addPointTip": "Add a stop here, coloured between the two beside it",
+  "palette.addPointTip": "Add a point here, coloured between the two beside it",
   "palette.addBandTip": "Add a band here, coloured between the two beside it",
   "palette.colorMove": "Drag to move this colour up or down the list",
   "palette.blendMid": "Halfway between the colours above and below",
-  "palette.blendPos": "Blend the colours above and below by where this step sits",
+  "palette.blendPos": "Blend the colours above and below by where this point or band sits",
   "palette.linked": "Move edges together",
   "palette.linkedDesc": "Moving one edge carries its neighbour with it, so closing a gap on one side opens none on the other.",
   "palette.outside": "Beyond the ends",
-  "palette.outsideDesc": "What a value below the first step or above the last one takes.",
+  "palette.outsideDesc": "What a value below the first point or band, or above the last one, takes.",
   "palette.outside.none": "No colour",
-  "palette.outside.clamp": "The nearest step's colour",
-  "palette.gaps": "Between steps",
+  "palette.outside.clamp": "The nearest one's colour",
+  "palette.gaps": "Between points and bands",
   "palette.gapsDesc": "What a value in a gap takes.",
   "palette.gaps.none": "No colour",
   "palette.gaps.blend": "Blend across the gap",
@@ -10505,6 +10505,12 @@ var HIDDEN = "ep-nav-filtered";
 var EDGE = 8;
 var queries = /* @__PURE__ */ new WeakMap();
 var strips = /* @__PURE__ */ new WeakMap();
+function signatureOf(content, sel) {
+  return content.findAll(sel).filter((h) => h.offsetHeight > 0).map((h) => {
+    var _a;
+    return ((_a = h.textContent) != null ? _a : "").trim();
+  }).join("\0");
+}
 function scrollerFor(el) {
   for (let n = el; n; n = n.parentElement) {
     const cs = getComputedStyle(n);
@@ -10525,7 +10531,11 @@ function mountOptionsNav(content, i18n, o = {}) {
     body.insertBefore(searchRow, body.firstChild);
   }
   const heads = content.findAll(sel).filter((h) => h.offsetHeight > 0);
-  if (heads.length < 2) return;
+  let sig = signatureOf(content, sel);
+  if (heads.length < 2) {
+    watchFor(content, i18n, o, sel, sig);
+    return;
+  }
   const doc = content.ownerDocument;
   const rail = doc.body.createDiv({ cls: "ep-nav" });
   rail.setAttr("role", "navigation");
@@ -10558,14 +10568,21 @@ function mountOptionsNav(content, i18n, o = {}) {
     const box = beside.getBoundingClientRect();
     const w = rail.offsetWidth;
     const h = rail.offsetHeight;
-    const room = box.left - EDGE * 2;
-    const left = room >= w ? box.left - w - EDGE : Math.min(box.right + EDGE, window.innerWidth - w - EDGE);
-    const top = Math.min(Math.max(EDGE, box.top), Math.max(EDGE, window.innerHeight - h - EDGE));
-    rail.setCssStyles({ left: `${Math.max(EDGE, left)}px`, top: `${top}px` });
+    const outsideLeft = box.left - EDGE - w;
+    const outsideRight = box.right + EDGE;
+    const left = outsideLeft >= EDGE ? outsideLeft : outsideRight + w <= window.innerWidth - EDGE ? outsideRight : Math.max(EDGE, box.right - w - EDGE);
+    const top = Math.min(Math.max(EDGE, box.top + EDGE), Math.max(EDGE, window.innerHeight - h - EDGE));
+    rail.setCssStyles({ left: `${Math.round(left)}px`, top: `${Math.round(top)}px` });
   };
   const tick = () => {
     if (!content.isConnected || beside.offsetHeight === 0) {
       stop2();
+      return;
+    }
+    const now = signatureOf(content, sel);
+    if (now !== sig) {
+      sig = now;
+      mountOptionsNav(content, i18n, o);
       return;
     }
     place2();
@@ -10584,6 +10601,22 @@ function mountOptionsNav(content, i18n, o = {}) {
   window.addEventListener("resize", tick);
   place2();
   mark();
+}
+function watchFor(content, i18n, o, sel, sig) {
+  const timer2 = window.setInterval(() => {
+    if (!content.isConnected) {
+      window.clearInterval(timer2);
+      if (strips.get(content) === stop2) strips.delete(content);
+      return;
+    }
+    if (signatureOf(content, sel) === sig) return;
+    mountOptionsNav(content, i18n, o);
+  }, 400);
+  const stop2 = () => {
+    window.clearInterval(timer2);
+    if (strips.get(content) === stop2) strips.delete(content);
+  };
+  strips.set(content, stop2);
 }
 function mountSearch(content, body, i18n, sel) {
   var _a;
@@ -17021,19 +17054,30 @@ var EPSettingTab = class extends import_obsidian38.PluginSettingTab {
    */
   render() {
     const build = () => {
-      var _a;
       this.renderBody();
       this.tabify();
       this.tint();
       this.alignLooseText();
-      mountOptionsNav(this.host, this.plugin.i18n, {
-        search: false,
-        beside: (_a = this.host.closest(".modal")) != null ? _a : this.host
-      });
+      this.mountNav();
     };
     if (this.pendingInline || this.pendingPalette) build();
     else keepScroll(this.host, build);
     this.showInlineRow();
+  }
+  /**
+   * The headings of the OPEN tab, on a strip beside the settings window.
+   *
+   * Re-mounted whenever the tab changes: the tabs are the same nodes shown
+   * and hidden rather than a re-render, so nothing else would tell the strip
+   * that what it is describing has been put away. The filter box above
+   * already searches, so the strip is all that is added here.
+   */
+  mountNav() {
+    var _a;
+    mountOptionsNav(this.host, this.plugin.i18n, {
+      search: false,
+      beside: (_a = this.host.closest(".modal")) != null ? _a : this.host
+    });
   }
   /** Bring the row a note body asked for into view, and mark it briefly. */
   showInlineRow() {
@@ -17156,6 +17200,7 @@ var EPSettingTab = class extends import_obsidian38.PluginSettingTab {
         hits += shownInTab;
       }
       empty.toggleClass("ep-hidden", !q || hits > 0);
+      this.mountNav();
     };
     const empty = body.createDiv({ cls: "ep-settings-empty setting-item-description ep-hidden" });
     empty.setText(t("settings.searchNoResults"));
