@@ -156,7 +156,8 @@ function renderFormatting(octx: OptionsCtx): void {
   const { view, entry: e, container: c, changed, redraw } = octx;
   const t = view.i18n.t.bind(view.i18n);
   if (e.kind !== "prop" || !e.key) return;
-  const key = (e.key as string).toLowerCase();
+  // `e.key` is a string by the guard above, so nothing needs asserting.
+  const key = e.key.toLowerCase();
   const rule = (): FormatRule => e.format ?? view.settings.formatProps?.[key] ?? {};
   const onRow = (): boolean => !!e.format;
   const empty = (r: FormatRule): boolean =>

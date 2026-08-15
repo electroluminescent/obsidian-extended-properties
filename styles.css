@@ -1083,7 +1083,6 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
   display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px;
   align-items: center; margin: 4px 0 10px; box-sizing: border-box; max-width: 100%;
 }
-.ep-scale-row { display: contents; }
 .ep-scale-vals { display: flex; align-items: center; gap: 4px; min-height: 28px; flex-wrap: wrap; min-width: 0; }
 .ep-scale-color { display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
 .ep-scale-kind { color: var(--text-muted); font-size: var(--font-smaller); width: 3.2em; }
@@ -1287,6 +1286,10 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
     calc(-1 * (var(--ep-span-r, 0px) + var(--ep-edge, 0px)))
     calc(-1 * (var(--ep-span-b, 0px) + var(--ep-edge, 0px)))
     calc(-1 * (var(--ep-span-l, 0px) + var(--ep-edge, 0px)));
+  -webkit-clip-path: inset(
+    var(--ep-span-t, 0px) var(--ep-span-r, 0px) var(--ep-span-b, 0px) var(--ep-span-l, 0px)
+    round var(--ep-span-round, var(--ep-radius, 6px))
+  );
   clip-path: inset(
     var(--ep-span-t, 0px) var(--ep-span-r, 0px) var(--ep-span-b, 0px) var(--ep-span-l, 0px)
     round var(--ep-span-round, var(--ep-radius, 6px))
@@ -2036,8 +2039,8 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
   landed on the row, on a chip or on the text: on text the foreground IS the
   palette's colour, so the link simply joins in.
 
-  The underline stays, in a softened version of that same colour: a link that
-  is no longer blue still has to be recognisable as a link.
+  The underline stays and follows the text, as underlines do: a link that is
+  no longer blue still has to be recognisable as a link.
 */
 .ep-fmt-text.ep-fmt-text :where(a, a:hover, a:focus, a:visited),
 .ep-fmt-chip.ep-fmt-chip :where(a, a:hover, a:focus, a:visited),
@@ -2045,8 +2048,9 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
 a.ep-fmt-text.ep-fmt-text,
 a.ep-fmt-chip.ep-fmt-chip,
 a.ep-fmt-card.ep-fmt-card {
+  /* The underline needs no colour of its own: it follows the text, and the
+     text is the foreground the fill was measured for. */
   color: var(--ep-fmt-fg, inherit);
-  text-decoration-color: color-mix(in oklab, var(--ep-fmt-fg, currentColor) 55%, transparent);
 }
 /* Except the ones saying something the colour cannot: a link to a note that
    is not there is worth being told about in the colour of being told. */

@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.68.2
+
+- Housekeeping from the plugin review: an assertion that asserted nothing, a
+  list of unknown values that `Array.isArray` had quietly turned into a list
+  of `any`, a row element that existed only to be `display: contents` (the two
+  cells are the grid's own children now, and line up exactly as before), the
+  prefixed spelling of `clip-path` beside the standard one, and an underline
+  that no longer names its own colour - it follows the text, which is already
+  the foreground the fill was measured for.
+
 ## 4.68.1
 
 - **A link inside a formatted value stops being blue.** Hyperlink blue is a

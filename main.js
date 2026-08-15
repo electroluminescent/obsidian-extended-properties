@@ -4822,9 +4822,10 @@ function applyFormat(view, entry, raw, els) {
   }
   const target2 = targetOf(rule);
   if (((_c = els.chips) == null ? void 0 : _c.length) && Array.isArray(raw)) {
+    const items = raw;
     els.chips.forEach((chip, i) => {
       var _a2;
-      const item = raw[i];
+      const item = items[i];
       const fin2 = pickFinish(finishesFor(rule, palette), item);
       const c = (_a2 = fin2 == null ? void 0 : fin2.color) != null ? _a2 : colorOfWith(view, entry, palette, item);
       if (c) wear(chip, c, target2 === "text" ? "text" : "chip", fin2 == null ? void 0 : fin2.finish, fin2 == null ? void 0 : fin2.strength);
@@ -10969,8 +10970,7 @@ function renderScale(c, p, ctx2) {
   insertBar(0);
   steps.forEach((r, i) => {
     var _a2;
-    const row = grid.createDiv({ cls: "ep-scale-row" });
-    const vals = row.createDiv({ cls: "ep-scale-vals" });
+    const vals = grid.createDiv({ cls: "ep-scale-vals" });
     vals.createSpan({ cls: "ep-scale-kind", text: r.point ? t("palette.point") : t("palette.band") });
     if (r.point) {
       numField(vals, r.from, cal ? "ep-pal-date" : "ep-pal-num", (n) => write(moveEdge(steps, i, "from", n, false)), cal);
@@ -10982,7 +10982,7 @@ function renderScale(c, p, ctx2) {
       edgeBox(vals, r, "to", i, p, ctx2);
     }
     iconButton(vals, "x", t("palette.remove"), () => put(removeStep(steps, colors, i)));
-    const cell = row.createDiv({ cls: "ep-scale-color" });
+    const cell = grid.createDiv({ cls: "ep-scale-color" });
     cells.push(cell);
     if (ctx2.colorsReadOnly) {
       const sw = cell.createSpan({ cls: "ep-swatch ep-pal-swatch ep-scale-borrowed" });

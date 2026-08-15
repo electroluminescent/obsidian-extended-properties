@@ -298,8 +298,10 @@ export function renderScale(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): 
 
   insertBar(0);
   steps.forEach((r, i) => {
-    const row = grid.createDiv({ cls: "ep-scale-row" });
-    const vals = row.createDiv({ cls: "ep-scale-vals" });
+    // The two cells are the grid's own children rather than a row element
+    // with `display: contents`: a row that is not there cannot be styled, and
+    // the columns line up across the whole scale either way.
+    const vals = grid.createDiv({ cls: "ep-scale-vals" });
     vals.createSpan({ cls: "ep-scale-kind", text: r.point ? t("palette.point") : t("palette.band") });
     if (r.point) {
       numField(vals, r.from, cal ? "ep-pal-date" : "ep-pal-num", (n) => write(moveEdge(steps, i, "from", n, false)), cal);
@@ -312,7 +314,7 @@ export function renderScale(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): 
     }
     iconButton(vals, "x", t("palette.remove"), () => put(removeStep(steps, colors, i)));
 
-    const cell = row.createDiv({ cls: "ep-scale-color" });
+    const cell = grid.createDiv({ cls: "ep-scale-color" });
     cells.push(cell);
     if (ctx.colorsReadOnly) {
       // Borrowed, so shown and not touched: which colour a step wears is the

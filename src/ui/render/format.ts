@@ -354,8 +354,12 @@ export function applyFormat(view: ViewCtx, entry: Entry, raw: unknown, els: Form
   // A list colours its chips one by one - each chip is its own value - and
   // gives the row or the text the blend of them.
   if (els.chips?.length && Array.isArray(raw)) {
+    // `Array.isArray` narrows an unknown to `any[]`, which would make every
+    // item an `any` from here on. The list is a list of values we know
+    // nothing about, and saying so keeps it that way.
+    const items: unknown[] = raw;
     els.chips.forEach((chip, i) => {
-      const item = raw[i];
+      const item = items[i];
       const fin = pickFinish(finishesFor(rule, palette), item);
       const c = fin?.color ?? colorOfWith(view, entry, palette, item);
       if (c) wear(chip, c, target === "text" ? "text" : "chip", fin?.finish, fin?.strength);
