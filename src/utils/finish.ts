@@ -53,18 +53,18 @@ function matches(rule: FinishRule, value: unknown): boolean {
 }
 
 /**
- * The finish a value wears, and the colour it wears instead of the palette's
- * where the rule names one. The first rule that speaks for the value wins, so
- * put the particular ones above the general.
+ * The finish a value wears, how much of it to show, and the colour it wears
+ * instead of the palette's where the rule names one. The first rule that
+ * speaks for the value wins, so put the particular ones above the general.
  */
 export function pickFinish(
   rules: FinishRule[] | undefined,
   value: unknown
-): { finish: string; color?: string } | undefined {
+): { finish: string; color?: string; strength?: number } | undefined {
   for (const rule of rules ?? []) {
     if (!rule.finish) continue;
     if (!matches(rule, value)) continue;
-    return { finish: rule.finish, color: rule.color };
+    return { finish: rule.finish, color: rule.color, strength: rule.strength };
   }
   return undefined;
 }

@@ -67,6 +67,27 @@ export function renderFinishRules(
     for (const id of FINISHES) fin.createEl("option", { value: id, text: finishName(i18n, id) });
     fin.value = fr.finish;
     fin.onchange = () => patch(i, { finish: fin.value });
+
+    // How much of it to show. A finish is a material, and how much of a
+    // material you see is not the same question as which one it is - a hint
+    // of foil on every row of a sheet reads as quality, a sheet of full foil
+    // reads as a fairground.
+    const dial = box.createEl("input", { cls: "ep-fin-strength" });
+    dial.type = "range";
+    dial.min = "0";
+    dial.max = "150";
+    dial.step = "5";
+    dial.value = String(fr.strength ?? 100);
+    dial.setAttr("aria-label", t("options.finishStrength"));
+    const read = box.createSpan({ cls: "ep-fin-strength-read", text: dial.value + "%" });
+    dial.setAttr("title", t("options.finishStrength"));
+    dial.addEventListener("input", () => {
+      read.setText(dial.value + "%");
+    });
+    dial.addEventListener("change", () => {
+      const n = Number(dial.value);
+      patch(i, { strength: n === 100 ? undefined : n });
+    });
     row.addExtraButton((b) =>
       b.setIcon("x").setTooltip(t("palette.remove")).onClick(() => put(list.filter((_, j) => j !== i)))
     );

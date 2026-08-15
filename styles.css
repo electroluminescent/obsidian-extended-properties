@@ -1105,6 +1105,8 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 }
 .ep-scale-add:hover { color: var(--text-normal); border-style: solid; background: var(--background-modifier-hover); }
 .ep-fin-when, .ep-fin-pick { max-width: 9em; }
+.ep-fin-strength { width: 6.5em; flex: 0 0 auto; }
+.ep-fin-strength-read { color: var(--text-muted); font-size: var(--font-ui-smaller); width: 3em; text-align: right; }
 .ep-fin-vals, .ep-fin-set { width: 9em; }
 
 /* -- conditional formatting ------------------------------------------------ */

@@ -714,6 +714,7 @@
   "finish.weave": "Weave",
   "options.finishHeading": "Finishes",
   "options.finishHeadingDesc": "Laid over the colour, never instead of it. The first rule that speaks for a value wins, so put the particular ones first.",
+  "options.finishStrength": "How much of the finish to show",
   "options.finishAdd": "Add finish rule",
   "options.finishWhen.all": "Everything",
   "options.finishWhen.values": "These values",

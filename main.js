@@ -816,6 +816,7 @@ var en_default = {
   "finish.weave": "Weave",
   "options.finishHeading": "Finishes",
   "options.finishHeadingDesc": "Laid over the colour, never instead of it. The first rule that speaks for a value wins, so put the particular ones first.",
+  "options.finishStrength": "How much of the finish to show",
   "options.finishAdd": "Add finish rule",
   "options.finishWhen.all": "Everything",
   "options.finishWhen.values": "These values",
@@ -4628,7 +4629,7 @@ function pickFinish(rules, value) {
   for (const rule of rules != null ? rules : []) {
     if (!rule.finish) continue;
     if (!matches(rule, value)) continue;
-    return { finish: rule.finish, color: rule.color };
+    return { finish: rule.finish, color: rule.color, strength: rule.strength };
   }
   return void 0;
 }
@@ -4724,12 +4725,15 @@ function clear(el) {
   el.setCssProps({ "--ep-fmt-bg": "", "--ep-fmt-fg": "" });
 }
 var FADE_MS = 180;
-var NUDGE_PX = 9;
+var NUDGE_PX = 28;
 var worn = /* @__PURE__ */ new WeakMap();
-function wearFinish(el, id) {
+function wearFinish(el, id, strength) {
   var _a;
   const state = (_a = worn.get(el)) != null ? _a : {};
   worn.set(el, state);
+  el.setCssProps({
+    "--ep-finish-strength": id && strength !== void 0 ? (strength / 100).toFixed(3) : ""
+  });
   if (state.id === id) return;
   if (state.timer) window.clearTimeout(state.timer);
   const swap = () => {
@@ -4781,9 +4785,9 @@ function layAcross(sheet, dressed) {
     sheet.toggleClass("ep-fin-sheet", any && parts.length > 0);
   });
 }
-function paint(el, color, target2, contrast, finish) {
+function paint(el, color, target2, contrast, finish, strength) {
   el.addClass("ep-fmt", `ep-fmt-${target2}`);
-  wearFinish(el, finish && !(target2 === "text" && NEEDS_FILL.has(finish)) ? finish : void 0);
+  wearFinish(el, finish && !(target2 === "text" && NEEDS_FILL.has(finish)) ? finish : void 0, strength);
   if (target2 === "text") {
     el.setCssProps({ "--ep-fmt-fg": color });
     return;
@@ -4802,8 +4806,8 @@ function applyFormat(view, entry, raw, els) {
   for (const el of [els.wrap, els.val]) if (el) clear(el);
   for (const chip of (_a = els.chips) != null ? _a : []) clear(chip);
   const dressed = [];
-  const wear = (el, color2, at, finish) => {
-    paint(el, color2, at, rule == null ? void 0 : rule.contrast, finish);
+  const wear = (el, color2, at, finish, strength) => {
+    paint(el, color2, at, rule == null ? void 0 : rule.contrast, finish, strength);
     if (finish) dressed.push(el);
   };
   if (!rule || !palette) {
@@ -4818,7 +4822,7 @@ function applyFormat(view, entry, raw, els) {
       const item = raw[i];
       const fin2 = pickFinish(finishesFor(rule, palette), item);
       const c = (_a2 = fin2 == null ? void 0 : fin2.color) != null ? _a2 : colorOfWith(view, entry, palette, item);
-      if (c) wear(chip, c, target2 === "text" ? "text" : "chip", fin2 == null ? void 0 : fin2.finish);
+      if (c) wear(chip, c, target2 === "text" ? "text" : "chip", fin2 == null ? void 0 : fin2.finish, fin2 == null ? void 0 : fin2.strength);
       else wearFinish(chip, void 0);
     });
   }
@@ -4830,11 +4834,11 @@ function applyFormat(view, entry, raw, els) {
     return;
   }
   if (target2 === "card") {
-    if (els.wrap) wear(els.wrap, color, "card", fin == null ? void 0 : fin.finish);
+    if (els.wrap) wear(els.wrap, color, "card", fin == null ? void 0 : fin.finish, fin == null ? void 0 : fin.strength);
     if (fin == null ? void 0 : fin.finish)
       for (const piece of [els.val, ...(_e = els.chips) != null ? _e : []]) {
         if (!piece || piece === els.wrap) continue;
-        wearFinish(piece, fin.finish);
+        wearFinish(piece, fin.finish, fin.strength);
         piece.addClass("ep-fin-cut");
         dressed.push(piece);
       }
@@ -4844,7 +4848,7 @@ function applyFormat(view, entry, raw, els) {
     if (els.val) wearFinish(els.val, void 0);
   } else if (els.val) {
     if (els.wrap) wearFinish(els.wrap, void 0);
-    wear(els.val, color, target2, fin == null ? void 0 : fin.finish);
+    wear(els.val, color, target2, fin == null ? void 0 : fin.finish, fin == null ? void 0 : fin.strength);
   }
   layAcross(els.wrap, dressed);
 }
@@ -10680,7 +10684,7 @@ function renderFinishRules(host, i18n, list, put) {
   const rows = host.createDiv({ cls: "ep-mini-list" });
   const patch = (i, change) => put(list.map((x, j) => j === i ? { ...x, ...change } : x));
   list.forEach((fr, i) => {
-    var _a;
+    var _a, _b;
     const row = new import_obsidian24.Setting(rows).setClass("ep-mini-row");
     const box = row.controlEl;
     const drop = box.createEl("select", { cls: "dropdown ep-fin-when" });
@@ -10716,6 +10720,22 @@ function renderFinishRules(host, i18n, list, put) {
     for (const id of FINISHES) fin.createEl("option", { value: id, text: finishName(i18n, id) });
     fin.value = fr.finish;
     fin.onchange = () => patch(i, { finish: fin.value });
+    const dial = box.createEl("input", { cls: "ep-fin-strength" });
+    dial.type = "range";
+    dial.min = "0";
+    dial.max = "150";
+    dial.step = "5";
+    dial.value = String((_b = fr.strength) != null ? _b : 100);
+    dial.setAttr("aria-label", t("options.finishStrength"));
+    const read = box.createSpan({ cls: "ep-fin-strength-read", text: dial.value + "%" });
+    dial.setAttr("title", t("options.finishStrength"));
+    dial.addEventListener("input", () => {
+      read.setText(dial.value + "%");
+    });
+    dial.addEventListener("change", () => {
+      const n = Number(dial.value);
+      patch(i, { strength: n === 100 ? void 0 : n });
+    });
     row.addExtraButton(
       (b) => b.setIcon("x").setTooltip(t("palette.remove")).onClick(() => put(list.filter((_, j) => j !== i)))
     );

@@ -93,3 +93,22 @@ describe("where a finish comes from", () => {
     expect(finishesFor(undefined, undefined)).toBeUndefined();
   });
 });
+
+describe("how much of a finish to show", () => {
+  it("carries the rule's strength through with the finish", () => {
+    expect(pickFinish([rule({ finish: "glitter", strength: 40 })], 1)?.strength).toBe(40);
+  });
+
+  it("says nothing where the rule says nothing, which is the finish as drawn", () => {
+    expect(pickFinish([rule({ finish: "glitter" })], 1)?.strength).toBeUndefined();
+  });
+
+  it("is the winning rule's strength, not the first rule's", () => {
+    const rs = [
+      rule({ when: "values", values: ["Fire"], finish: "beacon", strength: 20 }),
+      rule({ when: "all", finish: "satin", strength: 90 }),
+    ];
+    expect(pickFinish(rs, "Fire")?.strength).toBe(20);
+    expect(pickFinish(rs, "Water")?.strength).toBe(90);
+  });
+});

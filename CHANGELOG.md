@@ -1,5 +1,18 @@
 # Changelog
 
+## 4.67.0
+
+- **Every finish rule has a dial: how much of it to show.** Which material a
+  value wears and how much of it you see are two different questions - a hint
+  of foil across a sheet reads as quality, a sheet of full foil reads as a
+  fairground. The slider runs to 150 per cent for the rare row that should
+  shout, sits at 100 by default, and lives with the rule, so it is set per
+  property (and per palette, in the same editor). Moving it changes nothing
+  else: the material does not fade out and back in, it simply comes up or
+  down.
+- **A chip's piece of the sheet is stepped further along it** - far enough to
+  read as a separate piece of material rather than as a printing error.
+
 ## 4.66.0
 
 - **A row wearing a finish lends it to the pieces standing on it.** Chips and

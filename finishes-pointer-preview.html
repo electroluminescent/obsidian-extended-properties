@@ -121,7 +121,7 @@
             val.style.setProperty("--ep-span-l", Math.round(vb.left - rowBox.left) + "px");
             val.style.setProperty("--ep-span-b", Math.round(rowBox.bottom - vb.bottom) + "px");
             val.style.setProperty("--ep-span-r", Math.round(rowBox.right - vb.right) + "px");
-            val.style.setProperty("--ep-nudge", "9px");
+            val.style.setProperty("--ep-nudge", "28px");
             row.classList.add("ep-fin-sheet");
             const box = list.getBoundingClientRect();
             for (const chip of list.children) {
@@ -135,7 +135,7 @@
               // plainly its own piece of it.
               chip.style.setProperty("--ep-edge", style.borderTopWidth);
               chip.style.setProperty("--ep-span-round", style.borderTopLeftRadius);
-              chip.style.setProperty("--ep-nudge", "9px");
+              chip.style.setProperty("--ep-nudge", "28px");
             }
           });
         }

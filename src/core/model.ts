@@ -67,6 +67,13 @@ export interface FinishRule {
   to?: number;
   /** Finish id from the finish registry. */
   finish: string;
+  /**
+   * How much of it to show, as a percentage. Unset means 100 - the finish as
+   * it was drawn. Lower is a hint of a material rather than a sheet of it,
+   * which is what most properties actually want: a whole sidebar in full foil
+   * is a fairground.
+   */
+  strength?: number;
   /** @deprecated the set the withdrawn "one each" rule handed round. */
   set?: string[];
   /** Use this colour instead of the palette's. */

@@ -148,10 +148,11 @@ const FADE_MS = 180;
 
 /**
  * How far along the sheet a piece cut out of it is moved. Enough that a chip
- * is plainly its own piece of material and not a hole through to the row;
- * little enough that the two still look like the same stuff.
+ * is plainly its own piece of material and not a hole through to the row -
+ * a few pixels reads as a printing error rather than as a separate piece -
+ * and little enough that the two still look like the same stuff.
  */
-const NUDGE_PX = 9;
+const NUDGE_PX = 28;
 
 /** What each element is currently wearing, and any change in flight. */
 interface Worn {
@@ -170,9 +171,14 @@ const worn = new WeakMap<HTMLElement, Worn>();
  * across a boundary, where the change would otherwise flicker at every
  * crossing.
  */
-function wearFinish(el: HTMLElement, id: string | undefined): void {
+function wearFinish(el: HTMLElement, id: string | undefined, strength?: number): void {
   const state = worn.get(el) ?? {};
   worn.set(el, state);
+  // How much of it to show is a dial, not a change of material: it can move
+  // without anything fading, and it does.
+  el.setCssProps({
+    "--ep-finish-strength": id && strength !== undefined ? (strength / 100).toFixed(3) : "",
+  });
   if (state.id === id) return;
   if (state.timer) window.clearTimeout(state.timer);
   const swap = (): void => {
@@ -254,12 +260,13 @@ export function paint(
   color: string,
   target: "text" | "chip" | "card",
   contrast?: string,
-  finish?: string
+  finish?: string,
+  strength?: number
 ): void {
   el.addClass("ep-fmt", `ep-fmt-${target}`);
   // A finish needs something to lie on: on bare text, the ones that cut an
   // edge or weave a surface have nothing to work with.
-  wearFinish(el, finish && !(target === "text" && NEEDS_FILL.has(finish)) ? finish : undefined);
+  wearFinish(el, finish && !(target === "text" && NEEDS_FILL.has(finish)) ? finish : undefined, strength);
   if (target === "text") {
     el.setCssProps({ "--ep-fmt-fg": color });
     return;
@@ -311,9 +318,10 @@ export function applyFormat(view: ViewCtx, entry: Entry, raw: unknown, els: Form
     el: HTMLElement,
     color: string,
     at: "text" | "chip" | "card",
-    finish: string | undefined
+    finish: string | undefined,
+    strength?: number
   ): void => {
-    paint(el, color, at, rule?.contrast, finish);
+    paint(el, color, at, rule?.contrast, finish, strength);
     if (finish) dressed.push(el);
   };
   if (!rule || !palette) {
@@ -331,7 +339,7 @@ export function applyFormat(view: ViewCtx, entry: Entry, raw: unknown, els: Form
       const item = raw[i];
       const fin = pickFinish(finishesFor(rule, palette), item);
       const c = fin?.color ?? colorOfWith(view, entry, palette, item);
-      if (c) wear(chip, c, target === "text" ? "text" : "chip", fin?.finish);
+      if (c) wear(chip, c, target === "text" ? "text" : "chip", fin?.finish, fin?.strength);
       else wearFinish(chip, undefined);
     });
   }
@@ -344,14 +352,14 @@ export function applyFormat(view: ViewCtx, entry: Entry, raw: unknown, els: Form
     return;
   }
   if (target === "card") {
-    if (els.wrap) wear(els.wrap, color, "card", fin?.finish);
+    if (els.wrap) wear(els.wrap, color, "card", fin?.finish, fin?.strength);
     // The pieces standing on the row wear the row's material too - their own
     // part of it, moved a little along - with a hairline round each so a chip
     // reads as a piece lying on the sheet rather than as a hole through it.
     if (fin?.finish)
       for (const piece of [els.val, ...(els.chips ?? [])]) {
         if (!piece || piece === els.wrap) continue;
-        wearFinish(piece, fin.finish);
+        wearFinish(piece, fin.finish, fin.strength);
         piece.addClass("ep-fin-cut");
         dressed.push(piece);
       }
@@ -362,7 +370,7 @@ export function applyFormat(view: ViewCtx, entry: Entry, raw: unknown, els: Form
     if (els.val) wearFinish(els.val, undefined);
   } else if (els.val) {
     if (els.wrap) wearFinish(els.wrap, undefined);
-    wear(els.val, color, target, fin?.finish);
+    wear(els.val, color, target, fin?.finish, fin?.strength);
   }
   // Whatever is wearing a finish wears the SAME sheet of it: the row's, not
   // its own. A list of chips is one sheet with chips cut out of it.
