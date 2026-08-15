@@ -1182,17 +1182,20 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
   nothing animates on a timer - the only thing that moves is the light, and it
   moves because the reader moved it.
 
-  SEAMLESS, all of them. A layer that moves is a tiled image, and a tile shows
-  its edge in two different ways, so every one of these obeys three rules:
+  SEAMLESS, all of them - which takes three rules, because a tile can show its
+  edge in three different ways:
 
-    1. A gradient that runs from one colour to another and is then tiled draws
-       a hard line where its end meets the next tile's beginning. So a moving
-       linear gradient always ENDS ON THE COLOUR IT STARTED ON.
-    2. A repeating gradient restarts its pattern at the edge of its own image,
-       so the image must be a WHOLE NUMBER OF PERIODS: bands written as
-       `calc(100% / 7)` and read seven times, or a pixel period with an image
+    1. A DIAGONAL sweep cannot be tiled at all. Its bands run at an angle and
+       the tile is a rectangle, so the colour arriving at the right-hand edge
+       is not the colour leaving the left-hand one, whatever its end stops
+       say. Those layers are therefore `no-repeat`, sized well past the value,
+       and their position is held inside 0-100% so the image always covers
+       what it is drawn on. That is what `--ep-travel` is bounded for.
+    2. A REPEATING gradient restarts its pattern at the edge of its own image,
+       so a repeated image must hold a WHOLE NUMBER OF PERIODS: bands written
+       as `calc(100% / 7)` and read seven times, or a pixel period with a tile
        sized to a multiple of it (8px thread, 96px tile).
-    3. A repeating conic gradient's period must DIVIDE 360 exactly - 12deg,
+    3. A repeating CONIC gradient's period must DIVIDE 360 exactly - 12deg,
        20, 24, never 11 or 21, which leave a wedge over at the top.
 
   A gradient that never moves is exempt from all three: sized to cover and
@@ -1226,9 +1229,15 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
   --ep-hue-5: hsl(212 94% 74%);
   --ep-hue-6: hsl(288 84% 74%);
 
-  /* How far the sheet travels for a given move of the lamp. Higher is more
-     dramatic and, past about 4, seasick. */
-  --ep-travel: 2.4;
+  /*
+     How far the sheet travels for a given move of the lamp.
+     Bounded on purpose: the lamp's offset reaches 100% of a value at most, so
+     anything above 0.5 pushes a non-repeating layer's position outside 0-100%
+     and the image stops covering what it is drawn on. Half of that offset is
+     plenty of travel, because a position of 0-100% walks the image across by
+     its whole overhang - for an image at 260%, that is one and a half values.
+  */
+  --ep-travel: 0.5;
   /* The whole effect's strength, for a global "calm it down" switch. */
   --ep-finish-strength: 1;
 }
@@ -1292,6 +1301,10 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
   background-image: var(--ep-sheet-img, none);
   background-size: var(--ep-sheet-size, 300% 300%);
   background-position: var(--ep-sheet-pos, center);
+  /* Nothing repeats unless it says so: a layer that repeats has been built to
+     (see rule 2 above), and everything else is a single image big enough to
+     cover the value wherever the light has pushed it. */
+  background-repeat: var(--ep-sheet-repeat, no-repeat);
   background-blend-mode: var(--ep-sheet-mix, normal);
   mix-blend-mode: var(--ep-sheet-blend, hard-light);
   filter: var(--ep-sheet-filter, none);
@@ -1317,6 +1330,7 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
   );
   background-size: var(--ep-glare-size, cover);
   background-position: var(--ep-glare-pos, center);
+  background-repeat: var(--ep-glare-repeat, no-repeat);
   mix-blend-mode: var(--ep-glare-blend, overlay);
   filter: var(--ep-glare-filter, none);
   /* The glare is the light itself, so it fades further than the sheet does. */
@@ -1339,10 +1353,12 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
      lying on a row of the same material is still visibly a separate piece
      rather than a window onto what is behind it. Zero for anything that is
      the whole sheet. */
-  --ep-drift: calc(50% - (var(--ep-lamp-dx) * var(--ep-travel)) + var(--ep-nudge, 0px))
-    calc(50% - (var(--ep-lamp-dy) * var(--ep-travel)) + var(--ep-nudge, 0px));
-  --ep-sweep: calc(50% + (var(--ep-lamp-dx) * var(--ep-travel)) + var(--ep-nudge, 0px))
-    calc(50% + (var(--ep-lamp-dy) * var(--ep-travel)) + var(--ep-nudge, 0px));
+  --ep-drift:
+    clamp(0%, calc(50% - (var(--ep-lamp-dx) * var(--ep-travel)) + var(--ep-nudge, 0px)), 100%)
+    clamp(0%, calc(50% - (var(--ep-lamp-dy) * var(--ep-travel)) + var(--ep-nudge, 0px)), 100%);
+  --ep-sweep:
+    clamp(0%, calc(50% + (var(--ep-lamp-dx) * var(--ep-travel)) + var(--ep-nudge, 0px)), 100%)
+    clamp(0%, calc(50% + (var(--ep-lamp-dy) * var(--ep-travel)) + var(--ep-nudge, 0px)), 100%);
   /* Brighter as the pointer goes wide, so the light has somewhere to come
      from rather than sitting at one strength forever. */
   --ep-lift: calc(0.55 + (var(--ep-lamp-reach) * 0.55));
@@ -1409,6 +1425,7 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
     linear-gradient(100deg, hsl(0 0% 100% / 0.35), transparent 45%, hsl(0 0% 100% / 0.35));
   --ep-sheet-size: 96px 96px, cover;
   --ep-sheet-pos: var(--ep-drift), center;
+  --ep-sheet-repeat: repeat, no-repeat;
   --ep-sheet-mix: screen;
   --ep-sheet-blend: hard-light;
   --ep-sheet-filter: brightness(var(--ep-lift)) contrast(1.35);
@@ -1431,6 +1448,7 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
     repeating-linear-gradient(90deg, hsl(0 0% 0% / 0.6) 0 1px, hsl(0 0% 78% / 0.5) 1px 3px);
   --ep-sheet-size: 320% 320%, 48px 48px;
   --ep-sheet-pos: var(--ep-drift), center;
+  --ep-sheet-repeat: no-repeat, repeat;
   --ep-sheet-mix: overlay;
   --ep-sheet-blend: color-dodge;
   --ep-sheet-filter: brightness(calc(var(--ep-lift) * 0.9)) contrast(1.5) saturate(1.1);
@@ -1458,6 +1476,7 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
     );
   --ep-sheet-size: 300% 300%, 96px 96px;
   --ep-sheet-pos: var(--ep-drift), var(--ep-sweep);
+  --ep-sheet-repeat: no-repeat, repeat;
   --ep-sheet-mix: hard-light;
   --ep-sheet-blend: color-dodge;
   --ep-sheet-filter: brightness(calc(var(--ep-lift) * 0.8)) contrast(1.9) saturate(1.2);
@@ -1502,6 +1521,7 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
     radial-gradient(ellipse at 32% 62%, hsl(266 60% 30% / 0.75), hsl(240 40% 6% / 0.85) 72%);
   --ep-sheet-size: 34px 34px, 51px 51px, 43px 43px, 61px 61px, 260% 260%, cover;
   --ep-sheet-pos: var(--ep-sweep), var(--ep-sweep), var(--ep-sweep), var(--ep-sweep), var(--ep-drift), center;
+  --ep-sheet-repeat: repeat, repeat, repeat, repeat, no-repeat, no-repeat;
   --ep-sheet-mix: screen;
   --ep-sheet-blend: color-dodge;
   --ep-sheet-filter: brightness(calc(var(--ep-lift) * 0.85)) contrast(1.6);
@@ -1534,6 +1554,7 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
     radial-gradient(circle at var(--ep-lamp-x) var(--ep-lamp-y), hsl(0 0% 100% / 0.65), transparent 62%);
   --ep-sheet-size: 13px 13px, 17px 17px, 19px 19px, 23px 23px, cover;
   --ep-sheet-pos: var(--ep-sweep), var(--ep-sweep), var(--ep-sweep), var(--ep-sweep), center;
+  --ep-sheet-repeat: repeat, repeat, repeat, repeat, no-repeat;
   --ep-sheet-mix: screen;
   --ep-sheet-blend: color-dodge;
   --ep-sheet-filter: brightness(calc(var(--ep-lift) * 0.9)) contrast(1.8);
@@ -1574,6 +1595,7 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
     linear-gradient(104deg, hsl(0 0% 30% / 0.28), hsl(0 0% 100% / 0.4) 48%, hsl(0 0% 28% / 0.28));
   --ep-sheet-size: 96px 96px, 220% 220%;
   --ep-sheet-pos: center, var(--ep-sweep);
+  --ep-sheet-repeat: repeat, no-repeat;
   --ep-sheet-blend: soft-light;
   --ep-sheet-opacity: 0.78;
   --ep-glare-opacity: 0.28;
@@ -1586,6 +1608,7 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
     linear-gradient(140deg, hsl(0 0% 100% / 0.2), hsl(0 0% 30% / 0.2) 50%, hsl(0 0% 100% / 0.2));
   --ep-sheet-size: 48px 48px, 48px 48px, 200% 200%;
   --ep-sheet-pos: center, center, var(--ep-sweep);
+  --ep-sheet-repeat: repeat, repeat, no-repeat;
   --ep-sheet-blend: overlay;
   --ep-sheet-opacity: 0.6;
   --ep-glare-opacity: 0.25;
@@ -1623,6 +1646,7 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
     );
   --ep-sheet-size: 44px 44px, 52px 52px, 38px 38px, 60px 60px, 200% 200%;
   --ep-sheet-pos: var(--ep-drift), var(--ep-drift), var(--ep-drift), var(--ep-drift), var(--ep-sweep);
+  --ep-sheet-repeat: repeat, repeat, repeat, repeat, no-repeat;
   --ep-sheet-mix: overlay;
   --ep-sheet-blend: hard-light;
   --ep-sheet-filter: brightness(var(--ep-lift));
@@ -1641,14 +1665,11 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
 @media (prefers-reduced-motion: reduce) {
   .ep-fin::before,
   .ep-fin::after {
-    transition: none;
-    --ep-lamp-x: 42%;
-    --ep-lamp-y: 28%;
-    --ep-lamp-dx: -8%;
-    --ep-lamp-dy: -22%;
-    --ep-lamp-reach: 0.468;
-    --ep-lamp-turn: 70.0deg;
-    --ep-lamp-near: 0.35;
+    /* The material stays - a finish with no light on it is a picture of a
+       material rather than one - but the light crawls: the speed limit drops
+       to a quarter of a value a second and the orbit stops entirely (see
+       `lamp.ts`). Nothing here needs pinning for that; what goes is the
+       browser's own hurry. */
     will-change: auto;
   }
 }

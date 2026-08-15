@@ -22335,19 +22335,27 @@ var FALLOFF = 2.6;
 var LIMIT = 160;
 var RATE = 9;
 var SPEED = 2.2;
+var CALM_SPEED = 0.25;
+var CALM_RATE = 2.5;
+var ORBIT = 0.055;
+var ORBIT_SECONDS = 13;
 var SNAP = 2e-3;
 var MAX_FRAME = 0.05;
 var clamp2 = (n, lo, hi) => n < lo ? lo : n > hi ? hi : n;
 var REST = { x: 0.42, y: 0.28, near: 0.35 };
-function targetFor(box, px, py) {
+function orbitAt(seconds) {
+  const a = seconds / ORBIT_SECONDS * Math.PI * 2;
+  return { x: Math.cos(a) * ORBIT, y: Math.sin(a) * ORBIT * 0.7 };
+}
+function targetFor(box, px, py, by = { x: 0, y: 0 }) {
   const overX = (px - box.left) / (box.width || 1);
   const overY = (py - box.top) / (box.height || 1);
   const outX = overX - 0.5;
   const outY = overY - 0.5;
   const away = Math.sqrt(outX * outX + outY * outY) * 2;
   return {
-    x: clamp2(overX, -0.5, 1.5),
-    y: clamp2(overY, -0.5, 1.5),
+    x: clamp2(overX, -0.5, 1.5) + by.x,
+    y: clamp2(overY, -0.5, 1.5) + by.y,
     near: clamp2(1 - (away - 1) / FALLOFF, 0, 1)
   };
 }
@@ -22366,18 +22374,18 @@ function propsOf(light) {
     "--ep-lamp-near": light.near.toFixed(3)
   };
 }
-function approach(cur, to, dt) {
+function approach(cur, to, dt, speed = SPEED, rate = RATE) {
   const gap = to - cur;
   if (Math.abs(gap) < SNAP) return to;
-  const eased = gap * (1 - Math.exp(-RATE * dt));
-  const cap = SPEED * dt;
+  const eased = gap * (1 - Math.exp(-rate * dt));
+  const cap = speed * dt;
   return cur + clamp2(eased, -cap, cap);
 }
-function step(cur, to, dt) {
+function step(cur, to, dt, speed, rate) {
   return {
-    x: approach(cur.x, to.x, dt),
-    y: approach(cur.y, to.y, dt),
-    near: approach(cur.near, to.near, dt)
+    x: approach(cur.x, to.x, dt, speed, rate),
+    y: approach(cur.y, to.y, dt, speed, rate),
+    near: approach(cur.near, to.near, dt, speed, rate)
   };
 }
 function settled(cur, to) {
@@ -22385,7 +22393,12 @@ function settled(cur, to) {
 }
 function installLamp(win) {
   const doc = win.document;
-  if (win.matchMedia("(prefers-reduced-motion: reduce)").matches) return () => void 0;
+  const quiet = win.matchMedia("(prefers-reduced-motion: reduce)");
+  let calm = quiet.matches;
+  const onQuiet = () => {
+    calm = quiet.matches;
+  };
+  quiet.addEventListener("change", onQuiet);
   let lit = [];
   let sheets = [];
   let stale = true;
@@ -22403,6 +22416,7 @@ function installLamp(win) {
     frame2 = 0;
     const dt = last ? Math.min(MAX_FRAME, (now - last) / 1e3) : 1 / 60;
     last = now;
+    const wander = calm || away ? { x: 0, y: 0 } : orbitAt(now / 1e3);
     if (stale) {
       lit = Array.from(doc.querySelectorAll(".ep-fin")).slice(0, LIMIT);
       sheets = lit.map((el) => {
@@ -22419,7 +22433,7 @@ function installLamp(win) {
       var _a;
       const box = boxes[i];
       if (box.width === 0 || box.height === 0 || box.bottom < 0 || box.top > h || box.right < 0 || box.left > w) return;
-      const to = away ? REST : targetFor(box, px, py);
+      const to = away ? REST : targetFor(box, px, py, wander);
       const cur = (_a = at.get(el)) != null ? _a : REST;
       if (settled(cur, to)) {
         if (to === REST || settled(to, REST)) {
@@ -22433,7 +22447,7 @@ function installLamp(win) {
         at.set(el, to);
         return;
       }
-      const next = step(cur, to, dt);
+      const next = step(cur, to, dt, calm ? CALM_SPEED : SPEED, calm ? CALM_RATE : RATE);
       at.set(el, next);
       resting.delete(el);
       moving = true;
@@ -22461,6 +22475,7 @@ function installLamp(win) {
   doc.addEventListener("pointerleave", release);
   win.addEventListener("blur", release);
   return () => {
+    quiet.removeEventListener("change", onQuiet);
     watch.disconnect();
     if (frame2) win.cancelAnimationFrame(frame2);
     win.removeEventListener("pointermove", onMove);

@@ -50,6 +50,30 @@ describe("the finishes tile without a seam", () => {
     }
   });
 
+  it("lets a layer repeat only where its size matches its pattern", () => {
+    // Every finish either says nothing about repeating (so nothing does) or
+    // says it once per layer - a shorter list would repeat the wrong ones.
+    for (const m of block.matchAll(/\.ep-fin-[a-z-]+ \{([\s\S]*?)\n\}/g)) {
+      const rule = m[1];
+      const size = /--ep-sheet-size: ([^;]+);/.exec(rule);
+      const repeat = /--ep-sheet-repeat: ([^;]+);/.exec(rule);
+      if (!repeat) continue;
+      const layers = size ? size[1].split(/,(?![^(]*\))/).length : 1;
+      expect(repeat[1].split(",").length).toBe(layers);
+    }
+  });
+
+  it("holds a moving position inside the image it is drawn from", () => {
+    // A non-repeating layer stops covering the value the moment its position
+    // leaves 0-100%, and the gap reads as a seam. Both are clamped.
+    expect(block).toContain("--ep-drift:\n    clamp(0%");
+    expect(block).toContain("--ep-sweep:\n    clamp(0%");
+    // ...which only works while the travel cannot outrun the clamp.
+    const travel = /--ep-travel: ([\d.]+);/.exec(block);
+    expect(travel).not.toBeNull();
+    expect(Number(travel?.[1])).toBeLessThanOrEqual(0.5);
+  });
+
   it("ends every moving linear sweep on the colour it began with", () => {
     // The layers that move (a `--ep-sweep` or `--ep-drift` position) and are
     // NOT repeating patterns must close: first stop colour === last.

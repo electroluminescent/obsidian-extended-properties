@@ -51,8 +51,9 @@
     <p class="note">
       Move the pointer across the swatches: each one is lit from where the pointer
       stands on it, so the light crosses the sheet one swatch at a time. It travels
-      at a speed with a ceiling on it, and eases back to rest when the pointer
-      leaves the window. Pick a fill to see every finish over a different colour.
+      at a speed with a ceiling on it, wanders slowly around the pointer even when
+      your hand is still, and eases back to rest when the pointer leaves the window.
+      Pick a fill to see every finish over a different colour.
     </p>
     <div class="swatches" id="fills"></div>
     <div class="grid" id="grid"></div>
@@ -154,19 +155,29 @@
       const FALLOFF = 2.6;
       const RATE = 9;
       const SPEED = 2.2;
+      const CALM_RATE = 2.5;
+      const CALM_SPEED = 0.25;
+      const ORBIT = 0.055;
+      const ORBIT_SECONDS = 13;
       const SNAP = 0.002;
+      const quiet = window.matchMedia("(prefers-reduced-motion: reduce)");
       const REST = { x: 0.42, y: 0.28, near: 0.35 };
       const clamp = (n, lo, hi) => (n < lo ? lo : n > hi ? hi : n);
 
-      const targetFor = (box, px, py) => {
+      const orbitAt = (seconds) => {
+        const a = (seconds / ORBIT_SECONDS) * Math.PI * 2;
+        return { x: Math.cos(a) * ORBIT, y: Math.sin(a) * ORBIT * 0.7 };
+      };
+
+      const targetFor = (box, px, py, by = { x: 0, y: 0 }) => {
         const overX = (px - box.left) / (box.width || 1);
         const overY = (py - box.top) / (box.height || 1);
         const outX = overX - 0.5;
         const outY = overY - 0.5;
         const away = Math.hypot(outX, outY) * 2;
         return {
-          x: clamp(overX, -0.5, 1.5),
-          y: clamp(overY, -0.5, 1.5),
+          x: clamp(overX, -0.5, 1.5) + by.x,
+          y: clamp(overY, -0.5, 1.5) + by.y,
           near: clamp(1 - (away - 1) / FALLOFF, 0, 1),
         };
       };
@@ -187,15 +198,15 @@
         };
       };
 
-      const approach = (cur, to, dt) => {
+      const approach = (cur, to, dt, speed, rate) => {
         const gap = to - cur;
         if (Math.abs(gap) < SNAP) return to;
-        return cur + clamp(gap * (1 - Math.exp(-RATE * dt)), -SPEED * dt, SPEED * dt);
+        return cur + clamp(gap * (1 - Math.exp(-rate * dt)), -speed * dt, speed * dt);
       };
-      const stepTo = (cur, to, dt) => ({
-        x: approach(cur.x, to.x, dt),
-        y: approach(cur.y, to.y, dt),
-        near: approach(cur.near, to.near, dt),
+      const stepTo = (cur, to, dt, speed, rate) => ({
+        x: approach(cur.x, to.x, dt, speed, rate),
+        y: approach(cur.y, to.y, dt, speed, rate),
+        near: approach(cur.near, to.near, dt, speed, rate),
       });
       const settled = (a, b) =>
         Math.abs(a.x - b.x) < SNAP && Math.abs(a.y - b.y) < SNAP && Math.abs(a.near - b.near) < SNAP;
@@ -213,12 +224,15 @@
         frame = 0;
         const dt = last ? Math.min(0.05, (now - last) / 1000) : 1 / 60;
         last = now;
+        const calm = quiet.matches;
+        // The light wanders around the pointer, so a still hand still breathes.
+        const wander = calm || gone ? { x: 0, y: 0 } : orbitAt(now / 1000);
         const lit = Array.from(document.querySelectorAll(".ep-fin"));
         // Chips on one row are one sheet: lit across the row, not each alone.
         const boxes = lit.map((el) => (el.closest(".ep-fin-sheet") ?? el).getBoundingClientRect());
         let moving = false;
         lit.forEach((el, i) => {
-          const to = gone ? REST : targetFor(boxes[i], px, py);
+          const to = gone ? REST : targetFor(boxes[i], px, py, wander);
           const cur = at.get(el) ?? REST;
           if (settled(cur, to)) {
             if (settled(to, REST)) {
@@ -231,7 +245,7 @@
             at.set(el, to);
             return;
           }
-          const next = stepTo(cur, to, dt);
+          const next = stepTo(cur, to, dt, calm ? CALM_SPEED : SPEED, calm ? CALM_RATE : RATE);
           at.set(el, next);
           resting.delete(el);
           moving = true;

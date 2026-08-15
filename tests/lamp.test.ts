@@ -4,7 +4,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { approach, lightFor, REST, targetFor } from "../src/ui/render/lamp";
+import {
+  approach, CALM_SPEED, lightFor, ORBIT, orbitAt, ORBIT_SECONDS, REST, SPEED, targetFor,
+} from "../src/ui/render/lamp";
 
 /** A hundred-pixel square at the origin. */
 const box = { left: 0, top: 0, width: 100, height: 100 };
@@ -116,5 +118,53 @@ describe("the light travelling", () => {
   it("reports a target as a light rather than as text", () => {
     const t = targetFor({ left: 0, top: 0, width: 100, height: 100 }, 50, 50);
     expect(t).toEqual({ x: 0.5, y: 0.5, near: 1 });
+  });
+});
+
+describe("the light wandering, and being asked to calm down", () => {
+  const dt = 1 / 60;
+
+  it("orbits, and comes back to where it started", () => {
+    const a = orbitAt(0);
+    const half = orbitAt(ORBIT_SECONDS / 2);
+    const round = orbitAt(ORBIT_SECONDS);
+    expect(a.x).toBeCloseTo(ORBIT, 6);
+    expect(half.x).toBeCloseTo(-ORBIT, 6);
+    expect(round.x).toBeCloseTo(a.x, 6);
+    expect(round.y).toBeCloseTo(a.y, 6);
+  });
+
+  it("wanders little enough to be a breath rather than a movement", () => {
+    for (let t = 0; t < ORBIT_SECONDS; t += 0.25) {
+      const o = orbitAt(t);
+      expect(Math.abs(o.x)).toBeLessThanOrEqual(ORBIT + 1e-9);
+      expect(Math.abs(o.y)).toBeLessThanOrEqual(ORBIT + 1e-9);
+    }
+  });
+
+  it("carries the light with it, without changing how much there is", () => {
+    const box = { left: 0, top: 0, width: 100, height: 100 };
+    const still = targetFor(box, 50, 50);
+    const carried = targetFor(box, 50, 50, orbitAt(3));
+    expect(carried.x).not.toBe(still.x);
+    // How near the light is belongs to the pointer, not to the wandering.
+    expect(carried.near).toBe(still.near);
+  });
+
+  it("crawls when asked to: the same crossing takes many times as long", () => {
+    const steps = (speed: number): number => {
+      let cur = 0;
+      let n = 0;
+      while (cur < 0.999 && n < 100000) {
+        cur = approach(cur, 1, dt, speed, speed === CALM_SPEED ? 2.5 : undefined);
+        n++;
+      }
+      return n;
+    };
+    const brisk = steps(SPEED);
+    const calm = steps(CALM_SPEED);
+    expect(calm).toBeGreaterThan(brisk * 4);
+    // ...and a quarter of a value per second is four seconds to cross one.
+    expect(approach(0, 10, 1, CALM_SPEED, 2.5)).toBeCloseTo(CALM_SPEED, 6);
   });
 });

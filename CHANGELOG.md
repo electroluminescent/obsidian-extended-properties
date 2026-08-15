@@ -1,5 +1,26 @@
 # Changelog
 
+## 4.64.0
+
+- **The seam is gone, and this time for the right reason.** A diagonal sweep
+  cannot be tiled at all: its bands run at an angle and the tile is a
+  rectangle, so the colour arriving at one edge is never the colour leaving
+  the other, whatever its end stops say - which is why sheen kept drawing a
+  line down itself. Those layers no longer repeat; they are single images
+  sized well past the value, with their position held inside the image so it
+  always covers what it is drawn on. Only the patterns built to repeat -
+  threads, weaves, star fields - still do.
+- **The light wanders.** A slow, small, slightly elliptical orbit around the
+  pointer, so a sheet under a hand that is not moving still breathes instead
+  of freezing into a photograph. One turn takes thirteen seconds and carries
+  the light about a twentieth of a value: enough to keep a foil alive, not
+  enough to catch it at it.
+- **Reduced motion now means slow rather than absent.** The finishes stay -
+  one with no light on it is a picture of a material rather than a material -
+  the orbit stops entirely, and the speed limit drops to a quarter of a value
+  a second, which is four seconds to cross one. Changing the setting takes
+  effect without a reload.
+
 ## 4.63.1
 
 - **Every finish tiles seamlessly.** A layer that moves is a tiled image, and

@@ -34,10 +34,15 @@
  * it belongs - and a value settling back to rest is handed over to those same
  * values exactly when it arrives at them, so there is nothing to see.
  *
+ * The light also WANDERS: a slow, small orbit around the pointer, so a sheet
+ * under a hand that is not moving still breathes rather than freezing into a
+ * photograph. Under `prefers-reduced-motion` the orbit stops and the speed
+ * limit drops to a crawl - the materials stay, since a finish with no light
+ * on it is a picture of a material rather than one, but nothing hurries.
+ *
  * The stylesheet names every one of these with a resting value, so this is an
  * embellishment and never a requirement: with no pointer, no listener and no
- * JavaScript at all, the finishes are still correct - just still. Under
- * `prefers-reduced-motion` nothing is installed at all.
+ * JavaScript at all, the finishes are still correct - just still.
  */
 
 /** The properties written, so they can all be handed back together. */
@@ -63,14 +68,39 @@ const LIMIT = 160;
  * more responsive and less liquid; this reaches most of the way in about a
  * tenth of a second, which reads as light rather than as lag.
  */
-const RATE = 9;
+export const RATE = 9;
 
 /**
  * The speed limit, in value-lengths per second. Nothing may cross a value
  * faster than this however violently the pointer moves, which is what stops a
  * flung cursor strobing a sheet of rows.
  */
-const SPEED = 2.2;
+export const SPEED = 2.2;
+
+/**
+ * The same two, for somebody who has asked for less movement.
+ *
+ * Not nothing: a finish with no light on it is a picture of a material rather
+ * than a material, and the point of the whole layer is lost. What is taken
+ * away is the speed - a quarter of a value a second is four seconds to cross
+ * one, which is a tide rather than a flicker - and the orbit, which is the
+ * only part that moves without being asked to.
+ */
+export const CALM_SPEED = 0.25;
+export const CALM_RATE = 2.5;
+
+/**
+ * The orbit: how far the light wanders around the pointer, as a fraction of
+ * the value, and how long one turn takes.
+ *
+ * A material under a light held perfectly still is a photograph. Real ones
+ * never are: a hand shifts, a head moves, and the sheet answers. This is that
+ * - small enough not to be caught doing it, slow enough to read as breathing
+ * rather than as animation, and elliptical so it does not read as a circle
+ * being traced either.
+ */
+export const ORBIT = 0.055;
+export const ORBIT_SECONDS = 13;
 
 /** Close enough to have arrived. */
 const SNAP = 0.002;
@@ -107,8 +137,21 @@ export interface Light {
  */
 export const REST: Light = { x: 0.42, y: 0.28, near: 0.35 };
 
-/** Where the light would be on `box` with the pointer at (px, py). */
-export function targetFor(box: Box, px: number, py: number): Light {
+/** How far the orbit has carried the light from the pointer, at `seconds`. */
+export function orbitAt(seconds: number): { x: number; y: number } {
+  const a = (seconds / ORBIT_SECONDS) * Math.PI * 2;
+  return { x: Math.cos(a) * ORBIT, y: Math.sin(a) * ORBIT * 0.7 };
+}
+
+/**
+ * Where the light would be on `box` with the pointer at (px, py), and the
+ * orbit carried `by` from it.
+ *
+ * The orbit moves where the light IS, not how much of it there is: a value
+ * the pointer has left stays left, and the wandering is something that
+ * happens on the values the light is actually on.
+ */
+export function targetFor(box: Box, px: number, py: number, by = { x: 0, y: 0 }): Light {
   // Where the pointer sits across the value, in the value's own terms: 0 at
   // its left edge, 1 at its right, and past both when the pointer is beyond
   // it. Measured before anything is clamped, because how FAR away the pointer
@@ -126,8 +169,8 @@ export function targetFor(box: Box, px: number, py: number): Light {
   // pointer has left keeps leaning towards it, but only so far, or it is
   // drawn from a gradient ten lengths off the end of itself.
   return {
-    x: clamp(overX, -0.5, 1.5),
-    y: clamp(overY, -0.5, 1.5),
+    x: clamp(overX, -0.5, 1.5) + by.x,
+    y: clamp(overY, -0.5, 1.5) + by.y,
     near: clamp(1 - (away - 1) / FALLOFF, 0, 1),
   };
 }
@@ -164,20 +207,20 @@ export function lightFor(box: Box, px: number, py: number): Record<string, strin
  * eased move is proportional to the distance, so a pointer jumping right
  * across the window would still cross in one blink.
  */
-export function approach(cur: number, to: number, dt: number): number {
+export function approach(cur: number, to: number, dt: number, speed = SPEED, rate = RATE): number {
   const gap = to - cur;
   if (Math.abs(gap) < SNAP) return to;
-  const eased = gap * (1 - Math.exp(-RATE * dt));
-  const cap = SPEED * dt;
+  const eased = gap * (1 - Math.exp(-rate * dt));
+  const cap = speed * dt;
   return cur + clamp(eased, -cap, cap);
 }
 
 /** Move a whole light one step towards another. */
-function step(cur: Light, to: Light, dt: number): Light {
+function step(cur: Light, to: Light, dt: number, speed: number, rate: number): Light {
   return {
-    x: approach(cur.x, to.x, dt),
-    y: approach(cur.y, to.y, dt),
-    near: approach(cur.near, to.near, dt),
+    x: approach(cur.x, to.x, dt, speed, rate),
+    y: approach(cur.y, to.y, dt, speed, rate),
+    near: approach(cur.near, to.near, dt, speed, rate),
   };
 }
 
@@ -197,10 +240,16 @@ function settled(cur: Light, to: Light): boolean {
  */
 export function installLamp(win: Window): () => void {
   const doc = win.document;
-  // Somebody who has asked for less movement is not asking for a lamp that
-  // follows them around. The stylesheet pins the resting light in that case,
-  // so the materials are all still there - they simply hold still.
-  if (win.matchMedia("(prefers-reduced-motion: reduce)").matches) return () => undefined;
+  // Somebody who has asked for less movement still gets the materials - they
+  // are what the colour is made of - but the light crawls rather than follows,
+  // and it stops wandering on its own. Watched rather than read once, so
+  // changing the setting takes effect without a reload.
+  const quiet = win.matchMedia("(prefers-reduced-motion: reduce)");
+  let calm = quiet.matches;
+  const onQuiet = (): void => {
+    calm = quiet.matches;
+  };
+  quiet.addEventListener("change", onQuiet);
 
   /** The finishes on screen, refreshed when the document changes under us. */
   let lit: HTMLElement[] = [];
@@ -237,6 +286,9 @@ export function installLamp(win: Window): () => void {
     frame = 0;
     const dt = last ? Math.min(MAX_FRAME, (now - last) / 1000) : 1 / 60;
     last = now;
+    // The light wanders a little around the pointer, so a sheet under a hand
+    // that is not moving still breathes. Nothing wanders under reduced motion.
+    const wander = calm || away ? { x: 0, y: 0 } : orbitAt(now / 1000);
     if (stale) {
       lit = Array.from(doc.querySelectorAll<HTMLElement>(".ep-fin")).slice(0, LIMIT);
       sheets = lit.map((el) => el.closest<HTMLElement>(".ep-fin-sheet") ?? el);
@@ -253,7 +305,7 @@ export function installLamp(win: Window): () => void {
       // Nothing to light: collapsed, or scrolled out of the window. It keeps
       // whatever it had, so coming back into view is not a fresh arrival.
       if (box.width === 0 || box.height === 0 || box.bottom < 0 || box.top > h || box.right < 0 || box.left > w) return;
-      const to = away ? REST : targetFor(box, px, py);
+      const to = away ? REST : targetFor(box, px, py, wander);
       const cur = at.get(el) ?? REST;
       if (settled(cur, to)) {
         // Arrived. If that is rest, hand the value back to the stylesheet -
@@ -270,7 +322,7 @@ export function installLamp(win: Window): () => void {
         at.set(el, to);
         return;
       }
-      const next = step(cur, to, dt);
+      const next = step(cur, to, dt, calm ? CALM_SPEED : SPEED, calm ? CALM_RATE : RATE);
       at.set(el, next);
       resting.delete(el);
       moving = true;
@@ -311,6 +363,7 @@ export function installLamp(win: Window): () => void {
   doc.addEventListener("pointerleave", release);
   win.addEventListener("blur", release);
   return () => {
+    quiet.removeEventListener("change", onQuiet);
     watch.disconnect();
     if (frame) win.cancelAnimationFrame(frame);
     win.removeEventListener("pointermove", onMove);
