@@ -1,5 +1,24 @@
 # Changelog
 
+## 4.63.1
+
+- **Every finish tiles seamlessly.** A layer that moves is a tiled image, and
+  a tile shows its edge two ways: a sweep whose end does not match its
+  beginning draws a hard line, and a repeating pattern restarts mid-stride
+  wherever its image ends. Every layer now closes on itself - sweeps end on
+  the colour they began with, bands are written as a fraction of the image and
+  read exactly that many times, pixel patterns are tiled at a whole number of
+  periods, and conic patterns use a period that divides 360. A conic gradient
+  cannot be tiled at all, so the one that was has become a repeating sweep.
+- The rules are checked by a test against the stylesheet itself: a seam is the
+  sort of thing that is obvious on screen and invisible in a diff.
+- **A chip is its own piece of the sheet.** It wears the row's material, moved
+  a little along it, so it reads as a piece lying on the row rather than as a
+  window through to it.
+- **The finish reaches the rim.** A layer sits inside the border, which left a
+  chip's edge as the one part of it wearing nothing; the layer is now grown by
+  the border and clipped back to the border box.
+
 ## 4.63.0
 
 - **The finish goes under the text, not over it.** A finish is what the value

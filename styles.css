@@ -1181,6 +1181,22 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
   Everything is gradients. Nothing is downloaded, nothing is an image, and
   nothing animates on a timer - the only thing that moves is the light, and it
   moves because the reader moved it.
+
+  SEAMLESS, all of them. A layer that moves is a tiled image, and a tile shows
+  its edge in two different ways, so every one of these obeys three rules:
+
+    1. A gradient that runs from one colour to another and is then tiled draws
+       a hard line where its end meets the next tile's beginning. So a moving
+       linear gradient always ENDS ON THE COLOUR IT STARTED ON.
+    2. A repeating gradient restarts its pattern at the edge of its own image,
+       so the image must be a WHOLE NUMBER OF PERIODS: bands written as
+       `calc(100% / 7)` and read seven times, or a pixel period with an image
+       sized to a multiple of it (8px thread, 96px tile).
+    3. A repeating conic gradient's period must DIVIDE 360 exactly - 12deg,
+       20, 24, never 11 or 21, which leave a wedge over at the top.
+
+  A gradient that never moves is exempt from all three: sized to cover and
+  anchored at the centre, there is no second tile to disagree with it.
 */
 
 /* -- the lamp, and the spectrum it splits into ----------------------------- */
@@ -1250,9 +1266,15 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
     part of it. With no span measured the numbers are zero and this is exactly
     the element's own box.
   */
+  /* `--ep-edge` is the value's own border, which an absolutely positioned
+     layer would otherwise stop short of: a chip's rim would be the only part
+     of it wearing no material. Growing by the border and clipping back to the
+     border box puts the finish right out to the edge. */
   inset:
-    calc(-1 * var(--ep-span-t, 0px)) calc(-1 * var(--ep-span-r, 0px))
-    calc(-1 * var(--ep-span-b, 0px)) calc(-1 * var(--ep-span-l, 0px));
+    calc(-1 * (var(--ep-span-t, 0px) + var(--ep-edge, 0px)))
+    calc(-1 * (var(--ep-span-r, 0px) + var(--ep-edge, 0px)))
+    calc(-1 * (var(--ep-span-b, 0px) + var(--ep-edge, 0px)))
+    calc(-1 * (var(--ep-span-l, 0px) + var(--ep-edge, 0px)));
   clip-path: inset(
     var(--ep-span-t, 0px) var(--ep-span-r, 0px) var(--ep-span-b, 0px) var(--ep-span-l, 0px)
     round var(--ep-span-round, var(--ep-radius, 6px))
@@ -1313,10 +1335,14 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
   being lit.
 */
 .ep-fin {
-  --ep-drift: calc(50% - (var(--ep-lamp-dx) * var(--ep-travel)))
-    calc(50% - (var(--ep-lamp-dy) * var(--ep-travel)));
-  --ep-sweep: calc(50% + (var(--ep-lamp-dx) * var(--ep-travel)))
-    calc(50% + (var(--ep-lamp-dy) * var(--ep-travel)));
+  /* `--ep-nudge` moves a piece cut out of a sheet along it a little, so a chip
+     lying on a row of the same material is still visibly a separate piece
+     rather than a window onto what is behind it. Zero for anything that is
+     the whole sheet. */
+  --ep-drift: calc(50% - (var(--ep-lamp-dx) * var(--ep-travel)) + var(--ep-nudge, 0px))
+    calc(50% - (var(--ep-lamp-dy) * var(--ep-travel)) + var(--ep-nudge, 0px));
+  --ep-sweep: calc(50% + (var(--ep-lamp-dx) * var(--ep-travel)) + var(--ep-nudge, 0px))
+    calc(50% + (var(--ep-lamp-dy) * var(--ep-travel)) + var(--ep-nudge, 0px));
   /* Brighter as the pointer goes wide, so the light has somewhere to come
      from rather than sitting at one strength forever. */
   --ep-lift: calc(0.55 + (var(--ep-lamp-reach) * 0.55));
@@ -1375,12 +1401,13 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
 .ep-fin-foil {
   --ep-sheet-img: repeating-linear-gradient(
       100deg,
-      hsl(0 0% 100% / 0.8) 0 2px,
-      hsl(0 0% 0% / 0.55) 2px 4px,
-      transparent 4px 8px
+      transparent 0 1px,
+      hsl(0 0% 100% / 0.8) 1px 3px,
+      hsl(0 0% 0% / 0.55) 3px 5px,
+      transparent 5px 8px
     ),
-    linear-gradient(100deg, hsl(0 0% 100% / 0.35), transparent 45%, hsl(0 0% 100% / 0.3));
-  --ep-sheet-size: 200% 200%, cover;
+    linear-gradient(100deg, hsl(0 0% 100% / 0.35), transparent 45%, hsl(0 0% 100% / 0.35));
+  --ep-sheet-size: 96px 96px, cover;
   --ep-sheet-pos: var(--ep-drift), center;
   --ep-sheet-mix: screen;
   --ep-sheet-blend: hard-light;
@@ -1390,7 +1417,7 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
 
 /* SPECTRA - the plain holo sheet: a spectrum under fine scan lines. */
 .ep-fin-spectra {
-  --ep-band: 7%;
+  --ep-band: calc(100% / 7);
   --ep-sheet-img: repeating-linear-gradient(
       112deg,
       var(--ep-hue-1) calc(var(--ep-band) * 1),
@@ -1402,7 +1429,7 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
       var(--ep-hue-1) calc(var(--ep-band) * 7)
     ),
     repeating-linear-gradient(90deg, hsl(0 0% 0% / 0.6) 0 1px, hsl(0 0% 78% / 0.5) 1px 3px);
-  --ep-sheet-size: 320% 320%, cover;
+  --ep-sheet-size: 320% 320%, 48px 48px;
   --ep-sheet-pos: var(--ep-drift), center;
   --ep-sheet-mix: overlay;
   --ep-sheet-blend: color-dodge;
@@ -1414,7 +1441,7 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
 
 /* PRISM - the spectrum crossed with itself, sharper and more restless. */
 .ep-fin-prism {
-  --ep-band: 5%;
+  --ep-band: calc(100% / 6);
   --ep-sheet-img: repeating-linear-gradient(
       var(--ep-lamp-turn),
       var(--ep-hue-1) calc(var(--ep-band) * 1),
@@ -1429,7 +1456,7 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
       hsl(0 0% 0% / 0.5) 0 3px,
       hsl(0 0% 100% / 0.35) 3px 6px
     );
-  --ep-sheet-size: 300% 300%, 180% 180%;
+  --ep-sheet-size: 300% 300%, 96px 96px;
   --ep-sheet-pos: var(--ep-drift), var(--ep-sweep);
   --ep-sheet-mix: hard-light;
   --ep-sheet-blend: color-dodge;
@@ -1439,14 +1466,15 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
 
 /* OPAL - the same light, but soft: a thin film rather than a foil. */
 .ep-fin-opal {
-  --ep-sheet-img: linear-gradient(
+  --ep-sheet-img: repeating-linear-gradient(
       126deg,
-      hsl(0 0% 100% / 0.06),
-      var(--ep-hue-1) 18%,
-      var(--ep-hue-4) 38%,
-      var(--ep-hue-2) 56%,
-      var(--ep-hue-5) 74%,
-      var(--ep-hue-6) 92%
+      hsl(0 0% 100% / 0.06) 0%,
+      var(--ep-hue-1) 14%,
+      var(--ep-hue-4) 30%,
+      var(--ep-hue-2) 46%,
+      var(--ep-hue-5) 62%,
+      var(--ep-hue-6) 80%,
+      hsl(0 0% 100% / 0.06) 100%
     ),
     linear-gradient(68deg, transparent 34%, hsl(0 0% 100% / 0.42) 50%, transparent 66%);
   --ep-sheet-size: 260% 260%, 200% 200%;
@@ -1463,13 +1491,13 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
     radial-gradient(circle at 57% 73%, hsl(0 0% 100% / 0.85) 0 1px, transparent 2px),
     radial-gradient(circle at 84% 31%, hsl(0 0% 100% / 0.9) 0 1px, transparent 2px),
     radial-gradient(circle at 36% 88%, hsl(0 0% 100% / 0.7) 0 1px, transparent 2px),
-    conic-gradient(
-      from var(--ep-lamp-turn),
-      var(--ep-hue-6),
+    repeating-linear-gradient(
+      var(--ep-lamp-turn),
+      var(--ep-hue-6) 0%,
       var(--ep-hue-5) 22%,
       var(--ep-hue-4) 44%,
       var(--ep-hue-1) 68%,
-      var(--ep-hue-6)
+      var(--ep-hue-6) 100%
     ),
     radial-gradient(ellipse at 32% 62%, hsl(266 60% 30% / 0.75), hsl(240 40% 6% / 0.85) 72%);
   --ep-sheet-size: 34px 34px, 51px 51px, 43px 43px, 61px 61px, 260% 260%, cover;
@@ -1485,7 +1513,7 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
   --ep-sheet-img: repeating-conic-gradient(
       from var(--ep-lamp-turn) at var(--ep-lamp-x) var(--ep-lamp-y),
       hsl(0 0% 100% / 0.3) 0deg 2deg,
-      transparent 2deg 11deg
+      transparent 2deg 12deg
     ),
     radial-gradient(circle at var(--ep-lamp-x) var(--ep-lamp-y), hsl(0 0% 100% / 0.5), transparent 58%);
   --ep-sheet-size: cover, cover;
@@ -1525,7 +1553,7 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
       from calc(var(--ep-lamp-turn) * -0.5) at 71% 66%,
       hsl(190 90% 92% / 0.6) 0deg 4deg,
       hsl(0 0% 0% / 0.42) 4deg 7deg,
-      transparent 7deg 21deg
+      transparent 7deg 20deg
     );
   --ep-sheet-size: cover, cover;
   --ep-sheet-pos: center, center;
@@ -1544,7 +1572,7 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
       transparent 3px 8px
     ),
     linear-gradient(104deg, hsl(0 0% 30% / 0.28), hsl(0 0% 100% / 0.4) 48%, hsl(0 0% 28% / 0.28));
-  --ep-sheet-size: cover, 220% 220%;
+  --ep-sheet-size: 96px 96px, 220% 220%;
   --ep-sheet-pos: center, var(--ep-sweep);
   --ep-sheet-blend: soft-light;
   --ep-sheet-opacity: 0.78;
@@ -1555,8 +1583,8 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
 .ep-fin-weave {
   --ep-sheet-img: repeating-linear-gradient(0deg, hsl(0 0% 100% / 0.1) 0 1px, transparent 1px 4px),
     repeating-linear-gradient(90deg, hsl(0 0% 0% / 0.09) 0 1px, transparent 1px 4px),
-    linear-gradient(140deg, hsl(0 0% 100% / 0.2), hsl(0 0% 30% / 0.2));
-  --ep-sheet-size: cover, cover, 200% 200%;
+    linear-gradient(140deg, hsl(0 0% 100% / 0.2), hsl(0 0% 30% / 0.2) 50%, hsl(0 0% 100% / 0.2));
+  --ep-sheet-size: 48px 48px, 48px 48px, 200% 200%;
   --ep-sheet-pos: center, center, var(--ep-sweep);
   --ep-sheet-blend: overlay;
   --ep-sheet-opacity: 0.6;
@@ -1587,7 +1615,12 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
     radial-gradient(ellipse at 49% 63%, hsl(0 0% 0% / 0.26) 0 4%, transparent 11%),
     radial-gradient(ellipse at 81% 34%, hsl(0 0% 100% / 0.3) 0 3%, transparent 10%),
     radial-gradient(ellipse at 69% 87%, hsl(0 0% 0% / 0.2) 0 3%, transparent 9%),
-    linear-gradient(var(--ep-lamp-turn), hsl(0 0% 100% / 0.22), hsl(0 0% 28% / 0.22));
+    linear-gradient(
+      var(--ep-lamp-turn),
+      hsl(0 0% 100% / 0.22),
+      hsl(0 0% 28% / 0.22) 50%,
+      hsl(0 0% 100% / 0.22)
+    );
   --ep-sheet-size: 44px 44px, 52px 52px, 38px 38px, 60px 60px, 200% 200%;
   --ep-sheet-pos: var(--ep-drift), var(--ep-drift), var(--ep-drift), var(--ep-drift), var(--ep-sweep);
   --ep-sheet-mix: overlay;

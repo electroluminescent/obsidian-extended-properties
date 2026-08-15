@@ -4680,6 +4680,7 @@ function clear(el) {
   el.setCssProps({ "--ep-fmt-bg": "", "--ep-fmt-fg": "" });
 }
 var FADE_MS = 180;
+var NUDGE_PX = 9;
 var worn = /* @__PURE__ */ new WeakMap();
 function wearFinish(el, id) {
   var _a;
@@ -4699,10 +4700,10 @@ function wearFinish(el, id) {
   if (!state.id) swap();
   else state.timer = window.setTimeout(swap, FADE_MS);
 }
-function layAcross(sheet, parts) {
+function layAcross(sheet, dressed) {
   if (!sheet) return;
-  const wanted = parts.filter((el) => el !== sheet);
-  if (!wanted.length) {
+  const parts = dressed.filter((el) => el !== sheet);
+  if (!dressed.length) {
     sheet.removeClass("ep-fin-sheet");
     return;
   }
@@ -4711,21 +4712,29 @@ function layAcross(sheet, parts) {
     const box = sheet.getBoundingClientRect();
     if (box.width === 0) return;
     let any = false;
-    for (const el of wanted) {
+    for (const el of dressed) {
       if (!el.isConnected) continue;
       const own = el.getBoundingClientRect();
       if (own.width === 0) continue;
-      any = true;
-      const round = getComputedStyle(el).borderTopLeftRadius;
+      const style = getComputedStyle(el);
+      const edge = style.borderTopWidth;
+      const round = style.borderTopLeftRadius;
+      const part = el !== sheet;
+      if (part) any = true;
       el.setCssProps({
-        "--ep-span-t": Math.max(0, Math.round(own.top - box.top)) + "px",
-        "--ep-span-l": Math.max(0, Math.round(own.left - box.left)) + "px",
-        "--ep-span-b": Math.max(0, Math.round(box.bottom - own.bottom)) + "px",
-        "--ep-span-r": Math.max(0, Math.round(box.right - own.right)) + "px",
-        "--ep-span-round": round && round !== "0px" ? round : ""
+        "--ep-edge": edge && edge !== "0px" ? edge : "",
+        "--ep-span-round": round && round !== "0px" ? round : "",
+        "--ep-span-t": part ? Math.max(0, Math.round(own.top - box.top)) + "px" : "",
+        "--ep-span-l": part ? Math.max(0, Math.round(own.left - box.left)) + "px" : "",
+        "--ep-span-b": part ? Math.max(0, Math.round(box.bottom - own.bottom)) + "px" : "",
+        "--ep-span-r": part ? Math.max(0, Math.round(box.right - own.right)) + "px" : "",
+        // A piece cut out of a sheet is moved a little along it, so a chip
+        // lying on a row of the same material still reads as a separate piece
+        // rather than as a window onto what is behind it.
+        "--ep-nudge": part ? NUDGE_PX + "px" : ""
       });
     }
-    sheet.toggleClass("ep-fin-sheet", any);
+    sheet.toggleClass("ep-fin-sheet", any && parts.length > 0);
   });
 }
 function paint(el, color, target2, contrast, finish) {

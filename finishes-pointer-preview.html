@@ -33,7 +33,10 @@
       .chips { display: flex; gap: 6px; }
       .chip {
         padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
-        background: var(--fill); color: var(--fg); --ep-span-round: 999px;
+        background: var(--fill); color: var(--fg);
+        /* A border, to show the finish reaching the rim rather than stopping
+           inside it. */
+        border: 2px solid hsl(0 0% 100% / .25);
       }
       .swatches { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
       .swatches button {
@@ -107,10 +110,16 @@
             const box = list.getBoundingClientRect();
             for (const chip of list.children) {
               const own = chip.getBoundingClientRect();
+              const style = getComputedStyle(chip);
               chip.style.setProperty("--ep-span-t", Math.round(own.top - box.top) + "px");
               chip.style.setProperty("--ep-span-l", Math.round(own.left - box.left) + "px");
               chip.style.setProperty("--ep-span-b", Math.round(box.bottom - own.bottom) + "px");
               chip.style.setProperty("--ep-span-r", Math.round(box.right - own.right) + "px");
+              // Out to the rim, and a step along the sheet so the chip is
+              // plainly its own piece of it.
+              chip.style.setProperty("--ep-edge", style.borderTopWidth);
+              chip.style.setProperty("--ep-span-round", style.borderTopLeftRadius);
+              chip.style.setProperty("--ep-nudge", "9px");
             }
           });
         }

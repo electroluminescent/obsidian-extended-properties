@@ -122,6 +122,13 @@ function clear(el: HTMLElement): void {
 /** How long a finish takes to fade out before the next one fades in. */
 const FADE_MS = 180;
 
+/**
+ * How far along the sheet a piece cut out of it is moved. Enough that a chip
+ * is plainly its own piece of material and not a hole through to the row;
+ * little enough that the two still look like the same stuff.
+ */
+const NUDGE_PX = 9;
+
 /** What each element is currently wearing, and any change in flight. */
 interface Worn {
   id?: string;
@@ -168,10 +175,10 @@ function wearFinish(el: HTMLElement, id: string | undefined): void {
  * inside the row. Done a frame later, because the row has only just been
  * drawn and asking now would measure the last one.
  */
-function layAcross(sheet: HTMLElement | null | undefined, parts: HTMLElement[]): void {
+function layAcross(sheet: HTMLElement | null | undefined, dressed: HTMLElement[]): void {
   if (!sheet) return;
-  const wanted = parts.filter((el) => el !== sheet);
-  if (!wanted.length) {
+  const parts = dressed.filter((el) => el !== sheet);
+  if (!dressed.length) {
     sheet.removeClass("ep-fin-sheet");
     return;
   }
@@ -180,25 +187,36 @@ function layAcross(sheet: HTMLElement | null | undefined, parts: HTMLElement[]):
     const box = sheet.getBoundingClientRect();
     if (box.width === 0) return;
     let any = false;
-    for (const el of wanted) {
+    for (const el of dressed) {
       if (!el.isConnected) continue;
       const own = el.getBoundingClientRect();
       if (own.width === 0) continue;
-      any = true;
+      const style = getComputedStyle(el);
+      // A layer sits inside the border, so a chip's rim would be the one part
+      // of it wearing nothing. The stylesheet grows the layer by this and
+      // clips it back, which puts the material right out to the edge.
+      const edge = style.borderTopWidth;
       // The clip has to be the part's own shape, corners included, or a pill
       // chip would show a square edge of the sheet at each end.
-      const round = getComputedStyle(el).borderTopLeftRadius;
+      const round = style.borderTopLeftRadius;
+      const part = el !== sheet;
+      if (part) any = true;
       el.setCssProps({
-        "--ep-span-t": Math.max(0, Math.round(own.top - box.top)) + "px",
-        "--ep-span-l": Math.max(0, Math.round(own.left - box.left)) + "px",
-        "--ep-span-b": Math.max(0, Math.round(box.bottom - own.bottom)) + "px",
-        "--ep-span-r": Math.max(0, Math.round(box.right - own.right)) + "px",
+        "--ep-edge": edge && edge !== "0px" ? edge : "",
         "--ep-span-round": round && round !== "0px" ? round : "",
+        "--ep-span-t": part ? Math.max(0, Math.round(own.top - box.top)) + "px" : "",
+        "--ep-span-l": part ? Math.max(0, Math.round(own.left - box.left)) + "px" : "",
+        "--ep-span-b": part ? Math.max(0, Math.round(box.bottom - own.bottom)) + "px" : "",
+        "--ep-span-r": part ? Math.max(0, Math.round(box.right - own.right)) + "px" : "",
+        // A piece cut out of a sheet is moved a little along it, so a chip
+        // lying on a row of the same material still reads as a separate piece
+        // rather than as a window onto what is behind it.
+        "--ep-nudge": part ? NUDGE_PX + "px" : "",
       });
     }
     // The lamp lights a sheet as one thing, so every chip on a row shares a
     // highlight rather than each carrying its own.
-    sheet.toggleClass("ep-fin-sheet", any);
+    sheet.toggleClass("ep-fin-sheet", any && parts.length > 0);
   });
 }
 
