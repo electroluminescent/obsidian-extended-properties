@@ -1983,6 +1983,50 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
 
 .ep-nav-search { padding: 2px 0 6px; }
 .ep-nav-search-input { width: 100%; }
+/*
+  The controls take the palette's colour.
+
+  A slider's knob and a rating's pips are the value as much as the number is,
+  so a property with a palette says it in that palette rather than in the
+  theme's accent - which belongs to everything and so means nothing here. On a
+  filled row `--ep-fmt-accent` is the measured foreground instead (see
+  `accent()` in render/format.ts), which is why this is one variable and not
+  two rules.
+*/
+.ep-fmt-accented {
+  --ep-accent-default: var(--ep-fmt-accent);
+  --ep-rating-color: var(--ep-fmt-accent);
+}
+.ep-fmt-accented .ep-slider2-knob::before { background: var(--ep-fmt-accent); }
+.ep-fmt-accented .ep-slider2-track {
+  background: color-mix(in oklab, var(--ep-fmt-accent) 55%, transparent);
+}
+.ep-fmt-accented .ep-slider2-rail {
+  background: color-mix(in oklab, var(--ep-fmt-accent) 35%, transparent);
+}
+
+/*
+  On a filled row, EVERYTHING written on it is measured against the fill.
+
+  The value's text already was; so must the scale's lines, the label under the
+  pointer, the unit, the type tag, the modifier chain - anything drawn in a
+  muted grey chosen for the note's background will sink into a strong colour.
+  The doubled class outranks the greys those parts set for themselves; what
+  keeps its own colour is what is saying something the colour cannot, which is
+  a value failing its constraints.
+*/
+.ep-fmt-card.ep-fmt-card,
+.ep-fmt-card.ep-fmt-card :where(span, div, a, small, label, button, td, th, summary) {
+  color: var(--ep-fmt-fg, inherit);
+}
+.ep-fmt-card.ep-fmt-card .ep-tick { background: var(--ep-fmt-fg, currentColor); }
+.ep-fmt-card.ep-fmt-card .ep-slider2-rail {
+  background: color-mix(in oklab, var(--ep-fmt-fg) 35%, transparent);
+}
+.ep-fmt-card.ep-fmt-card .ep-hover-label { color: var(--ep-fmt-fg, inherit); }
+.ep-fmt-card.ep-fmt-card .ep-invalid,
+.ep-fmt-card.ep-fmt-card .ep-link-unresolved { color: var(--text-error); }
+
 /* A chip or a value cell inside a row that is wearing a finish.
 
    The row's material runs behind it, and it shows its own piece of it - moved

@@ -1,5 +1,23 @@
 # Changelog
 
+## 4.68.0
+
+- **The palette colours the controls too.** A slider's knob, its track and a
+  rating's pips are the value as much as the number is, so a property with a
+  palette now says it in that palette rather than in the theme's accent -
+  which belongs to everything and therefore says nothing about this property.
+- **On a filled row, everything written on it is measured against the fill.**
+  The value's text already was; now so are the scale's lines, the label under
+  the pointer, the unit, the type tag, the modifier chain and the controls -
+  all of which were drawn in greys chosen for the note's background and sank
+  into a strong colour. What keeps its own colour is what the fill cannot say:
+  a value failing its constraints stays red.
+- **The section strip always stands to the left** of what it describes -
+  outside it where there is room, tucked just inside its own left edge where
+  there is not. It was ending up in the top right corner beside a panel with
+  no room on its left, which reads as belonging to the screen rather than to
+  the settings.
+
 ## 4.67.0
 
 - **Every finish rule has a dial: how much of it to show.** Which material a

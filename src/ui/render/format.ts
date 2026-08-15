@@ -139,8 +139,27 @@ function targetOf(rule: FormatRule): "text" | "chip" | "card" {
  * handed over rather than snatched away (see {@link wearFinish}).
  */
 function clear(el: HTMLElement): void {
-  el.removeClass("ep-fmt", "ep-fmt-text", "ep-fmt-chip", "ep-fmt-card", "ep-fin-cut");
-  el.setCssProps({ "--ep-fmt-bg": "", "--ep-fmt-fg": "" });
+  el.removeClass("ep-fmt", "ep-fmt-text", "ep-fmt-card", "ep-fmt-chip", "ep-fin-cut", "ep-fmt-accented");
+  el.setCssProps({ "--ep-fmt-bg": "", "--ep-fmt-fg": "", "--ep-fmt-accent": "" });
+}
+
+/**
+ * Hand the row's controls the colour they should be drawn in.
+ *
+ * A slider's knob and a rating's pips are the value too - they say the same
+ * thing the number does - so on a property that has been given a palette they
+ * should be saying it in the palette's colour rather than in the theme's
+ * accent, which belongs to everything and therefore means nothing here.
+ *
+ * On a row whose whole surface is filled, that is not the answer: an accent
+ * chosen for a pale background disappears into a strong fill. There the
+ * controls take the foreground the fill was measured for - the same colour
+ * the value's own text is using, and legible for the same reason.
+ */
+function accent(wrap: HTMLElement | null | undefined, color: string, target: "text" | "chip" | "card"): void {
+  if (!wrap) return;
+  wrap.addClass("ep-fmt-accented");
+  wrap.setCssProps({ "--ep-fmt-accent": target === "card" ? "var(--ep-fmt-fg)" : color });
 }
 
 /** How long a finish takes to fade out before the next one fades in. */
@@ -351,6 +370,7 @@ export function applyFormat(view: ViewCtx, entry: Entry, raw: unknown, els: Form
     layAcross(els.wrap, dressed);
     return;
   }
+  accent(els.wrap, color, target);
   if (target === "card") {
     if (els.wrap) wear(els.wrap, color, "card", fin?.finish, fin?.strength);
     // The pieces standing on the row wear the row's material too - their own

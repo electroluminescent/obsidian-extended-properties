@@ -172,26 +172,20 @@ export function mountOptionsNav(content: HTMLElement, i18n: I18n, o: OptionsNavO
   });
 
   /**
-   * Stand the strip against what it describes.
+   * Stand the strip against the left of what it describes.
    *
-   * Just outside its left edge by preference, just outside its right edge if
-   * the left is against the window - and, where neither side has the room,
-   * tucked inside its own right edge rather than pushed out to the corner of
-   * the screen. A strip in the far corner belongs to the window; a strip
-   * against the panel belongs to the panel.
+   * Always the left: a strip on the right of one panel and the left of
+   * another is a strip you have to look for. Outside it where there is room,
+   * and tucked just inside its own left edge where there is not - which
+   * overlaps a little, and is still plainly the left-hand edge of the thing
+   * it belongs to rather than a corner of the screen.
    */
   const place = (): void => {
     const box = beside.getBoundingClientRect();
     const w = rail.offsetWidth;
     const h = rail.offsetHeight;
-    const outsideLeft = box.left - EDGE - w;
-    const outsideRight = box.right + EDGE;
-    const left =
-      outsideLeft >= EDGE
-        ? outsideLeft
-        : outsideRight + w <= window.innerWidth - EDGE
-          ? outsideRight
-          : Math.max(EDGE, box.right - w - EDGE);
+    const outside = box.left - EDGE - w;
+    const left = outside >= EDGE ? outside : Math.max(EDGE, box.left + EDGE);
     const top = Math.min(Math.max(EDGE, box.top + EDGE), Math.max(EDGE, window.innerHeight - h - EDGE));
     rail.setCssStyles({ left: `${Math.round(left)}px`, top: `${Math.round(top)}px` });
   };

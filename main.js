@@ -4721,8 +4721,13 @@ function targetOf(rule) {
   return rule.target === "card" || rule.target === "chip" ? rule.target : "text";
 }
 function clear(el) {
-  el.removeClass("ep-fmt", "ep-fmt-text", "ep-fmt-chip", "ep-fmt-card", "ep-fin-cut");
-  el.setCssProps({ "--ep-fmt-bg": "", "--ep-fmt-fg": "" });
+  el.removeClass("ep-fmt", "ep-fmt-text", "ep-fmt-card", "ep-fmt-chip", "ep-fin-cut", "ep-fmt-accented");
+  el.setCssProps({ "--ep-fmt-bg": "", "--ep-fmt-fg": "", "--ep-fmt-accent": "" });
+}
+function accent(wrap, color, target2) {
+  if (!wrap) return;
+  wrap.addClass("ep-fmt-accented");
+  wrap.setCssProps({ "--ep-fmt-accent": target2 === "card" ? "var(--ep-fmt-fg)" : color });
 }
 var FADE_MS = 180;
 var NUDGE_PX = 28;
@@ -4833,6 +4838,7 @@ function applyFormat(view, entry, raw, els) {
     layAcross(els.wrap, dressed);
     return;
   }
+  accent(els.wrap, color, target2);
   if (target2 === "card") {
     if (els.wrap) wear(els.wrap, color, "card", fin == null ? void 0 : fin.finish, fin == null ? void 0 : fin.strength);
     if (fin == null ? void 0 : fin.finish)
@@ -11300,9 +11306,8 @@ function mountOptionsNav(content, i18n, o = {}) {
     const box = beside.getBoundingClientRect();
     const w = rail.offsetWidth;
     const h = rail.offsetHeight;
-    const outsideLeft = box.left - EDGE - w;
-    const outsideRight = box.right + EDGE;
-    const left = outsideLeft >= EDGE ? outsideLeft : outsideRight + w <= window.innerWidth - EDGE ? outsideRight : Math.max(EDGE, box.right - w - EDGE);
+    const outside = box.left - EDGE - w;
+    const left = outside >= EDGE ? outside : Math.max(EDGE, box.left + EDGE);
     const top = Math.min(Math.max(EDGE, box.top + EDGE), Math.max(EDGE, window.innerHeight - h - EDGE));
     rail.setCssStyles({ left: `${Math.round(left)}px`, top: `${Math.round(top)}px` });
   };
