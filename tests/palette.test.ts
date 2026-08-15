@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   blendColors, colorAt, colorForText, defaultWheel, edgeContested, ensureDominance, insertStep,
   midpointBlend, mixColors, moveColor, moveEdge, positionalBlend, readableOn, removeStep,
-  setDominant, stepsValid, toOklch, type Palette, type ScaleStep,
+  percentIn, setDominant, stepsValid, toOklch, type Palette, type ScaleStep,
 } from "../src/utils/palette";
 import { formatEdge, parseEdge } from "../src/utils/palette-date";
 import type { DateConfig } from "../src/core/calendar";
@@ -398,5 +398,52 @@ describe("edges written as dates", () => {
     const a = parseEdge("1312-06-03", cfg)!;
     const b = parseEdge("1312-07-03", cfg)!;
     expect(b).toBeGreaterThan(a);
+  });
+});
+
+describe("a scale written in per cent of the property's own range", () => {
+  /** Low, middling and high - as thirds, in no particular units. */
+  const thirds = (): Palette => ({
+    id: "r",
+    name: "Relative",
+    mode: "bands",
+    relative: true,
+    steps: [
+      { from: 0, to: 33 },
+      { from: 33, to: 66 },
+      { from: 66, to: 100 },
+    ],
+    colors: ["#ff0000", "#ffff00", "#00ff00"],
+  });
+
+  it("says where a value sits in its span", () => {
+    expect(percentIn(5, { min: 0, max: 20 })).toBe(25);
+    expect(percentIn(0, { min: -10, max: 10 })).toBe(50);
+    expect(percentIn(150, { min: 0, max: 100 })).toBe(150); // outside stays outside
+    expect(percentIn(3, { min: 3, max: 3 })).toBe(0); // a span of no width
+  });
+
+  it("dresses two properties of wildly different size the same way", () => {
+    const skill = { min: 0, max: 20 };
+    const fortune = { min: 0, max: 10000 };
+    // A tenth of the way up is the low band in both.
+    expect(colorAt(thirds(), 2, skill)).toBe("#ff0000");
+    expect(colorAt(thirds(), 1000, fortune)).toBe("#ff0000");
+    // ...and nine tenths is the high one.
+    expect(colorAt(thirds(), 18, skill)).toBe("#00ff00");
+    expect(colorAt(thirds(), 9000, fortune)).toBe("#00ff00");
+  });
+
+  it("reads the numbers as values again when it is told to", () => {
+    const absolute: Palette = { ...thirds(), relative: undefined };
+    // 18 is now simply the number 18, which sits in the first band - even
+    // though it is nine tenths of the way up a skill out of twenty.
+    expect(colorAt(absolute, 18, { min: 0, max: 20 })).toBe("#ff0000");
+    // ...and a fortune of 9000 is off the end of a scale that stops at 100.
+    expect(colorAt(absolute, 9000, { min: 0, max: 10000 })).toBeUndefined();
+  });
+
+  it("needs a span to be relative against", () => {
+    expect(colorAt(thirds(), 50)).toBeDefined(); // no span: read as values
   });
 });

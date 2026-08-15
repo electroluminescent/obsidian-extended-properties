@@ -13,6 +13,7 @@
  */
 
 import type { ColorSpace } from "../utils/color";
+import type { ScaleStep } from "../utils/palette";
 import type { Constraints } from "./validate";
 
 /** Height presets used by sections and image entries. */
@@ -84,7 +85,20 @@ export interface FormatRule {
   target?: FormatTarget;
   /** "auto" (default) picks a readable foreground; a colour overrides it. */
   contrast?: string;
+  /**
+   * The finishes this property wears. Unset means the palette's own - a
+   * palette is a look, and a look includes what it is made of.
+   */
   finishes?: FinishRule[];
+  /**
+   * A scale of this property's own, standing in for the palette's.
+   *
+   * The COLOURS still come from the palette: what is overridden is where each
+   * of them starts and stops. One palette can then dress a dozen properties
+   * that share nothing but a sense of low-to-high - hit points nought to two
+   * hundred, a skill nought to twenty - without a palette each.
+   */
+  scale?: { steps: ScaleStep[]; relative?: boolean };
   /** Off without forgetting the settings. */
   off?: boolean;
 }

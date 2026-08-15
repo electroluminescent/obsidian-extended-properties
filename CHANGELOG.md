@@ -1,5 +1,24 @@
 # Changelog
 
+## 4.65.0
+
+- **A palette carries its own finishes.** A palette is a look, and a look is a
+  colour and a material both: point a property at *Threat* and it arrives
+  foiled without anybody saying so again. A property may still name its own,
+  and then it wears those instead - the same editor, in both places.
+- **A property can keep a palette's colours and move its edges.** Turn on *A
+  scale of its own* and the palette's points and bands are copied in for this
+  property to rearrange; the colours stay the palette's and are shown beside
+  the numbers but not editable there. One palette then dresses a dozen
+  properties that share nothing but a sense of low-to-high. A scale with more
+  steps than the palette has colours runs round them again.
+- **A scale can be written in per cent instead of values.** *What its numbers
+  mean* offers per cent of the property's own range, so 0 to 100 is read
+  against whatever range each property turns out to have - its own min and
+  max, or the range its values occupy. Three bands then dress a skill out of
+  twenty and a fortune out of ten thousand identically, and nothing is
+  measured against the vault: every property is read against itself.
+
 ## 4.64.0
 
 - **The seam is gone, and this time for the right reason.** A diagonal sweep

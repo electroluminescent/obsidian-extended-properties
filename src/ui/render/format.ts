@@ -16,7 +16,7 @@
  * Style Settings can still reach it and `forced-colors` can drop the lot.
  */
 
-import type { Entry, FormatRule } from "../../core/model";
+import type { Entry, FinishRule, FormatRule } from "../../core/model";
 import type { ViewCtx } from "../../core/context";
 import { modifierInfo } from "../../core/influences";
 import type { Palette, Span } from "../../utils/palette";
@@ -56,7 +56,31 @@ export function ruleFor(view: ViewCtx, entry: Entry): FormatRule | undefined {
 /** The palette a rule names, if the vault still holds it. */
 export function paletteFor(view: ViewCtx, rule: FormatRule | undefined): Palette | undefined {
   if (!rule?.palette) return undefined;
-  return (view.settings.palettes ?? []).find((p) => p.id === rule.palette);
+  const found = (view.settings.palettes ?? []).find((p) => p.id === rule.palette);
+  if (!found || !rule.scale?.steps?.length) return found;
+  // The property has a scale of its own. It keeps the palette's COLOURS and
+  // everything else about it - which is the point: one palette, read against
+  // whatever range this particular property happens to have. A scale with
+  // more steps than the palette has colours runs round them again rather than
+  // leaving its last steps uncoloured.
+  const colors = found.colors ?? [];
+  const steps = rule.scale.steps;
+  return {
+    ...found,
+    steps,
+    relative: rule.scale.relative,
+    colors: colors.length ? steps.map((_, i) => colors[i % colors.length]) : colors,
+  };
+}
+
+/**
+ * The finishes in force: the property's own, else the palette's.
+ *
+ * A palette is a look, and a look is a colour and a material both - so a
+ * property that says nothing about finishes wears what its palette wears.
+ */
+export function finishesFor(rule: FormatRule | undefined, palette: Palette | undefined): FinishRule[] | undefined {
+  return rule?.finishes?.length ? rule.finishes : palette?.finishes;
 }
 
 /**
@@ -305,14 +329,14 @@ export function applyFormat(view: ViewCtx, entry: Entry, raw: unknown, els: Form
   if (els.chips?.length && Array.isArray(raw)) {
     els.chips.forEach((chip, i) => {
       const item = raw[i];
-      const fin = pickFinish(rule.finishes, item);
+      const fin = pickFinish(finishesFor(rule, palette), item);
       const c = fin?.color ?? colorOfWith(view, entry, palette, item);
       if (c) wear(chip, c, target === "text" ? "text" : "chip", fin?.finish);
       else wearFinish(chip, undefined);
     });
   }
 
-  const fin = pickFinish(rule.finishes, raw);
+  const fin = pickFinish(finishesFor(rule, palette), raw);
   const color = fin?.color ?? colorOfWith(view, entry, palette, raw);
   if (!color) {
     for (const el of [els.wrap, els.val]) if (el) wearFinish(el, undefined);

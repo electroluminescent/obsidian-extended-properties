@@ -4,6 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { finishesFor } from "../src/ui/render/format";
 import { pickFinish, stableHash } from "../src/utils/finish";
 import type { FinishRule } from "../src/core/model";
 
@@ -64,5 +65,31 @@ describe("nothing to say", () => {
     expect(pickFinish(undefined, 1)).toBeUndefined();
     expect(pickFinish([], 1)).toBeUndefined();
     expect(pickFinish([{ when: "all", finish: "" }], 1)).toBeUndefined();
+  });
+});
+
+describe("where a finish comes from", () => {
+  const rules = (finish: string): FinishRule[] => [{ when: "all", finish }];
+
+  it("takes the palette's when the property says nothing", () => {
+    const from = finishesFor(
+      { palette: "p" },
+      { id: "p", name: "P", mode: "bands", finishes: rules("foil") }
+    );
+    expect(from?.[0].finish).toBe("foil");
+  });
+
+  it("lets the property have its own instead", () => {
+    expect(
+      finishesFor(
+        { palette: "p", finishes: rules("glitter") },
+        { id: "p", name: "P", mode: "bands", finishes: rules("foil") }
+      )?.[0].finish
+    ).toBe("glitter");
+  });
+
+  it("gives nothing where neither says anything", () => {
+    expect(finishesFor({ palette: "p" }, { id: "p", name: "P", mode: "bands" })).toBeUndefined();
+    expect(finishesFor(undefined, undefined)).toBeUndefined();
   });
 });

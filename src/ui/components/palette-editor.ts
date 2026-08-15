@@ -24,6 +24,7 @@ import type { ColorHost } from "./setting-helpers";
 import { hexToRgb } from "../../utils/color";
 import type { DateConfig } from "../../core/calendar";
 import { formatEdge, parseEdge } from "../../utils/palette-date";
+import { renderFinishRules } from "./finish-rules";
 import {
   colorAt, defaultWheel, edgeContested, ensureDominance, insertStep, midpointBlend, moveColor,
   moveEdge, positionalBlend, removeStep, setDominant, stepsValid,
@@ -118,6 +119,12 @@ export interface PaletteEditorCtx {
   app: App;
   i18n: I18n;
   colors: ColorHost;
+  /**
+   * The colours are somebody else's - a property borrowing its palette's
+   * while writing a scale of its own. They are shown, since a scale with no
+   * colours beside it is a column of numbers, but not touched.
+   */
+  colorsReadOnly?: boolean;
   /** Persist and redraw. */
   save: () => void;
   /** Rebuild the editor (a mode change swaps every control below it). */
@@ -179,6 +186,25 @@ export function renderPaletteEditor(c: HTMLElement, p: Palette, ctx: PaletteEdit
     });
   }
   renderWords(c, p, ctx);
+  renderFinishes(c, p, ctx);
+}
+
+/**
+ * What a value wearing this palette is MADE of.
+ *
+ * Kept with the palette rather than only on the property, because a palette
+ * is a look and a look is a colour and a material both: point a property at
+ * "Threat" and it should arrive foiled without anybody saying so again. A
+ * property may still name its own, and then it wears those instead.
+ */
+function renderFinishes(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): void {
+  const t = ctx.i18n.t.bind(ctx.i18n);
+  new Setting(c).setName(t("palette.finishes")).setDesc(t("palette.finishesDesc"));
+  renderFinishRules(c, ctx.i18n, p.finishes ?? [], (next) => {
+    p.finishes = next.length ? next : undefined;
+    ctx.save();
+    ctx.redraw();
+  });
 }
 
 /** The wheel: where the sweep starts, how far it goes, and how it looks. */
@@ -218,7 +244,7 @@ function renderWheel(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): void {
  * neighbours out of its way, which needs cells that can be transformed
  * independently of the numbers beside them.
  */
-function renderScale(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): void {
+export function renderScale(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): void {
   const t = ctx.i18n.t.bind(ctx.i18n);
   const cal = calendarOf(p, ctx);
   // Every shared edge is owned by exactly one band before anything is drawn,
@@ -288,6 +314,17 @@ function renderScale(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): void {
 
     const cell = row.createDiv({ cls: "ep-scale-color" });
     cells.push(cell);
+    if (ctx.colorsReadOnly) {
+      // Borrowed, so shown and not touched: which colour a step wears is the
+      // palette's business, and where the step sits is this property's.
+      const sw = cell.createSpan({ cls: "ep-swatch ep-pal-swatch ep-scale-borrowed" });
+      const c2 = colors[i] ?? "";
+      sw.setCssStyles({ background: hexToRgb(c2) ? c2 : "transparent" });
+      sw.toggleClass("ep-swatch-empty", !hexToRgb(c2));
+      sw.setAttr("title", t("palette.colorBorrowed"));
+      insertBar(i + 1);
+      return;
+    }
     const grip = cell.createSpan({ cls: "ep-scale-grip", text: "::" });
     grip.setAttr("aria-label", t("palette.colorMove"));
     grip.setAttr("title", t("palette.colorMove"));
@@ -323,6 +360,16 @@ function renderScale(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): void {
     insertBar(i + 1);
   });
 
+  new Setting(c).setName(t("palette.units")).setDesc(t("palette.unitsDesc")).addDropdown((dd) => {
+    dd.addOption("value", t("palette.units.value"));
+    dd.addOption("percent", t("palette.units.percent"));
+    dd.setValue(p.relative ? "percent" : "value");
+    dd.onChange((v) => {
+      p.relative = v === "percent" ? true : undefined;
+      ctx.save();
+      ctx.redraw();
+    });
+  });
   new Setting(c).setName(t("palette.linked")).setDesc(t("palette.linkedDesc")).addToggle((tg) => {
     tg.setValue(p.linked === true).onChange((v) => {
       p.linked = v || undefined;

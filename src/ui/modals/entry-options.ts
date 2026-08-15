@@ -17,8 +17,7 @@
 
 import { Modal, Setting, TFile } from "obsidian";
 import type { OptionsCtx, ViewCtx } from "../../core/context";
-import type { Entry, FinishRule, FormatRule, Section } from "../../core/model";
-import { FINISHES, finishName } from "../render/finishes";
+import type { Entry, FormatRule, Section } from "../../core/model";
 import type { Constraints } from "../../core/validate";
 import { destructive } from "../components/setting-helpers";
 import { setTypedText } from "../components/type-label";
@@ -30,6 +29,9 @@ import {
   addColorSetting, addIconSetting, ColorHost, keepScroll, mountTextList,
 } from "../components/setting-helpers";
 import { PropSuggest } from "../components/suggest";
+import { renderFinishRules } from "../components/finish-rules";
+import { renderScale } from "../components/palette-editor";
+import { paletteFor } from "../render/format";
 import { mountOptionsNav } from "../components/options-nav";
 import { asMobileSheet } from "../components/long-press";
 import { ConfirmChangesModal } from "./dialogs";
@@ -218,7 +220,48 @@ function renderFormatting(octx: OptionsCtx): void {
   addColorSetting(host, c, t("options.formatContrast"), t("options.formatContrastDesc"),
     () => (rule().contrast === "auto" ? undefined : rule().contrast),
     (v) => write({ contrast: v ?? undefined }));
-  renderFinishRules(octx, rule, write);
+
+  // -- a scale of this property's own ---------------------------------------
+  // The palette's colours, read against this property's own numbers. One
+  // palette can then dress a dozen properties that share nothing but a sense
+  // of low-to-high, without a palette each.
+  const palette = paletteFor(view, rule());
+  if (palette?.mode === "bands") {
+    new Setting(c)
+      .setName(t("options.formatScale"))
+      .setDesc(t("options.formatScaleDesc"))
+      .addToggle((tg) => {
+        tg.setValue(!!rule().scale).onChange((v) => {
+          // Start from the palette's own scale, so the first thing seen is
+          // what was already happening.
+          write({
+            scale: v
+              ? { steps: (palette.steps ?? []).map((x) => ({ ...x })), relative: palette.relative }
+              : undefined,
+          });
+        });
+      });
+    const own = rule().scale;
+    if (own)
+      renderScale(c, { ...palette, steps: own.steps, relative: own.relative, colors: palette.colors }, {
+        app: view.app,
+        i18n: view.i18n,
+        colors: host,
+        save: () => write({ scale: { steps: own.steps, relative: own.relative } }),
+        redraw,
+        dateProps: () => Object.entries(view.settings.dateProps ?? {}).map(([key, cfg]) => ({ key, cfg })),
+        colorsReadOnly: true,
+      });
+  }
+
+  // -- what it is made of ---------------------------------------------------
+  new Setting(c)
+    .setName(t("options.finishHeading"))
+    .setDesc(rule().finishes?.length ? t("options.finishHeadingDesc") : t("options.finishFromPalette"));
+  renderFinishRules(c, view.i18n, rule().finishes ?? [], (next) =>
+    write({ finishes: next.length ? next : undefined })
+  );
+
   new Setting(c)
     .setName(t("options.formatScope"))
     .setDesc(t("options.formatScopeDesc"))
@@ -241,66 +284,6 @@ function renderFormatting(octx: OptionsCtx): void {
         redraw();
       });
     });
-}
-
-/**
- * The finishes laid over the colour, and who wears them: everything, certain
- * values, or a band of numbers. The first rule that speaks for a value wins,
- * so the particular ones belong above the general.
- */
-function renderFinishRules(
-  octx: OptionsCtx,
-  rule: () => FormatRule,
-  write: (patch: Partial<FormatRule>) => void
-): void {
-  const { view, container: c } = octx;
-  const t = view.i18n.t.bind(view.i18n);
-  const list = [...(rule().finishes ?? [])];
-  const put = (next: FinishRule[]): void => write({ finishes: next.length ? next : undefined });
-  new Setting(c).setName(t("options.finishHeading")).setDesc(t("options.finishHeadingDesc"));
-  const rows = c.createDiv({ cls: "ep-mini-list" });
-  list.forEach((fr, i) => {
-    const row = new Setting(rows).setClass("ep-mini-row");
-    const box = row.controlEl;
-    const drop = box.createEl("select", { cls: "dropdown ep-fin-when" });
-    for (const when of ["all", "values", "range"])
-      drop.createEl("option", { value: when, text: t("options.finishWhen." + when) });
-    drop.value = fr.when;
-    drop.onchange = () => put(list.map((x, j) => (j === i ? { ...x, when: drop.value } : x)));
-    if (fr.when === "values") {
-      const vals = box.createEl("input", { cls: "ep-edit-input ep-fin-vals" });
-      vals.type = "text";
-      vals.placeholder = t("options.finishValues");
-      vals.value = (fr.values ?? []).join(", ");
-      vals.addEventListener("change", () =>
-        put(list.map((x, j) => (j === i ? { ...x, values: vals.value.split(",").map((v) => v.trim()).filter(Boolean) } : x)))
-      );
-    }
-    if (fr.when === "range") {
-      const num = (v: number | undefined, on: (n: number) => void): void => {
-        const el = box.createEl("input", { cls: "ep-edit-input ep-pal-num" });
-        el.type = "number";
-        el.value = v === undefined ? "" : String(v);
-        el.addEventListener("change", () => {
-          const n = Number(el.value);
-          if (Number.isFinite(n)) on(n);
-        });
-      };
-      num(fr.from, (n) => put(list.map((x, j) => (j === i ? { ...x, from: n } : x))));
-      box.createSpan({ cls: "ep-pal-dash", text: "-" });
-      num(fr.to, (n) => put(list.map((x, j) => (j === i ? { ...x, to: n } : x))));
-    }
-    const fin = box.createEl("select", { cls: "dropdown ep-fin-pick" });
-    for (const id of FINISHES) fin.createEl("option", { value: id, text: finishName(view.i18n, id) });
-    fin.value = fr.finish;
-    fin.onchange = () => put(list.map((x, j) => (j === i ? { ...x, finish: fin.value } : x)));
-    row.addExtraButton((b) =>
-      b.setIcon("x").setTooltip(t("palette.remove")).onClick(() => put(list.filter((_, j) => j !== i)))
-    );
-  });
-  new Setting(rows).setClass("ep-mini-row").addButton((b) =>
-    b.setButtonText(t("options.finishAdd")).onClick(() => put([...list, { when: "all", finish: "gloss" }]))
-  );
 }
 
 export function renderEntryOptionsBody(

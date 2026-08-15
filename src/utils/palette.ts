@@ -17,6 +17,7 @@
 
 import { hexToRgb, oklchToRgb, rgbToHex, rgbToOklab, rgbToOklch, oklabToRgb } from "./color";
 import { semanticColor } from "./semantic";
+import type { FinishRule } from "../core/model";
 
 /** How a palette turns a value into a colour. */
 export type PaletteMode = "wheel" | "bands" | "semantic";
@@ -85,6 +86,18 @@ export interface Palette {
   /** The scale: stops and bands, in value order. */
   steps?: ScaleStep[];
   /**
+   * The scale's numbers are PER CENT of the property's own range rather than
+   * values of it.
+   *
+   * The difference is between a palette that knows about hit points and one
+   * that knows about low, middling and high. A relative scale runs 0 to 100
+   * and is read against whatever range the property turns out to have, so the
+   * same three bands dress a skill out of twenty and a fortune out of ten
+   * thousand. Each property is measured against ITSELF - its own min and max,
+   * or the range its values actually occupy - never against the vault.
+   */
+  relative?: boolean;
+  /**
    * The colours the steps wear, paired by position.
    *
    * Kept apart from the steps deliberately: which colour a step wears and
@@ -104,6 +117,11 @@ export interface Palette {
   outside?: "none" | "clamp";
   /** What a value in the gap between two steps takes. */
   gaps?: "blend" | "none";
+  /**
+   * The finishes a value wearing this palette gets, unless the property names
+   * its own. A palette is a look, and a look is a colour AND a material.
+   */
+  finishes?: FinishRule[];
   words?: WordColor[];
   /** Where a word not in the list is looked for next. */
   fallback?: "table" | "hash" | "none";
@@ -121,6 +139,19 @@ export interface Palette {
 export interface Span {
   min: number;
   max: number;
+}
+
+/**
+ * Where `v` sits in `span`, as a percentage - 0 at the bottom, 100 at the
+ * top, and past either end for a value outside it.
+ *
+ * This is what a relative scale reads instead of the value itself, so that
+ * "the top fifth" means the top fifth of whatever this property happens to
+ * cover rather than the top fifth of some number written years ago.
+ */
+export function percentIn(v: number, span: Span): number {
+  const width = span.max - span.min;
+  return width === 0 ? 0 : ((v - span.min) / width) * 100;
 }
 
 /** A wheel palette drawn over nothing in particular. */
@@ -299,7 +330,9 @@ export function colorAt(palette: Palette, v: number, span?: Span): string | unde
     case "wheel":
       return span ? wheelColor(palette.wheel ?? defaultWheel(), v, span) : undefined;
     case "bands":
-      return scaleColor(palette, v);
+      // A relative scale is written in percentages of the property's own
+      // range, so the value is asked where it sits before the scale is read.
+      return scaleColor(palette, palette.relative && span ? percentIn(v, span) : v);
     default:
       return undefined;
   }

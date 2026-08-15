@@ -1087,6 +1087,7 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-scale-vals { display: flex; align-items: center; gap: 4px; min-height: 28px; flex-wrap: wrap; min-width: 0; }
 .ep-scale-color { display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
 .ep-scale-kind { color: var(--text-muted); font-size: var(--font-smaller); width: 3.2em; }
+.ep-scale-borrowed { cursor: default; opacity: .85; }
 .ep-scale-grip { cursor: grab; color: var(--text-faint); letter-spacing: -1px; padding: 0 2px; border-radius: 4px; }
 .ep-scale-grip:hover, .ep-scale-grip:focus-visible { color: var(--text-normal); background: var(--background-modifier-hover); }
 /* Only the cell under the pointer is lifted; the ones it passes slide by
