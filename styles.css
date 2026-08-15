@@ -2024,8 +2024,38 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
   background: color-mix(in oklab, var(--ep-fmt-fg) 35%, transparent);
 }
 .ep-fmt-card.ep-fmt-card .ep-hover-label { color: var(--ep-fmt-fg, inherit); }
-.ep-fmt-card.ep-fmt-card .ep-invalid,
-.ep-fmt-card.ep-fmt-card .ep-link-unresolved { color: var(--text-error); }
+.ep-fmt-card.ep-fmt-card .ep-invalid { color: var(--text-error); }
+
+/*
+  A link inside a formatted value is still the value.
+
+  Hyperlink blue is a colour picked against the note's background, and on a
+  strong fill it is often the one thing on the row that cannot be read - or,
+  beside a palette colour, the one thing that argues with it. So a link takes
+  the same foreground everything else was measured against, whether the colour
+  landed on the row, on a chip or on the text: on text the foreground IS the
+  palette's colour, so the link simply joins in.
+
+  The underline stays, in a softened version of that same colour: a link that
+  is no longer blue still has to be recognisable as a link.
+*/
+.ep-fmt-text.ep-fmt-text :where(a, a:hover, a:focus, a:visited),
+.ep-fmt-chip.ep-fmt-chip :where(a, a:hover, a:focus, a:visited),
+.ep-fmt-card.ep-fmt-card :where(a, a:hover, a:focus, a:visited),
+a.ep-fmt-text.ep-fmt-text,
+a.ep-fmt-chip.ep-fmt-chip,
+a.ep-fmt-card.ep-fmt-card {
+  color: var(--ep-fmt-fg, inherit);
+  text-decoration-color: color-mix(in oklab, var(--ep-fmt-fg, currentColor) 55%, transparent);
+}
+/* Except the ones saying something the colour cannot: a link to a note that
+   is not there is worth being told about in the colour of being told. */
+.ep-fmt-text.ep-fmt-text .ep-link-unresolved,
+.ep-fmt-chip.ep-fmt-chip .ep-link-unresolved,
+.ep-fmt-card.ep-fmt-card .ep-link-unresolved,
+.ep-fmt-text.ep-fmt-text .ep-link-unresolved a,
+.ep-fmt-chip.ep-fmt-chip .ep-link-unresolved a,
+.ep-fmt-card.ep-fmt-card .ep-link-unresolved a { color: var(--text-error); }
 
 /* A chip or a value cell inside a row that is wearing a finish.
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.68.1
+
+- **A link inside a formatted value stops being blue.** Hyperlink blue is a
+  colour chosen against the note's background: on a strong fill it is often
+  the one thing on the row that cannot be read, and beside a palette colour it
+  is the one thing arguing with it. A link now takes the same foreground
+  everything else on the value was measured against - on text that foreground
+  is the palette's own colour, so the link simply joins in - and keeps its
+  underline in a softened version of it, since a link that is no longer blue
+  still has to look like a link. A link to a note that is not there stays red.
+
 ## 4.68.0
 
 - **The palette colours the controls too.** A slider's knob, its track and a
