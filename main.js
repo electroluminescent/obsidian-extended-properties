@@ -804,11 +804,8 @@ var en_default = {
   "options.formatScopeDesc": "This property wherever it is drawn - sidebar, type table, inline - or only this row.",
   "options.formatScope.key": "This property everywhere",
   "options.formatScope.row": "Only this row",
-  "finish.matte": "Matte",
   "finish.sheen": "Sheen",
   "finish.mirror": "Mirror",
-  "finish.foil": "Foil",
-  "finish.spectra": "Spectra",
   "finish.prism": "Prism",
   "finish.opal": "Opal",
   "finish.nebula": "Nebula",
@@ -817,8 +814,6 @@ var en_default = {
   "finish.crackle": "Crackle",
   "finish.satin": "Satin",
   "finish.weave": "Weave",
-  "finish.relief": "Relief",
-  "finish.hammered": "Hammered",
   "options.finishHeading": "Finishes",
   "options.finishHeadingDesc": "Laid over the colour, never instead of it. The first rule that speaks for a value wins, so put the particular ones first.",
   "options.finishAdd": "Add finish rule",
@@ -2593,7 +2588,7 @@ function normalizeSettings(raw, defaultLayout) {
   }
   return s;
 }
-var CURRENT_SCHEMA = 9;
+var CURRENT_SCHEMA = 10;
 var SCHEMA_MIGRATIONS = [
   {
     to: 1,
@@ -2843,6 +2838,39 @@ var SCHEMA_MIGRATIONS = [
       for (const lk of Object.keys((_b = s.layouts) != null ? _b : {}))
         for (const sec of (_c = s.layouts[lk].sections) != null ? _c : []) for (const e of (_d = sec.entries) != null ? _d : []) entry(e);
       for (const k of Object.keys((_e = s.inlineEntries) != null ? _e : {})) entry((_f = s.inlineEntries) == null ? void 0 : _f[k]);
+      return changed;
+    }
+  },
+  {
+    to: 10,
+    name: "ten-finishes",
+    run: (s) => {
+      var _a, _b, _c, _d, _e, _f, _g;
+      const moved = {
+        matte: "satin",
+        foil: "mirror",
+        spectra: "prism",
+        relief: "weave",
+        hammered: "crackle"
+      };
+      let changed = false;
+      const each = (rules) => {
+        for (const r of rules != null ? rules : []) {
+          const to = moved[r.finish];
+          if (!to) continue;
+          r.finish = to;
+          changed = true;
+        }
+      };
+      for (const rule of Object.values((_a = s.formatProps) != null ? _a : {})) each(rule.finishes);
+      for (const p of (_b = s.palettes) != null ? _b : []) each(p.finishes);
+      const entry = (e) => {
+        var _a2;
+        return each((_a2 = e == null ? void 0 : e.format) == null ? void 0 : _a2.finishes);
+      };
+      for (const lk of Object.keys((_c = s.layouts) != null ? _c : {}))
+        for (const sec of (_d = s.layouts[lk].sections) != null ? _d : []) for (const e of (_e = sec.entries) != null ? _e : []) entry(e);
+      for (const k of Object.keys((_f = s.inlineEntries) != null ? _f : {})) entry((_g = s.inlineEntries) == null ? void 0 : _g[k]);
       return changed;
     }
   }
@@ -4607,11 +4635,8 @@ function pickFinish(rules, value) {
 
 // src/ui/render/finishes.ts
 var FINISHES = [
-  "matte",
   "sheen",
   "mirror",
-  "foil",
-  "spectra",
   "prism",
   "opal",
   "nebula",
@@ -4619,17 +4644,9 @@ var FINISHES = [
   "glitter",
   "crackle",
   "satin",
-  "weave",
-  "relief",
-  "hammered"
+  "weave"
 ];
-var NEEDS_FILL = /* @__PURE__ */ new Set([
-  "matte",
-  "satin",
-  "weave",
-  "relief",
-  "hammered"
-]);
+var NEEDS_FILL = /* @__PURE__ */ new Set(["satin", "weave"]);
 function finishName(i18n, id) {
   return i18n.t("finish." + id);
 }
@@ -4703,7 +4720,7 @@ function targetOf(rule) {
   return rule.target === "card" || rule.target === "chip" ? rule.target : "text";
 }
 function clear(el) {
-  el.removeClass("ep-fmt", "ep-fmt-text", "ep-fmt-chip", "ep-fmt-card");
+  el.removeClass("ep-fmt", "ep-fmt-text", "ep-fmt-chip", "ep-fmt-card", "ep-fin-cut");
   el.setCssProps({ "--ep-fmt-bg": "", "--ep-fmt-fg": "" });
 }
 var FADE_MS = 180;
@@ -4779,7 +4796,7 @@ function previewValue(el, value) {
   el == null ? void 0 : el.dispatchEvent(new CustomEvent(PREVIEW_EVENT, { detail: { value }, bubbles: true }));
 }
 function applyFormat(view, entry, raw, els) {
-  var _a, _b, _c, _d, _e;
+  var _a, _b, _c, _d, _e, _f;
   const rule = ruleFor(view, entry);
   const palette = paletteFor(view, rule);
   for (const el of [els.wrap, els.val]) if (el) clear(el);
@@ -4813,9 +4830,16 @@ function applyFormat(view, entry, raw, els) {
     return;
   }
   if (target2 === "card") {
-    if (els.val) wearFinish(els.val, void 0);
     if (els.wrap) wear(els.wrap, color, "card", fin == null ? void 0 : fin.finish);
-  } else if (target2 === "chip" && ((_e = els.chips) == null ? void 0 : _e.length)) {
+    if (fin == null ? void 0 : fin.finish)
+      for (const piece of [els.val, ...(_e = els.chips) != null ? _e : []]) {
+        if (!piece || piece === els.wrap) continue;
+        wearFinish(piece, fin.finish);
+        piece.addClass("ep-fin-cut");
+        dressed.push(piece);
+      }
+    else if (els.val) wearFinish(els.val, void 0);
+  } else if (target2 === "chip" && ((_f = els.chips) == null ? void 0 : _f.length)) {
     if (els.wrap) wearFinish(els.wrap, void 0);
     if (els.val) wearFinish(els.val, void 0);
   } else if (els.val) {

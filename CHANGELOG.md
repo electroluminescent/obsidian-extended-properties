@@ -1,5 +1,28 @@
 # Changelog
 
+## 4.66.0
+
+- **A row wearing a finish lends it to the pieces standing on it.** Chips and
+  the value cell show their own part of the row's material, moved a little
+  along it, with a hairline round each - because without an edge a chip on a
+  foiled row is only a slightly different patch of foil.
+- **The words come last, whatever is under them.** The layers were already
+  meant to be beneath a value's own content; they are now put there twice, so
+  a chip whose text is wrapped in a span of its own cannot end up behind them.
+- **Ten finishes rather than fifteen.** Matte, foil, spectra, relief and
+  hammered are gone - each was doing the same job as one beside it - and
+  anything wearing one is carried across: matte reads as satin, foil as
+  mirror, spectra as prism, relief as weave, hammered as crackle. A palette's
+  own finishes are carried across with them.
+- **Prism is cut into panes.** A grid of facets tiles over the spectrum -
+  axis-aligned, so the tiles meet exactly however the light has pushed them.
+- **Glitter has more in it**: round grains, four-pointed glints, a fleck
+  turned on its corner and a soft halo, on six tiles of different sizes so
+  nothing falls into rows.
+- **Crackle's facets come from off the value**, one centre a whole height
+  above it and one below, so what crosses a row are the long straight facets
+  rather than a pinwheel sitting in the middle of it.
+
 ## 4.65.0
 
 - **A palette carries its own finishes.** A palette is a look, and a look is a

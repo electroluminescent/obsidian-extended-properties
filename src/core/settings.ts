@@ -311,7 +311,7 @@ export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EP
 // ---------------------------------------------------------------------------
 
 /** Current settings schema version. Bump when adding a migration step below. */
-export const CURRENT_SCHEMA = 9;
+export const CURRENT_SCHEMA = 10;
 
 /** One ordered migration step: bring settings up to schema `to`. */
 export interface Migration {
@@ -599,6 +599,37 @@ export const SCHEMA_MIGRATIONS: Migration[] = [
         }
       };
       for (const rule of Object.values(s.formatProps ?? {})) each(rule.finishes);
+      const entry = (e: Entry | undefined): void => each(e?.format?.finishes);
+      for (const lk of Object.keys(s.layouts ?? {}))
+        for (const sec of s.layouts[lk].sections ?? []) for (const e of sec.entries ?? []) entry(e);
+      for (const k of Object.keys(s.inlineEntries ?? {})) entry(s.inlineEntries?.[k]);
+      return changed;
+    },
+  },
+  {
+    to: 10,
+    name: "ten-finishes",
+    run: (s) => {
+      // Five of the fifteen were doing the same job as another one beside
+      // them; each is pointed at whichever survivor is nearest in material.
+      const moved: Record<string, string> = {
+        matte: "satin",
+        foil: "mirror",
+        spectra: "prism",
+        relief: "weave",
+        hammered: "crackle",
+      };
+      let changed = false;
+      const each = (rules: { finish: string }[] | undefined): void => {
+        for (const r of rules ?? []) {
+          const to = moved[r.finish];
+          if (!to) continue;
+          r.finish = to;
+          changed = true;
+        }
+      };
+      for (const rule of Object.values(s.formatProps ?? {})) each(rule.finishes);
+      for (const p of s.palettes ?? []) each(p.finishes);
       const entry = (e: Entry | undefined): void => each(e?.format?.finishes);
       for (const lk of Object.keys(s.layouts ?? {}))
         for (const sec of s.layouts[lk].sections ?? []) for (const e of sec.entries ?? []) entry(e);

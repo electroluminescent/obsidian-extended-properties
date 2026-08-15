@@ -139,7 +139,7 @@ function targetOf(rule: FormatRule): "text" | "chip" | "card" {
  * handed over rather than snatched away (see {@link wearFinish}).
  */
 function clear(el: HTMLElement): void {
-  el.removeClass("ep-fmt", "ep-fmt-text", "ep-fmt-chip", "ep-fmt-card");
+  el.removeClass("ep-fmt", "ep-fmt-text", "ep-fmt-chip", "ep-fmt-card", "ep-fin-cut");
   el.setCssProps({ "--ep-fmt-bg": "", "--ep-fmt-fg": "" });
 }
 
@@ -344,8 +344,18 @@ export function applyFormat(view: ViewCtx, entry: Entry, raw: unknown, els: Form
     return;
   }
   if (target === "card") {
-    if (els.val) wearFinish(els.val, undefined);
     if (els.wrap) wear(els.wrap, color, "card", fin?.finish);
+    // The pieces standing on the row wear the row's material too - their own
+    // part of it, moved a little along - with a hairline round each so a chip
+    // reads as a piece lying on the sheet rather than as a hole through it.
+    if (fin?.finish)
+      for (const piece of [els.val, ...(els.chips ?? [])]) {
+        if (!piece || piece === els.wrap) continue;
+        wearFinish(piece, fin.finish);
+        piece.addClass("ep-fin-cut");
+        dressed.push(piece);
+      }
+    else if (els.val) wearFinish(els.val, undefined);
   } else if (target === "chip" && els.chips?.length) {
     // Chips have been painted individually; the row itself wears nothing.
     if (els.wrap) wearFinish(els.wrap, undefined);

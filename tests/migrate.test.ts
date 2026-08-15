@@ -252,9 +252,9 @@ describe("runSchemaMigrations (D3)", () => {
   it("leaves a finish that is still drawn alone", () => {
     const s = defaultSettings();
     s.schemaVersion = 7;
-    s.formatProps = { hp: { finishes: [{ when: "all", finish: "matte" }] } };
+    s.formatProps = { hp: { finishes: [{ when: "all", finish: "opal" }] } };
     runSchemaMigrations(s);
-    expect(s.formatProps.hp.finishes?.[0].finish).toBe("matte");
+    expect(s.formatProps.hp.finishes?.[0].finish).toBe("opal");
   });
 
   it("carries the renamed finishes onto the ones lit by the pointer", () => {
@@ -265,8 +265,19 @@ describe("runSchemaMigrations (D3)", () => {
       ac: { finishes: [{ when: "all", finish: "linen" }, { when: "all", finish: "emboss" }] },
     };
     runSchemaMigrations(s);
-    expect(s.formatProps.hp.finishes?.[0].finish).toBe("spectra");
-    expect(s.formatProps.ac.finishes?.map((f) => f.finish)).toEqual(["weave", "relief"]);
+    // ...and on again, when fifteen finishes became ten.
+    expect(s.formatProps.hp.finishes?.[0].finish).toBe("prism");
+    expect(s.formatProps.ac.finishes?.map((f) => f.finish)).toEqual(["weave", "weave"]);
+  });
+
+  it("carries a palette's own finishes across a renaming too", () => {
+    const s = defaultSettings();
+    s.schemaVersion = 9;
+    s.palettes = [
+      { id: "p", name: "P", mode: "bands", finishes: [{ when: "all", finish: "hammered" }] },
+    ] as unknown as typeof s.palettes;
+    runSchemaMigrations(s);
+    expect(s.palettes?.[0].finishes?.[0].finish).toBe("crackle");
   });
 
   it("runs only steps newer than the stored version, in ascending order", () => {

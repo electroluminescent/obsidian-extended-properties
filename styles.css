@@ -1297,6 +1297,19 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
   transition: opacity 180ms ease;
 }
 
+/*
+  The words come last, whatever is under them.
+
+  The layers are negative inside the value's own stacking context, which
+  already puts them under its content - but a chip whose text is wrapped in a
+  span of its own, or a theme that gives that span a stacking context, can
+  land the other way round. Saying it twice costs nothing and settles it.
+*/
+.ep-fin > * {
+  position: relative;
+  z-index: 1;
+}
+
 /* The sheet: the material. */
 .ep-fin::before {
   background-image: var(--ep-sheet-img, none);
@@ -1370,15 +1383,6 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
    Fourteen. Each is a handful of declarations; the shapes above do the rest.
    ========================================================================== */
 
-/* MATTE - the one that does not shine. Light arrives and stays. */
-.ep-fin-matte {
-  --ep-sheet-img: linear-gradient(160deg, hsl(0 0% 42% / 0.7), hsl(0 0% 72% / 0.4) 48%, hsl(0 0% 38% / 0.65));
-  --ep-sheet-size: cover;
-  --ep-sheet-pos: center;
-  --ep-sheet-blend: soft-light;
-  --ep-sheet-opacity: 0.9;
-  --ep-glare-img: none;
-}
 
 /* SHEEN - one clean highlight travelling across a smooth surface. */
 .ep-fin-sheen {
@@ -1414,53 +1418,14 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
   --ep-sheet-opacity: 0.6;
 }
 
-/* FOIL - beaten metal, every bright ridge with a dark valley beside it. */
-.ep-fin-foil {
-  --ep-sheet-img: repeating-linear-gradient(
-      100deg,
-      transparent 0 1px,
-      hsl(0 0% 100% / 0.8) 1px 3px,
-      hsl(0 0% 0% / 0.55) 3px 5px,
-      transparent 5px 8px
-    ),
-    linear-gradient(100deg, hsl(0 0% 100% / 0.35), transparent 45%, hsl(0 0% 100% / 0.35));
-  --ep-sheet-size: 96px 96px, cover;
-  --ep-sheet-pos: var(--ep-drift), center;
-  --ep-sheet-repeat: repeat, no-repeat;
-  --ep-sheet-mix: screen;
-  --ep-sheet-blend: hard-light;
-  --ep-sheet-filter: brightness(var(--ep-lift)) contrast(1.35);
-  --ep-sheet-opacity: 0.55;
-}
 
-/* SPECTRA - the plain holo sheet: a spectrum under fine scan lines. */
-.ep-fin-spectra {
-  --ep-band: calc(100% / 7);
-  --ep-sheet-img: repeating-linear-gradient(
-      112deg,
-      var(--ep-hue-1) calc(var(--ep-band) * 1),
-      var(--ep-hue-2) calc(var(--ep-band) * 2),
-      var(--ep-hue-3) calc(var(--ep-band) * 3),
-      var(--ep-hue-4) calc(var(--ep-band) * 4),
-      var(--ep-hue-5) calc(var(--ep-band) * 5),
-      var(--ep-hue-6) calc(var(--ep-band) * 6),
-      var(--ep-hue-1) calc(var(--ep-band) * 7)
-    ),
-    repeating-linear-gradient(90deg, hsl(0 0% 0% / 0.6) 0 1px, hsl(0 0% 78% / 0.5) 1px 3px);
-  --ep-sheet-size: 320% 320%, 48px 48px;
-  --ep-sheet-pos: var(--ep-drift), center;
-  --ep-sheet-repeat: no-repeat, repeat;
-  --ep-sheet-mix: overlay;
-  --ep-sheet-blend: color-dodge;
-  --ep-sheet-filter: brightness(calc(var(--ep-lift) * 0.9)) contrast(1.5) saturate(1.1);
-  --ep-sheet-opacity: 0.5;
-  --ep-glare-blend: overlay;
-  --ep-glare-filter: brightness(0.85) contrast(1.4);
-}
 
 /* PRISM - the spectrum crossed with itself, sharper and more restless. */
 .ep-fin-prism {
   --ep-band: calc(100% / 6);
+  /* Cut into panes: the spectrum sweeps across the whole value, and a grid of
+     facets tiles over it - axis-aligned, so the tiles meet exactly however
+     the light has pushed them, and a whole number of periods to a tile. */
   --ep-sheet-img: repeating-linear-gradient(
       var(--ep-lamp-turn),
       var(--ep-hue-1) calc(var(--ep-band) * 1),
@@ -1471,14 +1436,21 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
       var(--ep-hue-1) calc(var(--ep-band) * 6)
     ),
     repeating-linear-gradient(
-      calc(var(--ep-lamp-turn) * -1),
-      hsl(0 0% 0% / 0.5) 0 3px,
-      hsl(0 0% 100% / 0.35) 3px 6px
+      90deg,
+      hsl(0 0% 100% / 0.42) 0 1px,
+      hsl(0 0% 0% / 0.3) 1px 2px,
+      transparent 2px 24px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      hsl(0 0% 100% / 0.42) 0 1px,
+      hsl(0 0% 0% / 0.3) 1px 2px,
+      transparent 2px 24px
     );
-  --ep-sheet-size: 300% 300%, 96px 96px;
-  --ep-sheet-pos: var(--ep-drift), var(--ep-sweep);
-  --ep-sheet-repeat: no-repeat, repeat;
-  --ep-sheet-mix: hard-light;
+  --ep-sheet-size: 300% 300%, 96px 96px, 96px 96px;
+  --ep-sheet-pos: var(--ep-drift), var(--ep-sweep), var(--ep-sweep);
+  --ep-sheet-repeat: no-repeat, repeat, repeat;
+  --ep-sheet-mix: hard-light, hard-light;
   --ep-sheet-blend: color-dodge;
   --ep-sheet-filter: brightness(calc(var(--ep-lift) * 0.8)) contrast(1.9) saturate(1.2);
   --ep-sheet-opacity: 0.45;
@@ -1548,14 +1520,35 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
 
 /* GLITTER - a field of specks, each catching the light as it passes. */
 .ep-fin-glitter {
-  --ep-sheet-img: radial-gradient(circle at 20% 20%, hsl(0 0% 100% / 0.9) 0 1px, transparent 2px),
-    radial-gradient(circle at 70% 40%, var(--ep-hue-2) 0 1px, transparent 2px),
-    radial-gradient(circle at 40% 80%, var(--ep-hue-4) 0 1px, transparent 2px),
-    radial-gradient(circle at 88% 76%, var(--ep-hue-6) 0 1px, transparent 2px),
+  /* Specks of several kinds, on tiles of different sizes so they never fall
+     into rows: round grains, four-pointed glints (a horizontal and a vertical
+     needle crossing), a square fleck turned on its corner, and a wide soft
+     halo under the lot. Every shape sits well inside its own tile, so the
+     tiles meet with nothing to see. */
+  --ep-sheet-img:
+    radial-gradient(circle at 20% 20%, hsl(0 0% 100% / 0.95) 0 1px, transparent 2px),
+    radial-gradient(circle at 68% 44%, var(--ep-hue-2) 0 1.5px, transparent 3px),
+    radial-gradient(circle at 38% 76%, var(--ep-hue-4) 0 1px, transparent 2px),
+    radial-gradient(ellipse 6px 1px at 50% 50%, hsl(0 0% 100% / 0.85) 0 40%, transparent 100%),
+    radial-gradient(ellipse 1px 6px at 50% 50%, hsl(0 0% 100% / 0.85) 0 40%, transparent 100%),
+    conic-gradient(
+      from 45deg at 50% 50%,
+      var(--ep-hue-5) 0deg 12deg,
+      transparent 12deg 78deg,
+      var(--ep-hue-6) 78deg 102deg,
+      transparent 102deg 168deg,
+      var(--ep-hue-1) 168deg 192deg,
+      transparent 192deg 258deg,
+      var(--ep-hue-3) 258deg 282deg,
+      transparent 282deg 348deg,
+      var(--ep-hue-5) 348deg 360deg
+    ),
     radial-gradient(circle at var(--ep-lamp-x) var(--ep-lamp-y), hsl(0 0% 100% / 0.65), transparent 62%);
-  --ep-sheet-size: 13px 13px, 17px 17px, 19px 19px, 23px 23px, cover;
-  --ep-sheet-pos: var(--ep-sweep), var(--ep-sweep), var(--ep-sweep), var(--ep-sweep), center;
-  --ep-sheet-repeat: repeat, repeat, repeat, repeat, no-repeat;
+  --ep-sheet-size: 13px 13px, 29px 29px, 19px 19px, 37px 37px, 41px 41px, 53px 53px, cover;
+  --ep-sheet-pos:
+    var(--ep-sweep), var(--ep-drift), var(--ep-sweep), var(--ep-drift), var(--ep-sweep),
+    var(--ep-drift), center;
+  --ep-sheet-repeat: repeat, repeat, repeat, repeat, repeat, repeat, no-repeat;
   --ep-sheet-mix: screen;
   --ep-sheet-blend: color-dodge;
   --ep-sheet-filter: brightness(calc(var(--ep-lift) * 0.9)) contrast(1.8);
@@ -1563,16 +1556,19 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
   --ep-glare-opacity: 0.3;
 }
 
-/* CRACKLE - a broken surface: facets that flash one at a time. */
+/* CRACKLE - a broken surface. Both centres are off the value altogether, one
+   a whole height above it and one below, so what crosses it are the long
+   straight facets far out from the middle rather than a pinwheel sitting in
+   the middle of a row. */
 .ep-fin-crackle {
   --ep-sheet-img: repeating-conic-gradient(
-      from calc(var(--ep-lamp-turn) * 0.5) at 32% 38%,
+      from calc(var(--ep-lamp-turn) * 0.5) at 32% -100%,
       hsl(0 0% 100% / 0.7) 0deg 5deg,
       hsl(0 0% 0% / 0.5) 5deg 8deg,
       transparent 8deg 24deg
     ),
     repeating-conic-gradient(
-      from calc(var(--ep-lamp-turn) * -0.5) at 71% 66%,
+      from calc(var(--ep-lamp-turn) * -0.5) at 71% 200%,
       hsl(190 90% 92% / 0.6) 0deg 4deg,
       hsl(0 0% 0% / 0.42) 4deg 7deg,
       transparent 7deg 20deg
@@ -1615,44 +1611,7 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
   --ep-glare-opacity: 0.25;
 }
 
-/* RELIEF - stamped rather than printed: a raised edge and its shadow. */
-.ep-fin-relief {
-  --ep-sheet-img: linear-gradient(
-      var(--ep-lamp-turn),
-      hsl(0 0% 100% / 0.42) 0 26%,
-      transparent 38% 62%,
-      hsl(0 0% 0% / 0.3) 74%,
-      hsl(0 0% 100% / 0.14) 100%
-    ),
-    linear-gradient(calc(var(--ep-lamp-turn) + 180deg), hsl(0 0% 0% / 0.18), transparent 46%, hsl(0 0% 100% / 0.22) 56%, transparent);
-  --ep-sheet-size: cover, cover;
-  --ep-sheet-pos: center, center;
-  --ep-sheet-mix: overlay;
-  --ep-sheet-blend: hard-light;
-  --ep-sheet-opacity: 0.68;
-  --ep-glare-opacity: 0.3;
-}
 
-/* HAMMERED - beaten by hand: dents that hold the light unevenly. */
-.ep-fin-hammered {
-  --ep-sheet-img: radial-gradient(ellipse at 16% 22%, hsl(0 0% 100% / 0.34) 0 3%, transparent 9%),
-    radial-gradient(ellipse at 49% 63%, hsl(0 0% 0% / 0.26) 0 4%, transparent 11%),
-    radial-gradient(ellipse at 81% 34%, hsl(0 0% 100% / 0.3) 0 3%, transparent 10%),
-    radial-gradient(ellipse at 69% 87%, hsl(0 0% 0% / 0.2) 0 3%, transparent 9%),
-    linear-gradient(
-      var(--ep-lamp-turn),
-      hsl(0 0% 100% / 0.22),
-      hsl(0 0% 28% / 0.22) 50%,
-      hsl(0 0% 100% / 0.22)
-    );
-  --ep-sheet-size: 44px 44px, 52px 52px, 38px 38px, 60px 60px, 200% 200%;
-  --ep-sheet-pos: var(--ep-drift), var(--ep-drift), var(--ep-drift), var(--ep-drift), var(--ep-sweep);
-  --ep-sheet-repeat: repeat, repeat, repeat, repeat, no-repeat;
-  --ep-sheet-mix: overlay;
-  --ep-sheet-blend: hard-light;
-  --ep-sheet-filter: brightness(var(--ep-lift));
-  --ep-sheet-opacity: 0.6;
-}
 
 /* ==========================================================================
    WHEN NOT TO DO ANY OF THIS
@@ -2022,6 +1981,17 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
 
 .ep-nav-search { padding: 2px 0 6px; }
 .ep-nav-search-input { width: 100%; }
+/* A chip or a value cell inside a row that is wearing a finish.
+
+   The row's material runs behind it, and it shows its own piece of it - moved
+   a little along, so it is plainly a piece lying on the row rather than a
+   window through to it. The hairline is what makes that legible: without an
+   edge, a chip on a foiled row is just a slightly different patch of foil. */
+.ep-fin-cut {
+  border: 1px solid hsl(0 0% 50% / 0.45);
+  border-color: color-mix(in oklab, var(--ep-fmt-fg, currentColor) 40%, transparent);
+}
+
 /* Rows and headings the search has nothing to say for. */
 .ep-options .ep-nav-filtered, .ep-settings-host .ep-nav-filtered,
 .setting-item.ep-nav-filtered { display: none; }

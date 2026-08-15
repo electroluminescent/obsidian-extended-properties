@@ -39,7 +39,7 @@ describe("the finishes tile without a seam", () => {
     // repeating pattern must hold a whole number of it, or the pattern
     // restarts mid-stride at the edge of every tile. These are the ones that
     // carry one, and the period each is written in.
-    const woven: Record<string, number> = { foil: 8, spectra: 3, prism: 6, satin: 8, weave: 4 };
+    const woven: Record<string, number> = { prism: 24, satin: 8, weave: 4 };
     for (const [name, period] of Object.entries(woven)) {
       const at = block.indexOf(`.ep-fin-${name} {`);
       expect(at, `${name} is missing`).toBeGreaterThan(-1);

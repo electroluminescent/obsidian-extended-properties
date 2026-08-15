@@ -18,8 +18,8 @@ import type { I18n } from "../../i18n/i18n";
 
 /** Every finish, in the order the settings offer them. */
 export const FINISHES = [
-  "matte", "sheen", "mirror", "foil", "spectra", "prism", "opal", "nebula",
-  "beacon", "glitter", "crackle", "satin", "weave", "relief", "hammered",
+  "sheen", "mirror", "prism", "opal", "nebula", "beacon", "glitter", "crackle",
+  "satin", "weave",
 ] as const;
 
 export type FinishId = (typeof FINISHES)[number];
@@ -29,9 +29,7 @@ export type FinishId = (typeof FINISHES)[number];
  * beaten face - none of them mean anything laid over a line of bare text,
  * where there is no material for the light to land on.
  */
-export const NEEDS_FILL: ReadonlySet<string> = new Set([
-  "matte", "satin", "weave", "relief", "hammered",
-]);
+export const NEEDS_FILL: ReadonlySet<string> = new Set(["satin", "weave"]);
 
 /** What a finish is called. */
 export function finishName(i18n: I18n, id: string): string {

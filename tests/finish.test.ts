@@ -17,9 +17,9 @@ describe("who a rule speaks for", () => {
   });
 
   it("speaks for the values it names, whatever their case", () => {
-    const rs = [rule({ when: "values", values: ["Fire", "Ice"], finish: "foil" })];
-    expect(pickFinish(rs, "fire")?.finish).toBe("foil");
-    expect(pickFinish(rs, "Ice")?.finish).toBe("foil");
+    const rs = [rule({ when: "values", values: ["Fire", "Ice"], finish: "mirror" })];
+    expect(pickFinish(rs, "fire")?.finish).toBe("mirror");
+    expect(pickFinish(rs, "Ice")?.finish).toBe("mirror");
     expect(pickFinish(rs, "Earth")).toBeUndefined();
   });
 
@@ -51,7 +51,7 @@ describe("who a rule speaks for", () => {
 
 describe("the withdrawn one-each rule", () => {
   it("gives nothing at all: a finish is something somebody chose", () => {
-    const rs = [rule({ when: "unique", finish: "gloss", set: ["gloss", "foil", "crackle"] })];
+    const rs = [rule({ when: "unique", finish: "gloss", set: ["gloss", "mirror", "crackle"] })];
     expect(pickFinish(rs, "Athletics")).toBeUndefined();
   });
 
@@ -74,16 +74,16 @@ describe("where a finish comes from", () => {
   it("takes the palette's when the property says nothing", () => {
     const from = finishesFor(
       { palette: "p" },
-      { id: "p", name: "P", mode: "bands", finishes: rules("foil") }
+      { id: "p", name: "P", mode: "bands", finishes: rules("mirror") }
     );
-    expect(from?.[0].finish).toBe("foil");
+    expect(from?.[0].finish).toBe("mirror");
   });
 
   it("lets the property have its own instead", () => {
     expect(
       finishesFor(
         { palette: "p", finishes: rules("glitter") },
-        { id: "p", name: "P", mode: "bands", finishes: rules("foil") }
+        { id: "p", name: "P", mode: "bands", finishes: rules("mirror") }
       )?.[0].finish
     ).toBe("glitter");
   });
