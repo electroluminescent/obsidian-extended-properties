@@ -1,5 +1,18 @@
 # Changelog
 
+## 4.72.0
+
+- **A SET roll no longer needs a macro.** With *None* chosen, the expression can
+  simply be typed - with the dice roller's own function bar beside it (the die
+  picker, kh, kl, !, r, >=, +) and a line saying what the notation means, since
+  `3d6dhdl` is not a thing anyone remembers. A macro is for when several
+  properties should share one roll; a property whose roll is its own and
+  nobody else's should not have to invent one.
+- **The dice roller's SET button is gone**, along with the right-click
+  roll-and-assign behind it and *Roll and assign...* on its saved rolls. All
+  three were second ways into what the roll screen now does properly - every
+  roll at once, in any order, against every property.
+
 ## 4.71.0
 
 - **Ticking a property slides it into place** instead of the list rearranging

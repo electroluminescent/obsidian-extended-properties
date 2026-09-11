@@ -13621,8 +13621,230 @@ function playRollAnimation(job, i18n, done) {
   }, TICK_MS);
 }
 
-// src/features/rolling/roll-service.ts
+// src/features/rolling/dice-ui.ts
 var import_obsidian31 = require("obsidian");
+function commit(binding, spec) {
+  binding.set(isDefaultDice(spec) ? void 0 : formatDice(spec));
+}
+function openDiceMenu(e, app, i18n, binding) {
+  const cur = parseDiceOrDefault(binding.get());
+  const menu = new import_obsidian31.Menu();
+  for (const sides of DICE_PRESETS) {
+    menu.addItem(
+      (i) => i.setTitle(formatDice({ count: cur.count, sides })).setIcon(diceIconId(sides)).setChecked(cur.sides === sides).onClick(() => commit(binding, { count: cur.count, sides }))
+    );
+  }
+  menu.addSeparator();
+  menu.addItem(
+    (i) => i.setTitle(i18n.t("dice.customSize")).onClick(
+      () => new TextPromptModal(app, i18n, i18n.t("dice.customSizePrompt"), String(cur.sides), (v) => {
+        const n = parseInt(v);
+        if (Number.isFinite(n) && n >= 2) commit(binding, { count: cur.count, sides: n });
+      }).open()
+    )
+  );
+  menu.addItem(
+    (i) => i.setTitle(i18n.t("dice.count")).onClick(
+      () => new TextPromptModal(app, i18n, i18n.t("dice.countPrompt"), String(cur.count), (v) => {
+        const n = parseInt(v);
+        if (Number.isFinite(n) && n >= 1) commit(binding, { count: n, sides: cur.sides });
+      }).open()
+    )
+  );
+  menu.addItem((i) => i.setTitle(i18n.t("dice.reset")).onClick(() => binding.set(void 0)));
+  showMenu(menu, e);
+}
+function addDiceSettings(container, i18n, binding) {
+  const cur = () => parseDiceOrDefault(binding.get());
+  let sizeBox = null;
+  const setSizeActive = (on) => {
+    if (!sizeBox) return;
+    sizeBox.setDisabled(!on);
+    sizeBox.inputEl.toggleClass("ep-disabled", !on);
+  };
+  new import_obsidian31.Setting(container).setName(i18n.t("dice.die")).setDesc(i18n.t("dice.dieDesc")).addDropdown((d) => {
+    for (const sides of DICE_PRESETS) d.addOption(String(sides), "d" + sides);
+    d.addOption("custom", i18n.t("dice.custom"));
+    const c = cur();
+    d.setValue(DICE_PRESETS.includes(c.sides) ? String(c.sides) : "custom");
+    d.onChange((v) => {
+      if (v === "custom") {
+        setSizeActive(true);
+        sizeBox == null ? void 0 : sizeBox.inputEl.focus();
+        return;
+      }
+      setSizeActive(false);
+      commit(binding, { count: cur().count, sides: parseInt(v) });
+    });
+  }).addText((t) => {
+    sizeBox = t;
+    t.setPlaceholder(i18n.t("dice.customSizeShort"));
+    const c = cur();
+    const isCustom = !DICE_PRESETS.includes(c.sides);
+    t.setValue(isCustom ? String(c.sides) : "");
+    setSizeActive(isCustom);
+    t.onChange((v) => {
+      const n = parseInt(v);
+      if (Number.isFinite(n) && n >= 2) commit(binding, { count: cur().count, sides: n });
+    });
+  });
+  new import_obsidian31.Setting(container).setName(i18n.t("dice.countLabel")).addText((t) => {
+    t.setValue(String(cur().count)).onChange((v) => {
+      const n = parseInt(v);
+      if (Number.isFinite(n) && n >= 1) commit(binding, { count: n, sides: cur().sides });
+    });
+  });
+}
+function openRollMenu(ev, i18n, current2, run, opts) {
+  const pop = activeDocument.body.createDiv({ cls: "ep-popup ep-rollmenu" });
+  pop.setCssStyles({ left: ev.clientX + "px" });
+  pop.setCssStyles({ top: ev.clientY + 2 + "px" });
+  let mode = current2;
+  const row = pop.createDiv({ cls: "ep-mode" });
+  const btns = /* @__PURE__ */ new Map();
+  const modes = [
+    ["disadvantage", i18n.t("roll.modeDisadvantage")],
+    ["normal", i18n.t("roll.modeNormal")],
+    ["advantage", i18n.t("roll.modeAdvantage")]
+  ];
+  for (const [m, lbl] of modes) {
+    const b = row.createEl("button", { cls: "ep-mode-btn", text: lbl });
+    btns.set(m, b);
+    b.onclick = () => {
+      mode = m;
+      for (const [k, el] of btns) el.toggleClass("is-active", k === mode);
+    };
+  }
+  for (const [k, el] of btns) el.toggleClass("is-active", k === mode);
+  const cntRow = pop.createDiv({ cls: "ep-rollmenu-count" });
+  cntRow.createSpan({ text: i18n.t("roll.menu.count") });
+  const input = cntRow.createEl("input", { cls: "ep-edit-input" });
+  input.type = "number";
+  input.min = "1";
+  input.max = String(MAX_ROLLS_AT_ONCE);
+  input.value = "1";
+  const dismiss = () => {
+    pop.remove();
+    activeDocument.removeEventListener("mousedown", outside);
+  };
+  const go = pop.createEl("button", { cls: "mod-cta ep-rollmenu-go", text: i18n.t("roll.menu.go") });
+  go.onclick = () => {
+    const n = clamp(Math.round(Number(input.value) || 1), 1, MAX_ROLLS_AT_ONCE);
+    dismiss();
+    run(mode, n);
+  };
+  if (opts == null ? void 0 : opts.onEdit) {
+    const edit = pop.createEl("button", { cls: "ep-mode-btn ep-rollmenu-edit", text: i18n.t("roll.menu.edit") });
+    edit.onclick = () => {
+      var _a;
+      dismiss();
+      (_a = opts.onEdit) == null ? void 0 : _a.call(opts);
+    };
+  }
+  if (opts == null ? void 0 : opts.onAppearance) {
+    const look = pop.createEl("button", {
+      cls: "ep-mode-btn ep-rollmenu-edit",
+      text: i18n.t("roll.menu.appearance")
+    });
+    look.onclick = () => {
+      var _a;
+      dismiss();
+      (_a = opts.onAppearance) == null ? void 0 : _a.call(opts);
+    };
+  }
+  input.onkeydown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      go.click();
+    } else if (e.key === "Escape") {
+      dismiss();
+    }
+  };
+  const outside = (e) => {
+    if (!pop.contains(e.target)) dismiss();
+  };
+  window.setTimeout(() => activeDocument.addEventListener("mousedown", outside), 0);
+  const w = pop.offsetWidth;
+  const h = pop.offsetHeight;
+  if (ev.clientX + w > window.innerWidth - 4) pop.setCssStyles({ left: Math.max(4, window.innerWidth - w - 4) + "px" });
+  if (ev.clientY + h > window.innerHeight - 4) pop.setCssStyles({ top: Math.max(4, ev.clientY - h - 2) + "px" });
+}
+
+// src/features/rolling/expr-field.ts
+function mountRollExpr(host, view, o) {
+  var _a, _b;
+  const t = view.i18n.t.bind(view.i18n);
+  const wrap = host.createDiv({ cls: "ep-exprfield" });
+  const input = wrap.createEl("input", { cls: "ep-edit-input ep-expr-input", type: "text" });
+  input.setAttr("placeholder", (_a = o.placeholder) != null ? _a : "3d6dhdl + 8");
+  input.value = segsToText((_b = o.value) != null ? _b : []);
+  const commit2 = () => {
+    const text = input.value.trim();
+    if (!text) {
+      input.removeClass("ep-invalid");
+      o.onChange([]);
+      return;
+    }
+    const parsed = textToSegs(text);
+    if (!parsed) {
+      input.addClass("ep-invalid");
+      o.onChange(null);
+      return;
+    }
+    input.removeClass("ep-invalid");
+    o.onChange(parsed);
+  };
+  input.onblur = commit2;
+  input.onkeydown = (ev) => {
+    var _a2;
+    if (ev.key === "Enter") {
+      ev.preventDefault();
+      commit2();
+    } else if (ev.key === "Escape") {
+      input.value = segsToText((_a2 = o.value) != null ? _a2 : []);
+      input.removeClass("ep-invalid");
+    }
+  };
+  new RefSuggest(
+    view.app,
+    input,
+    () => referenceSuggestions(view.settings, view.propCandidates(true).map((c) => c.key))
+  );
+  const insert = (token) => {
+    var _a2, _b2;
+    const from = (_a2 = input.selectionStart) != null ? _a2 : input.value.length;
+    const to = (_b2 = input.selectionEnd) != null ? _b2 : input.value.length;
+    input.value = input.value.slice(0, from) + token + input.value.slice(to);
+    const at = from + token.length;
+    input.focus();
+    try {
+      input.setSelectionRange(at, at);
+    } catch (e) {
+    }
+  };
+  const bar = wrap.createDiv({ cls: "ep-roller-fns" });
+  const btn = (label2, title, onClick) => {
+    const b = bar.createEl("button", { cls: "ep-roller-fn", text: label2 });
+    b.setAttr("title", title);
+    b.onmousedown = (ev) => ev.preventDefault();
+    b.onclick = onClick;
+  };
+  btn(
+    t("roller.fnDie"),
+    t("roller.fnDieHint"),
+    (ev) => openDiceMenu(ev, view.app, view.i18n, { get: () => void 0, set: (n) => insert(n || "d20") })
+  );
+  btn("kh", t("roller.fnKeepHigh"), () => insert("kh1"));
+  btn("kl", t("roller.fnKeepLow"), () => insert("kl1"));
+  btn("!", t("roller.fnExplode"), () => insert("!"));
+  btn("r", t("roller.fnReroll"), () => insert("r1"));
+  btn(">=", t("roller.fnSuccess"), () => insert(">="));
+  btn("+", t("roller.fnPlus"), () => insert(" + "));
+  if (o.hint !== false) wrap.createDiv({ cls: "ep-expr-hint", text: t("roll.exprHelp") });
+}
+
+// src/features/rolling/roll-service.ts
+var import_obsidian32 = require("obsidian");
 
 // src/utils/a11y.ts
 var region = null;
@@ -13745,7 +13967,7 @@ var RollService = class {
         dice: notation
       };
       (_d2 = this.history) == null ? void 0 : _d2.append(rec, redo);
-      if (!silent) new import_obsidian31.Notice(brief, 4e3);
+      if (!silent) new import_obsidian32.Notice(brief, 4e3);
       announce(brief);
       (_e2 = opts.onResult) == null ? void 0 : _e2.call(opts, total);
     };
@@ -13839,155 +14061,6 @@ var RollService = class {
     return txt;
   }
 };
-
-// src/features/rolling/dice-ui.ts
-var import_obsidian32 = require("obsidian");
-function commit(binding, spec) {
-  binding.set(isDefaultDice(spec) ? void 0 : formatDice(spec));
-}
-function openDiceMenu(e, app, i18n, binding) {
-  const cur = parseDiceOrDefault(binding.get());
-  const menu = new import_obsidian32.Menu();
-  for (const sides of DICE_PRESETS) {
-    menu.addItem(
-      (i) => i.setTitle(formatDice({ count: cur.count, sides })).setIcon(diceIconId(sides)).setChecked(cur.sides === sides).onClick(() => commit(binding, { count: cur.count, sides }))
-    );
-  }
-  menu.addSeparator();
-  menu.addItem(
-    (i) => i.setTitle(i18n.t("dice.customSize")).onClick(
-      () => new TextPromptModal(app, i18n, i18n.t("dice.customSizePrompt"), String(cur.sides), (v) => {
-        const n = parseInt(v);
-        if (Number.isFinite(n) && n >= 2) commit(binding, { count: cur.count, sides: n });
-      }).open()
-    )
-  );
-  menu.addItem(
-    (i) => i.setTitle(i18n.t("dice.count")).onClick(
-      () => new TextPromptModal(app, i18n, i18n.t("dice.countPrompt"), String(cur.count), (v) => {
-        const n = parseInt(v);
-        if (Number.isFinite(n) && n >= 1) commit(binding, { count: n, sides: cur.sides });
-      }).open()
-    )
-  );
-  menu.addItem((i) => i.setTitle(i18n.t("dice.reset")).onClick(() => binding.set(void 0)));
-  showMenu(menu, e);
-}
-function addDiceSettings(container, i18n, binding) {
-  const cur = () => parseDiceOrDefault(binding.get());
-  let sizeBox = null;
-  const setSizeActive = (on) => {
-    if (!sizeBox) return;
-    sizeBox.setDisabled(!on);
-    sizeBox.inputEl.toggleClass("ep-disabled", !on);
-  };
-  new import_obsidian32.Setting(container).setName(i18n.t("dice.die")).setDesc(i18n.t("dice.dieDesc")).addDropdown((d) => {
-    for (const sides of DICE_PRESETS) d.addOption(String(sides), "d" + sides);
-    d.addOption("custom", i18n.t("dice.custom"));
-    const c = cur();
-    d.setValue(DICE_PRESETS.includes(c.sides) ? String(c.sides) : "custom");
-    d.onChange((v) => {
-      if (v === "custom") {
-        setSizeActive(true);
-        sizeBox == null ? void 0 : sizeBox.inputEl.focus();
-        return;
-      }
-      setSizeActive(false);
-      commit(binding, { count: cur().count, sides: parseInt(v) });
-    });
-  }).addText((t) => {
-    sizeBox = t;
-    t.setPlaceholder(i18n.t("dice.customSizeShort"));
-    const c = cur();
-    const isCustom = !DICE_PRESETS.includes(c.sides);
-    t.setValue(isCustom ? String(c.sides) : "");
-    setSizeActive(isCustom);
-    t.onChange((v) => {
-      const n = parseInt(v);
-      if (Number.isFinite(n) && n >= 2) commit(binding, { count: cur().count, sides: n });
-    });
-  });
-  new import_obsidian32.Setting(container).setName(i18n.t("dice.countLabel")).addText((t) => {
-    t.setValue(String(cur().count)).onChange((v) => {
-      const n = parseInt(v);
-      if (Number.isFinite(n) && n >= 1) commit(binding, { count: n, sides: cur().sides });
-    });
-  });
-}
-function openRollMenu(ev, i18n, current2, run, opts) {
-  const pop = activeDocument.body.createDiv({ cls: "ep-popup ep-rollmenu" });
-  pop.setCssStyles({ left: ev.clientX + "px" });
-  pop.setCssStyles({ top: ev.clientY + 2 + "px" });
-  let mode = current2;
-  const row = pop.createDiv({ cls: "ep-mode" });
-  const btns = /* @__PURE__ */ new Map();
-  const modes = [
-    ["disadvantage", i18n.t("roll.modeDisadvantage")],
-    ["normal", i18n.t("roll.modeNormal")],
-    ["advantage", i18n.t("roll.modeAdvantage")]
-  ];
-  for (const [m, lbl] of modes) {
-    const b = row.createEl("button", { cls: "ep-mode-btn", text: lbl });
-    btns.set(m, b);
-    b.onclick = () => {
-      mode = m;
-      for (const [k, el] of btns) el.toggleClass("is-active", k === mode);
-    };
-  }
-  for (const [k, el] of btns) el.toggleClass("is-active", k === mode);
-  const cntRow = pop.createDiv({ cls: "ep-rollmenu-count" });
-  cntRow.createSpan({ text: i18n.t("roll.menu.count") });
-  const input = cntRow.createEl("input", { cls: "ep-edit-input" });
-  input.type = "number";
-  input.min = "1";
-  input.max = String(MAX_ROLLS_AT_ONCE);
-  input.value = "1";
-  const dismiss = () => {
-    pop.remove();
-    activeDocument.removeEventListener("mousedown", outside);
-  };
-  const go = pop.createEl("button", { cls: "mod-cta ep-rollmenu-go", text: i18n.t("roll.menu.go") });
-  go.onclick = () => {
-    const n = clamp(Math.round(Number(input.value) || 1), 1, MAX_ROLLS_AT_ONCE);
-    dismiss();
-    run(mode, n);
-  };
-  if (opts == null ? void 0 : opts.onEdit) {
-    const edit = pop.createEl("button", { cls: "ep-mode-btn ep-rollmenu-edit", text: i18n.t("roll.menu.edit") });
-    edit.onclick = () => {
-      var _a;
-      dismiss();
-      (_a = opts.onEdit) == null ? void 0 : _a.call(opts);
-    };
-  }
-  if (opts == null ? void 0 : opts.onAppearance) {
-    const look = pop.createEl("button", {
-      cls: "ep-mode-btn ep-rollmenu-edit",
-      text: i18n.t("roll.menu.appearance")
-    });
-    look.onclick = () => {
-      var _a;
-      dismiss();
-      (_a = opts.onAppearance) == null ? void 0 : _a.call(opts);
-    };
-  }
-  input.onkeydown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      go.click();
-    } else if (e.key === "Escape") {
-      dismiss();
-    }
-  };
-  const outside = (e) => {
-    if (!pop.contains(e.target)) dismiss();
-  };
-  window.setTimeout(() => activeDocument.addEventListener("mousedown", outside), 0);
-  const w = pop.offsetWidth;
-  const h = pop.offsetHeight;
-  if (ev.clientX + w > window.innerWidth - 4) pop.setCssStyles({ left: Math.max(4, window.innerWidth - w - 4) + "px" });
-  if (ev.clientY + h > window.innerHeight - 4) pop.setCssStyles({ top: Math.max(4, ev.clientY - h - 2) + "px" });
-}
 
 // src/features/rolling/numeric-addon.ts
 function hasSet(e) {
@@ -14231,7 +14304,20 @@ function renderSetOptions(octx, e) {
       redraw();
     });
   });
-  if (!e.setMacro) return;
+  if (!e.setMacro) {
+    new import_obsidian33.Setting(c).setName(t("roll.setExpr")).setDesc(withMixed(t("roll.setExprFree"), varies((x) => x.setSegs))).setHeading();
+    mountRollExpr(c, view, {
+      value: e.setSegs,
+      onChange: (segs) => {
+        if (!segs) return;
+        e.setSegs = segs.length ? segs : void 0;
+        changed();
+        redraw();
+      }
+    });
+    renderSetFooter(octx, peers, label2);
+    return;
+  }
   const shared = segsToText((_b = macro == null ? void 0 : macro.segs) != null ? _b : []);
   const mine = ((_c = e.setSegs) == null ? void 0 : _c.length) ? segsToText(e.setSegs) : shared;
   const differs = !!((_d = e.setSegs) == null ? void 0 : _d.length);
@@ -14284,6 +14370,11 @@ function renderSetOptions(octx, e) {
       })
     );
   }
+  renderSetFooter(octx, peers, label2);
+}
+function renderSetFooter(octx, peers, label2) {
+  const { view, container: c } = octx;
+  const t = view.i18n.t.bind(view.i18n);
   new import_obsidian33.Setting(c).setName(t("roll.setRollNow")).setDesc(peers ? t("roll.setRollAllDesc", { n: peers.length }) : t("roll.setRollNowDesc")).addButton(
     (b) => b.setButtonText(peers ? t("roll.setRollAll", { n: peers.length }) : t("roll.set")).setCta().onClick(() => peers ? runSetRollAll(octx, peers) : runSetRoll(octx, label2))
   );
@@ -20909,7 +21000,7 @@ var rollerKind = {
       save();
     };
     const go = ctl.createEl("button", { cls: "ep-roll-btn ep-roller-go", text: t("roll.roll") });
-    const rollNow = (assign) => {
+    const rollNow = () => {
       var _a2, _b;
       const label2 = ctx2.entry.alias || t("roller.title");
       runRoll(svc(view), view.i18n, {
@@ -20917,29 +21008,10 @@ var rollerKind = {
         mode: curMode(),
         times: (_a2 = e.rollerTimes) != null ? _a2 : 1,
         label: label2,
-        resolve: makeNoteAwareResolver(view.app, view.settings, view.registries, view, (_b = view.note.path) != null ? _b : ""),
-        // Asked for on the way in: the card stays up, can be re-rolled, and
-        // the number it is closed on is the one offered to a property.
-        onClose: assign ? (total) => {
-          if (ctx2.file) assignMenu(view, ctx2.file, total, lastPress);
-        } : void 0
+        resolve: makeNoteAwareResolver(view.app, view.settings, view.registries, view, (_b = view.note.path) != null ? _b : "")
       });
     };
-    go.onclick = () => rollNow(false);
-    let lastPress = new MouseEvent("contextmenu");
-    go.addEventListener("contextmenu", (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      lastPress = ev;
-      rollNow(true);
-    });
-    longPressContextMenu(go);
-    const set = ctl.createEl("button", { cls: "ep-set-btn ep-roller-set", text: view.i18n.t("roll.set") });
-    set.setAttr("title", t("roll.card.assignHint"));
-    set.onclick = (ev) => {
-      lastPress = ev;
-      rollNow(true);
-    };
+    go.onclick = () => rollNow();
     const macrosEl = wrap.createDiv({ cls: "ep-macros" });
     const loadMacro = (m) => {
       var _a2, _b;
@@ -20984,22 +21056,6 @@ var rollerKind = {
                     view.i18n,
                     m,
                     makeNoteAwareResolver(view.app, view.settings, view.registries, view, (_a2 = view.note.path) != null ? _a2 : "")
-                  );
-                }
-              )
-            );
-            menu.addItem(
-              (i) => i.setTitle(t("roll.menu.assign")).setIcon("clipboard-check").onClick(
-                () => {
-                  var _a2;
-                  return runMacro(
-                    svc(view),
-                    view.i18n,
-                    m,
-                    makeNoteAwareResolver(view.app, view.settings, view.registries, view, (_a2 = view.note.path) != null ? _a2 : ""),
-                    (total) => {
-                      if (ctx2.file) assignMenu(view, ctx2.file, total, ev);
-                    }
                   );
                 }
               )
@@ -21306,7 +21362,6 @@ var strings_default = {
   "roll.assign.noRolls": "No settled rolls on screen.",
   "roll.assignTo": "Assign {total} to...",
   "roll.assignNone": "This note type has no number properties",
-  "roll.menu.assign": "Roll and assign...",
   "roll.set": "Set",
   "roll.setAria": "Roll and set {name}",
   "roll.setHint": "Roll this property's macro and keep the result. Re-roll as often as you like; the number showing when you close the card is the one kept.",
@@ -21317,6 +21372,8 @@ var strings_default = {
   "roll.setMacroNone": "None",
   "roll.setMacroNew": "New macro...",
   "roll.setExpr": "Expression",
+  "roll.setExprFree": "This property's own roll. Pick a macro above instead if several properties should share one.",
+  "roll.exprHelp": "3d6 rolls three six-sided dice. kh1 / kl1 keep the highest or lowest, dh1 / dl1 drop them, ! explodes, r1 re-rolls ones, >=4 counts successes. Add + 8, - 2, or a property name such as DEX.",
   "roll.setExprShared": "Shared with every property using {name}.",
   "roll.setExprOwn": "This property's own, standing in for {name}'s.",
   "roll.setExprAsk": "Change {name} everywhere, or give {prop} an expression of its own?",

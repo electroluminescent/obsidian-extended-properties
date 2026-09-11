@@ -1145,8 +1145,11 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 .ep-roll-btn { align-self: center; }
 .ep-set-cell { justify-content: flex-end; align-items: center; }
 .ep-roll-cell { align-items: center; }
-/* The roller's pair of buttons sit together: roll, or roll and keep. */
-.ep-roller-set { margin-left: 4px; }
+/* A place to type a roll, outside the roller: the field, the roller's own
+   function bar, and a line of what the notation means. */
+.ep-exprfield { display: flex; flex-direction: column; gap: 6px; margin: 0 0 10px; }
+.ep-expr-input { width: 100%; font-variant-numeric: tabular-nums; }
+.ep-expr-hint { color: var(--text-muted); font-size: var(--font-ui-smaller); line-height: 1.35; }
 /* "Set a property..." on a roll card's title line - the right-click menu has
    the same action, and a right-click is not a thing anybody finds. */
 .ep-roll-label { display: flex; align-items: center; justify-content: center; gap: 8px; }

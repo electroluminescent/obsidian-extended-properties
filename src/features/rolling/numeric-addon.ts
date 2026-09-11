@@ -19,6 +19,7 @@ import { makeNoteAwareResolver } from "../../core/note-ref";
 import { runRoll, segsToText, textToSegs } from "./macros";
 import { assignHere, putResult } from "./into";
 import { pinAllRolls, setRollsAside, whenRollsSettle } from "./dice-anim";
+import { mountRollExpr } from "./expr-field";
 import { ConfirmModal } from "../../ui/modals/dialogs";
 import {
   abbrFor, hasNoteOverride, influenceActive, influenceTerm, modifierTotal, ModExt,
@@ -413,7 +414,29 @@ function renderSetOptions(octx: OptionsCtx, e: RollExt): void {
         redraw();
       });
     });
-  if (!e.setMacro) return;
+  // No macro is a perfectly good answer: this property's roll may be its own
+  // and nobody else's, and making somebody invent a named macro to express
+  // that is a hoop. So the expression can simply be typed - with the roller's
+  // own function bar and a line of notation, because "3d6dhdl" is not a thing
+  // anyone remembers, and without the roller's mode and count, which belong to
+  // an act of rolling rather than to writing a roll down.
+  if (!e.setMacro) {
+    new Setting(c)
+      .setName(t("roll.setExpr"))
+      .setDesc(withMixed(t("roll.setExprFree"), varies((x) => x.setSegs)))
+      .setHeading();
+    mountRollExpr(c, view, {
+      value: e.setSegs,
+      onChange: (segs) => {
+        if (!segs) return; // unreadable: the field says so and nothing is stored
+        e.setSegs = segs.length ? segs : undefined;
+        changed();
+        redraw();
+      },
+    });
+    renderSetFooter(octx, peers, label);
+    return;
+  }
 
   const shared = segsToText(macro?.segs ?? []);
   const mine = e.setSegs?.length ? segsToText(e.setSegs) : shared;
@@ -480,6 +503,20 @@ function renderSetOptions(octx: OptionsCtx, e: RollExt): void {
         })
     );
   }
+
+  renderSetFooter(octx, peers, label);
+}
+
+/**
+ * The two buttons that end the SET section, whichever way the roll was written.
+ *
+ * Shared because a property with a typed expression and a property pointed at
+ * a macro both want the same two things at the bottom: throw it, and go and
+ * look at the macros.
+ */
+function renderSetFooter(octx: OptionsCtx, peers: Entry[] | null, label: string): void {
+  const { view, container: c } = octx;
+  const t = view.i18n.t.bind(view.i18n);
 
   // Roll it from here. This is the whole point of being able to hide the
   // button: a sheet is rolled up once, and the settings are where you are

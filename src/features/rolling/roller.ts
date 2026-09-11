@@ -28,8 +28,6 @@ import { makeNoteAwareResolver } from "../../core/note-ref";
 import { ROLL_SERVICE, RollMode, RollService } from "./roll-service";
 import { openDiceMenu } from "./dice-ui";
 import { applicableMacros, runMacro, runRoll, segsToText, textToSegs } from "./macros";
-import { assignMenu } from "./into";
-import { longPressContextMenu } from "../../ui/components/long-press";
 import { RefSuggest } from "../../ui/components/suggest";
 import { TextPromptModal } from "../../ui/modals/dialogs";
 import { showMenu } from "../../ui/menus/show";
@@ -264,8 +262,12 @@ export const rollerKind: EntryKindDef = {
       save();
     };
 
+    // Roll, and only roll. Where a result should GO is decided on the card it
+    // lands on - which can show every roll at once, in any order, against every
+    // property - and a second, blinder way in from this button was one way in
+    // too many.
     const go = ctl.createEl("button", { cls: "ep-roll-btn ep-roller-go", text: t("roll.roll") });
-    const rollNow = (assign: boolean): void => {
+    const rollNow = (): void => {
       const label = (ctx.entry as { alias?: string }).alias || t("roller.title");
       // The roller, a macro chip and a macro command all share one executor.
       runRoll(svc(view), view.i18n, {
@@ -274,37 +276,9 @@ export const rollerKind: EntryKindDef = {
         times: e.rollerTimes ?? 1,
         label,
         resolve: makeNoteAwareResolver(view.app, view.settings, view.registries, view, view.note.path ?? ""),
-        // Asked for on the way in: the card stays up, can be re-rolled, and
-        // the number it is closed on is the one offered to a property.
-        onClose: assign
-          ? (total) => {
-              if (ctx.file) assignMenu(view, ctx.file, total, lastPress);
-            }
-          : undefined,
       });
     };
-    go.onclick = () => rollNow(false);
-    /** Where the last press was, so a menu opened later lands under it. */
-    let lastPress = new MouseEvent("contextmenu");
-    // Right-click the roller's own button to roll AND keep: the list of this
-    // sheet's number properties is offered once the card is dismissed.
-    go.addEventListener("contextmenu", (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      lastPress = ev;
-      rollNow(true);
-    });
-    longPressContextMenu(go);
-
-    // The same thing with its name on it. Roll-and-assign was only ever a
-    // right-click, which is to say nobody found it; rolling a sheet UP is half
-    // of what this screen is for, so it gets a button of its own.
-    const set = ctl.createEl("button", { cls: "ep-set-btn ep-roller-set", text: view.i18n.t("roll.set") });
-    set.setAttr("title", t("roll.card.assignHint"));
-    set.onclick = (ev) => {
-      lastPress = ev;
-      rollNow(true);
-    };
+    go.onclick = () => rollNow();
 
     // -- saved macros ("custom roll objects") --------------------------------
     // Saved rolls applicable to this note type live right on the roll screen:
@@ -352,24 +326,6 @@ export const rollerKind: EntryKindDef = {
                     view.i18n,
                     m,
                     makeNoteAwareResolver(view.app, view.settings, view.registries, view, view.note.path ?? "")
-                  )
-                )
-            );
-            // Roll it and keep the number: the macro the sheet was built with
-            // is exactly the one whose result belongs in a property.
-            menu.addItem((i) =>
-              i
-                .setTitle(t("roll.menu.assign"))
-                .setIcon("clipboard-check")
-                .onClick(() =>
-                  runMacro(
-                    svc(view),
-                    view.i18n,
-                    m,
-                    makeNoteAwareResolver(view.app, view.settings, view.registries, view, view.note.path ?? ""),
-                    (total) => {
-                      if (ctx.file) assignMenu(view, ctx.file, total, ev);
-                    }
                   )
                 )
             );
