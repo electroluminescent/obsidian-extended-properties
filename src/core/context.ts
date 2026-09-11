@@ -170,6 +170,11 @@ export interface ViewCtx {
    */
   openPaletteSettings(id: string): void;
   /**
+   * Open the plugin's settings at the macros - the way from a property that
+   * is filled by one to the place the roll itself is written.
+   */
+  openMacroSettings(): void;
+  /**
    * Watch for saved settings, returning the unsubscribe. A palette renamed in
    * the settings has to reach the dropdowns that offer it while they are on
    * screen, not only the next time one is opened.

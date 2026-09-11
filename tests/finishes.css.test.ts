@@ -65,9 +65,16 @@ describe("the finishes tile without a seam", () => {
 
   it("holds a moving position inside the image it is drawn from", () => {
     // A non-repeating layer stops covering the value the moment its position
-    // leaves 0-100%, and the gap reads as a seam. Both are clamped.
-    expect(block).toContain("--ep-drift:\n    clamp(0%");
-    expect(block).toContain("--ep-sweep:\n    clamp(0%");
+    // leaves 0-100%, and the gap reads as a seam. Both are clamped - per axis,
+    // since the row-frame versions below are built from the same halves.
+    for (const axis of ["--ep-drift-x", "--ep-drift-y", "--ep-sweep-x", "--ep-sweep-y"]) {
+      const decl = new RegExp(`${axis}:\\s*clamp\\(0%,`).exec(block);
+      expect(decl, `${axis} is not clamped to the image`).not.toBeNull();
+    }
+    // ...and the pair a finish actually uses is those two halves, not a
+    // separate unclamped expression that could drift out from under them.
+    expect(block).toContain("--ep-drift: var(--ep-drift-x) var(--ep-drift-y);");
+    expect(block).toContain("--ep-sweep: var(--ep-sweep-x) var(--ep-sweep-y);");
     // ...which only works while the travel cannot outrun the clamp.
     const travel = /--ep-travel: ([\d.]+);/.exec(block);
     expect(travel).not.toBeNull();

@@ -251,8 +251,8 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
 
 @keyframes ep-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes ep-pop { from { transform: scale(0.96); opacity: 0.4; } to { transform: scale(1); opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .ep-section, .ep-entry, .ep-mode-btn, .ep-tool-btn, .ep-step-btn, .ep-roll-btn, .ep-chip, .ep-edit-toggle, .ep-cols-btn, .ep-menu-btn, .ep-icon-btn, .ep-grip, .ep-add-input, .ep-editable, .ep-chip-x, .ep-chev, .ep-collapse, .ep-grid { transition: none; } .ep-log-row, .ep-edit-input { animation: none; } }
-@media (pointer: coarse) { .ep-step-btn { width: 26px; height: 26px; } .ep-roll-btn { padding: 4px 12px; } .ep-prof { width: 18px; height: 18px; } .ep-grip { padding: 0 6px; } }
+@media (prefers-reduced-motion: reduce) { .ep-section, .ep-entry, .ep-mode-btn, .ep-tool-btn, .ep-step-btn, .ep-roll-btn, .ep-set-btn, .ep-chip, .ep-edit-toggle, .ep-cols-btn, .ep-menu-btn, .ep-icon-btn, .ep-grip, .ep-add-input, .ep-editable, .ep-chip-x, .ep-chev, .ep-collapse, .ep-grid { transition: none; } .ep-log-row, .ep-edit-input { animation: none; } }
+@media (pointer: coarse) { .ep-step-btn { width: 26px; height: 26px; } .ep-roll-btn, .ep-set-btn { padding: 4px 12px; } .ep-prof { width: 18px; height: 18px; } .ep-grip { padding: 0 6px; } }
 
 /* round 7 additions */
 .ep-image-fixed { overflow: hidden; }
@@ -356,7 +356,7 @@ body.ep-flat-sections .ep-section { border-color: transparent; background: trans
 .ep-imgview-hint { text-align: center; color: var(--text-muted); font-size: var(--font-ui-smaller); margin-top: 8px; }
 
 /* round 15 additions */
-.ep-step-btn, .ep-roll-btn, .ep-mode-btn, .ep-tool-btn, .ep-mini-btn, .ep-edit-toggle { height: calc(var(--ep-size-value, var(--font-ui-small)) + 10px); min-height: 22px; line-height: 1; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; }
+.ep-step-btn, .ep-roll-btn, .ep-set-btn, .ep-mode-btn, .ep-tool-btn, .ep-mini-btn, .ep-edit-toggle { height: calc(var(--ep-size-value, var(--font-ui-small)) + 10px); min-height: 22px; line-height: 1; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; }
 .ep-highlighting .ep-section { opacity: .3; transition: opacity .35s ease; }
 .ep-highlighting .ep-section.ep-has-highlight { opacity: 1; }
 .ep-drag-clone { box-shadow: 0 8px 24px rgba(0,0,0,.4); border-radius: 6px; opacity: .9; background: var(--background-secondary); }
@@ -855,7 +855,7 @@ body.is-mobile .ep-roll-sum-toggle { min-height: 34px; }
 /* widen the cluster's stepper columns to fit the larger mobile touch targets (else they overlap the value) */
 body.is-mobile { --ep-step-col: 30px; }
 body.is-mobile .ep-step-btn { min-width: 30px; min-height: 30px; }
-body.is-mobile .ep-roll-btn { min-height: 30px; padding: 0 10px; }
+body.is-mobile .ep-roll-btn, body.is-mobile .ep-set-btn { min-height: 30px; padding: 0 10px; }
 body.is-mobile .ep-rating-pip { width: 1.4em; height: 1.4em; }
 body.is-mobile .ep-chip-x { padding: 0 4px; }
 .ep-inline-prop { display: inline; }
@@ -1080,9 +1080,20 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
    Two columns rather than one row of controls, because the colours have to be
    able to slide past each other while the numbers hold still. */
 .ep-scale {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 2px 12px;
   align-items: center; margin: 4px 0 10px; box-sizing: border-box; max-width: 100%;
 }
+/* The third lane: what each step is made of. It drags like the colours, in a
+   lane of its own, so a material can be moved along the scale without taking
+   a colour with it. */
+.ep-scale-finish { display: flex; align-items: center; gap: 4px; justify-content: flex-end; transition: transform 120ms ease; }
+.ep-scale-finish.is-dragging { transition: none; cursor: grabbing; z-index: 1; position: relative; }
+.ep-scale-finish-pick { max-width: 8em; }
+
+/* The word table's steps: folded away until asked for, and then plain. */
+.ep-table-help { margin: 0 0 10px; }
+.ep-table-steps { margin: 4px 0; padding-left: 1.4em; color: var(--text-muted); font-size: var(--font-ui-smaller); }
+.ep-table-steps li { margin: 3px 0; }
 .ep-scale-vals { display: flex; align-items: center; gap: 4px; min-height: 28px; flex-wrap: wrap; min-width: 0; }
 .ep-scale-color { display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
 .ep-scale-kind { color: var(--text-muted); font-size: var(--font-smaller); width: 3.2em; }
@@ -1104,6 +1115,33 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
 }
 .ep-scale-add:hover { color: var(--text-normal); border-style: solid; background: var(--background-modifier-hover); }
 .ep-fin-when, .ep-fin-pick { max-width: 9em; }
+/* SET sits beside ROLL and reads as its quieter sibling: the same shape, no
+   accent - one asks a question of the value, the other decides it. */
+/* Sized from the same rule as .ep-roll-btn (see the shared height/padding
+   group above): the two stand side by side in a row and any difference in
+   height or padding reads as a mistake. Only the fill differs - SET is the
+   quieter of the pair, because it overwrites a value. */
+.ep-set-btn {
+  padding: 2px 8px; font-size: var(--font-ui-smaller); cursor: pointer;
+  background: transparent; color: var(--text-muted);
+  border: 1px solid var(--background-modifier-border); border-radius: var(--ep-radius, 6px);
+  box-shadow: none;
+}
+.ep-set-btn:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+.ep-set-cell { justify-content: flex-end; }
+/* The roller's pair of buttons sit together: roll, or roll and keep. */
+.ep-roller-set { margin-left: 4px; }
+/* "Set a property..." on a roll card's title line - the right-click menu has
+   the same action, and a right-click is not a thing anybody finds. */
+.ep-roll-label { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.ep-roll-assign {
+  pointer-events: auto; cursor: pointer; font-size: var(--font-ui-smaller); line-height: 1;
+  padding: 2px 8px; border-radius: 999px; box-shadow: none; font-weight: 400;
+  background: transparent; color: var(--text-muted);
+  border: 1px solid var(--background-modifier-border);
+}
+.ep-roll-assign:hover { color: var(--text-on-accent); background: var(--interactive-accent); border-color: var(--interactive-accent); }
+
 .ep-fin-strength { width: 6.5em; flex: 0 0 auto; }
 .ep-fin-strength-read { color: var(--text-muted); font-size: var(--font-ui-smaller); width: 3em; text-align: right; }
 .ep-fin-vals, .ep-fin-set { width: 9em; }
@@ -1266,34 +1304,21 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
      that, and still blends with the fill beneath it. */
   z-index: -1;
   /*
-    Laid across the ROW rather than across this element.
+    Exactly this value's border box, and no clipping anywhere.
 
-    A list of chips wearing one finish is one sheet with chips cut out of it,
-    not five little sheets: the spectrum should run across the row and be
-    interrupted by the gaps, which is what a printed card looks like. So the
-    layer is grown to the row's own box (`--ep-span-*`, measured by the
-    renderer) and then clipped back to this element - the gradient inside it
-    is therefore drawn once, in the row's terms, and each chip shows its own
-    part of it. With no span measured the numbers are zero and this is exactly
-    the element's own box.
+    It used to be grown to the row and clipped back with `clip-path`, which
+    Obsidian's plugin review flags as only partly supported - and which was
+    doing two jobs at once. Both are done without it now: the layer covers the
+    border because `--ep-edge` (the value's own border width, measured by the
+    renderer) is exactly how far outside the padding box that border sits, and
+    it is rounded by the radius it inherits rather than by a clip.
+
+    Continuity across a row of chips - one sheet with chips cut out of it,
+    rather than five little sheets - is done by moving the PATTERN instead of
+    the box: `--ep-span-*` shifts each piece's background by its offset within
+    the row, so the tiling lines up across the gaps (see `--ep-drift-in`).
   */
-  /* `--ep-edge` is the value's own border, which an absolutely positioned
-     layer would otherwise stop short of: a chip's rim would be the only part
-     of it wearing no material. Growing by the border and clipping back to the
-     border box puts the finish right out to the edge. */
-  inset:
-    calc(-1 * (var(--ep-span-t, 0px) + var(--ep-edge, 0px)))
-    calc(-1 * (var(--ep-span-r, 0px) + var(--ep-edge, 0px)))
-    calc(-1 * (var(--ep-span-b, 0px) + var(--ep-edge, 0px)))
-    calc(-1 * (var(--ep-span-l, 0px) + var(--ep-edge, 0px)));
-  -webkit-clip-path: inset(
-    var(--ep-span-t, 0px) var(--ep-span-r, 0px) var(--ep-span-b, 0px) var(--ep-span-l, 0px)
-    round var(--ep-span-round, var(--ep-radius, 6px))
-  );
-  clip-path: inset(
-    var(--ep-span-t, 0px) var(--ep-span-r, 0px) var(--ep-span-b, 0px) var(--ep-span-l, 0px)
-    round var(--ep-span-round, var(--ep-radius, 6px))
-  );
+  inset: calc(-1 * var(--ep-edge, 0px));
   /* Its own layer, so moving the light does not relayout the row. */
   will-change: background-position, filter;
   /* A value crossing into another band changes what it is made of. Fading
@@ -1371,13 +1396,36 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
   /* `--ep-nudge` moves a piece cut out of a sheet along it a little, so a chip
      lying on a row of the same material is still visibly a separate piece
      rather than a window onto what is behind it. Zero for anything that is
-     the whole sheet. */
-  --ep-drift:
-    clamp(0%, calc(50% - (var(--ep-lamp-dx) * var(--ep-travel)) + var(--ep-nudge, 0px)), 100%)
-    clamp(0%, calc(50% - (var(--ep-lamp-dy) * var(--ep-travel)) + var(--ep-nudge, 0px)), 100%);
-  --ep-sweep:
-    clamp(0%, calc(50% + (var(--ep-lamp-dx) * var(--ep-travel)) + var(--ep-nudge, 0px)), 100%)
-    clamp(0%, calc(50% + (var(--ep-lamp-dy) * var(--ep-travel)) + var(--ep-nudge, 0px)), 100%);
+     the whole sheet. Held per axis so the versions below can be built from
+     them without writing the arithmetic out four more times. */
+  --ep-drift-x: clamp(0%, calc(50% - (var(--ep-lamp-dx) * var(--ep-travel)) + var(--ep-nudge, 0px)), 100%);
+  --ep-drift-y: clamp(0%, calc(50% - (var(--ep-lamp-dy) * var(--ep-travel)) + var(--ep-nudge, 0px)), 100%);
+  --ep-sweep-x: clamp(0%, calc(50% + (var(--ep-lamp-dx) * var(--ep-travel)) + var(--ep-nudge, 0px)), 100%);
+  --ep-sweep-y: clamp(0%, calc(50% + (var(--ep-lamp-dy) * var(--ep-travel)) + var(--ep-nudge, 0px)), 100%);
+  --ep-drift: var(--ep-drift-x) var(--ep-drift-y);
+  --ep-sweep: var(--ep-sweep-x) var(--ep-sweep-y);
+
+  /*
+    The same two, shifted into the ROW's frame.
+
+    A piece cut out of a sheet - a chip, a value cell - sits some way into the
+    row, and a pattern drawn from its own corner restarts there. Pulling the
+    background back by that offset draws it as though it began at the row's
+    corner instead, so the weave, the threads and the star field run straight
+    across the gaps between chips and the row reads as one sheet.
+
+    Only TILED layers may use these: the shift walks the image off the piece,
+    which a repeating pattern covers again and a single image does not. It is
+    also why these are not clamped - a tile has no edge to fall off.
+  */
+  --ep-span-pos: calc(50% - var(--ep-span-l, 0px)) calc(50% - var(--ep-span-t, 0px));
+  --ep-drift-in:
+    calc(var(--ep-drift-x) - var(--ep-span-l, 0px))
+    calc(var(--ep-drift-y) - var(--ep-span-t, 0px));
+  --ep-sweep-in:
+    calc(var(--ep-sweep-x) - var(--ep-span-l, 0px))
+    calc(var(--ep-sweep-y) - var(--ep-span-t, 0px));
+
   /* Brighter as the pointer goes wide, so the light has somewhere to come
      from rather than sitting at one strength forever. */
   --ep-lift: calc(0.55 + (var(--ep-lamp-reach) * 0.55));
@@ -1453,7 +1501,7 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
       transparent 2px 24px
     );
   --ep-sheet-size: 300% 300%, 96px 96px, 96px 96px;
-  --ep-sheet-pos: var(--ep-drift), var(--ep-sweep), var(--ep-sweep);
+  --ep-sheet-pos: var(--ep-drift), var(--ep-sweep-in), var(--ep-sweep-in);
   --ep-sheet-repeat: no-repeat, repeat, repeat;
   --ep-sheet-mix: hard-light, hard-light;
   --ep-sheet-blend: color-dodge;
@@ -1498,7 +1546,9 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
     ),
     radial-gradient(ellipse at 32% 62%, hsl(266 60% 30% / 0.75), hsl(240 40% 6% / 0.85) 72%);
   --ep-sheet-size: 34px 34px, 51px 51px, 43px 43px, 61px 61px, 260% 260%, cover;
-  --ep-sheet-pos: var(--ep-sweep), var(--ep-sweep), var(--ep-sweep), var(--ep-sweep), var(--ep-drift), center;
+  --ep-sheet-pos:
+    var(--ep-sweep-in), var(--ep-sweep-in), var(--ep-sweep-in), var(--ep-sweep-in),
+    var(--ep-drift), center;
   --ep-sheet-repeat: repeat, repeat, repeat, repeat, no-repeat, no-repeat;
   --ep-sheet-mix: screen;
   --ep-sheet-blend: color-dodge;
@@ -1551,8 +1601,8 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
     radial-gradient(circle at var(--ep-lamp-x) var(--ep-lamp-y), hsl(0 0% 100% / 0.65), transparent 62%);
   --ep-sheet-size: 13px 13px, 29px 29px, 19px 19px, 37px 37px, 41px 41px, 53px 53px, cover;
   --ep-sheet-pos:
-    var(--ep-sweep), var(--ep-drift), var(--ep-sweep), var(--ep-drift), var(--ep-sweep),
-    var(--ep-drift), center;
+    var(--ep-sweep-in), var(--ep-drift-in), var(--ep-sweep-in), var(--ep-drift-in),
+    var(--ep-sweep-in), var(--ep-drift-in), center;
   --ep-sheet-repeat: repeat, repeat, repeat, repeat, repeat, repeat, no-repeat;
   --ep-sheet-mix: screen;
   --ep-sheet-blend: color-dodge;
@@ -1596,7 +1646,7 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
     ),
     linear-gradient(104deg, hsl(0 0% 30% / 0.28), hsl(0 0% 100% / 0.4) 48%, hsl(0 0% 28% / 0.28));
   --ep-sheet-size: 96px 96px, 220% 220%;
-  --ep-sheet-pos: center, var(--ep-sweep);
+  --ep-sheet-pos: var(--ep-span-pos), var(--ep-sweep);
   --ep-sheet-repeat: repeat, no-repeat;
   --ep-sheet-blend: soft-light;
   --ep-sheet-opacity: 0.78;
@@ -1609,7 +1659,7 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
     repeating-linear-gradient(90deg, hsl(0 0% 0% / 0.09) 0 1px, transparent 1px 4px),
     linear-gradient(140deg, hsl(0 0% 100% / 0.2), hsl(0 0% 30% / 0.2) 50%, hsl(0 0% 100% / 0.2));
   --ep-sheet-size: 48px 48px, 48px 48px, 200% 200%;
-  --ep-sheet-pos: center, center, var(--ep-sweep);
+  --ep-sheet-pos: var(--ep-span-pos), var(--ep-span-pos), var(--ep-sweep);
   --ep-sheet-repeat: repeat, repeat, no-repeat;
   --ep-sheet-blend: overlay;
   --ep-sheet-opacity: 0.6;
@@ -1930,8 +1980,10 @@ input.ep-edit-input.ep-fmt-chip, input.ep-edit-input.ep-fmt-card {
    above them rather than running to the edge of the window. */
 .ep-settings-host > .ep-scale,
 .ep-settings-host > .ep-mini-list,
+.ep-settings-host > .ep-table-help,
 .ep-settings-panel > .ep-scale,
-.ep-settings-panel > .ep-mini-list {
+.ep-settings-panel > .ep-mini-list,
+.ep-settings-panel > .ep-table-help {
   padding-left: var(--ep-row-pad-l, var(--size-4-3, 12px));
   padding-right: var(--ep-row-pad-r, var(--size-4-3, 12px));
 }

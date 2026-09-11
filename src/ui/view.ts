@@ -520,6 +520,10 @@ export class SidebarView extends ItemView implements ViewCtx {
     this.plugin.openPaletteSettings(id);
   }
 
+  openMacroSettings(): void {
+    this.plugin.openMacroSettings();
+  }
+
   onSettingsSaved(cb: () => void): () => void {
     return this.plugin.onSettingsSaved(cb);
   }

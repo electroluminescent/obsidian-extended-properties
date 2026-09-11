@@ -1,6 +1,75 @@
 # Changelog
 
-## 4.68.2
+## 4.70.0
+
+- **Assign, on the card.** *Set a property...* now sits on a roll card's title
+  line, and in the card's own right-click menu, whenever a sheet is open with
+  a number property to put the total in. It was only ever reachable by
+  right-clicking the button that made the roll, which is to say it was not
+  reachable.
+- **A SET button on the roller**, beside Roll. Rolling a sheet UP is half of
+  what that screen is for, and it too was a right-click nobody found. Saved
+  rolls on the same screen gain *Roll and assign...* in their menu.
+- **Roll and SET on the property popup's toolbar**, beside the settings, hide,
+  clear and remove buttons - so the popup does everything the row's buttons do,
+  including when those buttons are switched off.
+- **Where the SET macro lives, in plain sight.** *Change the macro* is now a
+  button rather than a dialog that only appeared once you had already typed;
+  *Open the macro settings* goes straight to the saved rolls; and a toggle
+  decides whether the SET button stands in the row at all - a sheet is rolled
+  up once, and a button beside every attribute afterwards is clutter. The roll
+  can still be fired from the property's own settings either way.
+- A roll something is waiting on now **stays up** so it can be re-rolled before
+  the number is kept, instead of closing itself after a moment.
+- The SET button is the same height and padding as the roll button it stands
+  beside, on desktop, touch and mobile alike.
+
+## 4.69.0
+
+- **No `clip-path` anywhere.** The finish layers were grown to the row and
+  clipped back to each piece, which the plugin review flags as only partly
+  supported - and which was doing two jobs at once. Both are done without it:
+  the layer is exactly the value's border box (so it covers the border, and is
+  rounded by the radius it inherits), and continuity across a row of chips is
+  got by moving the PATTERN rather than the box - each piece's tiled layers
+  are pulled back by its offset within the row, so the weave, the threads and
+  the star field run straight across the gaps. Single-image layers - the
+  sweeps - are now drawn per piece, which is the one visible difference.
+
+- **A roll can be kept.** Right-click a result in the roll history - or the
+  roll button, or the roller's own Roll - and *Assign to...* offers this note
+  type's own number properties. The one you pick takes the total. Rolling a
+  sheet up rather than rolling against one, without deciding in advance which
+  roll was for what.
+- **SET**, beside the value, for the properties that are always rolled the
+  same way. It is pointed at a MACRO rather than at an expression, so four
+  attributes can share one `3d6dhdl + 8` and one edit changes all four - and a
+  property that is nearly the shared roll but not quite can keep an expression
+  of its own. Editing the expression from a property asks which was meant:
+  change the macro everywhere, or only here.
+- SET assigns **when the card is closed**, not when the dice land, so the
+  result can be re-rolled as many times as you like while it is up and the
+  number you stop on is the one kept.
+- The property stays an ordinary number afterwards - the dice generated the
+  value, they do not keep deciding it - and the write goes through the same
+  path an edit does, so it lands in the undo history and merges like any other
+  frontmatter change.
+
+- **The wide word table comes first in Palettes**, with everything needed to
+  set it up beside it: *Open the plugin folder* reveals where the file goes,
+  *Get vectors* goes to GloVe, and *How to* unfolds the four steps. It is the
+  one thing on that page that is done once and then never again, and it was at
+  the bottom behind every palette in the vault.
+- **A third column on the scale: what each step is made of.** Beside the
+  colours, a finish per point or band - one band foiled, the next plain, a
+  stop at the top in glitter. It says in one press what a rule says in a
+  sentence and two numbers, it follows the band when the band is moved, and it
+  drags along the scale in a lane of its own when it should not. A rule on the
+  property or the palette still outranks it, since a rule was written about a
+  value rather than about a place on the scale.
+- **The section strip clears Obsidian's own tab list.** Where the panel it
+  describes has a list of its own down the left - the settings window - the
+  strip starts where that ends instead of lying over it.
 
 - Housekeeping from the plugin review: an assertion that asserted nothing, a
   list of unknown values that `Array.isArray` had quietly turned into a list

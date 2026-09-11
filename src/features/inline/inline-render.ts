@@ -70,6 +70,8 @@ export interface InlineCtx {
   openSettings?: (kind: string) => void;
   /** Open the plugin settings at one palette (from a card's Formatting block). */
   openPalette?: (id: string) => void;
+  /** Open the plugin settings at the macros (from a card's SET block). */
+  openMacros?: () => void;
 }
 
 /**

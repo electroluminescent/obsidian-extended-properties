@@ -32,6 +32,7 @@ import { fmtMod } from "../../utils/misc";
 import { sfx } from "../../utils/sound";
 import { DICE_STYLES, DieView, pickDiceStyle } from "./dice-styles";
 import { showMenu } from "../../ui/menus/show";
+import { assignHere, canAssignHere } from "./into";
 
 /**
  * Live plugin settings + persist callback for the summary's expandable
@@ -92,6 +93,16 @@ export interface RollAnimJob {
   aa?: boolean;
   /** Re-run the roll that produced this card ("reroll" in the menu). */
   reroll?: () => void;
+  /**
+   * Called when this card is dismissed, however it goes - its own close, a
+   * dismiss-all, or a re-roll clearing the board.
+   *
+   * What waits here is whatever the roll was FOR: a property being filled
+   * from it, most of the time. Hanging that on the close rather than on the
+   * result is what lets the reader roll again while the card is up and keep
+   * the one they stop on.
+   */
+  onClose?: () => void;
 }
 
 let layer: HTMLElement | null = null;
@@ -410,7 +421,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
   // newcomer - slide them there instead of jumping (FLIP).
   const playJoin = prepareCardFlip(host);
   const box = host.createDiv({ cls: "ep-roll-box" });
-  box.createDiv({ cls: "ep-roll-label", text: job.label });
+  const labelEl = box.createDiv({ cls: "ep-roll-label", text: job.label });
   const diceRow = box.createDiv({ cls: "ep-roll-dice" });
   // Dice live on a sliding track inside the clipped row: a single line that
   // scrolls left as new dice settle, so older ones slide off the (masked) left
@@ -476,8 +487,25 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
       play();
     }, 160);
     updateSummary(i18n);
+    // Last, and outside the animation: whatever this roll was for.
+    job.onClose?.();
   };
   closers.add(close);
+
+  // A visible way to keep the number. The right-click menu has had this for a
+  // while, and a right-click is not a thing anybody finds - so the card wears
+  // the action on its face whenever there is a sheet with somewhere to put it.
+  if (canAssignHere()) {
+    const put = labelEl.createEl("button", { cls: "ep-roll-assign", text: i18n.t("roll.card.assign") });
+    put.setAttr("title", i18n.t("roll.card.assignHint"));
+    put.onclick = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation(); // the card's own click toggles pinning
+      close();
+      assignHere(job.total, ev);
+    };
+  }
+
   const later = (fn: () => void, ms: number): void => {
     timers.push(window.setTimeout(() => {
       if (!closed) fn();
@@ -525,6 +553,17 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
         mi.setTitle(i18n.t("roll.card.reroll")).setIcon("dices").onClick(() => {
           close();
           job.reroll?.();
+        })
+      );
+    }
+    // Where the number could GO. Offered from the card because that is where
+    // the reader is when they decide a roll was worth keeping - and the card
+    // closes first, so the menu is not opened behind it.
+    if (canAssignHere()) {
+      menu.addItem((mi) =>
+        mi.setTitle(i18n.t("roll.card.assign")).setIcon("clipboard-check").onClick(() => {
+          close();
+          assignHere(job.total, ev);
         })
       );
     }

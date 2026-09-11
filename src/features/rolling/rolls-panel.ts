@@ -14,6 +14,8 @@
 import type { EntryKindDef } from "../../core/registry";
 import { ext } from "../../core/model";
 import { ConfirmModal } from "../../ui/modals/dialogs";
+import { longPressContextMenu } from "../../ui/components/long-press";
+import { assignMenu } from "./into";
 
 /** Per-entry display state persisted via `ext`. */
 interface RollsExt {
@@ -93,6 +95,16 @@ export const rollsKind: EntryKindDef = {
           row.setAttr("title", t("roll.redoHint"));
           row.onclick = () => redo();
         }
+        // Right-click a result to keep it: the number goes into whichever of
+        // this sheet's own number properties is chosen. A roll made for its
+        // own sake often turns out to have been for something after all.
+        row.addEventListener("contextmenu", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          if (!ctx.file) return;
+          assignMenu(view, ctx.file, r.total, ev);
+        });
+        longPressContextMenu(row); // touch parity
       }
     };
     redraw();

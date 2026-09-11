@@ -25,6 +25,7 @@ import { hexToRgb } from "../../utils/color";
 import type { DateConfig } from "../../core/calendar";
 import { formatEdge, parseEdge } from "../../utils/palette-date";
 import { renderFinishRules } from "./finish-rules";
+import { FINISHES, finishName } from "../render/finishes";
 import {
   colorAt, defaultWheel, edgeContested, ensureDominance, insertStep, midpointBlend, moveColor,
   moveEdge, positionalBlend, removeStep, setDominant, stepsValid,
@@ -279,9 +280,23 @@ export function renderScale(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): 
     ctx.redraw();
   };
 
+  /**
+   * The finish each step wears, paired by position like the colours - and, as
+   * the colours are, moved without moving anything else.
+   */
+  // Held as a local copy and written back only when it says something: a
+  // palette nobody has given a material to keeps no column of empty strings.
+  const worn: string[] = [...(p.finishAt ?? [])];
+  while (worn.length < steps.length) worn.push("");
+  const keepWorn = (): void => {
+    p.finishAt = worn.some((x) => !!x) ? [...worn] : undefined;
+  };
+
   const grid = c.createDiv({ cls: "ep-scale" });
   /** The colour cells, in order - the drag needs to see all of them. */
   const cells: HTMLElement[] = [];
+  /** ...and the finish cells, which drag the same way in a lane of their own. */
+  const finCells: HTMLElement[] = [];
 
   /** The two buttons that put a new step in at `at`. */
   const insertBar = (at: number): void => {
@@ -290,7 +305,14 @@ export function renderScale(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): 
       const b = bar.createEl("button", { cls: "ep-scale-add", text: label });
       b.setAttr("aria-label", tip);
       b.setAttr("title", tip);
-      b.onclick = () => put(insertStep(steps, colors, at, kind, p.arc ?? "short"));
+      b.onclick = () => {
+        // The finish column is paired by position, so a step going in at `at`
+        // opens a place in it too - taking what the step above it wears, which
+        // is nearly always what was meant.
+        worn.splice(at, 0, worn[at - 1] ?? "");
+        keepWorn();
+        put(insertStep(steps, colors, at, kind, p.arc ?? "short"));
+      };
     };
     add("point", t("palette.addPoint"), t("palette.addPointTip"));
     add("band", t("palette.addBand"), t("palette.addBandTip"));
@@ -312,7 +334,11 @@ export function renderScale(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): 
       numField(vals, r.to, cal ? "ep-pal-date" : "ep-pal-num", (n) => write(moveEdge(steps, i, "to", n, p.linked === true)), cal);
       edgeBox(vals, r, "to", i, p, ctx);
     }
-    iconButton(vals, "x", t("palette.remove"), () => put(removeStep(steps, colors, i)));
+    iconButton(vals, "x", t("palette.remove"), () => {
+      worn.splice(i, 1);
+      keepWorn();
+      put(removeStep(steps, colors, i));
+    });
 
     const cell = grid.createDiv({ cls: "ep-scale-color" });
     cells.push(cell);
@@ -324,6 +350,13 @@ export function renderScale(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): 
       sw.setCssStyles({ background: hexToRgb(c2) ? c2 : "transparent" });
       sw.toggleClass("ep-swatch-empty", !hexToRgb(c2));
       sw.setAttr("title", t("palette.colorBorrowed"));
+      const borrowed = grid.createDiv({ cls: "ep-scale-finish" });
+      const seen = worn[i];
+      borrowed.createSpan({
+        cls: "ep-scale-borrowed",
+        text: seen ? finishName(ctx.i18n, seen) : t("palette.finishNone"),
+      });
+      borrowed.setAttr("title", t("palette.colorBorrowed"));
       insertBar(i + 1);
       return;
     }
@@ -358,6 +391,39 @@ export function renderScale(c: HTMLElement, p: Palette, ctx: PaletteEditorCtx): 
       p.colors = moveColor(colors, i, i + by);
       ctx.save();
       ctx.redraw();
+    };
+
+    // The third column: what this step is MADE of. A list of ten materials
+    // says in one press what a rule says in a sentence and two numbers - and
+    // because it is paired by position, it follows the band when the band is
+    // moved, and can be dragged along the scale on its own when it should not.
+    const fin = grid.createDiv({ cls: "ep-scale-finish" });
+    finCells.push(fin);
+    const finGrip = fin.createSpan({ cls: "ep-scale-grip", text: "::" });
+    finGrip.setAttr("aria-label", t("palette.finishMove"));
+    finGrip.setAttr("title", t("palette.finishMove"));
+    finGrip.tabIndex = 0;
+    const pick = fin.createEl("select", { cls: "dropdown ep-scale-finish-pick" });
+    pick.createEl("option", { value: "", text: t("palette.finishNone") });
+    for (const id of FINISHES) pick.createEl("option", { value: id, text: finishName(ctx.i18n, id) });
+    pick.value = worn[i] ?? "";
+    pick.setAttr("aria-label", t("palette.finishAt"));
+    const settle = (next: string[]): void => {
+      worn.splice(0, worn.length, ...next);
+      keepWorn();
+      ctx.save();
+      ctx.redraw();
+    };
+    pick.onchange = () => {
+      worn[i] = pick.value;
+      settle(worn);
+    };
+    wireColorDrag(finGrip, finCells, i, (to) => settle(moveColor(worn, i, to)));
+    finGrip.onkeydown = (e) => {
+      const by = e.key === "ArrowUp" ? -1 : e.key === "ArrowDown" ? 1 : 0;
+      if (!by) return;
+      e.preventDefault();
+      settle(moveColor(worn, i, i + by));
     };
     insertBar(i + 1);
   });

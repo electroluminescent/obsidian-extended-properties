@@ -39,6 +39,15 @@ import { semanticTableSize } from "../utils/semantic";
 /** Max override rows rendered at once (the list is searchable). */
 const OVERRIDE_ROW_LIMIT = 25;
 
+/**
+ * Where the word vectors come from.
+ *
+ * Written down once: the settings link to it, the instructions repeat it, and
+ * the credit in the README names the same work. Nothing is downloaded from it
+ * by the plugin - the reader fetches the file themselves and drops it in.
+ */
+const GLOVE_URL = "https://github.com/stanfordnlp/GloVe#download-pre-trained-word-vectors-new-2024-vectors";
+
 /** Section headings, offered to the settings search as aliases. */
 /**
  * How the body's section headings group into tabs, in tab order.
@@ -150,6 +159,8 @@ export class EPSettingTab extends PluginSettingTab {
   private pendingInline: string | null = null;
   /** A palette to open at, set from a property's Formatting block. */
   private pendingPalette: string | null = null;
+  /** A heading key to open at, set by the shortcuts below. */
+  private pendingSection: string | null = null;
   /** The row that kind or palette drew into, brought into view once built. */
   private inlineRow: HTMLElement | null = null;
 
@@ -177,6 +188,17 @@ export class EPSettingTab extends PluginSettingTab {
   }
 
   /**
+   * Open on the saved rolls, at the macro list's own heading - where the
+   * *Open the macro settings* button beside a property's SET roll points.
+   */
+  focusMacros(): void {
+    this.pendingSection = "settings.macrosHeading";
+    this.query = "";
+    this.activeTab = this.plugin.i18n.t("settings.tab.rolling");
+    if (this.renderTarget) this.render();
+  }
+
+  /**
    * Draw the tab, without throwing the reader back to the top.
    *
    * Changing one switch here often rebuilds the whole body - a data type
@@ -192,10 +214,27 @@ export class EPSettingTab extends PluginSettingTab {
       this.tint();
       this.alignLooseText();
       this.mountNav();
+      this.findPendingSection();
     };
-    if (this.pendingInline || this.pendingPalette) build();
+    if (this.pendingInline || this.pendingPalette || this.pendingSection) build();
     else keepScroll(this.host, build);
     this.showInlineRow();
+  }
+
+  /**
+   * A section asked for by name, found once the body has been drawn.
+   *
+   * Headings are the only handle a section has - they are what the tabs are
+   * built from - so a caller says which heading it means and this finds the
+   * element to scroll to and mark.
+   */
+  private findPendingSection(): void {
+    const want = this.pendingSection;
+    if (!want) return;
+    this.pendingSection = null;
+    const title = this.plugin.i18n.t(want);
+    this.inlineRow =
+      this.host.findAll(".setting-item-heading").find((h) => (h.textContent ?? "").trim() === title) ?? null;
   }
 
   /**
@@ -1329,6 +1368,10 @@ export class EPSettingTab extends PluginSettingTab {
     const t = plugin.i18n.t.bind(plugin.i18n);
     new Setting(c).setName(t("settings.palettesHeading")).setHeading();
     c.createEl("p", { cls: "setting-item-description", text: t("settings.palettesDesc") });
+    // First, because it is the one thing here that needs doing ONCE and then
+    // never again - and because a palette set to Words is worth very little
+    // until it has been done.
+    this.renderWordTable(c);
     const list = (plugin.settings.palettes ??= []);
     const save = (): void => {
       void plugin.saveSettings();
@@ -1385,46 +1428,78 @@ export class EPSettingTab extends PluginSettingTab {
       );
       renderPaletteEditor(c, p, ctx);
     }
-    // The wide word table: built here, once, from a vector file the user
-    // drops in - with the link to where one comes from.
-    const words = semanticTableSize();
-    const tableDesc = createFragment((frag) => {
-      frag.appendText(words ? t("palette.tableOn", { n: String(words) }) : t("palette.tableOff"));
-      frag.appendText(" ");
-      const a = frag.createEl("a", {
-        text: t("palette.tableSource"),
-        href: "https://github.com/stanfordnlp/GloVe#download-pre-trained-word-vectors-new-2024-vectors",
-      });
-      a.setAttr("target", "_blank");
-      a.setAttr("rel", "noopener");
-      frag.createEl("br");
-      frag.appendText(t("palette.tableCredit"));
-    });
-    new Setting(c)
-      .setName(t("palette.table"))
-      .setDesc(tableDesc)
-      .addButton((b) =>
-        b.setButtonText(t("palette.tableBuild")).onClick(() => {
-          void plugin.loadSemanticTable(true).then((n) => {
-            new Notice(n ? t("palette.tableOn", { n: String(n) }) : t("palette.tableOff"));
-            this.render();
-          });
-        })
-      )
-      .addButton((b) =>
-        b.setButtonText(t("palette.tableReload")).onClick(() => {
-          void plugin.loadSemanticTable().then((n) => {
-            new Notice(n ? t("palette.tableOn", { n: String(n) }) : t("palette.tableOff"));
-            this.render();
-          });
-        })
-      );
     new Setting(c).addButton((b) =>
       b.setButtonText(t("palette.add")).setCta().onClick(() => {
         list.push({ id: genId(), name: t("palette.untitled"), mode: "wheel", wheel: defaultWheel() });
         save();
         this.render();
       })
+    );
+  }
+
+  /**
+   * The wide word table: built once, on this machine, from a vector file the
+   * reader drops into the plugin's folder.
+   *
+   * Everything needed to do that is here, because the alternative is a
+   * sentence asking somebody to find a folder they have never seen and a file
+   * they have never heard of: the folder opens, the vectors are one press
+   * away, and the steps are written down beside both.
+   */
+  private renderWordTable(c: HTMLElement): void {
+    const plugin = this.plugin;
+    const t = plugin.i18n.t.bind(plugin.i18n);
+    const words = semanticTableSize();
+    const desc = createFragment((frag) => {
+      frag.appendText(words ? t("palette.tableOn", { n: String(words) }) : t("palette.tableOff"));
+      frag.createEl("br");
+      frag.appendText(t("palette.tableCredit"));
+    });
+    const row = new Setting(c).setName(t("palette.table")).setDesc(desc);
+
+    const build = (force: boolean): void => {
+      void plugin.loadSemanticTable(force).then((n) => {
+        new Notice(n ? t("palette.tableOn", { n: String(n) }) : t("palette.tableOff"));
+        this.render();
+      });
+    };
+    row.addButton((b) => b.setButtonText(t("palette.tableBuild")).onClick(() => build(true)));
+    row.addButton((b) => b.setButtonText(t("palette.tableReload")).onClick(() => build(false)));
+
+    // The folder the file goes in. `showInFolder` is how Obsidian reveals a
+    // path in the system's own file manager; it is desktop-only and not in
+    // the published typings, so it is reached through the shape it has and
+    // the button says so plainly when it is not there.
+    row.addButton((b) =>
+      b.setButtonText(t("palette.tableFolder")).onClick(() => {
+        const dir = plugin.manifest.dir;
+        const host = this.app as unknown as { showInFolder?: (path: string) => void };
+        if (!dir || typeof host.showInFolder !== "function") {
+          new Notice(t("palette.tableFolderNo"));
+          return;
+        }
+        // Revealing a file inside the folder opens the folder with it marked,
+        // which is more useful than opening the folder blind.
+        host.showInFolder(`${dir}/manifest.json`);
+      })
+    );
+    row.addButton((b) =>
+      b.setButtonText(t("palette.tableSource")).onClick(() => {
+        window.open(GLOVE_URL, "_blank");
+      })
+    );
+
+    // The steps, folded away: they are needed once and are in the way after.
+    const help = c.createDiv({ cls: "ep-table-help ep-hidden" });
+    help.createEl("p", { cls: "setting-item-description", text: t("palette.tableHowTo") });
+    const steps = help.createEl("ol", { cls: "ep-table-steps" });
+    for (const n of [1, 2, 3, 4]) steps.createEl("li", { text: t("palette.tableStep" + String(n)) });
+    const link = help.createEl("p", { cls: "setting-item-description" });
+    const a = link.createEl("a", { text: GLOVE_URL, href: GLOVE_URL });
+    a.setAttr("target", "_blank");
+    a.setAttr("rel", "noopener");
+    row.addButton((b) =>
+      b.setButtonText(t("palette.tableHelp")).onClick(() => help.toggleClass("ep-hidden", !help.hasClass("ep-hidden")))
     );
   }
 

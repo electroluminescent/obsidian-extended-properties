@@ -107,6 +107,17 @@ export interface Palette {
    * numbers hold still.
    */
   colors?: string[];
+  /**
+   * The finish each step wears, paired by position like the colours and moved
+   * apart from them in the same way.
+   *
+   * A third column beside the colours, and the briefest way to say "the top
+   * band is foiled": it needs no values written down twice, and it follows
+   * the band when the band is moved. A rule on the property or the palette
+   * still wins, since it was written about a value rather than about a place
+   * on the scale. An empty string is no finish at all.
+   */
+  finishAt?: string[];
   /** @deprecated pre-4.58 stops; migrated into `steps`/`colors`. */
   points?: ColorPoint[];
   /** @deprecated pre-4.58 bands; migrated into `steps`/`colors`. */
@@ -251,6 +262,8 @@ export function centerOf(step: ScaleStep): number {
 export interface ScaleEntry {
   step: ScaleStep;
   color: string;
+  /** The finish that step wears, if the scale names one. */
+  finish?: string;
 }
 
 /**
@@ -263,10 +276,45 @@ export interface ScaleEntry {
  */
 export function scaleOf(p: Palette): ScaleEntry[] {
   const colors = p.colors ?? [];
+  const finishes = p.finishAt ?? [];
   return (p.steps ?? [])
-    .map((step, i) => ({ step, color: colors[i] ?? "" }))
+    .map((step, i) => ({ step, color: colors[i] ?? "", finish: finishes[i] || undefined }))
     .filter((e) => Number.isFinite(e.step.from) && Number.isFinite(e.step.to) && !!e.color)
     .sort((a, b) => a.step.from - b.step.from || a.step.to - b.step.to);
+}
+
+/**
+ * The step `v` lands in, or none where it lands between steps.
+ *
+ * Where two steps claim the same value a stop takes it - a stop is a value
+ * picked out on purpose, which is a stronger statement than a band's edge -
+ * and between two bands, whichever edge was marked dominant.
+ */
+function hitOf(all: ScaleEntry[], v: number): ScaleEntry | undefined {
+  const hits = all.filter((e) => v >= e.step.from && v <= e.step.to);
+  if (hits.length === 1) return hits[0];
+  if (!hits.length) return undefined;
+  const stop = hits.find((e) => e.step.point);
+  if (stop) return stop;
+  const dom = hits.find((e) => (v === e.step.from && e.step.domFrom) || (v === e.step.to && e.step.domTo));
+  return dom ?? hits[0];
+}
+
+/**
+ * The finish this palette gives `v`, from the scale itself.
+ *
+ * A third column beside the colours: one band foiled, the next plain, a stop
+ * at the top of the scale in glitter. It says what a rule cannot say as
+ * briefly - "whatever this band turns out to cover" rather than a number
+ * written twice - and it moves with the band when the band moves.
+ *
+ * Only a value that lands IN a step gets one: a value in a gap is between two
+ * materials, and picking either would be a guess.
+ */
+export function finishFor(palette: Palette, v: number, span?: Span): string | undefined {
+  if (palette.mode !== "bands" || !Number.isFinite(v)) return undefined;
+  const at = palette.relative && span ? percentIn(v, span) : v;
+  return hitOf(scaleOf(palette), at)?.finish;
 }
 
 /** The colour a wheel gives `v` over `span`. */
@@ -289,14 +337,8 @@ function wheelColor(w: WheelPalette, v: number, span: Span): string {
 function scaleColor(p: Palette, v: number): string | undefined {
   const all = scaleOf(p);
   if (!all.length) return undefined;
-  const hits = all.filter((e) => v >= e.step.from && v <= e.step.to);
-  if (hits.length === 1) return hits[0].color;
-  if (hits.length > 1) {
-    const stop = hits.find((e) => e.step.point);
-    if (stop) return stop.color;
-    const dom = hits.find((e) => (v === e.step.from && e.step.domFrom) || (v === e.step.to && e.step.domTo));
-    return (dom ?? hits[0]).color;
-  }
+  const hit = hitOf(all, v);
+  if (hit) return hit.color;
   // In no step at all: the nearest on each side decide between them. Reading
   // outwards like this (rather than walking neighbouring pairs) is what lets a
   // stop sit INSIDE a band without inventing a gap on either side of itself.

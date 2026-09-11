@@ -20,7 +20,7 @@ import type { Entry, FinishRule, FormatRule } from "../../core/model";
 import type { ViewCtx } from "../../core/context";
 import { modifierInfo } from "../../core/influences";
 import type { Palette, Span } from "../../utils/palette";
-import { blendColors, colorAt, colorForText, readableOn } from "../../utils/palette";
+import { blendColors, colorAt, colorForText, finishFor, readableOn } from "../../utils/palette";
 import { pickFinish } from "../../utils/finish";
 import { FINISHES, finishClass, NEEDS_FILL } from "./finishes";
 
@@ -64,12 +64,15 @@ export function paletteFor(view: ViewCtx, rule: FormatRule | undefined): Palette
   // more steps than the palette has colours runs round them again rather than
   // leaving its last steps uncoloured.
   const colors = found.colors ?? [];
+  const worn = found.finishAt ?? [];
   const steps = rule.scale.steps;
+  const around = <T,>(from: T[]): T[] => (from.length ? steps.map((_, i) => from[i % from.length]) : from);
   return {
     ...found,
     steps,
     relative: rule.scale.relative,
-    colors: colors.length ? steps.map((_, i) => colors[i % colors.length]) : colors,
+    colors: around(colors),
+    finishAt: around(worn),
   };
 }
 
@@ -78,9 +81,45 @@ export function paletteFor(view: ViewCtx, rule: FormatRule | undefined): Palette
  *
  * A palette is a look, and a look is a colour and a material both - so a
  * property that says nothing about finishes wears what its palette wears.
+ * (Between the two sits the scale's own column; {@link finishOf} is where all
+ * three are put in order.)
  */
 export function finishesFor(rule: FormatRule | undefined, palette: Palette | undefined): FinishRule[] | undefined {
   return rule?.finishes?.length ? rule.finishes : palette?.finishes;
+}
+
+/**
+ * What a value wears, from the three places that can say so.
+ *
+ * A property's own rules first: they were written about this row. Then the
+ * scale's own column - "whatever this band covers is foiled" - which is more
+ * particular than anything the palette says about values in general, and
+ * moves when the band moves. The palette's rules last.
+ */
+function finishOf(
+  view: ViewCtx,
+  entry: Entry,
+  rule: FormatRule,
+  palette: Palette,
+  raw: unknown
+): { finish: string; color?: string; strength?: number } | undefined {
+  const own = rule.finishes?.length ? pickFinish(rule.finishes, raw) : undefined;
+  if (own) return own;
+  const step = stepFinish(view, entry, palette, raw);
+  if (step) return { finish: step };
+  return pickFinish(palette.finishes, raw);
+}
+
+/**
+ * The finish the scale itself gives a value, where the value is a number the
+ * scale can place. A word is placed by its own colour rather than by a
+ * position, so nothing on the scale speaks for it.
+ */
+function stepFinish(view: ViewCtx, entry: Entry, palette: Palette, raw: unknown): string | undefined {
+  if (!palette.finishAt?.length) return undefined;
+  const n = typeof raw === "number" ? raw : NUMERIC.has(view.resolveType(entry)) ? Number(raw) : NaN;
+  if (!Number.isFinite(n)) return undefined;
+  return finishFor(palette, n, spanFor(view, entry));
 }
 
 /**
@@ -360,14 +399,14 @@ export function applyFormat(view: ViewCtx, entry: Entry, raw: unknown, els: Form
     const items: unknown[] = raw;
     els.chips.forEach((chip, i) => {
       const item = items[i];
-      const fin = pickFinish(finishesFor(rule, palette), item);
+      const fin = finishOf(view, entry, rule, palette, item);
       const c = fin?.color ?? colorOfWith(view, entry, palette, item);
       if (c) wear(chip, c, target === "text" ? "text" : "chip", fin?.finish, fin?.strength);
       else wearFinish(chip, undefined);
     });
   }
 
-  const fin = pickFinish(finishesFor(rule, palette), raw);
+  const fin = finishOf(view, entry, rule, palette, raw);
   const color = fin?.color ?? colorOfWith(view, entry, palette, raw);
   if (!color) {
     for (const el of [els.wrap, els.val]) if (el) wearFinish(el, undefined);

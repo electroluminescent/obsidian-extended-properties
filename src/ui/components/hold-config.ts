@@ -21,13 +21,14 @@
 
 import { Menu, Platform, Scope, setIcon, TFile } from "obsidian";
 import { keepScroll } from "./setting-helpers";
-import type { ViewCtx, OptionsCtx } from "../../core/context";
+import type { ViewCtx, OptionsCtx, EntryRef } from "../../core/context";
 import { Entry, Section, sectionMode } from "../../core/model";
 import * as ops from "../../core/layout-ops";
 import { openEntryMenu } from "../menus/entry-menu";
 import { renderEntryOptionsBody } from "../modals/entry-options";
 import { mountOptionsNav } from "./options-nav";
 import { showMenuAt } from "../menus/show";
+import { canSetFromRoll, runEntryRoll, runSetRoll } from "../../features/rolling/numeric-addon";
 import { openOverlay, overlayClosed } from "../overlay";
 
 export type EntryInteraction = "menu" | "settings" | "focus" | "none";
@@ -302,6 +303,22 @@ export function openEntrySettingsPopup(
         showMenuAt(menu, { x, y }, doc);
       });
     }
+  }
+  // Rolling, on the toolbar. The popup stands in for the context menu, and
+  // the two things a number property is asked to do with dice - roll AGAINST
+  // it, and be rolled UP from a macro - are otherwise a button in the row
+  // that may well be switched off.
+  const rollRef: EntryRef = { view, file, section, entry };
+  if (canSetFromRoll(rollRef)) {
+    const rollLabel = (entry.alias as string) || view.defaultLabelFor(entry);
+    tool("dices", t("roll.rollAria", { name: rollLabel }), () => {
+      closeSettingsPopup();
+      runEntryRoll(rollRef, rollLabel);
+    });
+    tool("clipboard-check", t("roll.setAria", { name: rollLabel }), () => {
+      closeSettingsPopup();
+      runSetRoll(rollRef, rollLabel);
+    });
   }
   const mode = sectionMode(section);
   const kindDef = view.registries.entryKinds.get(entry.kind);

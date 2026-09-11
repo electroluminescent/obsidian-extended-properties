@@ -123,7 +123,7 @@ export function openRollMenu(
   i18n: I18n,
   current: RollMode,
   run: (mode: RollMode, times: number) => void,
-  opts?: { onEdit?: () => void; onAppearance?: () => void }
+  opts?: { onEdit?: () => void; onAppearance?: () => void; onAssign?: (mode: RollMode) => void }
 ): void {
   const pop = activeDocument.body.createDiv({ cls: "ep-popup ep-rollmenu" });
   pop.setCssStyles({ left: ev.clientX + "px" });
@@ -165,6 +165,19 @@ export function openRollMenu(
     dismiss();
     run(mode, n);
   };
+  // Roll it AND keep it: the same roll, with somewhere for the answer to go.
+  // Offered here rather than only after the fact because the decision is
+  // usually made before the dice are thrown, not after.
+  if (opts?.onAssign) {
+    const assign = pop.createEl("button", {
+      cls: "ep-mode-btn ep-rollmenu-edit",
+      text: i18n.t("roll.menu.assign"),
+    });
+    assign.onclick = () => {
+      dismiss();
+      opts.onAssign?.(mode);
+    };
+  }
   if (opts?.onEdit) {
     const edit = pop.createEl("button", { cls: "ep-mode-btn ep-rollmenu-edit", text: i18n.t("roll.menu.edit") });
     edit.onclick = () => {

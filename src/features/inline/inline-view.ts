@@ -210,6 +210,7 @@ class InlineViewCtx implements ViewCtx {
     new EntryOptionsModal(this, section, entry, this.target).open();
   }
   openPaletteSettings(id: string): void { this.ctx.openPalette?.(id); }
+  openMacroSettings(): void { this.ctx.openMacros?.(); }
   onSettingsSaved(cb: () => void): () => void { return this.ctx.onSettings?.(cb) ?? ((): void => undefined); }
 
   // -- structural ops (a single inline card has no layout) --------------------

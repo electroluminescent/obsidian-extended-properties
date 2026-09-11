@@ -28,6 +28,8 @@ import { makeNoteAwareResolver } from "../../core/note-ref";
 import { ROLL_SERVICE, RollMode, RollService } from "./roll-service";
 import { openDiceMenu } from "./dice-ui";
 import { applicableMacros, runMacro, runRoll, segsToText, textToSegs } from "./macros";
+import { assignMenu } from "./into";
+import { longPressContextMenu } from "../../ui/components/long-press";
 import { RefSuggest } from "../../ui/components/suggest";
 import { TextPromptModal } from "../../ui/modals/dialogs";
 import { showMenu } from "../../ui/menus/show";
@@ -263,7 +265,7 @@ export const rollerKind: EntryKindDef = {
     };
 
     const go = ctl.createEl("button", { cls: "ep-roll-btn ep-roller-go", text: t("roll.roll") });
-    go.onclick = () => {
+    const rollNow = (assign: boolean): void => {
       const label = (ctx.entry as { alias?: string }).alias || t("roller.title");
       // The roller, a macro chip and a macro command all share one executor.
       runRoll(svc(view), view.i18n, {
@@ -272,7 +274,36 @@ export const rollerKind: EntryKindDef = {
         times: e.rollerTimes ?? 1,
         label,
         resolve: makeNoteAwareResolver(view.app, view.settings, view.registries, view, view.note.path ?? ""),
+        // Asked for on the way in: the card stays up, can be re-rolled, and
+        // the number it is closed on is the one offered to a property.
+        onClose: assign
+          ? (total) => {
+              if (ctx.file) assignMenu(view, ctx.file, total, lastPress);
+            }
+          : undefined,
       });
+    };
+    go.onclick = () => rollNow(false);
+    /** Where the last press was, so a menu opened later lands under it. */
+    let lastPress = new MouseEvent("contextmenu");
+    // Right-click the roller's own button to roll AND keep: the list of this
+    // sheet's number properties is offered once the card is dismissed.
+    go.addEventListener("contextmenu", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      lastPress = ev;
+      rollNow(true);
+    });
+    longPressContextMenu(go);
+
+    // The same thing with its name on it. Roll-and-assign was only ever a
+    // right-click, which is to say nobody found it; rolling a sheet UP is half
+    // of what this screen is for, so it gets a button of its own.
+    const set = ctl.createEl("button", { cls: "ep-set-btn ep-roller-set", text: view.i18n.t("roll.set") });
+    set.setAttr("title", t("roll.card.assignHint"));
+    set.onclick = (ev) => {
+      lastPress = ev;
+      rollNow(true);
     };
 
     // -- saved macros ("custom roll objects") --------------------------------
@@ -300,14 +331,47 @@ export const rollerKind: EntryKindDef = {
           chip.setAttr("title", segsToText(m.segs) || t("roller.macroRun"));
           chip.onclick = (ev) => {
             ev.stopPropagation();
-            runMacro(svc(view), view.i18n, m, makeNoteAwareResolver(view.app, view.settings, view.registries, view, view.note.path ?? ""));
+            runMacro(
+              svc(view),
+              view.i18n,
+              m,
+              makeNoteAwareResolver(view.app, view.settings, view.registries, view, view.note.path ?? "")
+            );
           };
           chip.oncontextmenu = (ev) => {
             ev.preventDefault();
             ev.stopPropagation();
             const menu = new Menu();
             menu.addItem((i) =>
-              i.setTitle(t("roller.macroRun")).setIcon("dices").onClick(() => runMacro(svc(view), view.i18n, m, makeNoteAwareResolver(view.app, view.settings, view.registries, view, view.note.path ?? "")))
+              i
+                .setTitle(t("roller.macroRun"))
+                .setIcon("dices")
+                .onClick(() =>
+                  runMacro(
+                    svc(view),
+                    view.i18n,
+                    m,
+                    makeNoteAwareResolver(view.app, view.settings, view.registries, view, view.note.path ?? "")
+                  )
+                )
+            );
+            // Roll it and keep the number: the macro the sheet was built with
+            // is exactly the one whose result belongs in a property.
+            menu.addItem((i) =>
+              i
+                .setTitle(t("roll.menu.assign"))
+                .setIcon("clipboard-check")
+                .onClick(() =>
+                  runMacro(
+                    svc(view),
+                    view.i18n,
+                    m,
+                    makeNoteAwareResolver(view.app, view.settings, view.registries, view, view.note.path ?? ""),
+                    (total) => {
+                      if (ctx.file) assignMenu(view, ctx.file, total, ev);
+                    }
+                  )
+                )
             );
             menu.addItem((i) => i.setTitle(t("roller.macroLoad")).setIcon("download").onClick(() => loadMacro(m)));
             menu.addItem((i) =>

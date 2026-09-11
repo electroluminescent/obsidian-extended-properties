@@ -72,7 +72,23 @@ function asMode(mode: string | undefined): RollMode {
 export function runRoll(
   svc: RollService,
   i18n: I18n,
-  o: { segs: RollSeg[]; mode?: string; times?: number; label: string; resolve?: (name: string) => number | undefined }
+  o: {
+    segs: RollSeg[];
+    mode?: string;
+    times?: number;
+    label: string;
+    resolve?: (name: string) => number | undefined;
+    /** Called with each total as it lands. */
+    onResult?: (total: number) => void;
+    /**
+     * Called with the total when a roll's card is dismissed.
+     *
+     * This is what a SET button waits for: the card stays up, it can be
+     * re-rolled as often as the reader likes, and whatever was showing when
+     * they closed it is the number that gets kept.
+     */
+    onClose?: (total: number) => void;
+  }
 ): void {
   const mode = asMode(o.mode);
   const n = Math.max(1, Math.min(20, o.times ?? 1));
@@ -94,16 +110,30 @@ export function runRoll(
         dn.ops = [mode === "advantage" ? { t: "dl", n: 1 } : { t: "dh", n: 1 }, ...dn.ops];
       }
     }
-    svc.rollAst(n > 1 ? `${o.label} #${i + 1}` : o.label, ast, { stay: n > 1, tag, mode, resolve: o.resolve });
+    svc.rollAst(n > 1 ? `${o.label} #${i + 1}` : o.label, ast, {
+      // A roll that something is waiting on stays up: the point of hanging the
+      // write on the dismissal is that the reader may re-roll first.
+      stay: n > 1 || !!o.onClose,
+      tag,
+      mode,
+      resolve: o.resolve,
+      onResult: o.onResult,
+      onClose: o.onClose,
+    });
   }
 }
 
-/** Run a saved macro. `resolve` lets references (and `Xs` modifiers) resolve against a note context. */
+/**
+ * Run a saved macro. `resolve` lets references (and `Xs` modifiers) resolve
+ * against a note context; `onClose` is handed the total when the card goes,
+ * which is how a macro driving a SET button fills a property.
+ */
 export function runMacro(
   svc: RollService,
   i18n: I18n,
   m: RollMacro,
-  resolve?: (name: string) => number | undefined
+  resolve?: (name: string) => number | undefined,
+  onClose?: (total: number) => void
 ): void {
   runRoll(svc, i18n, {
     segs: m.segs ?? [],
@@ -111,6 +141,7 @@ export function runMacro(
     times: m.times,
     label: m.name || i18n.t("roller.title"),
     resolve,
+    onClose,
   });
 }
 

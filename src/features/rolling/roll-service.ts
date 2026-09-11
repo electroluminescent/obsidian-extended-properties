@@ -41,6 +41,8 @@ export interface RollOpts {
   stay?: boolean;
   /** Additional dice pools rolled together with `spec` (custom chains). */
   extra?: DiceSpec[];
+  /** Called with the total when the card is dismissed (see {@link RollAstOpts.onClose}). */
+  onClose?: (total: number) => void;
 }
 
 /** Per-roll options for {@link RollService.rollAst}. */
@@ -57,6 +59,22 @@ export interface RollAstOpts {
   resolve?: (name: string) => number | undefined;
   /** Override the re-roll closure stored for this entry. */
   reroll?: () => void;
+  /**
+   * Called with the total once the roll has landed - after the animation, not
+   * when the arithmetic was done, so what a value is set from is the number
+   * the reader actually watched arrive.
+   */
+  onResult?: (total: number) => void;
+  /**
+   * Called with the total when the roll's card is dismissed - or straight
+   * after the result when the animation is switched off, since then there is
+   * no card to dismiss.
+   *
+   * A SET button hangs its write here rather than on the result: the card can
+   * be re-rolled while it is up, and what the reader closes it on is what
+   * they meant to keep.
+   */
+  onClose?: (total: number) => void;
 }
 
 /** Hub key under which the service is registered. */
@@ -106,6 +124,7 @@ export class RollService implements ViewService {
       stay: opts.stay,
       tag: this.modeTag(mode),
       mode,
+      onClose: opts.onClose,
       reroll: () => this.roll(label, modifier, spec, opts),
     });
   }
@@ -152,6 +171,9 @@ export class RollService implements ViewService {
       // redundant Notice when it's enabled (the announce stays for a11y).
       if (!silent) new Notice(brief, 4000);
       announce(brief);
+      // Whatever this roll was FOR - a property to write it into, most of the
+      // time - happens last, and only once the number is on screen.
+      opts.onResult?.(total);
     };
 
     if (this.settings?.diceAnim) {
@@ -169,6 +191,7 @@ export class RollService implements ViewService {
           stay: opts.stay || this.settings.diceAnimStay === true,
           block: this.settings.diceAnimBlock !== false,
           reroll: redo,
+          onClose: opts.onClose ? () => opts.onClose?.(total) : undefined,
         },
         this.i18n,
         () => commit(true) // the roll card is the result display; no extra Notice
@@ -178,6 +201,8 @@ export class RollService implements ViewService {
       if (res.tone === "crit") sfx.crit();
       else if (res.tone === "fail") sfx.fail();
       commit();
+      // No card to dismiss, so "when it closes" is now.
+      opts.onClose?.(total);
     }
   }
 

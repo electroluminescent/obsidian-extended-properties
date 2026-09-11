@@ -176,16 +176,24 @@ export function mountOptionsNav(content: HTMLElement, i18n: I18n, o: OptionsNavO
    *
    * Always the left: a strip on the right of one panel and the left of
    * another is a strip you have to look for. Outside it where there is room,
-   * and tucked just inside its own left edge where there is not - which
-   * overlaps a little, and is still plainly the left-hand edge of the thing
-   * it belongs to rather than a corner of the screen.
+   * and tucked just inside its own left edge where there is not.
+   *
+   * "Inside" means inside the part that scrolls, though - not inside the
+   * window. Obsidian's settings window carries its own list of tabs down the
+   * left, and a strip laid over that covers the way out of the page it is
+   * meant to be helping with. Where there is such a list, the strip starts
+   * where it ends.
    */
   const place = (): void => {
     const box = beside.getBoundingClientRect();
     const w = rail.offsetWidth;
     const h = rail.offsetHeight;
+    // A panel of its own down the left of what we are standing beside: the
+    // settings window's tab list, and anything else shaped like it.
+    const aside = beside.querySelector<HTMLElement>(".vertical-tab-header, .modal-nav, .settings-tab-list");
+    const asideRight = aside && aside.offsetWidth > 0 ? aside.getBoundingClientRect().right : box.left;
     const outside = box.left - EDGE - w;
-    const left = outside >= EDGE ? outside : Math.max(EDGE, box.left + EDGE);
+    const left = outside >= EDGE ? outside : Math.max(EDGE, asideRight + EDGE);
     const top = Math.min(Math.max(EDGE, box.top + EDGE), Math.max(EDGE, window.innerHeight - h - EDGE));
     rail.setCssStyles({ left: `${Math.round(left)}px`, top: `${Math.round(top)}px` });
   };

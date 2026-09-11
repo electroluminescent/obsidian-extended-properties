@@ -39,6 +39,7 @@ import { HistoryService, type HistoryStore } from "./features/rolling/history";
 import { configureRollUi } from "./features/rolling/dice-anim";
 import { RollService } from "./features/rolling/roll-service";
 import { runMacro } from "./features/rolling/macros";
+import { setAssignSource } from "./features/rolling/into";
 import { inlineModule, registerInline } from "./features/inline/index";
 import { configureSound } from "./utils/sound";
 import { setSemanticTable } from "./utils/semantic";
@@ -352,7 +353,22 @@ export default class ExtendedPropertiesPlugin extends Plugin {
       onSettings: (cb) => this.onSettingsSaved(cb),
       openSettings: (kind) => this.openInlineSettings(kind),
       openPalette: (id) => this.openPaletteSettings(id),
+      openMacros: () => this.openMacroSettings(),
     });
+
+    // Tell roll cards where a total could be put. A card is drawn on a layer
+    // over the whole workspace and knows only its number; this is the one
+    // place that can say which sheet is open behind it.
+    setAssignSource(() => {
+      const file = this.app.workspace.getActiveFile();
+      if (!file) return null;
+      for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE)) {
+        const v = leaf.view;
+        if (v instanceof SidebarView) return { view: v, file };
+      }
+      return null;
+    });
+    this.register(() => setAssignSource(null));
 
     // Keep the cross-note PropertyIndex cache (perf: avoids a full vault
     // scan on every sum()/avg()/prop() render) in sync with the vault.
@@ -660,6 +676,12 @@ export default class ExtendedPropertiesPlugin extends Plugin {
   /** Open the plugin's settings at one palette's own heading. */
   openPaletteSettings(id: string): void {
     this.settingTab?.focusPalette(id);
+    this.openOwnSettings();
+  }
+
+  /** Open the plugin's settings at the macros. */
+  openMacroSettings(): void {
+    this.settingTab?.focusMacros();
     this.openOwnSettings();
   }
 
