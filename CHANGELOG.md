@@ -1,5 +1,89 @@
 # Changelog
 
+## 4.71.0
+
+- **Ticking a property slides it into place** instead of the list rearranging
+  itself between one frame and the next. The rows are measured, rebuilt, put
+  back where they were and released, so you can see what became of the one you
+  touched.
+- **The "now" value has a column of its own**, right-aligned against the
+  dropdowns - and the dropdown's slot is held open on rows that are not being
+  assigned to, so an unticked property's value stays in that column instead of
+  sliding out to the far right.
+- **The roll dropdown is a panel, not a `<select>`**, so each roll shows its
+  number on the left and the card it came off right-aligned on the right - the
+  same two columns the closed control shows. Still grouped into *Not dealt yet*
+  and *Already dealt*.
+- **The settings timeline no longer draws over roll cards.** The roll layer now
+  sits above everything the plugin puts on screen; a navigation strip across the
+  dice was covering the only part of the screen anybody was looking at.
+- Cards stay above the assign dialog rather than dropping beneath it, so they
+  can still be right-clicked to hand a roll over - which is what that menu is
+  for. The layer stops dimming and stops swallowing presses instead.
+
+## 4.70.1
+
+- **Rolls are dealt, not assigned one at a time.** *Assign to...* now opens a
+  dialog over the roll cards, which **slide up and shrink out of its way**
+  rather than cutting to somewhere else, and slide back when it closes. Every
+  settled roll on screen is in the handful.
+- **Ticking a property moves it to the top of the same list** and deals it a
+  roll there and then - one list, not a list and a copy of part of it. Its
+  current value sits in the middle of the line, and the roll it would get is on
+  the right: the number on the left, the card it came off on the right.
+- **Top / Random / Bottom is the order the rolls are handed out in**, and every
+  roll is used once before any is used twice - so ticking more properties than
+  you have rolls spreads the handful evenly instead of favouring the first.
+- **Two properties may take the same roll.** That is a thing somebody might
+  mean, so it is marked - both rows take a yellow outline and their source
+  names turn yellow - rather than prevented.
+- **Every pairing is editable**: the number is a dropdown over the whole
+  handful, split into *Not dealt yet* and *Already dealt* so the free rolls are
+  where you are looking, plus *keep what it has*, which is never the default
+  for anything.
+- **Dismiss a card mid-deal and it leaves the pool**, with any pairing that was
+  pointing at it dealt again. Dismiss them all and the dialog closes: there is
+  nothing left to decide.
+- **SET works on a selection.** Select several properties, and the *Set from a
+  roll* settings write to all of them - with every control that differs across
+  the selection saying so, rather than showing you one property's answer as if
+  it were everyone's. Pressing **Set all** throws one roll *per property*, each
+  using its own expression, all at once as separate cards - and hands them to
+  the assign window **already paired up**, because each card knows which
+  property it was thrown for. Six attributes, six cards, nothing to tick.
+- **Re-rolls keep their place.** A re-roll is a new card, and it now lands back
+  on the property the card it replaced was going to - whether that pairing came
+  from a SET button or from your own hand.
+- **A card knows whether a deal is open.** With one open, right-clicking a card
+  no longer offers to open a second: it offers to hand *that* roll to one of
+  the properties the deal has ticked. Rolls are tracked by card rather than by
+  value, so two cards landing on 14 stay two different rolls.
+- **Up to 50 rolls at once**, from 20. The ceiling now lives in one place -
+  `MAX_ROLLS_AT_ONCE` - rather than as the number 20 written out in six: the
+  roll menu's count, the roller's, inline rolls, macros, and the migration that
+  reads a count saved by an older version.
+- **Assign is offered whether or not it can be used.** It was hidden unless the
+  open note had a number property to put the total in, so on the notes where it
+  was least obvious why, it simply was not there. It now always sits in a roll
+  card's menu, beside *Copy value* and *Copy chain* - the two other ways of
+  taking the number somewhere - greyed when no sheet is open, and saying what
+  is missing when the sheet has nothing to fill. It has left the roll button's
+  right-click menu, which is asked before the dice are thrown: where a number
+  should go is a question about a number you have seen.
+- **Frontmatter counts too.** The list was drawn from the note type's layout
+  alone; a note whose type has no layout, or none that matched, fell back to
+  nothing. Any number already in the frontmatter is now offered.
+- The assign menu opens on the next frame, so it is no longer dismissed by the
+  menu it was chosen from closing on top of it.
+- **The SET button's switch comes first**, beside the heading, where the roll
+  button's is - it was below the macro dropdown and only appeared once a macro
+  had been chosen, which meant only somebody who already knew about it could
+  find it. It now sits at the top of the section, greyed until a macro is
+  picked, with a line saying so.
+- SET's box is written out in full rather than inherited from a rule 700 lines
+  away, and both it and the roll button are pinned to the centre of their cell,
+  so neither can be stretched taller than the other.
+
 ## 4.70.0
 
 - **Assign, on the card.** *Set a property...* now sits on a roll card's title

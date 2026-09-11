@@ -12,7 +12,9 @@
 
 import { App, Menu, Setting, TextComponent } from "obsidian";
 import type { I18n } from "../../i18n/i18n";
-import { DICE_PRESETS, DiceSpec, formatDice, isDefaultDice, parseDice, parseDiceOrDefault } from "../../utils/dice";
+import {
+  DICE_PRESETS, DiceSpec, formatDice, isDefaultDice, MAX_ROLLS_AT_ONCE, parseDice, parseDiceOrDefault,
+} from "../../utils/dice";
 import { clamp } from "../../utils/misc";
 import { diceIconId } from "../../ui/render/dice-icons";
 import { TextPromptModal } from "../../ui/modals/dialogs";
@@ -117,13 +119,18 @@ export function addDiceSettings(container: HTMLElement, i18n: I18n, binding: Dic
  * Right-click menu for roll buttons: choose advantage / normal /
  * disadvantage and how many rolls to make. Multiple rolls run
  * simultaneously as separate cards that stay on screen.
+ *
+ * Deliberately NOT where a result is assigned to a property. This menu is
+ * asked BEFORE the dice are thrown, and where a number should go is a question
+ * about a number you have seen - so it is asked on the card instead, beside
+ * the other ways of taking the result somewhere.
  */
 export function openRollMenu(
   ev: MouseEvent,
   i18n: I18n,
   current: RollMode,
   run: (mode: RollMode, times: number) => void,
-  opts?: { onEdit?: () => void; onAppearance?: () => void; onAssign?: (mode: RollMode) => void }
+  opts?: { onEdit?: () => void; onAppearance?: () => void }
 ): void {
   const pop = activeDocument.body.createDiv({ cls: "ep-popup ep-rollmenu" });
   pop.setCssStyles({ left: ev.clientX + "px" });
@@ -152,7 +159,7 @@ export function openRollMenu(
   const input = cntRow.createEl("input", { cls: "ep-edit-input" });
   input.type = "number";
   input.min = "1";
-  input.max = "20";
+  input.max = String(MAX_ROLLS_AT_ONCE);
   input.value = "1";
 
   const dismiss = () => {
@@ -161,23 +168,10 @@ export function openRollMenu(
   };
   const go = pop.createEl("button", { cls: "mod-cta ep-rollmenu-go", text: i18n.t("roll.menu.go") });
   go.onclick = () => {
-    const n = clamp(Math.round(Number(input.value) || 1), 1, 20);
+    const n = clamp(Math.round(Number(input.value) || 1), 1, MAX_ROLLS_AT_ONCE);
     dismiss();
     run(mode, n);
   };
-  // Roll it AND keep it: the same roll, with somewhere for the answer to go.
-  // Offered here rather than only after the fact because the decision is
-  // usually made before the dice are thrown, not after.
-  if (opts?.onAssign) {
-    const assign = pop.createEl("button", {
-      cls: "ep-mode-btn ep-rollmenu-edit",
-      text: i18n.t("roll.menu.assign"),
-    });
-    assign.onclick = () => {
-      dismiss();
-      opts.onAssign?.(mode);
-    };
-  }
   if (opts?.onEdit) {
     const edit = pop.createEl("button", { cls: "ep-mode-btn ep-rollmenu-edit", text: i18n.t("roll.menu.edit") });
     edit.onclick = () => {

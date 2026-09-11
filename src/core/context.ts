@@ -82,6 +82,17 @@ export interface OptionsCtx extends EntryRef {
   changed: () => void;
   /** Rebuild the modal (after changes that alter which options apply). */
   redraw: () => void;
+  /**
+   * Every entry this options body is editing, when it is editing several.
+   *
+   * `entry` is then a PROXY - a copy of the first, whose changes are diffed
+   * onto all of them - which is right for settings, and wrong for anything
+   * that acts on a property rather than configuring it. A SET button is the
+   * case in point: rolling the proxy would roll one expression once, when
+   * what is wanted is each selected property rolling its own. Contributors
+   * that only configure can ignore this entirely.
+   */
+  peers?: Entry[];
 }
 
 /**

@@ -33,7 +33,7 @@ import { applyInlineSize, inlineSizeOf } from "./size";
 import { isHorizontal } from "../../utils/inline-size";
 import { wireGestures } from "../../ui/components/hold-config";
 import { DiceNode, parseRoll, RollAst, serializeRoll } from "../../utils/dice-expr";
-import { parseDiceOrDefault } from "../../utils/dice";
+import { MAX_ROLLS_AT_ONCE, parseDiceOrDefault } from "../../utils/dice";
 import { fmtMod, fmtNum, getList, getNum } from "../../utils/misc";
 import { diceIconId } from "../../ui/render/dice-icons";
 import { openNumberInput, openTextInput } from "../../ui/components/inline-edit";
@@ -209,7 +209,7 @@ export function runInlineRoll(ctx: InlineCtx, file: TFile, body: string, mode: R
       : mode === "disadvantage"
         ? " " + t("roll.tagDisadvantage")
         : "";
-  const n = Math.max(1, Math.min(20, times || 1));
+  const n = Math.max(1, Math.min(MAX_ROLLS_AT_ONCE, times || 1));
   const resolve = refResolver(ctx, file);
   for (let i = 0; i < n; i++) {
     ctx.roll.rollAst(n > 1 ? `${body} #${i + 1}` : body, applyMode(withDefaultDie(parseRoll(body)!), mode), {

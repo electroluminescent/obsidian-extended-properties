@@ -21,6 +21,7 @@ import type { I18n } from "../../i18n/i18n";
 import type { ViewCtx } from "../../core/context";
 import { ConfirmModal } from "../../ui/modals/dialogs";
 import { showMenu } from "../../ui/menus/show";
+import { AssignRollsModal } from "./assign-modal";
 
 /** Somewhere a total can be put, and what is there at the moment. */
 export interface RollTarget {
@@ -97,6 +98,17 @@ export function numberTargets(view: ViewCtx): NumberTarget[] {
       out.push({ key, label: (entry.alias as string) || key });
     }
   }
+  // A note whose type has no layout - or none that matched - still has
+  // frontmatter, and a number in it is still somewhere a total can go. Without
+  // this the action vanishes on exactly the notes where it is least obvious
+  // why, which reads as the feature being broken rather than inapplicable.
+  if (!out.length) {
+    for (const [key, value] of Object.entries(view.note.raw ?? {})) {
+      if (typeof value !== "number" || seen.has(key.toLowerCase())) continue;
+      seen.add(key.toLowerCase());
+      out.push({ key, label: key });
+    }
+  }
   return out;
 }
 
@@ -153,15 +165,63 @@ export function setAssignSource(fn: AssignSource | null): void {
   source = fn;
 }
 
-/** Whether there is a sheet open with somewhere to put a number. */
+/**
+ * Whether there is a sheet open at all.
+ *
+ * Deliberately NOT "...with a number property in it": an action that is
+ * sometimes there and sometimes not is an action nobody learns. If the sheet
+ * has nowhere to put a number the menu says so, which is a better answer than
+ * an empty space where an option used to be.
+ */
 export function canAssignHere(): boolean {
-  const src = source?.();
-  return !!src && numberTargets(src.view).length > 0;
+  return !!source?.();
 }
 
-/** Offer the open sheet's number properties for `total`. */
-export function assignHere(total: number, ev: MouseEvent): void {
+/**
+ * Deal `totals` out across the open sheet's number properties.
+ *
+ * Every roll still on screen, not just the card this was asked from: a handful
+ * of rolls is looked at as a set and dealt as one, which is what rolling a
+ * character up actually is.
+ *
+ * Opened on the next frame because this is called from a menu item, and a
+ * dialog opened while that menu is still tearing itself down inherits its
+ * dismissal.
+ */
+/**
+ * A deal in progress, for as long as its dialog is open.
+ *
+ * A roll card and the dialog are on screen together and are about the same
+ * numbers, so the card's menu has to know which of the two states it is in:
+ * with no deal open it offers to start one, and with a deal open it offers to
+ * hand THIS roll to one of the properties the deal has ticked. Offering to
+ * open a second copy of a dialog that is already open is the one thing it must
+ * not do.
+ */
+export interface AssignSession {
+  /** The properties currently ticked, in the order they will receive. */
+  picks(): { key: string; label: string }[];
+  /** Hand one roll (by its card's id) to one of them, ticking it if it was not. */
+  give(rollId: number, key: string): void;
+}
+
+let session: AssignSession | null = null;
+
+/** Register (or clear) the open deal. Called by the dialog itself. */
+export function setAssignSession(s: AssignSession | null): void {
+  session = s;
+}
+
+/** The open deal, if there is one. */
+export function assignSession(): AssignSession | null {
+  return session;
+}
+
+export function assignHere(onDismiss?: () => void): void {
   const src = source?.();
-  if (!src) return; // guarded by canAssignHere: nothing open, nothing offered
-  assignMenu(src.view, src.file, total, ev);
+  if (!src) {
+    onDismiss?.();
+    return; // no sheet open - canAssignHere() has already greyed this
+  }
+  window.setTimeout(() => new AssignRollsModal(src.view, src.file, onDismiss).open(), 0);
 }

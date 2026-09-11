@@ -22,7 +22,7 @@ import type { EntryKindDef } from "../../core/registry";
 import type { ViewCtx } from "../../core/context";
 import { ext, type RollMacro, type RollSeg } from "../../core/model";
 import { genId } from "../../utils/misc";
-import { parseDice } from "../../utils/dice";
+import { MAX_ROLLS_AT_ONCE, parseDice } from "../../utils/dice";
 import { referenceSuggestions } from "../../core/influences";
 import { makeNoteAwareResolver } from "../../core/note-ref";
 import { ROLL_SERVICE, RollMode, RollService } from "./roll-service";
@@ -255,10 +255,10 @@ export const rollerKind: EntryKindDef = {
     timesWrap.createSpan({ text: t("roller.times") });
     const times = timesWrap.createEl("input", { type: "number" });
     times.min = "1";
-    times.max = "20";
+    times.max = String(MAX_ROLLS_AT_ONCE);
     times.value = String(e.rollerTimes ?? 1);
     times.onchange = () => {
-      const v = Math.max(1, Math.min(20, Math.round(Number(times.value)) || 1));
+      const v = Math.max(1, Math.min(MAX_ROLLS_AT_ONCE, Math.round(Number(times.value)) || 1));
       times.value = String(v);
       e.rollerTimes = v === 1 ? undefined : v;
       save();

@@ -32,7 +32,8 @@ import { fmtMod } from "../../utils/misc";
 import { sfx } from "../../utils/sound";
 import { DICE_STYLES, DieView, pickDiceStyle } from "./dice-styles";
 import { showMenu } from "../../ui/menus/show";
-import { assignHere, canAssignHere } from "./into";
+import { assignHere, assignSession, canAssignHere } from "./into";
+import { setLiveRolls } from "./live-rolls";
 
 /**
  * Live plugin settings + persist callback for the summary's expandable
@@ -103,6 +104,14 @@ export interface RollAnimJob {
    * the one they stop on.
    */
   onClose?: () => void;
+  /**
+   * The property this roll was made FOR, if it was made for one.
+   *
+   * The card carries it so the assign dialog can pair a sheet's worth of rolls
+   * up on its own, and so a re-roll - which is a new card - lands back on the
+   * property the one it replaced was going to.
+   */
+  forKey?: string;
 }
 
 let layer: HTMLElement | null = null;
@@ -113,8 +122,74 @@ let summaryIndex = 0;
 let summaryOpen = false;
 /** Close handlers of all live cards, for dismiss-all. */
 const closers = new Set<() => void>();
+/** Pin handlers of all live cards, for holding the board still. */
+const pinners = new Set<() => void>();
+
+/**
+ * Keep every card on screen until it is dismissed by hand.
+ *
+ * What a card does on its own is fade after a moment. That is right for a roll
+ * that has been read and is finished with, and wrong the instant the reader
+ * starts deciding something about it - so anything that opens a decision over
+ * the rolls pins them first.
+ */
+export function pinAllRolls(): void {
+  for (const pin of [...pinners]) pin();
+}
+
+/** How long to wait for tumbling dice before giving up and going anyway. */
+const SETTLE_LIMIT_MS = 20000;
+
+/**
+ * Run `fn` once nothing is still tumbling.
+ *
+ * A handful of rolls thrown together land a moment apart, and anything that
+ * wants to treat them as a set - dealing them across a sheet, above all - has
+ * nothing to work with until they have. Polled rather than counted down,
+ * because the animation's length is a setting and a re-roll restarts it; and
+ * capped, so a card wedged mid-animation cannot strand the caller for ever.
+ */
+export function whenRollsSettle(fn: () => void): void {
+  const giveUpAt = Date.now() + SETTLE_LIMIT_MS;
+  const tick = (): void => {
+    if (pending > 0 && Date.now() < giveUpAt) {
+      window.setTimeout(tick, 80);
+      return;
+    }
+    fn();
+  };
+  window.setTimeout(tick, 80);
+}
+
+/**
+ * Move the cards out from under a dialog that is deciding something about them.
+ *
+ * The roll layer sits at notice height and fills the viewport, which is right
+ * when the cards ARE the thing on screen and wrong the moment something is
+ * asked about them: a dialog opens into the middle of them, behind them, out of
+ * reach. Aside, the cards dock to the top and drop below the dialog in the
+ * stack, so both are visible and only one takes presses.
+ */
+export function setRollsAside(on: boolean): void {
+  layer?.toggleClass("ep-roll-aside", on);
+}
 /** Resolved, still-visible rolls (feed the bottom summary window). */
-const lives = new Map<object, { total: number; sides: number; reroll?: () => void }>();
+const lives = new Map<
+  object,
+  { id: number; total: number; sides: number; label: string; forKey?: string; reroll?: () => void }
+>();
+/** Ids handed to cards, so a roll can be named after another lands on its number. */
+let rollSeq = 0;
+
+/**
+ * Publish what is on screen.
+ *
+ * Called whenever a card lands or leaves. Cards still tumbling are absent: a
+ * number that has not settled is not one anybody can decide about.
+ */
+function publishRolls(): void {
+  setLiveRolls([...lives.values()].map((l) => ({ id: l.id, total: l.total, label: l.label, forKey: l.forKey })));
+}
 /** Cards still tumbling - the summary waits for them. */
 let pending = 0;
 
@@ -416,6 +491,8 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
   pending++;
   sfx.roll();
   const token = {};
+  /** This card's handle, for anything that has to name this roll and no other. */
+  const rollId = ++rollSeq;
   const host = cardsHost(job.block);
   // Existing cards shift aside as the centered row re-centers around the
   // newcomer - slide them there instead of jumping (FLIP).
@@ -471,12 +548,21 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
   let resolved = false;
   let closed = false;
 
+  /** Hold this card on screen (idempotent; see {@link pinAllRolls}). */
+  const pin = (): void => {
+    if (closed || pinned) return;
+    pinned = true;
+    box.toggleClass("ep-pinned", true);
+  };
+
   const close = () => {
     if (closed) return;
     closed = true;
     if (!resolved) pending--;
     lives.delete(token);
+    publishRolls();
     closers.delete(close);
+    pinners.delete(pin);
     window.clearInterval(interval);
     for (const id of timers) window.clearTimeout(id);
     box.addClass("ep-closing");
@@ -491,6 +577,7 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     job.onClose?.();
   };
   closers.add(close);
+  pinners.add(pin);
 
   // A visible way to keep the number. The right-click menu has had this for a
   // while, and a right-click is not a thing anybody finds - so the card wears
@@ -501,8 +588,9 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
     put.onclick = (ev) => {
       ev.preventDefault();
       ev.stopPropagation(); // the card's own click toggles pinning
-      close();
-      assignHere(job.total, ev);
+      pinAllRolls();
+      setRollsAside(true);
+      assignHere(() => setRollsAside(false));
     };
   }
 
@@ -548,22 +636,48 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
         void navigator.clipboard?.writeText(chainText());
       })
     );
+    // Beside the two ways of taking the number away by hand, the ones that put
+    // it where it was going. Which is offered depends on whether a deal is
+    // already open - a menu that offers to open a dialog that is open in front
+    // of you is a menu that has not been paying attention.
+    const deal = assignSession();
+    if (deal) {
+      // Hand THIS card to one of the properties the deal has ticked.
+      const picks = deal.picks();
+      if (!picks.length) {
+        menu.addItem((mi) => mi.setTitle(i18n.t("roll.card.giveNone")).setIcon("clipboard-check").setDisabled(true));
+      } else {
+        menu.addItem((mi) => mi.setTitle(i18n.t("roll.card.giveHeading")).setDisabled(true));
+        for (const p of picks)
+          menu.addItem((mi) =>
+            mi
+              .setTitle(p.label)
+              .setIcon("arrow-right")
+              .onClick(() => deal.give(rollId, p.key))
+          );
+      }
+    } else {
+      // The cards stay up. They are what is being dealt out, and a reader
+      // deciding which roll goes where needs to be able to see them - and to
+      // re-roll and deal again without starting over.
+      menu.addItem((mi) =>
+        mi
+          .setTitle(i18n.t("roll.card.assign"))
+          .setIcon("clipboard-check")
+          .setDisabled(!canAssignHere())
+          .onClick(() => {
+            pinAllRolls();
+            setRollsAside(true);
+            assignHere(() => setRollsAside(false));
+          })
+      );
+    }
+    menu.addSeparator();
     if (job.reroll) {
       menu.addItem((mi) =>
         mi.setTitle(i18n.t("roll.card.reroll")).setIcon("dices").onClick(() => {
           close();
           job.reroll?.();
-        })
-      );
-    }
-    // Where the number could GO. Offered from the card because that is where
-    // the reader is when they decide a roll was worth keeping - and the card
-    // closes first, so the menu is not opened behind it.
-    if (canAssignHere()) {
-      menu.addItem((mi) =>
-        mi.setTitle(i18n.t("roll.card.assign")).setIcon("clipboard-check").onClick(() => {
-          close();
-          assignHere(job.total, ev);
         })
       );
     }
@@ -623,7 +737,15 @@ export function playRollAnimation(job: RollAnimJob, i18n: I18n, done: () => void
   const resolve = () => {
     resolved = true;
     pending--;
-    lives.set(token, { total: job.total, sides: job.groups[0]?.sides ?? 20, reroll: job.reroll });
+    lives.set(token, {
+      id: rollId,
+      total: job.total,
+      sides: job.groups[0]?.sides ?? 20,
+      label: job.label,
+      forKey: job.forKey,
+      reroll: job.reroll,
+    });
+    publishRolls();
     done();
     updateSummary(i18n);
     if (job.tone === "crit") sfx.crit();

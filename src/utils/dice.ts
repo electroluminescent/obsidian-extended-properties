@@ -19,6 +19,17 @@ export interface DiceSpec {
 /** The default die for roll buttons that don't configure one. */
 export const DEFAULT_DICE: DiceSpec = { count: 1, sides: 20 };
 
+/**
+ * How many rolls one press may throw at once.
+ *
+ * A ceiling rather than a judgement: each roll is its own animated card on the
+ * layer, and there has to be some number past which the screen is the thing
+ * being rolled. It lives here, with no dependencies, because every place that
+ * offers "how many" clamps to it - the roll menu, the roller, inline rolls,
+ * macros, and the migration that reads an old saved count.
+ */
+export const MAX_ROLLS_AT_ONCE = 50;
+
 /** Format a spec as notation: 1d20 -> "d20", 2d6 -> "2d6". */
 export function formatDice(spec: DiceSpec): string {
   return (spec.count > 1 ? spec.count : "") + "d" + spec.sides;

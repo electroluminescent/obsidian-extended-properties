@@ -43,6 +43,8 @@ export interface RollOpts {
   extra?: DiceSpec[];
   /** Called with the total when the card is dismissed (see {@link RollAstOpts.onClose}). */
   onClose?: (total: number) => void;
+  /** The property this roll was made FOR (see {@link RollAstOpts.forKey}). */
+  forKey?: string;
 }
 
 /** Per-roll options for {@link RollService.rollAst}. */
@@ -59,6 +61,15 @@ export interface RollAstOpts {
   resolve?: (name: string) => number | undefined;
   /** Override the re-roll closure stored for this entry. */
   reroll?: () => void;
+  /**
+   * The property this roll was made FOR, if it was made for one.
+   *
+   * Set when a SET button throws the dice - and carried by the card, so the
+   * assign dialog can pair a whole sheet's worth of rolls up without anybody
+   * ticking anything, and so a re-roll lands back on the property the roll it
+   * replaced was going to.
+   */
+  forKey?: string;
   /**
    * Called with the total once the roll has landed - after the animation, not
    * when the arithmetic was done, so what a value is set from is the number
@@ -125,6 +136,7 @@ export class RollService implements ViewService {
       tag: this.modeTag(mode),
       mode,
       onClose: opts.onClose,
+      forKey: opts.forKey,
       reroll: () => this.roll(label, modifier, spec, opts),
     });
   }
@@ -191,6 +203,9 @@ export class RollService implements ViewService {
           stay: opts.stay || this.settings.diceAnimStay === true,
           block: this.settings.diceAnimBlock !== false,
           reroll: redo,
+          // Carried onto the card, and so onto whatever the card is re-rolled
+          // into: the replacement is for the same property the original was.
+          forKey: opts.forKey,
           onClose: opts.onClose ? () => opts.onClose?.(total) : undefined,
         },
         this.i18n,

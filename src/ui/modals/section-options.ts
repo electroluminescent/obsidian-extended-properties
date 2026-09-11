@@ -362,6 +362,9 @@ export class SectionOptionsModal extends Modal {
       container: c,
       changed: applyDiff,
       redraw: () => this.draw(),
+      // The real entries behind the proxy, for the contributors that need to
+      // act on each of them rather than write one setting to all of them.
+      peers: ents,
     };
     renderEntryOptionsBody(octx, () => this.close(), () => this.draw(), { multi: true });
   }

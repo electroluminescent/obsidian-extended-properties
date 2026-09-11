@@ -13,17 +13,18 @@
 import { Notice, Setting } from "obsidian";
 import type { EntryRef, EntryRenderCtx, OptionsCtx } from "../../core/context";
 import type { ClusterAddon, ClusterNeeds, NumericAccess } from "../../core/registry";
-import { ext, type RollSeg } from "../../core/model";
+import { ext, type Entry, type RollMacro, type RollSeg } from "../../core/model";
 import { genId } from "../../utils/misc";
 import { makeNoteAwareResolver } from "../../core/note-ref";
 import { runRoll, segsToText, textToSegs } from "./macros";
-import { assignMenu, putResult } from "./into";
+import { assignHere, putResult } from "./into";
+import { pinAllRolls, setRollsAside, whenRollsSettle } from "./dice-anim";
 import { ConfirmModal } from "../../ui/modals/dialogs";
 import {
   abbrFor, hasNoteOverride, influenceActive, influenceTerm, modifierTotal, ModExt,
 } from "../../core/influences";
 import { MODIFIABLE_TYPE_IDS } from "../../ui/render/modifier-addon";
-import { parseDiceOrDefault } from "../../utils/dice";
+import { MAX_ROLLS_AT_ONCE, parseDiceOrDefault } from "../../utils/dice";
 import { ROLL_SERVICE, RollMode, RollPart, RollService } from "./roll-service";
 import { addDiceSettings, openRollMenu } from "./dice-ui";
 import { longPressContextMenu } from "../../ui/components/long-press";
@@ -96,19 +97,18 @@ export function runSetRoll(ref: EntryRef, label: string): void {
   const view = ref.view;
   const e = ext<RollExt>(ref.entry);
   const key = (ref.entry.key as string) ?? "";
-  const macros = Array.isArray(view.settings.macros) ? view.settings.macros : [];
-  const macro = macros.find((m) => m.id === e.setMacro);
-  // This property's own expression if it has one, else the macro's.
-  const segs = e.setSegs?.length ? e.setSegs : macro?.segs ?? [];
+  const segs = setSegsOf(view, e);
   if (!segs.length || !key) {
     new Notice(view.i18n.t("roll.setNoMacro"));
     return;
   }
+  const macro = macroOf(view, e);
   runRoll(svcFor(view), view.i18n, {
     segs,
     mode: macro?.mode,
     times: macro?.times,
     label,
+    forKey: key,
     resolve: makeNoteAwareResolver(view.app, view.settings, view.registries, view, view.note.path ?? ""),
     onClose: (total) =>
       putResult(
@@ -117,6 +117,65 @@ export function runSetRoll(ref: EntryRef, label: string): void {
         { key, current: view.note.raw[key], set: (value) => view.note.set(ref.file, key, value) },
         total
       ),
+  });
+}
+
+/** The macro a property's SET button is pointed at, if any. */
+function macroOf(view: EntryRef["view"], e: RollExt): RollMacro | undefined {
+  const macros = Array.isArray(view.settings.macros) ? view.settings.macros : [];
+  return macros.find((m) => m.id === e.setMacro);
+}
+
+/** A property's OWN expression if it has one, else its macro's. */
+function setSegsOf(view: EntryRef["view"], e: RollExt): RollSeg[] {
+  return e.setSegs?.length ? e.setSegs : macroOf(view, e)?.segs ?? [];
+}
+
+/**
+ * SET, for a whole selection at once.
+ *
+ * Each property rolls its OWN expression - the point of selecting several is
+ * that they are configured together, not that they become one thing - so this
+ * is several rolls, not one. They go up side by side as separate cards, each
+ * stamped with the property it was thrown for, and the deal opens with the
+ * pairings already made: six attributes, six cards, six answers, nothing to
+ * tick.
+ *
+ * Nothing is written when the cards land. The deal is what writes, which is
+ * what lets the reader re-roll a bad one first.
+ */
+export function runSetRollAll(ref: EntryRef, peers: Entry[]): void {
+  const view = ref.view;
+  const svc = svcFor(view);
+  const resolve = makeNoteAwareResolver(view.app, view.settings, view.registries, view, view.note.path ?? "");
+  let thrown = 0;
+  for (const entry of peers) {
+    const e = ext<RollExt>(entry);
+    const key = (entry.key as string) ?? "";
+    const segs = setSegsOf(view, e);
+    if (!segs.length || !key) continue;
+    const macro = macroOf(view, e);
+    thrown++;
+    runRoll(svc, view.i18n, {
+      segs,
+      mode: macro?.mode,
+      times: macro?.times,
+      label: (entry.alias as string) || key,
+      forKey: key,
+      resolve,
+    });
+  }
+  if (!thrown) {
+    new Notice(view.i18n.t("roll.setNoMacro"));
+    return;
+  }
+  // The cards need to have landed before there is anything to deal: the pool
+  // is settled rolls only, and a dialog opened now would open empty.
+  pinAllRolls();
+  whenRollsSettle(() => {
+    pinAllRolls();
+    setRollsAside(true);
+    assignHere(() => setRollsAside(false));
   });
 }
 
@@ -149,19 +208,17 @@ function partsFor(ref: EntryRef): RollPart[] {
 export function runEntryRoll(
   ref: EntryRef,
   label: string,
-  opts: { mode?: RollMode; times?: number; assignAt?: MouseEvent } = {}
+  opts: { mode?: RollMode; times?: number } = {}
 ): void {
   const { view, entry } = ref;
   const e = ext<RollExt>(entry);
   const svc = svcFor(view);
-  const n = Math.max(1, Math.min(20, opts.times ?? 1));
-  const at = opts.assignAt;
+  const n = Math.max(1, Math.min(MAX_ROLLS_AT_ONCE, opts.times ?? 1));
   for (let i = 0; i < n; i++)
     svc.roll(n > 1 ? `${label} #${i + 1}` : label, modifierTotal(view, entry), parseDiceOrDefault(e.dice), {
       parts: partsFor(ref),
       mode: opts.mode,
-      stay: n > 1 || !!at,
-      onClose: at && ref.file ? (total) => assignMenu(view, ref.file, total, at) : undefined,
+      stay: n > 1,
     });
 }
 
@@ -216,21 +273,14 @@ export const rollAddon: ClusterAddon = {
       const btn = cell.createEl("button", { cls: "ep-roll-btn", text: view.i18n.t("roll.roll") });
       btn.setAttr("aria-label", view.i18n.t("roll.rollAria", { name: num.label }));
       btn.onclick = () => runEntryRoll(ctx, num.label);
-      // Right-click: advantage/disadvantage, how many simultaneous rolls, and
-      // where the result should go if it turns out to have been for something.
+      // Right-click: advantage/disadvantage and how many simultaneous rolls.
       btn.addEventListener("contextmenu", (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
-        openRollMenu(
-          ev,
-          view.i18n,
-          svcFor(view).mode,
-          (mode, times) => runEntryRoll(ctx, num.label, { mode, times }),
-          {
-            // Roll once, keep the card up, and put the number wherever it was
-            // wanted when it is closed.
-            onAssign: (mode) => runEntryRoll(ctx, num.label, { mode, assignAt: ev }),
-          }
+        // Mode and how many, and nothing else: where a result should GO is
+        // asked on the card it lands on, not before it is thrown.
+        openRollMenu(ev, view.i18n, svcFor(view).mode, (mode, times) =>
+          runEntryRoll(ctx, num.label, { mode, times })
         );
       });
       longPressContextMenu(btn); // touch parity for the roll-mode menu
@@ -303,10 +353,44 @@ function renderSetOptions(octx: OptionsCtx, e: RollExt): void {
   const macro = macros.find((m) => m.id === e.setMacro);
   const label = (entry.alias as string) || (entry.key as string) || t("roll.set");
 
+  // Editing several properties together: `entry` is a proxy of the first, and
+  // the controls below write every change onto all of them. What they cannot
+  // do is SHOW all of them, so each control that differs across the selection
+  // says so - otherwise the reader is looking at one property's setting under
+  // the impression it is everyone's.
+  const peers = octx.peers?.length ? octx.peers : null;
+  const varies = (read: (x: RollExt) => unknown): boolean => {
+    if (!peers) return false;
+    const first = JSON.stringify(read(ext<RollExt>(peers[0])));
+    return peers.some((p) => JSON.stringify(read(ext<RollExt>(p))) !== first);
+  };
+  /** A control's description, with a note when the selection disagrees. */
+  const withMixed = (desc: string, differsAcross: boolean): string =>
+    differsAcross ? desc + " " + t("roll.setMixed") : desc;
+
   c.createEl("h4", { text: t("roll.setHeading") });
+  if (peers) c.createDiv({ cls: "setting-item-description ep-multi-note", text: t("roll.setMultiNote", { n: peers.length }) });
+
+  // First, and always - the switch that says whether the button exists, in the
+  // same place the roll button's switch is. Below the macro dropdown it was
+  // only reachable once a macro had been chosen, which is to say it was only
+  // reachable by somebody who already knew it was there.
+  new Setting(c)
+    .setName(t("roll.setShow"))
+    .setDesc(withMixed(hasSet(e) ? t("roll.setShowDesc") : t("roll.setShowNeedsMacro"), varies((x) => x.setHide)))
+    .addToggle((tg) => {
+      tg.setValue(showsSet(e))
+        .setDisabled(!hasSet(e))
+        .onChange((v) => {
+          e.setHide = v ? undefined : true;
+          changed();
+          redraw();
+        });
+    });
+
   new Setting(c)
     .setName(t("roll.setMacro"))
-    .setDesc(t("roll.setMacroDesc"))
+    .setDesc(withMixed(t("roll.setMacroDesc"), varies((x) => x.setMacro)))
     .addDropdown((dd) => {
       dd.addOption("", t("roll.setMacroNone"));
       for (const m of macros) dd.addOption(m.id, m.name);
@@ -341,7 +425,12 @@ function renderSetOptions(octx: OptionsCtx, e: RollExt): void {
   // than a dialog that only appears once you have already typed something.
   const row = new Setting(c)
     .setName(t("roll.setExpr"))
-    .setDesc(differs ? t("roll.setExprOwn", { name: macro?.name ?? "" }) : t("roll.setExprShared", { name: macro?.name ?? "" }))
+    .setDesc(
+      withMixed(
+        differs ? t("roll.setExprOwn", { name: macro?.name ?? "" }) : t("roll.setExprShared", { name: macro?.name ?? "" }),
+        varies((x) => x.setSegs)
+      )
+    )
     .addText((tx) => {
       tx.setPlaceholder("3d6dhdl + 8").setValue(mine);
       tx.inputEl.addEventListener("change", () => {
@@ -392,29 +481,22 @@ function renderSetOptions(octx: OptionsCtx, e: RollExt): void {
     );
   }
 
-  // Whether the button stands in the row, or only here.
-  new Setting(c)
-    .setName(t("roll.setShow"))
-    .setDesc(t("roll.setShowDesc"))
-    .addToggle((tg) => {
-      tg.setValue(e.setHide !== true).onChange((v) => {
-        e.setHide = v ? undefined : true;
-        changed();
-        redraw();
-      });
-    });
-
   // Roll it from here. This is the whole point of being able to hide the
   // button: a sheet is rolled up once, and the settings are where you are
   // standing when you set it up.
+  //
+  // With a selection this throws one roll PER property, each using its own
+  // expression, and hands the lot to the deal already paired up. Rolling the
+  // proxy once and writing that number to all of them would be a different
+  // thing entirely, and not one anybody wants.
   new Setting(c)
     .setName(t("roll.setRollNow"))
-    .setDesc(t("roll.setRollNowDesc"))
+    .setDesc(peers ? t("roll.setRollAllDesc", { n: peers.length }) : t("roll.setRollNowDesc"))
     .addButton((b) =>
       b
-        .setButtonText(t("roll.set"))
+        .setButtonText(peers ? t("roll.setRollAll", { n: peers.length }) : t("roll.set"))
         .setCta()
-        .onClick(() => runSetRoll(octx, label))
+        .onClick(() => (peers ? runSetRollAll(octx, peers) : runSetRoll(octx, label)))
     );
 
   // ...and the macros themselves are a settings page away, since renaming one

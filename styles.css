@@ -667,7 +667,11 @@ input.ep-disabled, .ep-edit-input.ep-disabled { opacity: 0.4; }
 /* Cards center on the screen; --ep-roll-reserve keeps them clear of the
    bottom summary dialog (measured live in dice-anim.ts, so an expanded
    settings panel pushes the cards up rather than under it). */
-.ep-roll-layer { position: fixed; inset: 0; z-index: var(--layer-notice, 60); display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; pointer-events: none; padding-bottom: var(--ep-roll-reserve, 150px); transition: padding-bottom .25s ease; }
+/* Above everything the plugin puts on screen, the settings timeline included:
+   a roll is the one thing that is always the answer to what the reader just
+   did, and a navigation strip drawn over the dice is a strip covering the only
+   part of the screen anybody is looking at. */
+.ep-roll-layer { position: fixed; inset: 0; z-index: 10002; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; pointer-events: none; padding-bottom: var(--ep-roll-reserve, 150px); transition: padding-bottom .25s ease; }
 @media (prefers-reduced-motion: reduce) { .ep-roll-layer { transition: none; } }
 /* centered, vertically scrollable card host (margin auto = center while small) */
 /* cards lay out in a single horizontal row; scroll left to reach previous rolls */
@@ -1121,14 +1125,26 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
    group above): the two stand side by side in a row and any difference in
    height or padding reads as a mistake. Only the fill differs - SET is the
    quieter of the pair, because it overwrites a value. */
+/* The box is written out rather than left to the shared group above, because
+   this rule is later in the file and anything it sets - a border the roll
+   button does not have, a padding - would otherwise be measured against a
+   height set 700 lines earlier. Same numbers, one place they can be read. */
 .ep-set-btn {
-  padding: 2px 8px; font-size: var(--font-ui-smaller); cursor: pointer;
+  box-sizing: border-box;
+  height: calc(var(--ep-size-value, var(--font-ui-small)) + 10px); min-height: 22px;
+  padding: 2px 8px; font-size: var(--font-ui-smaller); line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center; align-self: center;
+  cursor: pointer;
   background: transparent; color: var(--text-muted);
   border: 1px solid var(--background-modifier-border); border-radius: var(--ep-radius, 6px);
   box-shadow: none;
 }
 .ep-set-btn:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
-.ep-set-cell { justify-content: flex-end; }
+/* ...and the roll button is pinned the same way, so a flex cell that stretches
+   its contents cannot pull one of the pair taller than the other. */
+.ep-roll-btn { align-self: center; }
+.ep-set-cell { justify-content: flex-end; align-items: center; }
+.ep-roll-cell { align-items: center; }
 /* The roller's pair of buttons sit together: roll, or roll and keep. */
 .ep-roller-set { margin-left: 4px; }
 /* "Set a property..." on a roll card's title line - the right-click menu has
@@ -1141,6 +1157,102 @@ table.ep-table { border-collapse: collapse; width: 100%; font-size: var(--font-u
   border: 1px solid var(--background-modifier-border);
 }
 .ep-roll-assign:hover { color: var(--text-on-accent); background: var(--interactive-accent); border-color: var(--interactive-accent); }
+
+/* Dealing a handful of rolls across a sheet's properties. The pairing is the
+   whole point of the dialog, so it is drawn as a list rather than described. */
+/* Cards asked about rather than merely shown: docked to the top of the screen
+   and dropped below dialog height, so the dialog deciding their fate is not
+   opened into the middle of them and out of reach. */
+.ep-roll-layer.ep-roll-aside {
+  /* Still on top - the cards have to stay right-clickable, which is how a roll
+     is handed to a property while the deal is open. What changes is that the
+     layer stops dimming and stops swallowing presses, so the dialog beneath it
+     is reachable; the cards keep their own `pointer-events: auto`. */
+  pointer-events: none; background: transparent;
+}
+/* The hand-off between the two screens is a move, not a cut: the cards slide
+   up and shrink out of the dialog's way, and slide back when it closes. The
+   layer's own flex centring is left alone so there is something to move FROM. */
+.ep-roll-cards { transition: transform .3s cubic-bezier(.2, .8, .3, 1), opacity .3s ease; }
+.ep-roll-layer.ep-roll-aside .ep-roll-cards { transform: translateY(-30vh) scale(.78); opacity: .92; }
+@media (prefers-reduced-motion: reduce) { .ep-roll-cards { transition: none; } }
+.ep-roll-layer.ep-roll-aside .ep-roll-summary { display: none; }
+/* The button that opens the deal has nothing to say while the deal is open -
+   the card's own menu offers to hand this roll over instead. */
+.ep-roll-layer.ep-roll-aside .ep-roll-assign { display: none; }
+/* A sheet's worth of properties plus the preview is taller than a modal:
+   scroll the body rather than letting the buttons fall off the bottom. */
+.ep-assign { max-height: min(72vh, 720px); overflow-y: auto; }
+
+.ep-assign-empty { color: var(--text-muted); font-size: var(--font-ui-smaller); margin: 8px 0; }
+/* ONE list. A ticked property rises to the top and grows its dropdown in
+   place, rather than appearing a second time in a section of its own - a
+   thing shown twice is a thing the reader has to work out is the same thing. */
+.ep-assign-list { display: flex; flex-direction: column; gap: 2px; margin: 4px 0 2px; }
+.ep-assign-pick {
+  display: flex; align-items: center; gap: 8px; padding: 3px 6px;
+  border: 1px solid transparent; border-radius: var(--ep-radius, 6px);
+}
+.ep-assign-pick:hover { background: var(--background-modifier-hover); }
+.ep-assign-pick.is-on { background: var(--background-secondary); }
+.ep-assign-tick { margin: 0; flex: none; cursor: pointer; }
+/* The name takes the slack, so everything after it lines up in columns. */
+.ep-assign-pickname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* What it holds now: its own right-aligned column, so it reads against the
+   dropdowns instead of trailing off wherever the name happens to end. */
+.ep-assign-picknow {
+  flex: none; width: 5.5em; text-align: right; color: var(--text-faint);
+  font-size: var(--font-ui-smaller); font-variant-numeric: tabular-nums;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Held open whether or not this property is being assigned to: an empty slot
+   keeps the "now" column straight, where collapsing it would push the rows
+   that have no dropdown out to the far right. */
+.ep-assign-slot { flex: none; width: 11.5em; }
+.ep-assign-btn {
+  width: 100%; display: flex; align-items: center; gap: 8px; height: 26px;
+  padding: 0 8px; text-align: left; cursor: pointer;
+}
+/* The number being assigned on the left, because it is what is decided... */
+.ep-assign-btnval { flex: none; font-variant-numeric: tabular-nums; font-weight: 700; }
+/* ...and the card it came off right-aligned beside it, because that is only a
+   reference - until two properties are reading the same one, when the pair
+   goes yellow. Marked rather than prevented: sharing a roll is a thing
+   somebody may well mean to do. */
+.ep-assign-btnfrom {
+  flex: 1; min-width: 0; text-align: right; color: var(--text-faint);
+  font-size: var(--font-ui-smaller); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ep-assign-chev { flex: none; color: var(--text-faint); font-size: 10px; }
+.ep-assign-pick.ep-assign-clash { border-color: var(--color-yellow, #e0ac00); }
+.ep-assign-pick.ep-assign-clash .ep-assign-btnfrom { color: var(--color-yellow, #e0ac00); }
+/* A property the reader has explicitly told to keep what it has. */
+.ep-assign-pick.ep-assign-spare .ep-assign-btnval { font-weight: 400; font-style: italic; color: var(--text-muted); }
+
+/* The roll list. Two columns, the same two the button shows, so choosing is
+   reading what you were already looking at. */
+/* Above the roll layer too: this is the thing the reader is currently using. */
+.ep-assign-pop { z-index: 10003; padding: 4px; min-width: 12em; max-width: 22em; }
+.ep-assign-group {
+  padding: 4px 8px 2px; color: var(--text-muted); font-size: var(--font-ui-smaller);
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.ep-assign-opt { display: flex; align-items: center; gap: 10px; padding: 3px 8px; border-radius: 5px; cursor: pointer; }
+.ep-assign-opt:hover { background: var(--background-modifier-hover); }
+.ep-assign-opt.is-on { background: var(--background-modifier-active-hover, var(--background-modifier-hover)); }
+.ep-assign-optval { flex: none; font-variant-numeric: tabular-nums; font-weight: 700; }
+.ep-assign-optfrom {
+  flex: 1; min-width: 0; text-align: right; color: var(--text-faint);
+  font-size: var(--font-ui-smaller); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Ticking a property moves it to the top of the list; the row slides there
+   rather than teleporting, so the reader can see what became of the one they
+   touched. `ep-assign-jump` is the FLIP hold - the frame where the row is put
+   back where it was, before being let go. */
+.ep-assign-pick { transition: background-color .15s ease, border-color .15s ease, transform .26s cubic-bezier(.2, .8, .3, 1); }
+.ep-assign-pick.ep-assign-jump { transition: none; }
+@media (prefers-reduced-motion: reduce) { .ep-assign-pick { transition: none; } }
 
 .ep-fin-strength { width: 6.5em; flex: 0 0 auto; }
 .ep-fin-strength-read { color: var(--text-muted); font-size: var(--font-ui-smaller); width: 3em; text-align: right; }

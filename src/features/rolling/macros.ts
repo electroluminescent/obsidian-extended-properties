@@ -14,6 +14,7 @@ import type { I18n } from "../../i18n/i18n";
 import type { EPSettings, RollMacro, RollSeg } from "../../core/model";
 import { DiceNode, parseRoll, RollAst, RollTerm, serializeNode, serializeRoll } from "../../utils/dice-expr";
 import type { RollMode, RollService } from "./roll-service";
+import { MAX_ROLLS_AT_ONCE } from "../../utils/dice";
 
 /** Convert the roller's segment chain into a roll AST. */
 export function segsToAst(segs: RollSeg[]): RollAst {
@@ -88,10 +89,12 @@ export function runRoll(
      * they closed it is the number that gets kept.
      */
     onClose?: (total: number) => void;
+    /** The property this roll is for (see {@link RollAstOpts.forKey}). */
+    forKey?: string;
   }
 ): void {
   const mode = asMode(o.mode);
-  const n = Math.max(1, Math.min(20, o.times ?? 1));
+  const n = Math.max(1, Math.min(MAX_ROLLS_AT_ONCE, o.times ?? 1));
   const tag =
     mode === "advantage"
       ? " " + i18n.t("roll.tagAdvantage")
@@ -119,6 +122,7 @@ export function runRoll(
       resolve: o.resolve,
       onResult: o.onResult,
       onClose: o.onClose,
+      forKey: o.forKey,
     });
   }
 }

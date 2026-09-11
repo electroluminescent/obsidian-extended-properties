@@ -10,6 +10,7 @@ import type { Defaults, Entry, EPSettings, Layout } from "./model";
 import { defaultDerivations } from "./influences";
 import { convertDecimalToNumber, convertLinkToText } from "./layout-ops";
 import type { ColorPoint, ColorRange, ScaleStep } from "../utils/palette";
+import { MAX_ROLLS_AT_ONCE } from "../utils/dice";
 
 export const DEFAULT_DEFAULTS: Defaults = {
   dataType: "text",
@@ -199,7 +200,7 @@ export function normalizeSettings(raw: unknown, defaultLayout: () => Layout): EP
             name: o.name,
             segs: Array.isArray(o.segs) ? (o.segs as unknown[]).filter((x) => !!x && typeof x === "object") : [],
             mode: o.mode === "advantage" || o.mode === "disadvantage" ? o.mode : undefined,
-            times: typeof o.times === "number" && o.times > 1 ? Math.min(20, Math.floor(o.times)) : undefined,
+            times: typeof o.times === "number" && o.times > 1 ? Math.min(MAX_ROLLS_AT_ONCE, Math.floor(o.times)) : undefined,
             typeKey: typeof o.typeKey === "string" && o.typeKey ? o.typeKey : undefined,
           };
         });
